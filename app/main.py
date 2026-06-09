@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from .database import engine, Base, SessionLocal
 from . import models
 from .models import User
-from .auth import verify_password
+from .auth import verify_password, get_password_hash
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -96,6 +96,104 @@ def dashboard(request: Request):
             "request": request,
             "username": user.username,
             "role": user.role,
+        },
+    )
+
+@app.get("/partners", response_class=HTMLResponse)
+def partners_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        "partners.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "partners": partners,
+            "message": None,
+            "error": None,
+        },
+    )
+
+
+@app.post("/partners", response_class=HTMLResponse)
+def create_partner(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    service_rate: float = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    existing_user = db.query(User).filter(User.username == username).first()
+    if existing_user:
+        partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+        db.close()
+        return templates.TemplateResponse(
+            "partners.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "partners": partners,
+                "message": None,
+                "error": "该账号已存在，请换一个账号名",
+            },
+        )
+
+    if service_rate < 0 or service_rate > 100:
+        partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+        db.close()
+        return templates.TemplateResponse(
+            "partners.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "partners": partners,
+                "message": None,
+                "error": "服务费率必须在 0 到 100 之间",
+            },
+        )
+
+    new_partner = User(
+        username=username,
+        password_hash=get_password_hash(password),
+        role="partner",
+        service_rate=service_rate,
+    )
+
+    db.add(new_partner)
+    db.commit()
+
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        "partners.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "partners": partners,
+            "message": f"上传方账号 {username} 创建成功，服务费率为 {service_rate}%",
+            "error": None,
         },
     )
 
