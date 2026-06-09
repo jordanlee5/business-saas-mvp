@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 1080px;
+            margin: 60px auto;
+            padding: 40px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+        h1 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .subtitle {
+            color: #64748b;
+            font-size: 18px;
+            margin-bottom: 32px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .module {
+            border: 1px solid #dbeafe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-radius: 12px;
+            padding: 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .status {
+            margin-top: 32px;
+            padding: 16px;
+            background: #ecfdf5;
+            border: 1px solid #bbf7d0;
+            color: #047857;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>业务数据管理 SaaS MVP</h1>
+        <div class="subtitle">
+            当前版本目标：先跑通 Excel 上传、业务数据入库、按要素查询、OCR 凭证匹配的最小闭环。
+        </div>
+
+        <div class="grid">
+            <div class="module">账号与权限</div>
+            <div class="module">服务费率设置</div>
+            <div class="module">Excel模板上传</div>
+            <div class="module">业务数据检索</div>
+            <div class="module">OCR凭证识别</div>
+            <div class="module">匹配结果审核</div>
+        </div>
+
+        <div class="status">
+            系统首页已成功启动。下一步我们会加入登录、数据库和 Excel 上传功能。
+        </div>
+    </div>
+</div>
+</body>
+</html>
