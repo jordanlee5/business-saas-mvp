@@ -1,33 +1,158 @@
-<h2>按业务要素查询</h2>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>业务数据查询 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 1080px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .hint {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            line-height: 1.8;
+        }
+        form {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        button {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+        th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #f8fafc;
+            color: #475569;
+        }
+        .empty {
+            color: #64748b;
+            padding: 18px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
 
-<form method="post">
-  <label>请输入姓名/手机号/车牌号：</label>
-  <input type="text" name="keyword" required>
-  <button type="submit">查询</button>
-</form>
+<div class="container">
+    <div class="card">
+        <h1>业务数据查询</h1>
 
-{% if records is not none %}
-  <h3>查询结果{% if keyword %}：{{ keyword }}{% endif %}</h3>
-  {% if records|length == 0 %}
-    <p>没有找到匹配的数据</p >
-  {% else %}
-    <table border="1">
-      <tr>
-        <th>姓名</th>
-        <th>手机号</th>
-        <th>车牌号</th>
-        <th>积分金额</th>
-        <th>银行卡号</th>
-      </tr>
-      {% for r in records %}
-      <tr>
-        <td>{{ r.name }}</td>
-        <td>{{ r.phone }}</td>
-        <td>{{ r.plate_number }}</td>
-        <td>{{ r.points_amount }}</td>
-        <td>{{ r.bank_card }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% endif %}
-{% endif %}
+        <div class="hint">
+            可输入姓名、手机号、车牌号或银行卡号进行查询。<br>
+            管理员可查询全部数据；上传方只能查询自己上传的数据。
+        </div>
+
+        <form method="post" action="/query-record">
+            <input type="text" name="keyword" value="{{ keyword }}" placeholder="请输入姓名 / 手机号 / 车牌号 / 银行卡号" required>
+            <button type="submit">查询</button>
+        </form>
+    </div>
+
+    {% if records is not none %}
+    <div class="card">
+        <h1>查询结果</h1>
+
+        {% if records|length == 0 %}
+            <div class="empty">没有找到匹配的数据。</div>
+        {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>车牌号</th>
+                    <th>积分金额</th>
+                    <th>银行卡号</th>
+                    <th>导入时间</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in records %}
+                <tr>
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.phone }}</td>
+                    <td>{{ r.plate_number }}</td>
+                    <td>{{ r.points_amount }}</td>
+                    <td>{{ r.bank_card }}</td>
+                    <td>{{ r.created_at }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

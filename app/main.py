@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_
 
 import os
 from datetime import datetime
@@ -51,24 +52,77 @@ def home(request: Request):
 
 @app.get("/query-record", response_class=HTMLResponse)
 def query_record_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
     return templates.TemplateResponse(
         "query_record.html",
-        {"request": request, "records": None}
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "records": None,
+            "keyword": "",
+        },
     )
 
 
 @app.post("/query-record", response_class=HTMLResponse)
-def query_record(request: Request, keyword: str = Form(...)):
+def query_record_submit(
+    request: Request,
+    keyword: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    keyword = keyword.strip()
+
     db = SessionLocal()
-    records = db.query(models.BusinessRecord).filter(
-        (models.BusinessRecord.phone == keyword) |
-        (models.BusinessRecord.name == keyword) |
-        (models.BusinessRecord.plate_number == keyword)
-    ).all()
+
+    query = db.query(BusinessRecord)
+
+    # 权限隔离：
+    # 管理员可以查所有数据
+    # 上传方只能查自己上传的数据
+    if user.role != "admin":
+        query = query.filter(BusinessRecord.user_id == user.id)
+
+    query_result = query.filter(
+        or_(
+            BusinessRecord.name == keyword,
+            BusinessRecord.phone == keyword,
+            BusinessRecord.plate_number == keyword,
+            BusinessRecord.bank_card == keyword,
+        )
+    ).order_by(BusinessRecord.id.desc()).all()
+
+    records = []
+    for r in query_result:
+        records.append(
+            {
+                "id": r.id,
+                "name": r.name,
+                "phone": r.phone,
+                "plate_number": r.plate_number,
+                "points_amount": r.points_amount,
+                "bank_card": r.bank_card,
+                "created_at": r.created_at,
+            }
+        )
+
     db.close()
+
     return templates.TemplateResponse(
         "query_record.html",
-        {"request": request, "records": records, "keyword": keyword}
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "records": records,
+            "keyword": keyword,
+        },
     )
 
 
