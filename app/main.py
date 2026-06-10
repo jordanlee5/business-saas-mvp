@@ -11,6 +11,7 @@ from . import models
 from .models import User, BusinessRecord, UploadBatch
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
+from .ocr_service import ocr_image, match_ocr_with_records
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -314,6 +315,100 @@ async def upload_excel_submit(
             "role": user.role,
             "message": message,
             "errors": errors,
+        },
+    )
+
+@app.get("/upload-voucher", response_class=HTMLResponse)
+def upload_voucher_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # 第一版只允许管理员上传凭证
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    return templates.TemplateResponse(
+        "upload_voucher.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "ocr_text": None,
+            "match_results": None,
+            "error": None,
+        },
+    )
+
+
+@app.post("/upload-voucher", response_class=HTMLResponse)
+async def upload_voucher_submit(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # 第一版只允许管理员上传凭证
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    if not file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
+        return templates.TemplateResponse(
+            "upload_voucher.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "ocr_text": None,
+                "match_results": None,
+                "error": "只允许上传 PNG / JPG / JPEG 图片",
+            },
+        )
+
+    os.makedirs("uploads/vouchers", exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    safe_filename = f"{user.id}_{timestamp}_{file.filename}"
+    file_path = os.path.join("uploads", "vouchers", safe_filename)
+
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    try:
+        ocr_text = ocr_image(file_path)
+    except Exception as e:
+        return templates.TemplateResponse(
+            "upload_voucher.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "ocr_text": None,
+                "match_results": None,
+                "error": f"OCR识别失败：{e}",
+            },
+        )
+
+    db = SessionLocal()
+
+    # 第一版：管理员上传凭证时，和所有业务数据匹配
+    records = db.query(BusinessRecord).all()
+    match_results = match_ocr_with_records(ocr_text, records)
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "upload_voucher.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "ocr_text": ocr_text,
+            "match_results": match_results,
+            "error": None,
         },
     )
 

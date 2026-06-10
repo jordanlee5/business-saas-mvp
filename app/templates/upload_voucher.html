@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>OCR凭证上传 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 1080px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1, h2 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .hint {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            line-height: 1.8;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 14px;
+            border: 1px dashed #94a3b8;
+            border-radius: 10px;
+            background: #f8fafc;
+            margin-bottom: 18px;
+        }
+        button {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .message {
+            margin-bottom: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        .error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 18px;
+            border-radius: 12px;
+            line-height: 1.7;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+        th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #f8fafc;
+            color: #475569;
+        }
+        .success-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .partial-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #fffbeb;
+            color: #b45309;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .yes {
+            color: #047857;
+            font-weight: 700;
+        }
+        .no {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+        .empty {
+            color: #64748b;
+            padding: 16px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h1>OCR凭证上传与匹配</h1>
+
+        <div class="hint">
+            支持上传 PNG / JPG / JPEG 图片凭证。系统会识别图片文字，并尝试与业务清单中的姓名、银行卡号、积分金额进行匹配。
+        </div>
+
+        {% if error %}
+            <div class="message error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/upload-voucher" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".png,.jpg,.jpeg" required>
+            <button type="submit">上传并识别匹配</button>
+        </form>
+    </div>
+
+    {% if ocr_text %}
+    <div class="card">
+        <h2>OCR识别文本</h2>
+        <pre>{{ ocr_text }}</pre>
+    </div>
+    {% endif %}
+
+    {% if match_results is not none %}
+    <div class="card">
+        <h2>匹配结果</h2>
+
+        {% if match_results|length == 0 %}
+            <div class="empty">未找到任何匹配记录，请检查凭证图片清晰度，或确认业务清单是否已导入。</div>
+        {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>匹配状态</th>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>车牌号</th>
+                    <th>积分金额</th>
+                    <th>银行卡号</th>
+                    <th>姓名匹配</th>
+                    <th>银行卡匹配</th>
+                    <th>金额匹配</th>
+                    <th>分数</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in match_results %}
+                <tr>
+                    <td>
+                        {% if item.status == "匹配成功" %}
+                            <span class="success-badge">{{ item.status }}</span>
+                        {% else %}
+                            <span class="partial-badge">{{ item.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.record.name }}</td>
+                    <td>{{ item.record.phone }}</td>
+                    <td>{{ item.record.plate_number }}</td>
+                    <td>{{ item.record.points_amount }}</td>
+                    <td>{{ item.record.bank_card }}</td>
+                    <td class="{{ 'yes' if item.name_match else 'no' }}">
+                        {{ item.name_detail }}
+                    </td>
+                    <td class="{{ 'yes' if item.bank_match else 'no' }}">{{ '是' if item.bank_match else '否' }}</td>
+                    <td class="{{ 'yes' if item.amount_match else 'no' }}">{{ '是' if item.amount_match else '否' }}</td>
+                    <td>{{ item.score }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>
