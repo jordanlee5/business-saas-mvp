@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>匹配结果审核 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 1180px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+        th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 14px;
+            vertical-align: top;
+        }
+        th {
+            background: #f8fafc;
+            color: #475569;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #fffbeb;
+            color: #b45309;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .success {
+            background: #ecfdf5;
+            color: #047857;
+        }
+        .empty {
+            color: #64748b;
+            padding: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h1>匹配结果审核</h1>
+
+        {% if reviews %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>凭证文件</th>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>车牌号</th>
+                    <th>积分金额</th>
+                    <th>银行卡号</th>
+                    <th>匹配状态</th>
+                    <th>姓名匹配</th>
+                    <th>银行卡匹配</th>
+                    <th>金额匹配</th>
+                    <th>分数</th>
+                    <th>审核状态</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in reviews %}
+                <tr>
+                    <td>{{ item.review.id }}</td>
+                    <td>{{ item.voucher.filename }}</td>
+                    <td>{{ item.record.name }}</td>
+                    <td>{{ item.record.phone }}</td>
+                    <td>{{ item.record.plate_number }}</td>
+                    <td>{{ item.record.points_amount }}</td>
+                    <td>{{ item.record.bank_card }}</td>
+                    <td>
+                        <span class="badge success">{{ item.review.match_status }}</span>
+                    </td>
+                    <td>{{ item.review.name_match }}</td>
+                    <td>{{ item.review.bank_match }}</td>
+                    <td>{{ item.review.amount_match }}</td>
+                    <td>{{ item.review.score }}</td>
+                    <td><span class="badge">{{ item.review.review_status }}</span></td>
+                    <td>{{ item.review.created_at }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="empty">暂无匹配审核记录，请先上传 OCR 凭证。</div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

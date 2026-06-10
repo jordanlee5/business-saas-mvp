@@ -35,3 +35,28 @@ class UploadBatch(Base):
     success_rows = Column(Integer, default=0)
     failed_rows = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class VoucherRecord(Base):
+    __tablename__ = "voucher_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uploader_id = Column(Integer, ForeignKey("users.id"))
+    filename = Column(String)
+    file_path = Column(String)
+    ocr_text = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MatchReview(Base):
+    __tablename__ = "match_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    voucher_id = Column(Integer, ForeignKey("voucher_records.id"))
+    business_record_id = Column(Integer, ForeignKey("business_records.id"))
+    match_status = Column(String)
+    name_match = Column(String)
+    bank_match = Column(String)
+    amount_match = Column(String)
+    score = Column(Integer)
+    review_status = Column(String, default="待审核")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

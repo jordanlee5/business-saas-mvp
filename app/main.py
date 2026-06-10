@@ -8,7 +8,7 @@ from datetime import datetime
 
 from .database import engine, Base, SessionLocal
 from . import models
-from .models import User, BusinessRecord, UploadBatch
+from .models import User, BusinessRecord, UploadBatch, VoucherRecord, MatchReview
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records
@@ -395,11 +395,58 @@ async def upload_voucher_submit(
     db = SessionLocal()
 
     # 第一版：管理员上传凭证时，和所有业务数据匹配
+    voucher_record = VoucherRecord(
+    uploader_id=user.id,
+    filename=file.filename,
+    file_path=file_path,
+    ocr_text=ocr_text,
+    )
+    db.add(voucher_record)
+    db.commit()
+    db.refresh(voucher_record)
+
     records = db.query(BusinessRecord).all()
-    match_results = match_ocr_with_records(ocr_text, records)
+    raw_match_results = match_ocr_with_records(ocr_text, records)
 
+    match_results = []
+
+    for item in raw_match_results:
+        record = item["record"]
+
+        review = MatchReview(
+            voucher_id=voucher_record.id,
+            business_record_id=record.id,
+            match_status=item["status"],
+            name_match=item.get("name_detail", "未知"),
+            bank_match="是" if item["bank_match"] else "否",
+            amount_match="是" if item["amount_match"] else "否",
+            score=item["score"],
+            review_status="待审核",
+        )
+        db.add(review)
+
+        match_results.append(
+            {
+                "status": item["status"],
+                "name_match": item["name_match"],
+                "name_detail": item.get("name_detail", "未知"),
+                "bank_match": item["bank_match"],
+                "amount_match": item["amount_match"],
+                "score": item["score"],
+                "record": {
+                    "id": record.id,
+                    "name": record.name,
+                    "phone": record.phone,
+                    "plate_number": record.plate_number,
+                    "points_amount": record.points_amount,
+                    "bank_card": record.bank_card,
+                },
+            }
+        )
+
+    db.commit()
     db.close()
-
+    
     return templates.TemplateResponse(
         "upload_voucher.html",
         {
@@ -409,6 +456,45 @@ async def upload_voucher_submit(
             "ocr_text": ocr_text,
             "match_results": match_results,
             "error": None,
+        },
+    )
+
+@app.get("/match-reviews", response_class=HTMLResponse)
+def match_reviews_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
+
+    review_items = []
+    for review in reviews:
+        voucher = db.query(VoucherRecord).filter(VoucherRecord.id == review.voucher_id).first()
+        record = db.query(BusinessRecord).filter(BusinessRecord.id == review.business_record_id).first()
+
+        if voucher and record:
+            review_items.append(
+                {
+                    "review": review,
+                    "voucher": voucher,
+                    "record": record,
+                }
+            )
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "match_reviews.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "reviews": review_items,
         },
     )
 
