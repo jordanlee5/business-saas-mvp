@@ -593,6 +593,53 @@ def reject_match_review(review_id: int, request: Request):
 
     return RedirectResponse(url="/match-reviews", status_code=302)
 
+@app.get("/upload-batches", response_class=HTMLResponse)
+def upload_batches_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    query = db.query(UploadBatch)
+
+    # 权限隔离：
+    # 管理员可以查看全部上传记录
+    # 上传方只能查看自己的上传记录
+    if user.role != "admin":
+        query = query.filter(UploadBatch.user_id == user.id)
+
+    batches = query.order_by(UploadBatch.id.desc()).all()
+
+    batch_items = []
+
+    for batch in batches:
+        uploader = db.query(User).filter(User.id == batch.user_id).first()
+
+        batch_items.append(
+            {
+                "id": batch.id,
+                "username": uploader.username if uploader else "未知用户",
+                "filename": batch.filename,
+                "total_rows": batch.total_rows,
+                "success_rows": batch.success_rows,
+                "failed_rows": batch.failed_rows,
+                "created_at": batch.created_at,
+            }
+        )
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "upload_batches.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "batches": batch_items,
+        },
+    )
+
 
 @app.get("/logout")
 def logout():

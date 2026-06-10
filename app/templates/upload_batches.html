@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>上传记录 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 1080px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .hint {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            line-height: 1.8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+        th, td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #f8fafc;
+            color: #475569;
+        }
+        .success {
+            color: #047857;
+            font-weight: 700;
+        }
+        .error {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+        .empty {
+            color: #64748b;
+            padding: 18px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h1>上传记录</h1>
+
+        <div class="hint">
+            管理员可以查看所有上传方的 Excel 上传记录。<br>
+            上传方只能查看自己上传过的 Excel 记录。
+        </div>
+
+        {% if batches %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>上传方账号</th>
+                    <th>文件名</th>
+                    <th>总行数</th>
+                    <th>成功行数</th>
+                    <th>失败行数</th>
+                    <th>上传时间</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in batches %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.username }}</td>
+                    <td>{{ item.filename }}</td>
+                    <td>{{ item.total_rows }}</td>
+                    <td class="success">{{ item.success_rows }}</td>
+                    <td class="error">{{ item.failed_rows }}</td>
+                    <td>{{ item.created_at }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="empty">暂无上传记录。</div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

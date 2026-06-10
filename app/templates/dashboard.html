@@ -85,11 +85,13 @@
             {% if role == "admin" %}
                 <a href=" " class="module">上传方账号管理</a >
                 <a href="/upload-excel" class="module">Excel模板上传</a >
+                <a href="/upload-batches" class="module">上传记录</a >
                 <a href="/query-record" class="module">业务数据查询</a >
                 <a href="/upload-voucher" class="module">OCR凭证识别</a >
                 <a href="/match-reviews" class="module">匹配结果审核</a >
             {% else %}
                 <a href="/upload-excel" class="module">Excel模板上传</a >
+                <a href="/upload-batches" class="module">上传记录</a >
                 <a href="/query-record" class="module">业务数据查询</a >
             {% endif %}
         </div>
