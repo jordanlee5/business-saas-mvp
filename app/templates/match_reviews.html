@@ -72,6 +72,25 @@
             color: #64748b;
             padding: 20px 0;
         }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+
+        .approve {
+            background: #16a34a;
+            color: white;
+        }
+
+        .reject {
+            background: #dc2626;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -105,6 +124,7 @@
                     <th>金额匹配</th>
                     <th>分数</th>
                     <th>审核状态</th>
+                    <th>操作</th>
                     <th>时间</th>
                 </tr>
             </thead>
@@ -126,6 +146,19 @@
                     <td>{{ item.review.amount_match }}</td>
                     <td>{{ item.review.score }}</td>
                     <td><span class="badge">{{ item.review.review_status }}</span></td>
+                    <td>
+                        {% if item.review.review_status == "待审核" %}
+                            <form method="post" action="/match-reviews/{{ item.review.id }}/approve" style="display:inline;">
+                                <button type="submit" class="btn approve">通过</button>
+                            </form>
+
+                            <form method="post" action="/match-reviews/{{ item.review.id }}/reject" style="display:inline;">
+                                <button type="submit" class="btn reject">驳回</button>
+                            </form>
+                        {% else %}
+                            已处理
+                        {% endif %}
+                    </td>
                     <td>{{ item.review.created_at }}</td>
                 </tr>
             {% endfor %}

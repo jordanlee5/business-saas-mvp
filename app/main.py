@@ -498,6 +498,47 @@ def match_reviews_page(request: Request):
         },
     )
 
+@app.post("/match-reviews/{review_id}/approve")
+def approve_match_review(review_id: int, request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
+
+    if review:
+        review.review_status = "已通过"
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse(url="/match-reviews", status_code=302)
+
+
+@app.post("/match-reviews/{review_id}/reject")
+def reject_match_review(review_id: int, request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
+
+    if review:
+        review.review_status = "已驳回"
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse(url="/match-reviews", status_code=302)
+
 
 @app.get("/logout")
 def logout():
