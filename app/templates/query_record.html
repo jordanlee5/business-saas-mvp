@@ -1,0 +1,33 @@
+<h2>按业务要素查询</h2>
+
+<form method="post">
+  <label>请输入姓名/手机号/车牌号：</label>
+  <input type="text" name="keyword" required>
+  <button type="submit">查询</button>
+</form>
+
+{% if records is not none %}
+  <h3>查询结果{% if keyword %}：{{ keyword }}{% endif %}</h3>
+  {% if records|length == 0 %}
+    <p>没有找到匹配的数据</p >
+  {% else %}
+    <table border="1">
+      <tr>
+        <th>姓名</th>
+        <th>手机号</th>
+        <th>车牌号</th>
+        <th>积分金额</th>
+        <th>银行卡号</th>
+      </tr>
+      {% for r in records %}
+      <tr>
+        <td>{{ r.name }}</td>
+        <td>{{ r.phone }}</td>
+        <td>{{ r.plate_number }}</td>
+        <td>{{ r.points_amount }}</td>
+        <td>{{ r.bank_card }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+{% endif %}

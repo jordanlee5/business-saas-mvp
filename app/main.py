@@ -48,6 +48,29 @@ def home(request: Request):
     )
 
 
+@app.get("/query-record", response_class=HTMLResponse)
+def query_record_page(request: Request):
+    return templates.TemplateResponse(
+        "query_record.html",
+        {"request": request, "records": None}
+    )
+
+
+@app.post("/query-record", response_class=HTMLResponse)
+def query_record(request: Request, keyword: str = Form(...)):
+    db = SessionLocal()
+    records = db.query(models.BusinessRecord).filter(
+        (models.BusinessRecord.phone == keyword) |
+        (models.BusinessRecord.name == keyword) |
+        (models.BusinessRecord.plate_number == keyword)
+    ).all()
+    db.close()
+    return templates.TemplateResponse(
+        "query_record.html",
+        {"request": request, "records": records, "keyword": keyword}
+    )
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse(
