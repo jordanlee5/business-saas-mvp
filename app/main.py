@@ -1,12 +1,16 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import os
+from datetime import datetime
+
 from .database import engine, Base, SessionLocal
 from . import models
-from .models import User
+from .models import User, BusinessRecord, UploadBatch
 from .auth import verify_password, get_password_hash
+from .excel_service import parse_business_excel
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -194,6 +198,99 @@ def create_partner(
             "partners": partners,
             "message": f"上传方账号 {username} 创建成功，服务费率为 {service_rate}%",
             "error": None,
+        },
+    )
+
+
+@app.get("/upload-excel", response_class=HTMLResponse)
+def upload_excel_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse(
+        "upload_excel.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "message": None,
+            "errors": None,
+        },
+    )
+
+
+@app.post("/upload-excel", response_class=HTMLResponse)
+async def upload_excel_submit(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if not file.filename.endswith((".xlsx", ".xls")):
+        return templates.TemplateResponse(
+            "upload_excel.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "message": None,
+                "errors": ["只允许上传 Excel 文件：.xlsx 或 .xls"],
+            },
+        )
+
+    os.makedirs("uploads/excel", exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    safe_filename = f"{user.id}_{timestamp}_{file.filename}"
+    file_path = os.path.join("uploads", "excel", safe_filename)
+
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    records, errors = parse_business_excel(file_path)
+
+    db = SessionLocal()
+
+    batch = UploadBatch(
+        user_id=user.id,
+        filename=file.filename,
+        total_rows=len(records) + len(errors),
+        success_rows=len(records),
+        failed_rows=len(errors),
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    for item in records:
+        record = BusinessRecord(
+            user_id=user.id,
+            batch_id=batch.id,
+            name=item["name"],
+            phone=item["phone"],
+            plate_number=item["plate_number"],
+            points_amount=item["points_amount"],
+            bank_card=item["bank_card"],
+        )
+        db.add(record)
+
+    db.commit()
+    db.close()
+
+    message = f"上传成功：共读取 {len(records) + len(errors)} 行，成功导入 {len(records)} 行，失败 {len(errors)} 行。"
+
+    return templates.TemplateResponse(
+        "upload_excel.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "message": message,
+            "errors": errors,
         },
     )
 

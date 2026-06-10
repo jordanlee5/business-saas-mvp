@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Excel模板上传 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1, h2 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .hint {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            line-height: 1.8;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 14px;
+            border: 1px dashed #94a3b8;
+            border-radius: 10px;
+            background: #f8fafc;
+            margin-bottom: 18px;
+        }
+        button {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .message {
+            margin-bottom: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        .success {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #bbf7d0;
+        }
+        .error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+        ul {
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h1>Excel模板上传</h1>
+
+        <div class="hint">
+            固定模板必须包含以下字段：<br>
+            姓名、手机号、车牌号、积分金额、银行卡号
+        </div>
+
+        {% if message %}
+            <div class="message success">{{ message }}</div>
+        {% endif %}
+
+        {% if errors %}
+            <div class="message error">
+                <strong>导入错误：</strong>
+                <ul>
+                    {% for err in errors %}
+                        <li>{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post" action="/upload-excel" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".xlsx,.xls" required>
+            <button type="submit">上传并导入</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
