@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, UploadFile, File
+from fastapi import FastAPI, Request, Form, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -693,7 +693,10 @@ def upload_batches_page(request: Request):
     )
 
 @app.get("/stats-dashboard", response_class=HTMLResponse)
-def stats_dashboard_page(request: Request):
+def stats_dashboard_page(
+    request: Request,
+    partner_id: int = Query(0),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -703,15 +706,35 @@ def stats_dashboard_page(request: Request):
 
     db = SessionLocal()
 
-    total_records = db.query(BusinessRecord).count()
-    total_batches = db.query(UploadBatch).count()
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+
+    selected_partner_id = partner_id
+
+    records_query = db.query(BusinessRecord)
+    batches_query = db.query(UploadBatch)
+
+    if selected_partner_id != 0:
+        records_query = records_query.filter(BusinessRecord.user_id == selected_partner_id)
+        batches_query = batches_query.filter(UploadBatch.user_id == selected_partner_id)
+
+    business_records = records_query.all()
+
+    total_records = len(business_records)
+    total_batches = batches_query.count()
     total_partners = db.query(User).filter(User.role == "partner").count()
 
-    pending_reviews = db.query(MatchReview).filter(MatchReview.review_status == "待审核").count()
-    approved_reviews = db.query(MatchReview).filter(MatchReview.review_status == "已通过").count()
-    rejected_reviews = db.query(MatchReview).filter(MatchReview.review_status == "已驳回").count()
+    reviews_query = db.query(MatchReview)
 
-    business_records = db.query(BusinessRecord).all()
+    if selected_partner_id != 0:
+        partner_record_ids = [r.id for r in business_records]
+        if partner_record_ids:
+            reviews_query = reviews_query.filter(MatchReview.business_record_id.in_(partner_record_ids))
+        else:
+            reviews_query = reviews_query.filter(MatchReview.id == -1)
+
+    pending_reviews = reviews_query.filter(MatchReview.review_status == "待审核").count()
+    approved_reviews = reviews_query.filter(MatchReview.review_status == "已通过").count()
+    rejected_reviews = reviews_query.filter(MatchReview.review_status == "已驳回").count()
 
     total_points = 0
     total_receivable_fee = 0
@@ -742,6 +765,8 @@ def stats_dashboard_page(request: Request):
             "request": request,
             "username": user.username,
             "role": user.role,
+            "partners": partners,
+            "selected_partner_id": selected_partner_id,
             "total_records": total_records,
             "total_batches": total_batches,
             "total_partners": total_partners,
