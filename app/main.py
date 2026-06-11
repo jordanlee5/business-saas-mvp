@@ -890,9 +890,39 @@ def export_stats_dashboard(
         {"指标": "毛利合计", "数值": stats["total_gross_profit"]},
     ]
 
+    detail_df = pd.DataFrame(stats["rows"])
+
+    partner_summary_rows = []
+
+    if not detail_df.empty:
+        grouped = detail_df.groupby("上传方")
+
+        for partner_name, group in grouped:
+            total_points = group["积分金额"].sum()
+            total_receivable_fee = group["应收服务费"].sum()
+            total_payable_cost = group["应付成本费"].sum()
+            total_gross_profit = group["毛利"].sum()
+
+            service_rate = group["下游服务费率"].iloc[0]
+            upstream_cost_rate = group["上游成本费率"].iloc[0]
+
+            partner_summary_rows.append(
+                {
+                    "上传方": partner_name,
+                    "业务条数": len(group),
+                    "总积分金额": round(total_points, 2),
+                    "下游服务费率": service_rate,
+                    "应收服务费合计": round(total_receivable_fee, 2),
+                    "上游成本费率": upstream_cost_rate,
+                    "应付成本费合计": round(total_payable_cost, 2),
+                    "毛利合计": round(total_gross_profit, 2),
+                }
+            )
+
     with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
         pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
-        pd.DataFrame(stats["rows"]).to_excel(writer, sheet_name="明细", index=False)
+        pd.DataFrame(partner_summary_rows).to_excel(writer, sheet_name="上传方汇总", index=False)
+        detail_df.to_excel(writer, sheet_name="明细", index=False)
 
     return FileResponse(
         export_path,
