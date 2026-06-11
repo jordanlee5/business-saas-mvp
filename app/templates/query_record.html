@@ -24,7 +24,7 @@
             margin-left: 12px;
         }
         .container {
-            max-width: 1080px;
+            max-width: 1380px;
             margin: 40px auto;
             padding: 0 24px;
         }
@@ -78,11 +78,16 @@
             border-collapse: collapse;
             margin-top: 18px;
         }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
         th, td {
             border-bottom: 1px solid #e2e8f0;
-            padding: 12px 8px;
+            padding: 12px 10px;
             text-align: left;
             font-size: 14px;
+            white-space: nowrap;
         }
         th {
             background: #f8fafc;
@@ -126,6 +131,7 @@
         {% if records|length == 0 %}
             <div class="empty">没有找到匹配的数据。</div>
         {% else %}
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr>
@@ -134,6 +140,19 @@
                     <th>车牌号</th>
                     <th>积分金额</th>
                     <th>银行卡号</th>
+
+                    {% if role == "admin" %}
+                        <th>上传方</th>
+                        <th>下游费率</th>
+                        <th>应收服务费</th>
+                        <th>上游成本率</th>
+                        <th>应付成本费</th>
+                        <th>毛利</th>
+                    {% else %}
+                        <th>服务费率</th>
+                        <th>服务费金额</th>
+                    {% endif %}
+
                     <th>导入时间</th>
                 </tr>
             </thead>
@@ -145,11 +164,25 @@
                     <td>{{ r.plate_number }}</td>
                     <td>{{ r.points_amount }}</td>
                     <td>{{ r.bank_card }}</td>
+
+                    {% if role == "admin" %}
+                        <td>{{ r.uploader_username }}</td>
+                        <td>{{ r.service_rate }}%</td>
+                        <td>{{ r.receivable_fee }}</td>
+                        <td>{{ r.upstream_cost_rate }}%</td>
+                        <td>{{ r.payable_cost }}</td>
+                        <td>{{ r.gross_profit }}</td>
+                    {% else %}
+                        <td>{{ r.service_rate }}%</td>
+                        <td>{{ r.receivable_fee }}</td>
+                    {% endif %}
+
                     <td>{{ r.created_at }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+        </div>
         {% endif %}
     </div>
     {% endif %}

@@ -99,16 +99,34 @@ def query_record_submit(
     ).order_by(BusinessRecord.id.desc()).all()
 
     records = []
+
     for r in query_result:
+        uploader = db.query(User).filter(User.id == r.user_id).first()
+
+        service_rate = uploader.service_rate if uploader else 0
+        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+
+        points_amount = r.points_amount or 0
+
+        receivable_fee = points_amount * service_rate / 100
+        payable_cost = points_amount * upstream_cost_rate / 100
+        gross_profit = receivable_fee - payable_cost
+
         records.append(
             {
                 "id": r.id,
                 "name": r.name,
                 "phone": r.phone,
                 "plate_number": r.plate_number,
-                "points_amount": r.points_amount,
+                "points_amount": points_amount,
                 "bank_card": r.bank_card,
                 "created_at": r.created_at,
+                "uploader_username": uploader.username if uploader else "未知上传方",
+                "service_rate": service_rate,
+                "upstream_cost_rate": upstream_cost_rate,
+                "receivable_fee": round(receivable_fee, 2),
+                "payable_cost": round(payable_cost, 2),
+                "gross_profit": round(gross_profit, 2),
             }
         )
 
