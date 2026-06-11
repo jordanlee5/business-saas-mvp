@@ -83,6 +83,20 @@
             text-decoration: none;
             font-weight: 700;
         }
+        .export-button {
+            display: inline-block;
+            margin-bottom: 24px;
+            padding: 11px 18px;
+            border-radius: 10px;
+            background: #16a34a;
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .export-button:hover {
+            background: #15803d;
+        }       
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -158,6 +172,13 @@
 
             <a href=" " class="reset-link">重置</a >
         </form>      
+
+        <a
+            class="export-button"
+            href="/stats-dashboard/export?partner_id={{ selected_partner_id }}&start_date={{ selected_start_date }}&end_date={{ selected_end_date }}"
+        >
+            导出结算汇总 Excel
+        </a >
 
         <div class="stats-grid">
             <div class="stat-card">

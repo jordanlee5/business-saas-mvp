@@ -8,3 +8,4 @@ saas_mvp.db
 uploads/
 .env
 .DS_Store
+exports/

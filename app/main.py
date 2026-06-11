@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Request, Form, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
 import os
 from datetime import datetime, time
+import pandas as pd
 
 from .database import engine, Base, SessionLocal
 from . import models
@@ -38,6 +39,135 @@ def get_current_user(request: Request):
     finally:
         db.close()
 
+def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = ""):
+    db = SessionLocal()
+
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+
+    selected_partner_id = partner_id
+    selected_start_date = start_date
+    selected_end_date = end_date
+
+    start_datetime = None
+    end_datetime = None
+
+    try:
+        if selected_start_date:
+            start_datetime = datetime.combine(
+                datetime.strptime(selected_start_date, "%Y-%m-%d").date(),
+                time.min,
+            )
+
+        if selected_end_date:
+            end_datetime = datetime.combine(
+                datetime.strptime(selected_end_date, "%Y-%m-%d").date(),
+                time.max,
+            )
+    except Exception:
+        start_datetime = None
+        end_datetime = None
+        selected_start_date = ""
+        selected_end_date = ""
+
+    records_query = db.query(BusinessRecord)
+    batches_query = db.query(UploadBatch)
+
+    if start_datetime:
+        records_query = records_query.filter(BusinessRecord.created_at >= start_datetime)
+        batches_query = batches_query.filter(UploadBatch.created_at >= start_datetime)
+
+    if end_datetime:
+        records_query = records_query.filter(BusinessRecord.created_at <= end_datetime)
+        batches_query = batches_query.filter(UploadBatch.created_at <= end_datetime)
+
+    if selected_partner_id != 0:
+        records_query = records_query.filter(BusinessRecord.user_id == selected_partner_id)
+        batches_query = batches_query.filter(UploadBatch.user_id == selected_partner_id)
+
+    business_records = records_query.all()
+
+    total_records = len(business_records)
+    total_batches = batches_query.count()
+    total_partners = db.query(User).filter(User.role == "partner").count()
+
+    reviews_query = db.query(MatchReview)
+
+    if start_datetime:
+        reviews_query = reviews_query.filter(MatchReview.created_at >= start_datetime)
+
+    if end_datetime:
+        reviews_query = reviews_query.filter(MatchReview.created_at <= end_datetime)
+
+    if selected_partner_id != 0:
+        partner_record_ids = [r.id for r in business_records]
+        if partner_record_ids:
+            reviews_query = reviews_query.filter(MatchReview.business_record_id.in_(partner_record_ids))
+        else:
+            reviews_query = reviews_query.filter(MatchReview.id == -1)
+
+    pending_reviews = reviews_query.filter(MatchReview.review_status == "待审核").count()
+    approved_reviews = reviews_query.filter(MatchReview.review_status == "已通过").count()
+    rejected_reviews = reviews_query.filter(MatchReview.review_status == "已驳回").count()
+
+    total_points = 0
+    total_receivable_fee = 0
+    total_payable_cost = 0
+    total_gross_profit = 0
+
+    rows = []
+
+    for record in business_records:
+        uploader = db.query(User).filter(User.id == record.user_id).first()
+
+        points_amount = record.points_amount or 0
+        service_rate = uploader.service_rate if uploader else 0
+        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+
+        receivable_fee = points_amount * service_rate / 100
+        payable_cost = points_amount * upstream_cost_rate / 100
+        gross_profit = receivable_fee - payable_cost
+
+        total_points += points_amount
+        total_receivable_fee += receivable_fee
+        total_payable_cost += payable_cost
+        total_gross_profit += gross_profit
+
+        rows.append(
+            {
+                "上传方": uploader.username if uploader else "未知上传方",
+                "姓名": record.name,
+                "手机号": record.phone,
+                "车牌号": record.plate_number,
+                "积分金额": points_amount,
+                "银行卡号": record.bank_card,
+                "下游服务费率": service_rate,
+                "应收服务费": round(receivable_fee, 2),
+                "上游成本费率": upstream_cost_rate,
+                "应付成本费": round(payable_cost, 2),
+                "毛利": round(gross_profit, 2),
+                "导入时间": record.created_at,
+            }
+        )
+
+    db.close()
+
+    return {
+        "partners": partners,
+        "selected_partner_id": selected_partner_id,
+        "selected_start_date": selected_start_date,
+        "selected_end_date": selected_end_date,
+        "total_records": total_records,
+        "total_batches": total_batches,
+        "total_partners": total_partners,
+        "pending_reviews": pending_reviews,
+        "approved_reviews": approved_reviews,
+        "rejected_reviews": rejected_reviews,
+        "total_points": round(total_points, 2),
+        "total_receivable_fee": round(total_receivable_fee, 2),
+        "total_payable_cost": round(total_payable_cost, 2),
+        "total_gross_profit": round(total_gross_profit, 2),
+        "rows": rows,
+    }
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -706,97 +836,11 @@ def stats_dashboard_page(
     if user.role != "admin":
         return RedirectResponse(url="/dashboard", status_code=302)
 
-    db = SessionLocal()
-
-    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
-
-    selected_partner_id = partner_id
-    selected_start_date = start_date
-    selected_end_date = end_date
-
-    start_datetime = None
-    end_datetime = None
-
-    try:
-        if selected_start_date:
-            start_datetime = datetime.combine(
-                datetime.strptime(selected_start_date, "%Y-%m-%d").date(),
-                time.min,
-            )
-
-        if selected_end_date:
-            end_datetime = datetime.combine(
-                datetime.strptime(selected_end_date, "%Y-%m-%d").date(),
-                time.max,
-            )
-    except Exception:
-        start_datetime = None
-        end_datetime = None
-        selected_start_date = ""
-        selected_end_date = ""
-
-    records_query = db.query(BusinessRecord)
-    batches_query = db.query(UploadBatch)
-
-    if start_datetime:
-        records_query = records_query.filter(BusinessRecord.created_at >= start_datetime)
-        batches_query = batches_query.filter(UploadBatch.created_at >= start_datetime)
-
-    if end_datetime:
-        records_query = records_query.filter(BusinessRecord.created_at <= end_datetime)
-        batches_query = batches_query.filter(UploadBatch.created_at <= end_datetime)
-
-    if selected_partner_id != 0:
-        records_query = records_query.filter(BusinessRecord.user_id == selected_partner_id)
-        batches_query = batches_query.filter(UploadBatch.user_id == selected_partner_id)
-
-    business_records = records_query.all()
-
-    total_records = len(business_records)
-    total_batches = batches_query.count()
-    total_partners = db.query(User).filter(User.role == "partner").count()
-
-    reviews_query = db.query(MatchReview)
-
-    if start_datetime:
-        reviews_query = reviews_query.filter(MatchReview.created_at >= start_datetime)
-
-    if end_datetime:
-        reviews_query = reviews_query.filter(MatchReview.created_at <= end_datetime)
-
-    if selected_partner_id != 0:
-        partner_record_ids = [r.id for r in business_records]
-        if partner_record_ids:
-            reviews_query = reviews_query.filter(MatchReview.business_record_id.in_(partner_record_ids))
-        else:
-            reviews_query = reviews_query.filter(MatchReview.id == -1)
-
-    pending_reviews = reviews_query.filter(MatchReview.review_status == "待审核").count()
-    approved_reviews = reviews_query.filter(MatchReview.review_status == "已通过").count()
-    rejected_reviews = reviews_query.filter(MatchReview.review_status == "已驳回").count()
-
-    total_points = 0
-    total_receivable_fee = 0
-    total_payable_cost = 0
-    total_gross_profit = 0
-
-    for record in business_records:
-        uploader = db.query(User).filter(User.id == record.user_id).first()
-
-        points_amount = record.points_amount or 0
-        service_rate = uploader.service_rate if uploader else 0
-        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
-
-        receivable_fee = points_amount * service_rate / 100
-        payable_cost = points_amount * upstream_cost_rate / 100
-        gross_profit = receivable_fee - payable_cost
-
-        total_points += points_amount
-        total_receivable_fee += receivable_fee
-        total_payable_cost += payable_cost
-        total_gross_profit += gross_profit
-
-    db.close()
+    stats = build_stats_data(
+        partner_id=partner_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     return templates.TemplateResponse(
         "stats_dashboard.html",
@@ -804,21 +848,56 @@ def stats_dashboard_page(
             "request": request,
             "username": user.username,
             "role": user.role,
-            "partners": partners,
-            "selected_partner_id": selected_partner_id,
-            "selected_start_date": selected_start_date,
-            "selected_end_date": selected_end_date,
-            "total_records": total_records,
-            "total_batches": total_batches,
-            "total_partners": total_partners,
-            "pending_reviews": pending_reviews,
-            "approved_reviews": approved_reviews,
-            "rejected_reviews": rejected_reviews,
-            "total_points": round(total_points, 2),
-            "total_receivable_fee": round(total_receivable_fee, 2),
-            "total_payable_cost": round(total_payable_cost, 2),
-            "total_gross_profit": round(total_gross_profit, 2),
+            **stats,
         },
+    )
+
+@app.get("/stats-dashboard/export")
+def export_stats_dashboard(
+    request: Request,
+    partner_id: int = Query(0),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    stats = build_stats_data(
+        partner_id=partner_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    os.makedirs("exports", exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    export_path = os.path.join("exports", f"settlement_summary_{timestamp}.xlsx")
+
+    summary_rows = [
+        {"指标": "业务数据总条数", "数值": stats["total_records"]},
+        {"指标": "上传批次数", "数值": stats["total_batches"]},
+        {"指标": "上传方账号数", "数值": stats["total_partners"]},
+        {"指标": "待审核数量", "数值": stats["pending_reviews"]},
+        {"指标": "已通过数量", "数值": stats["approved_reviews"]},
+        {"指标": "已驳回数量", "数值": stats["rejected_reviews"]},
+        {"指标": "总积分金额", "数值": stats["total_points"]},
+        {"指标": "应收服务费合计", "数值": stats["total_receivable_fee"]},
+        {"指标": "应付成本费合计", "数值": stats["total_payable_cost"]},
+        {"指标": "毛利合计", "数值": stats["total_gross_profit"]},
+    ]
+
+    with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
+        pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
+        pd.DataFrame(stats["rows"]).to_excel(writer, sheet_name="明细", index=False)
+
+    return FileResponse(
+        export_path,
+        filename=f"结算汇总_{timestamp}.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
