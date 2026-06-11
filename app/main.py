@@ -7,6 +7,8 @@ from sqlalchemy import or_
 import os
 from datetime import datetime, time
 import pandas as pd
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
 from . import models
@@ -168,6 +170,36 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         "total_gross_profit": round(total_gross_profit, 2),
         "rows": rows,
     }
+
+def format_excel_file(writer):
+    workbook = writer.book
+
+    for worksheet in workbook.worksheets:
+        worksheet.freeze_panes = "A2"
+
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True)
+
+        for column_cells in worksheet.columns:
+            max_length = 0
+            column_letter = get_column_letter(column_cells[0].column)
+
+            for cell in column_cells:
+                cell_value = cell.value
+                if cell_value is None:
+                    continue
+
+                cell_length = len(str(cell_value))
+                if cell_length > max_length:
+                    max_length = cell_length
+
+                if isinstance(cell_value, (int, float)):
+                    cell.number_format = "#,##0.00"
+
+                if "时间" in str(worksheet.cell(row=1, column=cell.column).value):
+                    cell.number_format = "yyyy-mm-dd hh:mm:ss"
+
+            worksheet.column_dimensions[column_letter].width = min(max_length + 4, 35)
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -924,6 +956,8 @@ def export_stats_dashboard(
         pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
         pd.DataFrame(partner_summary_rows).to_excel(writer, sheet_name="上传方汇总", index=False)
         detail_df.to_excel(writer, sheet_name="明细", index=False)
+        
+        format_excel_file(writer)
 
     return FileResponse(
         export_path,
