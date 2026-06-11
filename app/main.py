@@ -1049,7 +1049,7 @@ def export_my_settlement(
         {"指标": "", "数值": ""},
         {"指标": "业务数据总条数", "数值": stats["total_records"]},
         {"指标": "总积分金额", "数值": stats["total_points"]},
-        {"指标": "应收服务费合计", "数值": stats["total_receivable_fee"]},
+        {"指标": "结算服务费合计", "数值": stats["total_receivable_fee"]},
     ]
 
     internal_columns = [
