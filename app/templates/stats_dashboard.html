@@ -60,11 +60,12 @@
             color: #334155;
         }
 
-        .filter-form select {
+        .filter-form select,
+        .filter-form input {
             padding: 10px 12px;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
-            min-width: 220px;
+            min-width: 180px;
             font-size: 14px;
         }
 
@@ -76,6 +77,11 @@
             color: white;
             font-weight: 700;
             cursor: pointer;
+        }
+        .reset-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 700;
         }
         .stats-grid {
             display: grid;
@@ -132,7 +138,7 @@
         </div>
 
         <form method="get" action="/stats-dashboard" class="filter-form">
-            <label>按上传方筛选：</label>
+            <label>上传方：</label>
             <select name="partner_id">
                 <option value="0" {% if selected_partner_id == 0 %}selected{% endif %}>全部上传方</option>
                 {% for partner in partners %}
@@ -141,8 +147,17 @@
                     </option>
                 {% endfor %}
             </select>
+
+            <label>开始日期：</label>
+            <input type="date" name="start_date" value="{{ selected_start_date }}">
+
+            <label>结束日期：</label>
+            <input type="date" name="end_date" value="{{ selected_end_date }}">
+
             <button type="submit">查看</button>
-        </form>       
+
+            <a href=" " class="reset-link">重置</a >
+        </form>      
 
         <div class="stats-grid">
             <div class="stat-card">

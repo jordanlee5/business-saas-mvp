@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
 import os
-from datetime import datetime
+from datetime import datetime, time
 
 from .database import engine, Base, SessionLocal
 from . import models
@@ -696,6 +696,8 @@ def upload_batches_page(request: Request):
 def stats_dashboard_page(
     request: Request,
     partner_id: int = Query(0),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -709,9 +711,40 @@ def stats_dashboard_page(
     partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
 
     selected_partner_id = partner_id
+    selected_start_date = start_date
+    selected_end_date = end_date
+
+    start_datetime = None
+    end_datetime = None
+
+    try:
+        if selected_start_date:
+            start_datetime = datetime.combine(
+                datetime.strptime(selected_start_date, "%Y-%m-%d").date(),
+                time.min,
+            )
+
+        if selected_end_date:
+            end_datetime = datetime.combine(
+                datetime.strptime(selected_end_date, "%Y-%m-%d").date(),
+                time.max,
+            )
+    except Exception:
+        start_datetime = None
+        end_datetime = None
+        selected_start_date = ""
+        selected_end_date = ""
 
     records_query = db.query(BusinessRecord)
     batches_query = db.query(UploadBatch)
+
+    if start_datetime:
+        records_query = records_query.filter(BusinessRecord.created_at >= start_datetime)
+        batches_query = batches_query.filter(UploadBatch.created_at >= start_datetime)
+
+    if end_datetime:
+        records_query = records_query.filter(BusinessRecord.created_at <= end_datetime)
+        batches_query = batches_query.filter(UploadBatch.created_at <= end_datetime)
 
     if selected_partner_id != 0:
         records_query = records_query.filter(BusinessRecord.user_id == selected_partner_id)
@@ -724,6 +757,12 @@ def stats_dashboard_page(
     total_partners = db.query(User).filter(User.role == "partner").count()
 
     reviews_query = db.query(MatchReview)
+
+    if start_datetime:
+        reviews_query = reviews_query.filter(MatchReview.created_at >= start_datetime)
+
+    if end_datetime:
+        reviews_query = reviews_query.filter(MatchReview.created_at <= end_datetime)
 
     if selected_partner_id != 0:
         partner_record_ids = [r.id for r in business_records]
@@ -767,6 +806,8 @@ def stats_dashboard_page(
             "role": user.role,
             "partners": partners,
             "selected_partner_id": selected_partner_id,
+            "selected_start_date": selected_start_date,
+            "selected_end_date": selected_end_date,
             "total_records": total_records,
             "total_batches": total_batches,
             "total_partners": total_partners,
