@@ -692,6 +692,69 @@ def upload_batches_page(request: Request):
         },
     )
 
+@app.get("/stats-dashboard", response_class=HTMLResponse)
+def stats_dashboard_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    total_records = db.query(BusinessRecord).count()
+    total_batches = db.query(UploadBatch).count()
+    total_partners = db.query(User).filter(User.role == "partner").count()
+
+    pending_reviews = db.query(MatchReview).filter(MatchReview.review_status == "待审核").count()
+    approved_reviews = db.query(MatchReview).filter(MatchReview.review_status == "已通过").count()
+    rejected_reviews = db.query(MatchReview).filter(MatchReview.review_status == "已驳回").count()
+
+    business_records = db.query(BusinessRecord).all()
+
+    total_points = 0
+    total_receivable_fee = 0
+    total_payable_cost = 0
+    total_gross_profit = 0
+
+    for record in business_records:
+        uploader = db.query(User).filter(User.id == record.user_id).first()
+
+        points_amount = record.points_amount or 0
+        service_rate = uploader.service_rate if uploader else 0
+        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+
+        receivable_fee = points_amount * service_rate / 100
+        payable_cost = points_amount * upstream_cost_rate / 100
+        gross_profit = receivable_fee - payable_cost
+
+        total_points += points_amount
+        total_receivable_fee += receivable_fee
+        total_payable_cost += payable_cost
+        total_gross_profit += gross_profit
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "stats_dashboard.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "total_records": total_records,
+            "total_batches": total_batches,
+            "total_partners": total_partners,
+            "pending_reviews": pending_reviews,
+            "approved_reviews": approved_reviews,
+            "rejected_reviews": rejected_reviews,
+            "total_points": round(total_points, 2),
+            "total_receivable_fee": round(total_receivable_fee, 2),
+            "total_payable_cost": round(total_payable_cost, 2),
+            "total_gross_profit": round(total_gross_profit, 2),
+        },
+    )
+
 
 @app.get("/logout")
 def logout():

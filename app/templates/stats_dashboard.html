@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>经营数据看板 - 业务数据管理SaaS MVP</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .topbar {
+            background: #0f172a;
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar a {
+            color: #bfdbfe;
+            text-decoration: none;
+            margin-left: 12px;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+        .hint {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            line-height: 1.8;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+        .stat-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 22px;
+            background: #f8fafc;
+        }
+        .stat-title {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .money {
+            color: #047857;
+        }
+        .profit {
+            color: #2563eb;
+        }
+        .warning {
+            color: #b45309;
+        }
+        .danger {
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>业务数据管理 SaaS MVP</div>
+    <div>
+        当前用户：{{ username }} ｜ 角色：{{ role }}
+        <a href=" ">返回后台</a >
+        <a href="/logout">退出登录</a >
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h1>经营数据看板</h1>
+
+        <div class="hint">
+            本页面仅管理员可见，用于查看平台整体经营数据、审核状态、服务费收入、上游成本和毛利。
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">业务数据总条数</div>
+                <div class="stat-value">{{ total_records }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">上传批次数</div>
+                <div class="stat-value">{{ total_batches }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">上传方账号数</div>
+                <div class="stat-value">{{ total_partners }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">待审核数量</div>
+                <div class="stat-value warning">{{ pending_reviews }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">已通过数量</div>
+                <div class="stat-value money">{{ approved_reviews }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">已驳回数量</div>
+                <div class="stat-value danger">{{ rejected_reviews }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">总积分金额</div>
+                <div class="stat-value">{{ total_points }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">应收服务费合计</div>
+                <div class="stat-value money">{{ total_receivable_fee }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">应付成本费合计</div>
+                <div class="stat-value danger">{{ total_payable_cost }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">毛利合计</div>
+                <div class="stat-value profit">{{ total_gross_profit }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
