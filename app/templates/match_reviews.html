@@ -24,7 +24,7 @@
             margin-left: 12px;
         }
         .container {
-            max-width: 1180px;
+            max-width: 1480px;
             margin: 40px auto;
             padding: 0 24px;
         }
@@ -44,12 +44,17 @@
             border-collapse: collapse;
             margin-top: 18px;
         }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
         th, td {
             border-bottom: 1px solid #e2e8f0;
-            padding: 12px 8px;
+            padding: 12px 10px;
             text-align: left;
             font-size: 14px;
             vertical-align: top;
+            white-space: nowrap;
         }
         th {
             background: #f8fafc;
@@ -108,6 +113,7 @@
         <h1>匹配结果审核</h1>
 
         {% if reviews %}
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr>
@@ -118,6 +124,12 @@
                     <th>车牌号</th>
                     <th>积分金额</th>
                     <th>银行卡号</th>
+                    <th>上传方</th>
+                    <th>下游费率</th>
+                    <th>应收服务费</th>
+                    <th>上游成本率</th>
+                    <th>应付成本费</th>
+                    <th>毛利</th>
                     <th>匹配状态</th>
                     <th>姓名匹配</th>
                     <th>银行卡匹配</th>
@@ -138,6 +150,12 @@
                     <td>{{ item.record.plate_number }}</td>
                     <td>{{ item.record.points_amount }}</td>
                     <td>{{ item.record.bank_card }}</td>
+                    <td>{{ item.uploader_username }}</td>
+                    <td>{{ item.service_rate }}%</td>
+                    <td>{{ item.receivable_fee }}</td>
+                    <td>{{ item.upstream_cost_rate }}%</td>
+                    <td>{{ item.payable_cost }}</td>
+                    <td>{{ item.gross_profit }}</td>
                     <td>
                         <span class="badge success">{{ item.review.match_status }}</span>
                     </td>
@@ -164,6 +182,7 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
         {% else %}
             <div class="empty">暂无匹配审核记录，请先上传 OCR 凭证。</div>
         {% endif %}

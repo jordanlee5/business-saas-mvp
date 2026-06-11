@@ -562,16 +562,33 @@ def match_reviews_page(request: Request):
     reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
     review_items = []
+
     for review in reviews:
         voucher = db.query(VoucherRecord).filter(VoucherRecord.id == review.voucher_id).first()
         record = db.query(BusinessRecord).filter(BusinessRecord.id == review.business_record_id).first()
 
         if voucher and record:
+            uploader = db.query(User).filter(User.id == record.user_id).first()
+
+            service_rate = uploader.service_rate if uploader else 0
+            upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+            points_amount = record.points_amount or 0
+
+            receivable_fee = points_amount * service_rate / 100
+            payable_cost = points_amount * upstream_cost_rate / 100
+            gross_profit = receivable_fee - payable_cost
+
             review_items.append(
                 {
                     "review": review,
                     "voucher": voucher,
                     "record": record,
+                    "uploader_username": uploader.username if uploader else "未知上传方",
+                    "service_rate": service_rate,
+                    "upstream_cost_rate": upstream_cost_rate,
+                    "receivable_fee": round(receivable_fee, 2),
+                    "payable_cost": round(payable_cost, 2),
+                    "gross_profit": round(gross_profit, 2),
                 }
             )
 
