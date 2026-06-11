@@ -981,6 +981,124 @@ def export_stats_dashboard(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
+@app.get("/my-settlement", response_class=HTMLResponse)
+def my_settlement_page(
+    request: Request,
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "partner":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    stats = build_stats_data(
+        partner_id=user.id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return templates.TemplateResponse(
+        "my_settlement.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_records": stats["total_records"],
+            "total_points": stats["total_points"],
+            "total_receivable_fee": stats["total_receivable_fee"],
+        },
+    )
+
+@app.get("/my-settlement/export")
+def export_my_settlement(
+    request: Request,
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "partner":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    stats = build_stats_data(
+        partner_id=user.id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    os.makedirs("exports", exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    export_path = os.path.join("exports", f"my_settlement_{user.id}_{timestamp}.xlsx")
+
+    export_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    summary_rows = [
+        {"指标": "报表名称", "数值": "我的结算报表"},
+        {"指标": "导出时间", "数值": export_time},
+        {"指标": "上传方", "数值": user.username},
+        {"指标": "开始日期", "数值": start_date if start_date else "全部"},
+        {"指标": "结束日期", "数值": end_date if end_date else "全部"},
+        {"指标": "", "数值": ""},
+        {"指标": "业务数据总条数", "数值": stats["total_records"]},
+        {"指标": "总积分金额", "数值": stats["total_points"]},
+        {"指标": "应收服务费合计", "数值": stats["total_receivable_fee"]},
+    ]
+
+    internal_columns = [
+        "姓名",
+        "手机号",
+        "车牌号",
+        "积分金额",
+        "银行卡号",
+        "下游服务费率",
+        "应收服务费",
+        "导入时间",
+    ]
+
+    customer_column_names = {
+        "下游服务费率": "结算费率",
+        "应收服务费": "结算服务费",
+    }
+
+    detail_df = pd.DataFrame(stats["rows"])
+
+    if detail_df.empty:
+        detail_df = pd.DataFrame(
+            columns=[
+                "姓名",
+                "手机号",
+                "车牌号",
+                "积分金额",
+                "银行卡号",
+                "结算费率",
+                "结算服务费",
+                "导入时间",
+            ]
+        )
+    else:
+        detail_df = detail_df[internal_columns]
+        detail_df = detail_df.rename(columns=customer_column_names)
+
+    with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
+        pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
+        detail_df.to_excel(writer, sheet_name="明细", index=False)
+
+        format_excel_file(writer)
+
+    return FileResponse(
+        export_path,
+        filename=f"我的结算报表_{timestamp}.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
 
 @app.get("/logout")
 def logout():
