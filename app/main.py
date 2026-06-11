@@ -899,12 +899,13 @@ def export_stats_dashboard(
 
         for partner_name, group in grouped:
             total_points = group["积分金额"].sum()
-            total_receivable_fee = group["应收服务费"].sum()
-            total_payable_cost = group["应付成本费"].sum()
-            total_gross_profit = group["毛利"].sum()
 
             service_rate = group["下游服务费率"].iloc[0]
             upstream_cost_rate = group["上游成本费率"].iloc[0]
+
+            total_receivable_fee = total_points * service_rate / 100
+            total_payable_cost = total_points * upstream_cost_rate / 100
+            total_gross_profit = total_receivable_fee - total_payable_cost
 
             partner_summary_rows.append(
                 {
