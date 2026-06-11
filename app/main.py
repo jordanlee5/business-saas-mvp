@@ -213,6 +213,7 @@ def create_partner(
     username: str = Form(...),
     password: str = Form(...),
     service_rate: float = Form(...),
+    upstream_cost_rate: float = Form(...),
 ):
     user = get_current_user(request)
     if not user:
@@ -254,11 +255,27 @@ def create_partner(
             },
         )
 
+    if upstream_cost_rate < 0 or upstream_cost_rate > 100:
+        partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+        db.close()
+        return templates.TemplateResponse(
+            "partners.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "partners": partners,
+                "message": None,
+                "error": "上游成本费率必须在 0 到 100 之间",
+            },
+        )
+
     new_partner = User(
         username=username,
         password_hash=get_password_hash(password),
         role="partner",
         service_rate=service_rate,
+        upstream_cost_rate=upstream_cost_rate,
     )
 
     db.add(new_partner)
@@ -274,7 +291,7 @@ def create_partner(
             "username": user.username,
             "role": user.role,
             "partners": partners,
-            "message": f"上传方账号 {username} 创建成功，服务费率为 {service_rate}%",
+            "message": f"上传方账号 {username} 创建成功，下游服务费率为 {service_rate}%，上游成本费率为 {upstream_cost_rate}%",
             "error": None,
         },
     )

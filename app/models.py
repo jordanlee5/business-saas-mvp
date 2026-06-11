@@ -10,6 +10,7 @@ class User(Base):
     password_hash = Column(String)
     role = Column(String)  # admin / partner
     service_rate = Column(Float, default=0.0)
+    upstream_cost_rate = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # 业务数据表
