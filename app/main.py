@@ -909,7 +909,23 @@ def export_stats_dashboard(
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     export_path = os.path.join("exports", f"settlement_summary_{timestamp}.xlsx")
 
+    selected_partner_name = "全部上传方"
+
+    if partner_id != 0:
+        for partner in stats["partners"]:
+            if partner.id == partner_id:
+                selected_partner_name = partner.username
+                break
+
+    export_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     summary_rows = [
+        {"指标": "报表名称", "数值": "结算汇总报表"},
+        {"指标": "导出时间", "数值": export_time},
+        {"指标": "上传方范围", "数值": selected_partner_name},
+        {"指标": "开始日期", "数值": start_date if start_date else "全部"},
+        {"指标": "结束日期", "数值": end_date if end_date else "全部"},
+        {"指标": "", "数值": ""},
         {"指标": "业务数据总条数", "数值": stats["total_records"]},
         {"指标": "上传批次数", "数值": stats["total_batches"]},
         {"指标": "上传方账号数", "数值": stats["total_partners"]},
