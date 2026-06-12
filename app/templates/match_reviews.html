@@ -119,6 +119,7 @@
                 <tr>
                     <th>ID</th>
                     <th>凭证文件</th>
+                    <th>凭证预览</th>
                     <th>姓名</th>
                     <th>手机号</th>
                     <th>车牌号</th>
@@ -145,6 +146,19 @@
                 <tr>
                     <td>{{ item.review.id }}</td>
                     <td>{{ item.voucher.filename }}</td>
+                    <td>
+                        {% if item.voucher_url %}
+                            <a href="{{ item.voucher_url }}" target="_blank">打开凭证</a >
+                            <br>
+                            <img
+                                src="{{ item.voucher_url }}"
+                                alt="凭证预览"
+                                style="width: 90px; max-height: 90px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 6px;"
+                            >
+                        {% else %}
+                            无
+                        {% endif %}
+                    </td>
                     <td>{{ item.record.name }}</td>
                     <td>{{ item.record.phone }}</td>
                     <td>{{ item.record.plate_number }}</td>

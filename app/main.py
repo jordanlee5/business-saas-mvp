@@ -24,6 +24,9 @@ Base.metadata.create_all(bind=engine)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 templates = Jinja2Templates(directory="app/templates")
 
 
@@ -769,6 +772,21 @@ def match_reviews_page(request: Request):
         if voucher and record:
             uploader = db.query(User).filter(User.id == record.user_id).first()
 
+            voucher_url = ""
+
+            if voucher.file_path:
+                normalized_path = voucher.file_path.replace("\\", "/")
+
+                if "/uploads/" in normalized_path:
+                    relative_path = normalized_path.split("/uploads/", 1)[1]
+                    voucher_url = "/uploads/" + relative_path
+                elif normalized_path.startswith("uploads/"):
+                    voucher_url = "/" + normalized_path
+                else:
+                    voucher_url = "/uploads/" + os.path.basename(normalized_path)
+            elif voucher.filename:
+                voucher_url = "/uploads/vouchers/" + voucher.filename
+            
             service_rate = uploader.service_rate if uploader else 0
             upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
             points_amount = record.points_amount or 0
@@ -782,6 +800,7 @@ def match_reviews_page(request: Request):
                     "review": review,
                     "voucher": voucher,
                     "record": record,
+                    "voucher_url": voucher_url,
                     "uploader_username": uploader.username if uploader else "未知上传方",
                     "service_rate": service_rate,
                     "upstream_cost_rate": upstream_cost_rate,
