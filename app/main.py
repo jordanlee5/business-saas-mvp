@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
 import os
+import hashlib
 from datetime import datetime, time
 import pandas as pd
 from openpyxl.styles import Font
@@ -668,6 +669,30 @@ async def upload_voucher_submit(
         content = await file.read()
         f.write(content)
 
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    db = SessionLocal()
+
+    existing_voucher = (
+        db.query(VoucherRecord)
+        .filter(VoucherRecord.file_hash == file_hash)
+        .first()
+    )
+
+    if existing_voucher:
+        db.close()
+        return templates.TemplateResponse(
+            "upload_voucher.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "ocr_text": existing_voucher.ocr_text,
+                "match_results": [],
+                "error": f"该凭证图片已上传过，原凭证文件：{existing_voucher.filename}，本次未重复生成审核记录。",
+            },
+        )
+
     try:
         ocr_text = ocr_image(file_path)
     except Exception as e:
@@ -683,13 +708,14 @@ async def upload_voucher_submit(
             },
         )
 
-    db = SessionLocal()
+
 
     # 第一版：管理员上传凭证时，和所有业务数据匹配
     voucher_record = VoucherRecord(
     uploader_id=user.id,
     filename=file.filename,
     file_path=file_path,
+    file_hash=file_hash,
     ocr_text=ocr_text,
     )
     db.add(voucher_record)

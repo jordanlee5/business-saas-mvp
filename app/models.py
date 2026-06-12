@@ -44,6 +44,7 @@ class VoucherRecord(Base):
     uploader_id = Column(Integer, ForeignKey("users.id"))
     filename = Column(String)
     file_path = Column(String)
+    file_hash = Column(String, index=True)
     ocr_text = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
