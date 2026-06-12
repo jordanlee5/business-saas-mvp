@@ -704,17 +704,25 @@ async def upload_voucher_submit(
     for item in raw_match_results:
         record = item["record"]
 
-        review = MatchReview(
-            voucher_id=voucher_record.id,
-            business_record_id=record.id,
-            match_status=item["status"],
-            name_match=item.get("name_detail", "未知"),
-            bank_match="是" if item["bank_match"] else "否",
-            amount_match="是" if item["amount_match"] else "否",
-            score=item["score"],
-            review_status="待审核",
+        existing_review = (
+            db.query(MatchReview)
+            .filter(MatchReview.voucher_id == voucher_record.id)
+            .filter(MatchReview.business_record_id == record.id)
+            .first()
         )
-        db.add(review)
+
+        if not existing_review:
+            review = MatchReview(
+                voucher_id=voucher_record.id,
+                business_record_id=record.id,
+                match_status=item["status"],
+                name_match=item.get("name_detail", "未知"),
+                bank_match="是" if item["bank_match"] else "否",
+                amount_match="是" if item["amount_match"] else "否",
+                score=item["score"],
+                review_status="待审核",
+            )
+            db.add(review)
 
         match_results.append(
             {
