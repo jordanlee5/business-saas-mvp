@@ -104,6 +104,11 @@
             padding: 20px;
         }
 
+        .settlement-card {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+        }
+
         .card-title {
             color: #475569;
             font-weight: 700;
@@ -164,9 +169,19 @@
                 <div class="card-value">{{ total_points }}</div>
             </div>
 
-            <div class="card">
+            <div class="card settlement-card">
+                <div class="card-title">已通过结算条数</div>
+                <div class="card-value">{{ approved_settlement_count }}</div>
+            </div>
+
+            <div class="card settlement-card">
+                <div class="card-title">已通过结算金额</div>
+                <div class="card-value">{{ approved_settlement_points }}</div>
+            </div>
+
+            <div class="card settlement-card">
                 <div class="card-title">结算服务费合计</div>
-                <div class="card-value">{{ total_receivable_fee }}</div>
+                <div class="card-value">{{ settlement_service_fee }}</div>
             </div>
         </div>
     </div>

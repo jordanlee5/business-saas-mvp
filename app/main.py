@@ -1064,7 +1064,9 @@ def my_settlement_page(
             "end_date": end_date,
             "total_records": stats["total_records"],
             "total_points": stats["total_points"],
-            "total_receivable_fee": stats["total_receivable_fee"],
+            "approved_settlement_count": stats["approved_settlement_count"],
+            "approved_settlement_points": stats["approved_settlement_points"],
+            "settlement_service_fee": stats["approved_settlement_receivable_fee"],
         },
     )
 
@@ -1103,7 +1105,9 @@ def export_my_settlement(
         {"指标": "", "数值": ""},
         {"指标": "业务数据总条数", "数值": stats["total_records"]},
         {"指标": "总积分金额", "数值": stats["total_points"]},
-        {"指标": "结算服务费合计", "数值": stats["total_receivable_fee"]},
+        {"指标": "已通过结算条数", "数值": stats["approved_settlement_count"]},
+        {"指标": "已通过结算金额", "数值": stats["approved_settlement_points"]},
+        {"指标": "结算服务费合计", "数值": stats["approved_settlement_receivable_fee"]},
     ]
 
     internal_columns = [
