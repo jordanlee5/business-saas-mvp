@@ -788,6 +788,7 @@ async def upload_voucher_submit(
 def match_reviews_page(
     request: Request,
     status_filter: str = Query("全部"),
+    partner_id: int = Query(0),
 ):
     user = get_current_user(request)
     if not user:
@@ -797,6 +798,8 @@ def match_reviews_page(
         return RedirectResponse(url="/dashboard", status_code=302)
 
     db = SessionLocal()
+
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
 
     reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
@@ -815,6 +818,19 @@ def match_reviews_page(
             review for review in latest_reviews
             if review.review_status == status_filter
         ]
+
+    if partner_id != 0:
+        filtered_reviews = []
+
+        for review in latest_reviews:
+            record = db.query(BusinessRecord).filter(
+                BusinessRecord.id == review.business_record_id
+            ).first()
+
+            if record and record.user_id == partner_id:
+                filtered_reviews.append(review)
+
+        latest_reviews = filtered_reviews
 
     review_items = []
 
@@ -873,6 +889,8 @@ def match_reviews_page(
             "role": user.role,
             "reviews": review_items,
             "status_filter": status_filter,
+            "partners": partners,
+            "partner_id": partner_id,
         },
     )
 
@@ -923,6 +941,7 @@ def batch_review_match_reviews(
     review_ids: list[int] = Form([]),
     action: str = Form(...),
     status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
 ):
     user = get_current_user(request)
     if not user:
@@ -932,10 +951,18 @@ def batch_review_match_reviews(
         return RedirectResponse(url="/dashboard", status_code=302)
 
     if action not in ["approve", "reject"]:
-        redirect_url = "/match-reviews"
+        query_params = []
 
         if status_filter and status_filter != "全部":
-            redirect_url = f"/match-reviews?status_filter={status_filter}"
+            query_params.append(f"status_filter={status_filter}")
+
+        if partner_id != 0:
+            query_params.append(f"partner_id={partner_id}")
+
+        redirect_url = "/match-reviews"
+
+        if query_params:
+            redirect_url = "/match-reviews?" + "&".join(query_params)
 
         return RedirectResponse(url=redirect_url, status_code=302)
 

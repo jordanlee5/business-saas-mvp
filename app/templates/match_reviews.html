@@ -149,6 +149,16 @@
         <h1>匹配结果审核</h1>
 
         <form method="get" action="/match-reviews" class="filter-form">
+            <label>上传方：</label>
+            <select name="partner_id">
+                <option value="0" {% if partner_id == 0 %}selected{% endif %}>全部上传方</option>
+                {% for partner in partners %}
+                    <option value="{{ partner.id }}" {% if partner_id == partner.id %}selected{% endif %}>
+                        {{ partner.username }}
+                    </option>
+                {% endfor %}
+            </select>
+
             <label>审核状态：</label>
             <select name="status_filter">
                 <option value="全部" {% if status_filter == "全部" %}selected{% endif %}>全部</option>
@@ -158,12 +168,13 @@
             </select>
 
             <button type="submit" class="btn">筛选</button>
-            <a href=" " class="reset-link">重置</a >
-        </form>       
+            <a href="/match-reviews" class="reset-link">重置</a >
+        </form>   
 
         {% if reviews %}
         <form method="post" action="/match-reviews/batch-review">
             <input type="hidden" name="status_filter" value="{{ status_filter }}">
+            <input type="hidden" name="partner_id" value="{{ partner_id }}">
 
             <div class="batch-actions">
                 <button type="submit" name="action" value="approve" class="btn approve">
