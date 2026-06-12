@@ -163,6 +163,8 @@
 
         {% if reviews %}
         <form method="post" action="/match-reviews/batch-review">
+            <input type="hidden" name="status_filter" value="{{ status_filter }}">
+
             <div class="batch-actions">
                 <button type="submit" name="action" value="approve" class="btn approve">
                     批量通过

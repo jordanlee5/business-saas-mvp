@@ -922,6 +922,7 @@ def batch_review_match_reviews(
     request: Request,
     review_ids: list[int] = Form([]),
     action: str = Form(...),
+    status_filter: str = Form("全部"),
 ):
     user = get_current_user(request)
     if not user:
@@ -931,7 +932,12 @@ def batch_review_match_reviews(
         return RedirectResponse(url="/dashboard", status_code=302)
 
     if action not in ["approve", "reject"]:
-        return RedirectResponse(url="/match-reviews", status_code=302)
+        redirect_url = "/match-reviews"
+
+        if status_filter and status_filter != "全部":
+            redirect_url = f"/match-reviews?status_filter={status_filter}"
+
+        return RedirectResponse(url=redirect_url, status_code=302)
 
     new_status = "已通过" if action == "approve" else "已驳回"
 
@@ -946,7 +952,12 @@ def batch_review_match_reviews(
 
     db.close()
 
-    return RedirectResponse(url="/match-reviews", status_code=302)
+    redirect_url = "/match-reviews"
+
+    if status_filter and status_filter != "全部":
+        redirect_url = f"/match-reviews?status_filter={status_filter}"
+
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 @app.get("/upload-batches", response_class=HTMLResponse)
 def upload_batches_page(request: Request):
