@@ -244,13 +244,12 @@ def format_excel_file(writer):
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse(
-        "home.html",
-        {
-            "request": request,
-            "title": "业务数据管理SaaS MVP",
-        },
-    )
+    user = get_current_user(request)
+
+    if user:
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    return RedirectResponse(url="/login", status_code=302)
 
 
 @app.get("/query-record", response_class=HTMLResponse)
