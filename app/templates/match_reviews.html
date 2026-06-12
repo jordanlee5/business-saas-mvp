@@ -87,6 +87,27 @@
             margin-right: 6px;
         }
 
+        .filter-form {
+            margin: 18px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-form select {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .reset-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
         .approve {
             background: #16a34a;
             color: white;
@@ -126,6 +147,19 @@
 <div class="container">
     <div class="card">
         <h1>匹配结果审核</h1>
+
+        <form method="get" action="/match-reviews" class="filter-form">
+            <label>审核状态：</label>
+            <select name="status_filter">
+                <option value="全部" {% if status_filter == "全部" %}selected{% endif %}>全部</option>
+                <option value="待审核" {% if status_filter == "待审核" %}selected{% endif %}>待审核</option>
+                <option value="已通过" {% if status_filter == "已通过" %}selected{% endif %}>已通过</option>
+                <option value="已驳回" {% if status_filter == "已驳回" %}selected{% endif %}>已驳回</option>
+            </select>
+
+            <button type="submit" class="btn">筛选</button>
+            <a href=" " class="reset-link">重置</a >
+        </form>       
 
         {% if reviews %}
         <form method="post" action="/match-reviews/batch-review">

@@ -785,7 +785,10 @@ async def upload_voucher_submit(
     )
 
 @app.get("/match-reviews", response_class=HTMLResponse)
-def match_reviews_page(request: Request):
+def match_reviews_page(
+    request: Request,
+    status_filter: str = Query("全部"),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -806,6 +809,12 @@ def match_reviews_page(request: Request):
 
         seen_business_record_ids.add(review.business_record_id)
         latest_reviews.append(review)
+
+    if status_filter in ["待审核", "已通过", "已驳回"]:
+        latest_reviews = [
+            review for review in latest_reviews
+            if review.review_status == status_filter
+        ]
 
     review_items = []
 
@@ -863,6 +872,7 @@ def match_reviews_page(request: Request):
             "username": user.username,
             "role": user.role,
             "reviews": review_items,
+            "status_filter": status_filter,
         },
     )
 
