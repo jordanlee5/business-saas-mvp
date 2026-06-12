@@ -143,14 +143,14 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         total_payable_cost += payable_cost
         total_gross_profit += gross_profit
 
-        approved_review = (
+        latest_review = (
             db.query(MatchReview)
             .filter(MatchReview.business_record_id == record.id)
-            .filter(MatchReview.review_status == "已通过")
+            .order_by(MatchReview.id.desc())
             .first()
         )
 
-        if approved_review:
+        if latest_review and latest_review.review_status == "已通过":
             approved_settlement_count += 1
             approved_settlement_points += points_amount
             approved_settlement_receivable_fee += receivable_fee
@@ -164,7 +164,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
             .first()
         )
 
-        review_status = review.review_status if review else "未匹配"
+        review_status = latest_review.review_status if latest_review else "未匹配"
 
         rows.append(
             {
@@ -763,9 +763,19 @@ def match_reviews_page(request: Request):
 
     reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
-    review_items = []
+    latest_reviews = []
+    seen_business_record_ids = set()
 
     for review in reviews:
+        if review.business_record_id in seen_business_record_ids:
+            continue
+
+        seen_business_record_ids.add(review.business_record_id)
+        latest_reviews.append(review)
+
+    review_items = []
+
+    for review in latest_reviews:
         voucher = db.query(VoucherRecord).filter(VoucherRecord.id == review.voucher_id).first()
         record = db.query(BusinessRecord).filter(BusinessRecord.id == review.business_record_id).first()
 
@@ -857,6 +867,37 @@ def reject_match_review(review_id: int, request: Request):
 
     if review:
         review.review_status = "已驳回"
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse(url="/match-reviews", status_code=302)
+
+@app.post("/match-reviews/batch-review")
+def batch_review_match_reviews(
+    request: Request,
+    review_ids: list[int] = Form([]),
+    action: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    if action not in ["approve", "reject"]:
+        return RedirectResponse(url="/match-reviews", status_code=302)
+
+    new_status = "已通过" if action == "approve" else "已驳回"
+
+    db = SessionLocal()
+
+    if review_ids:
+        db.query(MatchReview).filter(MatchReview.id.in_(review_ids)).update(
+            {MatchReview.review_status: new_status},
+            synchronize_session=False,
+        )
         db.commit()
 
     db.close()

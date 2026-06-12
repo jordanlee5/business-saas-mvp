@@ -96,6 +96,21 @@
             background: #dc2626;
             color: white;
         }
+        .batch-actions {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .batch-actions .approve {
+            background: #16a34a;
+            color: white;
+        }
+
+        .batch-actions .reject {
+            background: #dc2626;
+            color: white;
+        }       
     </style>
 </head>
 <body>
@@ -113,10 +128,21 @@
         <h1>匹配结果审核</h1>
 
         {% if reviews %}
+        <form method="post" action="/match-reviews/batch-review">
+            <div class="batch-actions">
+                <button type="submit" name="action" value="approve" class="btn approve">
+                    批量通过
+                </button>
+                <button type="submit" name="action" value="reject" class="btn reject">
+                    批量驳回
+                </button>
+            </div>
+
         <div class="table-wrap">
         <table>
             <thead>
                 <tr>
+                    <th>选择</th>
                     <th>ID</th>
                     <th>凭证文件</th>
                     <th>凭证预览</th>
@@ -144,6 +170,14 @@
             <tbody>
             {% for item in reviews %}
                 <tr>
+                    <td>
+                        <input
+                            type="checkbox"
+                            name="review_ids"
+                            value="{{ item.review.id }}"
+                            {% if item.review.review_status != "待审核" %}disabled{% endif %}
+                        >
+                    </td>
                     <td>{{ item.review.id }}</td>
                     <td>{{ item.voucher.filename }}</td>
                     <td>
@@ -197,6 +231,7 @@
             </tbody>
         </table>
         </div>
+        </form>
         {% else %}
             <div class="empty">暂无匹配审核记录，请先上传 OCR 凭证。</div>
         {% endif %}
