@@ -116,6 +116,12 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     total_payable_cost = 0
     total_gross_profit = 0
 
+    approved_settlement_count = 0
+    approved_settlement_points = 0
+    approved_settlement_receivable_fee = 0
+    approved_settlement_payable_cost = 0
+    approved_settlement_gross_profit = 0
+
     rows = []
 
     for record in business_records:
@@ -134,6 +140,29 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         total_payable_cost += payable_cost
         total_gross_profit += gross_profit
 
+        approved_review = (
+            db.query(MatchReview)
+            .filter(MatchReview.business_record_id == record.id)
+            .filter(MatchReview.review_status == "已通过")
+            .first()
+        )
+
+        if approved_review:
+            approved_settlement_count += 1
+            approved_settlement_points += points_amount
+            approved_settlement_receivable_fee += receivable_fee
+            approved_settlement_payable_cost += payable_cost
+            approved_settlement_gross_profit += gross_profit
+
+        review = (
+            db.query(MatchReview)
+            .filter(MatchReview.business_record_id == record.id)
+            .order_by(MatchReview.id.desc())
+            .first()
+        )
+
+        review_status = review.review_status if review else "未匹配"
+
         rows.append(
             {
                 "上传方": uploader.username if uploader else "未知上传方",
@@ -147,6 +176,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
                 "上游成本费率": upstream_cost_rate,
                 "应付成本费": round(payable_cost, 2),
                 "毛利": round(gross_profit, 2),
+                "审核状态": review_status,
                 "导入时间": record.created_at,
             }
         )
@@ -168,6 +198,13 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         "total_receivable_fee": round(total_receivable_fee, 2),
         "total_payable_cost": round(total_payable_cost, 2),
         "total_gross_profit": round(total_gross_profit, 2),
+
+        "approved_settlement_count": approved_settlement_count,
+        "approved_settlement_points": round(approved_settlement_points, 2),
+        "approved_settlement_receivable_fee": round(approved_settlement_receivable_fee, 2),
+        "approved_settlement_payable_cost": round(approved_settlement_payable_cost, 2),
+        "approved_settlement_gross_profit": round(approved_settlement_gross_profit, 2),
+
         "rows": rows,
     }
 
@@ -936,6 +973,12 @@ def export_stats_dashboard(
         {"指标": "应收服务费合计", "数值": stats["total_receivable_fee"]},
         {"指标": "应付成本费合计", "数值": stats["total_payable_cost"]},
         {"指标": "毛利合计", "数值": stats["total_gross_profit"]},
+        {"指标": "", "数值": ""},
+        {"指标": "已通过结算条数", "数值": stats["approved_settlement_count"]},
+        {"指标": "已通过结算金额", "数值": stats["approved_settlement_points"]},
+        {"指标": "已通过应收服务费", "数值": stats["approved_settlement_receivable_fee"]},
+        {"指标": "已通过应付成本费", "数值": stats["approved_settlement_payable_cost"]},
+        {"指标": "已通过毛利", "数值": stats["approved_settlement_gross_profit"]},       
     ]
 
     detail_df = pd.DataFrame(stats["rows"])
@@ -954,6 +997,12 @@ def export_stats_dashboard(
             total_receivable_fee = total_points * service_rate / 100
             total_payable_cost = total_points * upstream_cost_rate / 100
             total_gross_profit = total_receivable_fee - total_payable_cost
+            approved_group = group[group["审核状态"] == "已通过"]
+
+            approved_points = approved_group["积分金额"].sum()
+            approved_receivable_fee = approved_points * service_rate / 100
+            approved_payable_cost = approved_points * upstream_cost_rate / 100
+            approved_gross_profit = approved_receivable_fee - approved_payable_cost
 
             partner_summary_rows.append(
                 {
@@ -965,6 +1014,11 @@ def export_stats_dashboard(
                     "上游成本费率": upstream_cost_rate,
                     "应付成本费合计": round(total_payable_cost, 2),
                     "毛利合计": round(total_gross_profit, 2),
+                    "已通过结算条数": len(approved_group),
+                    "已通过结算金额": round(approved_points, 2),
+                    "已通过应收服务费": round(approved_receivable_fee, 2),
+                    "已通过应付成本费": round(approved_payable_cost, 2),
+                    "已通过毛利": round(approved_gross_profit, 2),
                 }
             )
 

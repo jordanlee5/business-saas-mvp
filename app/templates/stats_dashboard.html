@@ -108,6 +108,10 @@
             padding: 22px;
             background: #f8fafc;
         }
+        .settlement-card {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+        }        
         .stat-title {
             color: #64748b;
             font-size: 14px;
@@ -230,6 +234,31 @@
                 <div class="stat-title">毛利合计</div>
                 <div class="stat-value profit">{{ total_gross_profit }}</div>
             </div>
+
+            <div class="stat-card settlement-card">
+                <div class="stat-title">已通过结算条数</div>
+                <div class="stat-value">{{ approved_settlement_count }}</div>
+            </div>
+
+            <div class="stat-card settlement-card">
+                <div class="stat-title">已通过结算金额</div>
+                <div class="stat-value">{{ approved_settlement_points }}</div>
+            </div>
+
+            <div class="stat-card settlement-card">
+                <div class="stat-title">已通过应收服务费</div>
+                <div class="stat-value money">{{ approved_settlement_receivable_fee }}</div>
+            </div>
+
+            <div class="stat-card settlement-card">
+                <div class="stat-title">已通过应付成本费</div>
+                <div class="stat-value danger">{{ approved_settlement_payable_cost }}</div>
+            </div>
+
+            <div class="stat-card settlement-card">
+                <div class="stat-title">已通过毛利</div>
+                <div class="stat-value profit">{{ approved_settlement_gross_profit }}</div>
+            </div>           
         </div>
     </div>
 </div>
