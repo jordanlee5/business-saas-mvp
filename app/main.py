@@ -23,6 +23,7 @@ app = FastAPI(title="业务数据管理SaaS MVP")
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
+os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 os.makedirs("uploads", exist_ok=True)
