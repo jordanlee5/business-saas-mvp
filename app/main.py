@@ -743,7 +743,7 @@ async def upload_voucher_submit(
                 business_record_id=record.id,
                 match_status=item["status"],
                 name_match=item.get("name_detail", "未知"),
-                bank_match="是" if item["bank_match"] else "否",
+                bank_match=item.get("bank_detail", "是" if item["bank_match"] else "否"),
                 amount_match="是" if item["amount_match"] else "否",
                 score=item["score"],
                 review_status="待审核",
