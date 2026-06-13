@@ -19,6 +19,7 @@ class BusinessRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     batch_id = Column(Integer, ForeignKey("upload_batches.id"))
+    business_no = Column(String, index=True)
     name = Column(String)
     phone = Column(String, index=True)
     plate_number = Column(String, index=True)

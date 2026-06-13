@@ -582,17 +582,20 @@ async def upload_excel_submit(
     db.commit()
     db.refresh(batch)
 
-    for item in records:
-        record = BusinessRecord(
+    for row_index, item in enumerate(records, start=1):
+        business_no = f"P{user.id}-B{batch.id}-R{row_index}"
+
+        business_record = BusinessRecord(
             user_id=user.id,
             batch_id=batch.id,
+            business_no=business_no,
             name=item["name"],
             phone=item["phone"],
             plate_number=item["plate_number"],
             points_amount=item["points_amount"],
             bank_card=item["bank_card"],
         )
-        db.add(record)
+        db.add(business_record)
 
     db.commit()
     db.close()
