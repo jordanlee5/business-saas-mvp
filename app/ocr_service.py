@@ -1,8 +1,34 @@
+import os
 import re
+from PIL import Image
+from decimal import Decimal, ROUND_HALF_UP
 from rapidocr import RapidOCR
 
 
 rapid_ocr_engine = RapidOCR()
+
+def prepare_image_for_ocr(file_path: str) -> str:
+    """
+    OCR 图片预处理：
+    对较长的手机截图，只截取上半部分，减少无关内容干扰。
+    返回处理后的图片路径。
+    """
+
+    image = Image.open(file_path)
+    width, height = image.size
+
+    # 如果图片明显是长截图，就只保留上半部分约 70%
+    if height > width * 1.5:
+        crop_height = int(height * 0.72)
+        cropped = image.crop((0, 0, width, crop_height))
+
+        base_name, ext = os.path.splitext(file_path)
+        processed_path = f"{base_name}_ocr_crop{ext}"
+
+        cropped.save(processed_path)
+        return processed_path
+
+    return file_path
 
 
 def normalize_text(text: str) -> str:
@@ -81,6 +107,25 @@ def normalize_amount(amount) -> str:
         return str(amount)
 
 
+def normalize_amount_2dp(amount):
+    """
+    金额统一按两位小数比较。
+    例如：
+    40022.484 -> 40022.48
+    31775 -> 31775.00
+    """
+
+    if amount is None:
+        return ""
+
+    try:
+        value = Decimal(str(amount))
+        value = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return format(value, "f")
+    except Exception:
+        return ""
+
+
 def match_name(name: str, normalized_ocr: str):
     """
     姓名匹配：
@@ -112,7 +157,9 @@ def match_name(name: str, normalized_ocr: str):
 
 
 def ocr_image(file_path: str) -> str:
-    result = rapid_ocr_engine(file_path)
+    ocr_file_path = prepare_image_for_ocr(file_path)
+
+    result = rapid_ocr_engine(ocr_file_path)
 
     if not result or not result.txts:
         raise Exception("RapidOCR 未识别到任何文字")
@@ -132,6 +179,7 @@ def match_ocr_with_records(ocr_text: str, records):
     for record in records:
         name = record.name or ""
         amount = normalize_amount(record.points_amount)
+        amount_2dp = normalize_amount_2dp(record.points_amount)
 
         name_match, name_score, name_detail = match_name(name, normalized_ocr)
 
@@ -140,7 +188,13 @@ def match_ocr_with_records(ocr_text: str, records):
             ocr_text,
         )
 
-        amount_match = amount and amount in normalized_ocr
+        amount_match = False
+
+        if amount and amount in normalized_ocr:
+            amount_match = True
+
+        if amount_2dp and amount_2dp in normalized_ocr:
+            amount_match = True
 
         score = 0
 
