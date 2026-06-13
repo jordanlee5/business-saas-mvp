@@ -1,6 +1,8 @@
 import re
-from PIL import Image
-import pytesseract
+from rapidocr import RapidOCR
+
+
+rapid_ocr_engine = RapidOCR()
 
 
 def normalize_text(text: str) -> str:
@@ -81,14 +83,12 @@ def match_name(name: str, normalized_ocr: str):
 
 
 def ocr_image(file_path: str) -> str:
-    """
-    对图片做 OCR 识别，返回识别文本
-    """
-    img = Image.open(file_path)
+    result = rapid_ocr_engine(file_path)
 
-    # chi_sim + eng：同时识别中文和英文/数字
-    text = pytesseract.image_to_string(img, lang="chi_sim+eng")
-    return text
+    if not result or not result.txts:
+        raise Exception("RapidOCR 未识别到任何文字")
+
+    return "\n".join(result.txts)
 
 
 def match_ocr_with_records(ocr_text: str, records):

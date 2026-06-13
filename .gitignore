@@ -9,3 +9,6 @@ uploads/
 .env
 .DS_Store
 exports/
+ocr_test_images/
+test_rapid_ocr.py
+test_ocr_env.py
