@@ -24,7 +24,7 @@
             margin-left: 12px;
         }
         .container {
-            max-width: 1080px;
+            max-width: 1400px;
             margin: 40px auto;
             padding: 0 24px;
         }
@@ -91,8 +91,12 @@
             max-height: 320px;
             overflow-y: auto;
         }
+        .table-wrap {
+            overflow-x: auto;
+        }
         table {
             width: 100%;
+            min-width: 1200px;
             border-collapse: collapse;
             margin-top: 18px;
         }
@@ -101,6 +105,7 @@
             padding: 12px 8px;
             text-align: left;
             font-size: 14px;
+            white-space: nowrap;
         }
         th {
             background: #f8fafc;
@@ -180,6 +185,7 @@
         {% if match_results|length == 0 %}
             <div class="empty">未找到任何匹配记录，请检查凭证图片清晰度，或确认业务清单是否已导入。</div>
         {% else %}
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr>
@@ -189,6 +195,7 @@
                     <th>手机号</th>
                     <th>车牌号</th>
                     <th>积分金额</th>
+                    <th>凭证金额</th>
                     <th>银行卡号</th>
                     <th>姓名匹配</th>
                     <th>银行卡匹配</th>
@@ -211,6 +218,7 @@
                     <td>{{ item.record.phone }}</td>
                     <td>{{ item.record.plate_number }}</td>
                     <td>{{ item.record.points_amount }}</td>
+                    <td>{{ item.voucher_amount }}</td>
                     <td>{{ item.record.bank_card }}</td>
                     <td class="{{ 'yes' if item.name_match else 'no' }}">
                         {{ item.name_detail }}
@@ -222,6 +230,7 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
         {% endif %}
     </div>
     {% endif %}

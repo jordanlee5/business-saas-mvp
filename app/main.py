@@ -765,6 +765,7 @@ async def upload_voucher_submit(
                 "name_detail": item.get("name_detail", "未知"),
                 "bank_match": item["bank_match"],
                 "amount_match": item["amount_match"],
+                "voucher_amount": voucher_amount,
                 "score": item["score"],
                 "record": {
                     "id": record.id,
