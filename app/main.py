@@ -874,6 +874,31 @@ def match_reviews_page(
             payable_cost = points_amount * upstream_cost_rate / 100
             gross_profit = receivable_fee - payable_cost
 
+            approved_reviews_for_record = (
+                db.query(MatchReview)
+                .filter(MatchReview.business_record_id == record.id)
+                .filter(MatchReview.review_status == "已通过")
+                .all()
+            )
+
+            approved_voucher_amount = 0
+
+            for approved_review in approved_reviews_for_record:
+                approved_voucher = (
+                    db.query(VoucherRecord)
+                    .filter(VoucherRecord.id == approved_review.voucher_id)
+                    .first()
+                )
+
+                if approved_voucher and approved_voucher.voucher_amount:
+                    approved_voucher_amount += approved_voucher.voucher_amount
+
+            business_amount = record.points_amount or 0
+            remaining_amount = business_amount - approved_voucher_amount
+
+            if remaining_amount < 0:
+                remaining_amount = 0
+
             review_items.append(
                 {
                     "review": review,
@@ -886,6 +911,9 @@ def match_reviews_page(
                     "receivable_fee": round(receivable_fee, 2),
                     "payable_cost": round(payable_cost, 2),
                     "gross_profit": round(gross_profit, 2),
+                    "voucher_amount": voucher.voucher_amount or 0,
+                    "approved_voucher_amount": round(approved_voucher_amount, 2),
+                    "remaining_amount": round(remaining_amount, 2),
                 }
             )
 
