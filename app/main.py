@@ -171,6 +171,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         rows.append(
             {
                 "上传方": uploader.username if uploader else "未知上传方",
+                "业务单号": record.business_no,
                 "姓名": record.name,
                 "手机号": record.phone,
                 "车牌号": record.plate_number,
@@ -1259,6 +1260,7 @@ def export_my_settlement(
     ]
 
     internal_columns = [
+        "业务单号",
         "姓名",
         "手机号",
         "车牌号",
@@ -1279,6 +1281,7 @@ def export_my_settlement(
     if detail_df.empty:
         detail_df = pd.DataFrame(
             columns=[
+                "业务单号",
                 "姓名",
                 "手机号",
                 "车牌号",
