@@ -583,7 +583,8 @@ async def upload_excel_submit(
     db.refresh(batch)
 
     for row_index, item in enumerate(records, start=1):
-        business_no = f"P{user.id}-B{batch.id}-R{row_index}"
+        batch_date = batch.created_at.strftime("%Y%m%d")
+        business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
 
         business_record = BusinessRecord(
             user_id=user.id,
