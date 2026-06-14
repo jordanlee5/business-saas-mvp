@@ -126,6 +126,78 @@ def normalize_amount_2dp(amount):
         return ""
 
 
+def extract_voucher_amount(ocr_text: str):
+    """
+    从 OCR 文本中提取凭证转账金额。
+
+    优先识别这些关键词附近的金额：
+    转账金额、金额（小写）、金额(小写)、交易金额
+
+    如果找不到关键词金额，再从全文里找金额数字。
+    """
+
+    if not ocr_text:
+        return None
+
+    text = ocr_text.replace(",", "").replace("￥", "").replace("¥", "")
+
+    amount_keywords = [
+        "转账金额",
+        "金额（小写）",
+        "金额(小写)",
+        "交易金额",
+        "金额",
+    ]
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    for index, line in enumerate(lines):
+        for keyword in amount_keywords:
+            if keyword in line:
+                # 情况1：金额和关键词在同一行，例如：转账金额 40022.48
+                numbers = re.findall(r"\d+\.\d{1,3}|\d+", line)
+                if numbers:
+                    try:
+                        value = Decimal(numbers[-1]).quantize(
+                            Decimal("0.01"),
+                            rounding=ROUND_HALF_UP,
+                        )
+                        return float(value)
+                    except Exception:
+                        pass
+
+                # 情况2：关键词在一行，金额在下一行，例如：
+                # 转账金额
+                # 40022.48
+                if index + 1 < len(lines):
+                    next_line = lines[index + 1]
+                    numbers = re.findall(r"\d+\.\d{1,3}|\d+", next_line)
+                    if numbers:
+                        try:
+                            value = Decimal(numbers[0]).quantize(
+                                Decimal("0.01"),
+                                rounding=ROUND_HALF_UP,
+                            )
+                            return float(value)
+                        except Exception:
+                            pass
+
+    # 兜底：从全文提取带小数的金额，优先取看起来像金额的数字
+    numbers = re.findall(r"\d+\.\d{1,3}", text)
+
+    if numbers:
+        try:
+            value = Decimal(numbers[0]).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+            return float(value)
+        except Exception:
+            return None
+
+    return None
+
+
 def match_name(name: str, normalized_ocr: str):
     """
     姓名匹配：

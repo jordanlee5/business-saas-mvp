@@ -46,6 +46,7 @@ class VoucherRecord(Base):
     filename = Column(String)
     file_path = Column(String)
     file_hash = Column(String, index=True)
+    voucher_amount = Column(Float, default=0.0)
     ocr_text = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

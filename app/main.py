@@ -16,7 +16,7 @@ from . import models
 from .models import User, BusinessRecord, UploadBatch, VoucherRecord, MatchReview
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
-from .ocr_service import ocr_image, match_ocr_with_records
+from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -701,6 +701,7 @@ async def upload_voucher_submit(
 
     try:
         ocr_text = ocr_image(file_path)
+        voucher_amount = extract_voucher_amount(ocr_text) or 0
     except Exception as e:
         return templates.TemplateResponse(
             "upload_voucher.html",
@@ -718,11 +719,12 @@ async def upload_voucher_submit(
 
     # 第一版：管理员上传凭证时，和所有业务数据匹配
     voucher_record = VoucherRecord(
-    uploader_id=user.id,
-    filename=file.filename,
-    file_path=file_path,
-    file_hash=file_hash,
-    ocr_text=ocr_text,
+        uploader_id=user.id,
+        filename=file.filename,
+        file_path=file_path,
+        file_hash=file_hash,
+        voucher_amount=voucher_amount,
+        ocr_text=ocr_text,
     )
     db.add(voucher_record)
     db.commit()
