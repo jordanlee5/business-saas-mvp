@@ -318,6 +318,7 @@ def query_record_submit(
         records.append(
             {
                 "id": r.id,
+                "business_no": r.business_no,
                 "name": r.name,
                 "phone": r.phone,
                 "plate_number": r.plate_number,
@@ -764,6 +765,7 @@ async def upload_voucher_submit(
                 "score": item["score"],
                 "record": {
                     "id": record.id,
+                    "business_no": record.business_no,
                     "name": record.name,
                     "phone": record.phone,
                     "plate_number": record.plate_number,

@@ -184,6 +184,7 @@
             <thead>
                 <tr>
                     <th>匹配状态</th>
+                    <th>业务单号</th>
                     <th>姓名</th>
                     <th>手机号</th>
                     <th>车牌号</th>
@@ -205,6 +206,7 @@
                             <span class="partial-badge">{{ item.status }}</span>
                         {% endif %}
                     </td>
+                    <td>{{ item.record.business_no }}</td>
                     <td>{{ item.record.name }}</td>
                     <td>{{ item.record.phone }}</td>
                     <td>{{ item.record.plate_number }}</td>

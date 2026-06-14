@@ -135,6 +135,7 @@
         <table>
             <thead>
                 <tr>
+                    <th>业务单号</th>
                     <th>姓名</th>
                     <th>手机号</th>
                     <th>车牌号</th>
@@ -159,6 +160,7 @@
             <tbody>
             {% for r in records %}
                 <tr>
+                    <td>{{ r.business_no }}</td>
                     <td>{{ r.name }}</td>
                     <td>{{ r.phone }}</td>
                     <td>{{ r.plate_number }}</td>
