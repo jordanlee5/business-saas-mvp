@@ -731,7 +731,11 @@ async def upload_voucher_submit(
     db.refresh(voucher_record)
 
     records = db.query(BusinessRecord).all()
-    raw_match_results = match_ocr_with_records(ocr_text, records)
+    raw_match_results = match_ocr_with_records(
+        ocr_text,
+        records,
+        voucher_amount=voucher_amount,
+    )
 
     match_results = []
 
@@ -752,7 +756,11 @@ async def upload_voucher_submit(
                 match_status=item["status"],
                 name_match=item.get("name_detail", "未知"),
                 bank_match=item.get("bank_detail", "是" if item["bank_match"] else "否"),
-                amount_match="是" if item["amount_match"] else "否",
+                amount_match=(
+                    "是"
+                    if item["amount_match"]
+                    else item.get("partial_amount_detail", "否")
+                ),
                 score=item["score"],
                 review_status="待审核",
             )
@@ -765,6 +773,7 @@ async def upload_voucher_submit(
                 "name_detail": item.get("name_detail", "未知"),
                 "bank_match": item["bank_match"],
                 "amount_match": item["amount_match"],
+                "partial_amount_detail": item.get("partial_amount_detail", ""),
                 "voucher_amount": voucher_amount,
                 "score": item["score"],
                 "record": {

@@ -198,6 +198,34 @@ def extract_voucher_amount(ocr_text: str):
     return None
 
 
+def match_partial_amount(record_amount, voucher_amount):
+    """
+    判断是否可能是分笔付款：
+    凭证金额大于 0，且小于业务金额。
+    """
+
+    if record_amount is None or voucher_amount is None:
+        return False, ""
+
+    try:
+        business_amount = Decimal(str(record_amount)).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        current_voucher_amount = Decimal(str(voucher_amount)).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+    except Exception:
+        return False, ""
+
+    if current_voucher_amount > 0 and current_voucher_amount < business_amount:
+        return True, f"可能分笔付款，凭证金额 {current_voucher_amount} 小于业务金额 {business_amount}"
+
+    return False, ""
+
+
 def match_name(name: str, normalized_ocr: str):
     """
     姓名匹配：
@@ -239,7 +267,7 @@ def ocr_image(file_path: str) -> str:
     return "\n".join(result.txts)
 
 
-def match_ocr_with_records(ocr_text: str, records):
+def match_ocr_with_records(ocr_text: str, records, voucher_amount=None):
     """
     将 OCR 文本与业务记录匹配。
     records 是 BusinessRecord 列表。
@@ -268,6 +296,11 @@ def match_ocr_with_records(ocr_text: str, records):
         if amount_2dp and amount_2dp in normalized_ocr:
             amount_match = True
 
+        partial_amount_match, partial_amount_detail = match_partial_amount(
+            record.points_amount,
+            voucher_amount,
+        )
+
         score = 0
 
         if name_match:
@@ -277,9 +310,14 @@ def match_ocr_with_records(ocr_text: str, records):
 
         if amount_match:
             score += 3
+        elif partial_amount_match and bank_match and name_match:
+            score += 1
 
         if score >= 5:
-            status = "匹配成功"
+            if partial_amount_match and not amount_match:
+                status = "分笔付款疑似匹配"
+            else:
+                status = "匹配成功"
         elif score >= 1:
             status = "部分匹配"
         else:
@@ -293,6 +331,8 @@ def match_ocr_with_records(ocr_text: str, records):
                 "name_match": name_match,
                 "name_detail": name_detail,
                 "amount_match": amount_match,
+                "partial_amount_match": partial_amount_match,
+                "partial_amount_detail": partial_amount_detail,
                 "score": score,
                 "status": status,
             }
