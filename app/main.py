@@ -619,12 +619,28 @@ async def upload_excel_submit(
 @app.get("/upload-voucher", response_class=HTMLResponse)
 def upload_voucher_page(request: Request):
     user = get_current_user(request)
-    if not user:
+
+    if not user or user.role != "admin":
         return RedirectResponse(url="/login", status_code=302)
 
-    # 第一版只允许管理员上传凭证
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    db = SessionLocal()
+
+    partners = (
+        db.query(User)
+        .filter(User.role == "partner")
+        .order_by(User.id.desc())
+        .all()
+    )
+
+    partner_options = [
+        {
+            "id": partner.id,
+            "username": partner.username,
+        }
+        for partner in partners
+    ]
+
+    db.close()
 
     return templates.TemplateResponse(
         "upload_voucher.html",
@@ -632,174 +648,177 @@ def upload_voucher_page(request: Request):
             "request": request,
             "username": user.username,
             "role": user.role,
-            "ocr_text": None,
-            "match_results": None,
-            "error": None,
+            "partners": partner_options,
+            "selected_partner_id": 0,
         },
     )
 
 
 @app.post("/upload-voucher", response_class=HTMLResponse)
-async def upload_voucher_submit(
+def upload_voucher_submit(
     request: Request,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
+    partner_id: int = Form(0),
 ):
     user = get_current_user(request)
-    if not user:
+
+    if not user or user.role != "admin":
         return RedirectResponse(url="/login", status_code=302)
-
-    # 第一版只允许管理员上传凭证
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
-
-    if not file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
-        return templates.TemplateResponse(
-            "upload_voucher.html",
-            {
-                "request": request,
-                "username": user.username,
-                "role": user.role,
-                "ocr_text": None,
-                "match_results": None,
-                "error": "只允许上传 PNG / JPG / JPEG 图片",
-            },
-        )
-
-    os.makedirs("uploads/vouchers", exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    safe_filename = f"{user.id}_{timestamp}_{file.filename}"
-    file_path = os.path.join("uploads", "vouchers", safe_filename)
-
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-
-    file_hash = hashlib.sha256(content).hexdigest()
 
     db = SessionLocal()
 
-    existing_voucher = (
-        db.query(VoucherRecord)
-        .filter(VoucherRecord.file_hash == file_hash)
-        .first()
+    partners = (
+        db.query(User)
+        .filter(User.role == "partner")
+        .order_by(User.id.desc())
+        .all()
     )
 
-    if existing_voucher:
-        db.close()
-        return templates.TemplateResponse(
-            "upload_voucher.html",
-            {
-                "request": request,
-                "username": user.username,
-                "role": user.role,
-                "ocr_text": existing_voucher.ocr_text,
-                "match_results": [],
-                "error": f"该凭证图片已上传过，原凭证文件：{existing_voucher.filename}，本次未重复生成审核记录。",
-            },
-        )
+    partner_options = [
+        {
+            "id": partner.id,
+            "username": partner.username,
+        }
+        for partner in partners
+    ]
 
-    try:
-        ocr_text = ocr_image(file_path)
-        voucher_amount = extract_voucher_amount(ocr_text) or 0
-    except Exception as e:
-        return templates.TemplateResponse(
-            "upload_voucher.html",
-            {
-                "request": request,
-                "username": user.username,
-                "role": user.role,
-                "ocr_text": None,
-                "match_results": None,
-                "error": f"OCR识别失败：{e}",
-            },
-        )
+    os.makedirs("uploads/vouchers", exist_ok=True)
 
+    batch_results = []
+    total_created_reviews = 0
 
+    for file in files:
+        if not file or not file.filename:
+            continue
 
-    # 第一版：管理员上传凭证时，和所有业务数据匹配
-    voucher_record = VoucherRecord(
-        uploader_id=user.id,
-        filename=file.filename,
-        file_path=file_path,
-        file_hash=file_hash,
-        voucher_amount=voucher_amount,
-        ocr_text=ocr_text,
-    )
-    db.add(voucher_record)
-    db.commit()
-    db.refresh(voucher_record)
+        try:
+            content = file.file.read()
+            file_hash = hashlib.sha256(content).hexdigest()
 
-    records = db.query(BusinessRecord).all()
-    raw_match_results = match_ocr_with_records(
-        ocr_text,
-        records,
-        voucher_amount=voucher_amount,
-    )
-
-    match_results = []
-
-    for item in raw_match_results:
-        record = item["record"]
-
-        existing_review = (
-            db.query(MatchReview)
-            .filter(MatchReview.voucher_id == voucher_record.id)
-            .filter(MatchReview.business_record_id == record.id)
-            .first()
-        )
-
-        if not existing_review:
-            review = MatchReview(
-                voucher_id=voucher_record.id,
-                business_record_id=record.id,
-                match_status=item["status"],
-                name_match=item.get("name_detail", "未知"),
-                bank_match=item.get("bank_detail", "是" if item["bank_match"] else "否"),
-                amount_match=(
-                    "是"
-                    if item["amount_match"]
-                    else item.get("partial_amount_detail", "否")
-                ),
-                score=item["score"],
-                review_status="待审核",
+            existing_voucher = (
+                db.query(VoucherRecord)
+                .filter(VoucherRecord.file_hash == file_hash)
+                .first()
             )
-            db.add(review)
 
-        match_results.append(
-            {
-                "status": item["status"],
-                "name_match": item["name_match"],
-                "name_detail": item.get("name_detail", "未知"),
-                "bank_match": item["bank_match"],
-                "amount_match": item["amount_match"],
-                "partial_amount_detail": item.get("partial_amount_detail", ""),
-                "voucher_amount": voucher_amount,
-                "score": item["score"],
-                "record": {
-                    "id": record.id,
-                    "business_no": record.business_no,
-                    "name": record.name,
-                    "phone": record.phone,
-                    "plate_number": record.plate_number,
-                    "points_amount": record.points_amount,
-                    "bank_card": record.bank_card,
-                },
-            }
-        )
+            if existing_voucher:
+                batch_results.append(
+                    {
+                        "filename": file.filename,
+                        "status": "重复跳过",
+                        "message": f"该凭证已上传过，凭证ID：{existing_voucher.id}",
+                        "voucher_amount": existing_voucher.voucher_amount or 0,
+                        "match_count": 0,
+                    }
+                )
+                continue
 
-    db.commit()
+            safe_filename = file.filename.replace("\\", "_").replace("/", "_")
+            saved_filename = (
+                f"{user.id}_"
+                f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_"
+                f"{safe_filename}"
+            )
+            file_path = os.path.join("uploads", "vouchers", saved_filename)
+
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+            ocr_text = ocr_image(file_path)
+            voucher_amount = extract_voucher_amount(ocr_text) or 0
+
+            voucher_record = VoucherRecord(
+                uploader_id=user.id,
+                filename=file.filename,
+                file_path=file_path,
+                file_hash=file_hash,
+                voucher_amount=voucher_amount,
+                ocr_text=ocr_text,
+            )
+
+            db.add(voucher_record)
+            db.commit()
+            db.refresh(voucher_record)
+
+            records_query = db.query(BusinessRecord)
+
+            if partner_id != 0:
+                records_query = records_query.filter(BusinessRecord.user_id == partner_id)
+
+            records = records_query.all()
+
+            raw_match_results = match_ocr_with_records(
+                ocr_text,
+                records,
+                voucher_amount=voucher_amount,
+            )
+
+            created_review_count = 0
+
+            for item in raw_match_results:
+                record = item["record"]
+
+                review = MatchReview(
+                    voucher_id=voucher_record.id,
+                    business_record_id=record.id,
+                    match_status=item["status"],
+                    name_match=item.get("name_detail", "未知"),
+                    bank_match=item.get(
+                        "bank_detail",
+                        "是" if item["bank_match"] else "否",
+                    ),
+                    amount_match=(
+                        "是"
+                        if item["amount_match"]
+                        else item.get("partial_amount_detail", "否")
+                    ),
+                    score=item["score"],
+                    review_status="待审核",
+                )
+
+                db.add(review)
+                created_review_count += 1
+
+            db.commit()
+
+            total_created_reviews += created_review_count
+
+            batch_results.append(
+                {
+                    "filename": file.filename,
+                    "status": "处理成功",
+                    "message": f"识别成功，生成 {created_review_count} 条匹配审核记录",
+                    "voucher_amount": voucher_amount,
+                    "match_count": created_review_count,
+                }
+            )
+
+        except Exception as e:
+            db.rollback()
+
+            batch_results.append(
+                {
+                    "filename": file.filename,
+                    "status": "处理失败",
+                    "message": str(e),
+                    "voucher_amount": 0,
+                    "match_count": 0,
+                }
+            )
+
     db.close()
-    
+
     return templates.TemplateResponse(
         "upload_voucher.html",
         {
             "request": request,
             "username": user.username,
             "role": user.role,
-            "ocr_text": ocr_text,
-            "match_results": match_results,
-            "error": None,
+            "partners": partner_options,
+            "selected_partner_id": partner_id,
+            "batch_results": batch_results,
+            "total_files": len(files),
+            "total_created_reviews": total_created_reviews,
         },
     )
 

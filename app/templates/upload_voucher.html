@@ -141,6 +141,30 @@
             color: #64748b;
             padding: 16px 0;
         }
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .form-group select {
+            height: 38px;
+            min-width: 220px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0 10px;
+            background: #ffffff;
+        }
+
+        .hint {
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 13px;
+        }        
     </style>
 </head>
 <body>
@@ -166,10 +190,92 @@
         {% endif %}
 
         <form method="post" action="/upload-voucher" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".png,.jpg,.jpeg" required>
+            <div class="form-group">
+                <label>选择上传方：</label>
+                <select name="partner_id">
+                    <option value="0" {% if selected_partner_id == 0 %}selected{% endif %}>
+                        全部上传方
+                    </option>
+
+                    {% for partner in partners %}
+                        <option value="{{ partner.id }}" {% if selected_partner_id == partner.id %}selected{% endif %}>
+                            {{ partner.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="hint">
+                    建议选择对应上传方，可减少误匹配，也能提高匹配速度。
+                </div>
+            </div>
+
+            <input type="file" name="files" accept=".png,.jpg,.jpeg" multiple required>
             <button type="submit">上传并识别匹配</button>
         </form>
     </div>
+
+    {% if batch_results %}
+        <div class="result-card">
+            <h2>批量 OCR 处理结果</h2>
+
+            <div class="summary">
+                本次上传 {{ total_files }} 个文件，
+                共生成 {{ total_created_reviews }} 条匹配审核记录。
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>文件名</th>
+                            <th>处理状态</th>
+                            <th>凭证金额</th>
+                            <th>生成审核记录数</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in batch_results %}
+                            <tr>
+                                <td>{{ item.filename }}</td>
+                                <td>
+                                    {% if item.status == "处理成功" %}
+                                        <span class="yes">{{ item.status }}</span>
+                                    {% elif item.status == "重复跳过" %}
+                                        <span style="color:#92400e;font-weight:700;">{{ item.status }}</span>
+                                    {% else %}
+                                        <span class="no">{{ item.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.voucher_amount }}</td>
+                                <td>{{ item.match_count }}</td>
+                                <td>{{ item.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="margin-top: 14px;">
+                <button
+                    type="button"
+                    onclick="window.location.href='/match-reviews'"
+                    style="background:#2563eb;color:white;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;"
+                >
+                    去匹配结果审核页面查看
+                </button>
+            </p >
+
+            <p style="margin-top: 10px;">
+                <button
+                    type="button"
+                    onclick="window.location.href='/dashboard'"
+                    style="background:#e5e7eb;color:#374151;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;"
+                >
+                    返回后台
+                </button>
+            </p >            
+        </div>
+    {% endif %}
 
     {% if ocr_text %}
     <div class="card">
