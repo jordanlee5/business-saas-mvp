@@ -983,6 +983,27 @@ def reject_match_review(review_id: int, request: Request):
 
     return RedirectResponse(url="/match-reviews", status_code=302)
 
+
+@app.post("/match-reviews/{review_id}/reopen")
+def reopen_match_review(review_id: int, request: Request):
+    user = get_current_user(request)
+
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
+
+    if review:
+        review.review_status = "待审核"
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse(url="/match-reviews", status_code=302)
+
+
 @app.post("/match-reviews/batch-review")
 def batch_review_match_reviews(
     request: Request,

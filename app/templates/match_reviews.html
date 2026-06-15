@@ -488,8 +488,24 @@
             <input type="hidden" name="partner_id" value="{{ partner_id }}">
 
             <div class="batch-bar" style="margin-bottom: 12px;">
-                <button type="submit" name="action" value="approve" class="btn-approve">批量通过</button>
-                <button type="submit" name="action" value="reject" class="btn-reject">批量驳回</button>
+                <button
+                    type="submit"
+                    name="action"
+                    value="approve"
+                    class="btn-approve"
+                    onclick="return confirm('确定要批量通过已勾选的审核记录吗？')"
+                >
+                    批量通过
+                </button>
+                <button
+                    type="submit"
+                    name="action"
+                    value="reject"
+                    class="btn-reject"
+                    onclick="return confirm('确定要批量驳回已勾选的审核记录吗？')"
+                >
+                    批量驳回
+                </button>
             </div>
 
             <div class="review-panel">
@@ -707,6 +723,7 @@
                                                 class="btn-approve"
                                                 formaction="/match-reviews/{{ item.review.id }}/approve"
                                                 formmethod="post"
+                                                onclick="return confirm('确定要通过这条审核记录吗？')"
                                             >
                                                 通过
                                             </button>
@@ -716,11 +733,22 @@
                                                 class="btn-reject"
                                                 formaction="/match-reviews/{{ item.review.id }}/reject"
                                                 formmethod="post"
+                                                onclick="return confirm('确定要驳回这条审核记录吗？')"
                                             >
                                                 驳回
                                             </button>
                                         {% else %}
                                             <div class="handled-text">此记录已处理</div>
+
+                                            <button
+                                                type="submit"
+                                                class="btn-secondary"
+                                                formaction="/match-reviews/{{ item.review.id }}/reopen"
+                                                formmethod="post"
+                                                onclick="return confirm('确定要将这条记录重新改为待审核吗？')"
+                                            >
+                                                重新审核
+                                            </button>                
                                         {% endif %}
                                     </div>
 
