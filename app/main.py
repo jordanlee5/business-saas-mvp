@@ -933,6 +933,7 @@ def match_reviews_page(
         {
             "request": request,
             "username": user.username,
+            "review_items": review_items,
             "role": user.role,
             "reviews": review_items,
             "status_filter": status_filter,
