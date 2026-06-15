@@ -1,6 +1,7 @@
 import re
 
-from app.database import engine, SessionLocal
+from app.database import engine, SessionLocal, Base
+from app import models
 from app.models import BusinessRecord
 
 
@@ -38,6 +39,9 @@ def fix_missing_columns():
     """
 
     print("\n========== 1. 检查数据库字段 ==========")
+
+    Base.metadata.create_all(bind=engine)
+    print("[数据表检查] 已检查并创建缺失的数据表")
 
     add_column_if_missing(
         "business_records",

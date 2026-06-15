@@ -277,6 +277,59 @@
         </div>
     {% endif %}
 
+    {% if voucher_batches %}
+    <div class="card">
+        <h2>OCR 上传批次历史</h2>
+
+        <div class="hint">
+            这里显示最近 20 次 OCR 上传批次，便于追踪历史上传结果。
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>批次ID</th>
+                        <th>上传人</th>
+                        <th>上传方</th>
+                        <th>总文件数</th>
+                        <th>成功数</th>
+                        <th>重复数</th>
+                        <th>失败数</th>
+                        <th>生成审核记录数</th>
+                        <th>上传时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in voucher_batches %}
+                        <tr>
+                            <td>{{ batch.id }}</td>
+                            <td>{{ batch.uploader_username }}</td>
+                            <td>{{ batch.partner_name }}</td>
+                            <td>{{ batch.total_files }}</td>
+                            <td><span class="success-badge">{{ batch.success_files }}</span></td>
+                            <td><span class="partial-badge">{{ batch.duplicate_files }}</span></td>
+                            <td><span class="error">{{ batch.failed_files }}</span></td>
+                            <td>{{ batch.total_created_reviews }}</td>
+                            <td>{{ batch.created_at }}</td>
+                            <td>
+                                <button
+                                    type="button"
+                                    onclick="window.location.href='/match-reviews'"
+                                    style="background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;"
+                                >
+                                    去审核
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     {% if ocr_text %}
     <div class="card">
         <h2>OCR识别文本</h2>

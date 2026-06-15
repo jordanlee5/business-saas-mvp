@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
 from . import models
-from .models import User, BusinessRecord, UploadBatch, VoucherRecord, MatchReview
+from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUploadBatch ,MatchReview
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
@@ -616,6 +616,44 @@ async def upload_excel_submit(
         },
     )
 
+
+def build_voucher_upload_batch_items(db):
+    batches = (
+        db.query(VoucherUploadBatch)
+        .order_by(VoucherUploadBatch.id.desc())
+        .limit(20)
+        .all()
+    )
+
+    batch_items = []
+
+    for batch in batches:
+        partner_name = "全部上传方"
+
+        if batch.partner_id and batch.partner_id != 0:
+            partner = db.query(User).filter(User.id == batch.partner_id).first()
+            if partner:
+                partner_name = partner.username
+
+        uploader = db.query(User).filter(User.id == batch.uploader_id).first()
+
+        batch_items.append(
+            {
+                "id": batch.id,
+                "uploader_username": uploader.username if uploader else "未知用户",
+                "partner_name": partner_name,
+                "total_files": batch.total_files or 0,
+                "success_files": batch.success_files or 0,
+                "duplicate_files": batch.duplicate_files or 0,
+                "failed_files": batch.failed_files or 0,
+                "total_created_reviews": batch.total_created_reviews or 0,
+                "created_at": batch.created_at,
+            }
+        )
+
+    return batch_items
+
+
 @app.get("/upload-voucher", response_class=HTMLResponse)
 def upload_voucher_page(request: Request):
     user = get_current_user(request)
@@ -640,6 +678,8 @@ def upload_voucher_page(request: Request):
         for partner in partners
     ]
 
+    voucher_batches = build_voucher_upload_batch_items(db)
+
     db.close()
 
     return templates.TemplateResponse(
@@ -650,6 +690,7 @@ def upload_voucher_page(request: Request):
             "role": user.role,
             "partners": partner_options,
             "selected_partner_id": 0,
+            "voucher_batches": voucher_batches,
         },
     )
 
@@ -687,6 +728,24 @@ def upload_voucher_submit(
     batch_results = []
     total_created_reviews = 0
 
+    success_files = 0
+    duplicate_files = 0
+    failed_files = 0
+
+    voucher_batch = VoucherUploadBatch(
+        uploader_id=user.id,
+        partner_id=partner_id,
+        total_files=len(files),
+        success_files=0,
+        duplicate_files=0,
+        failed_files=0,
+        total_created_reviews=0,
+    )
+
+    db.add(voucher_batch)
+    db.commit()
+    db.refresh(voucher_batch)
+
     for file in files:
         if not file or not file.filename:
             continue
@@ -702,6 +761,8 @@ def upload_voucher_submit(
             )
 
             if existing_voucher:
+                duplicate_files += 1
+
                 batch_results.append(
                     {
                         "filename": file.filename,
@@ -781,6 +842,7 @@ def upload_voucher_submit(
 
             db.commit()
 
+            success_files += 1
             total_created_reviews += created_review_count
 
             batch_results.append(
@@ -795,6 +857,7 @@ def upload_voucher_submit(
 
         except Exception as e:
             db.rollback()
+            failed_files += 1
 
             batch_results.append(
                 {
@@ -805,6 +868,14 @@ def upload_voucher_submit(
                     "match_count": 0,
                 }
             )
+
+    voucher_batch.success_files = success_files
+    voucher_batch.duplicate_files = duplicate_files
+    voucher_batch.failed_files = failed_files
+    voucher_batch.total_created_reviews = total_created_reviews
+    db.commit()
+
+    voucher_batches = build_voucher_upload_batch_items(db)
 
     db.close()
 

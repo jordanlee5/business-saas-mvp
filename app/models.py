@@ -51,6 +51,22 @@ class VoucherRecord(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class VoucherUploadBatch(Base):
+    __tablename__ = "voucher_upload_batches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uploader_id = Column(Integer, ForeignKey("users.id"))
+    partner_id = Column(Integer, default=0)
+
+    total_files = Column(Integer, default=0)
+    success_files = Column(Integer, default=0)
+    duplicate_files = Column(Integer, default=0)
+    failed_files = Column(Integer, default=0)
+    total_created_reviews = Column(Integer, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class MatchReview(Base):
     __tablename__ = "match_reviews"
 
