@@ -357,6 +357,8 @@ def business_records_page(
     start_date: str = Query(""),
     end_date: str = Query(""),
     review_status: str = Query("全部"),
+    page: int = Query(1),
+    page_size: int = Query(10),
 ):
     user = get_current_user(request)
 
@@ -364,6 +366,14 @@ def business_records_page(
         return RedirectResponse(url="/login", status_code=302)
 
     db = SessionLocal()
+
+    if page < 1:
+        page = 1
+
+    allowed_page_sizes = [5, 10, 20]
+
+    if page_size not in allowed_page_sizes:
+        page_size = 10
 
     partners = (
         db.query(User)
@@ -410,7 +420,25 @@ def business_records_page(
         end_dt = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), time.max)
         query = query.filter(BusinessRecord.created_at <= end_dt)
 
-    records = query.order_by(BusinessRecord.id.desc()).limit(200).all()
+    total_records = query.count()
+
+    total_pages = (total_records + page_size - 1) // page_size
+
+    if total_pages == 0:
+        total_pages = 1
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * page_size
+
+    records = (
+        query
+        .order_by(BusinessRecord.id.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
 
     record_items = []
 
@@ -491,6 +519,11 @@ def business_records_page(
             "start_date": start_date,
             "end_date": end_date,
             "review_status": review_status,
+            "page": page,
+            "page_size": page_size,
+            "total_records": total_records,
+            "total_pages": total_pages,
+            "allowed_page_sizes": allowed_page_sizes,
         },
     )
 

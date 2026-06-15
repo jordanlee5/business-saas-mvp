@@ -216,6 +216,44 @@
             color: #6b7280;
         }
 
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .page-links {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .page-link {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #e5e7eb;
+            color: #374151;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .page-link.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .page-link.disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            pointer-events: none;
+        }
+
         @media (max-width: 1000px) {
             .filter-form {
                 grid-template-columns: repeat(2, minmax(160px, 1fr));
@@ -290,6 +328,19 @@
                 </select>
             </div>
 
+            <div class="form-item">
+                <label>每页显示</label>
+                <select name="page_size">
+                    {% for size in allowed_page_sizes %}
+                        <option value="{{ size }}" {% if page_size == size %}selected{% endif %}>
+                            {{ size }} 条
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <input type="hidden" name="page" value="1">
+
             <div class="button-row">
                 <button class="btn-primary" type="submit">筛选</button>
                 <a class="btn-secondary" href="/business-records">重置</a >
@@ -300,7 +351,11 @@
     <div class="table-card">
         <div class="table-title">
             <h2>业务数据列表</h2>
-            <div>当前显示 {{ records|length }} 条</div>
+            <div>
+                共 {{ total_records }} 条，
+                当前第 {{ page }} / {{ total_pages }} 页，
+                本页 {{ records|length }} 条
+            </div>
         </div>
 
         <div class="table-wrap">
@@ -355,7 +410,44 @@
                 <div class="empty">暂无符合条件的业务数据</div>
             {% endif %}
         </div>
+
+        <div class="pagination">
+            <div>
+                共 {{ total_records }} 条数据，每页 {{ page_size }} 条
+            </div>
+
+            <div class="page-links">
+                {% if page > 1 %}
+                    <a class="page-link"
+                       href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page - 1 }}&page_size={{ page_size }}">
+                        上一页
+                    </a >
+                {% else %}
+                    <span class="page-link disabled">上一页</span>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <span class="page-link active">{{ p }}</span>
+                    {% else %}
+                        <a class="page-link"
+                           href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ p }}&page_size={{ page_size }}">
+                            {{ p }}
+                        </a >
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                    <a class="page-link"
+                       href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page + 1 }}&page_size={{ page_size }}">
+                        下一页
+                    </a >
+                {% else %}
+                    <span class="page-link disabled">下一页</span>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 </body>
-</html>
+</html>        
