@@ -349,47 +349,18 @@ def query_record_submit(
     )
 
 
-@app.get("/business-records", response_class=HTMLResponse)
-def business_records_page(
-    request: Request,
-    partner_id: int = Query(0),
-    keyword: str = Query(""),
-    start_date: str = Query(""),
-    end_date: str = Query(""),
-    review_status: str = Query("全部"),
-    page: int = Query(1),
-    page_size: int = Query(10),
+def build_business_record_items(
+    db,
+    user,
+    partner_id=0,
+    keyword="",
+    start_date="",
+    end_date="",
+    review_status="全部",
+    page=1,
+    page_size=10,
+    use_pagination=True,
 ):
-    user = get_current_user(request)
-
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    db = SessionLocal()
-
-    if page < 1:
-        page = 1
-
-    allowed_page_sizes = [5, 10, 20]
-
-    if page_size not in allowed_page_sizes:
-        page_size = 10
-
-    partners = (
-        db.query(User)
-        .filter(User.role == "partner")
-        .order_by(User.id.desc())
-        .all()
-    )
-
-    partner_options = [
-        {
-            "id": partner.id,
-            "username": partner.username,
-        }
-        for partner in partners
-    ]
-
     query = db.query(BusinessRecord)
 
     # 权限隔离：管理员看全部；上传方只能看自己的
@@ -420,29 +391,11 @@ def business_records_page(
         end_dt = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), time.max)
         query = query.filter(BusinessRecord.created_at <= end_dt)
 
-    total_records = query.count()
+    all_records = query.order_by(BusinessRecord.id.desc()).all()
 
-    total_pages = (total_records + page_size - 1) // page_size
+    all_record_items = []
 
-    if total_pages == 0:
-        total_pages = 1
-
-    if page > total_pages:
-        page = total_pages
-
-    offset = (page - 1) * page_size
-
-    records = (
-        query
-        .order_by(BusinessRecord.id.desc())
-        .offset(offset)
-        .limit(page_size)
-        .all()
-    )
-
-    record_items = []
-
-    for record in records:
+    for record in all_records:
         uploader = db.query(User).filter(User.id == record.user_id).first()
 
         latest_review = (
@@ -486,12 +439,12 @@ def business_records_page(
 
         item = {
             "business_no": record.business_no,
+            "uploader_username": uploader.username if uploader else "未知上传方",
             "name": record.name,
             "phone": record.phone,
             "plate_number": record.plate_number,
             "points_amount": record.points_amount or 0,
             "bank_card": record.bank_card,
-            "uploader_username": uploader.username if uploader else "未知上传方",
             "latest_review_status": latest_review_status,
             "latest_match_status": latest_match_status,
             "approved_voucher_amount": round(approved_voucher_amount, 2),
@@ -502,7 +455,85 @@ def business_records_page(
         if review_status != "全部" and item["latest_review_status"] != review_status:
             continue
 
-        record_items.append(item)
+        all_record_items.append(item)
+
+    total_records = len(all_record_items)
+
+    if not use_pagination:
+        return all_record_items, total_records, 1, 1
+
+    if page < 1:
+        page = 1
+
+    allowed_page_sizes = [5, 10, 20]
+
+    if page_size not in allowed_page_sizes:
+        page_size = 10
+
+    total_pages = (total_records + page_size - 1) // page_size
+
+    if total_pages == 0:
+        total_pages = 1
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * page_size
+    page_items = all_record_items[offset: offset + page_size]
+
+    return page_items, total_records, total_pages, page
+
+
+@app.get("/business-records", response_class=HTMLResponse)
+def business_records_page(
+    request: Request,
+    partner_id: int = Query(0),
+    keyword: str = Query(""),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+    review_status: str = Query("全部"),
+    page: int = Query(1),
+    page_size: int = Query(10),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    allowed_page_sizes = [5, 10, 20]
+
+    if page_size not in allowed_page_sizes:
+        page_size = 10
+
+    partners = (
+        db.query(User)
+        .filter(User.role == "partner")
+        .order_by(User.id.desc())
+        .all()
+    )
+
+    partner_options = [
+        {
+            "id": partner.id,
+            "username": partner.username,
+        }
+        for partner in partners
+    ]
+
+    record_items, total_records, total_pages, page = build_business_record_items(
+        db=db,
+        user=user,
+        partner_id=partner_id,
+        keyword=keyword,
+        start_date=start_date,
+        end_date=end_date,
+        review_status=review_status,
+        page=page,
+        page_size=page_size,
+        use_pagination=True,
+    )
 
     db.close()
 
@@ -525,6 +556,92 @@ def business_records_page(
             "total_pages": total_pages,
             "allowed_page_sizes": allowed_page_sizes,
         },
+    )
+
+
+@app.get("/business-records/export")
+def export_business_records(
+    request: Request,
+    partner_id: int = Query(0),
+    keyword: str = Query(""),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+    review_status: str = Query("全部"),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    record_items, total_records, total_pages, page = build_business_record_items(
+        db=db,
+        user=user,
+        partner_id=partner_id,
+        keyword=keyword,
+        start_date=start_date,
+        end_date=end_date,
+        review_status=review_status,
+        use_pagination=False,
+    )
+
+    export_rows = []
+
+    for item in record_items:
+        export_rows.append(
+            {
+                "业务单号": item["business_no"],
+                "上传方": item["uploader_username"],
+                "姓名": item["name"],
+                "手机号": item["phone"],
+                "车牌号": item["plate_number"],
+                "积分金额": item["points_amount"],
+                "银行卡号": item["bank_card"],
+                "最新审核状态": item["latest_review_status"],
+                "最新匹配状态": item["latest_match_status"],
+                "已通过凭证金额": item["approved_voucher_amount"],
+                "剩余金额": item["remaining_amount"],
+                "导入时间": item["created_at"],
+            }
+        )
+
+    df = pd.DataFrame(export_rows)
+
+    os.makedirs("exports", exist_ok=True)
+
+    filename = f"business_records_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+    file_path = os.path.join("exports", filename)
+
+    with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="业务数据")
+
+        worksheet = writer.sheets["业务数据"]
+
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True)
+
+        for column_cells in worksheet.columns:
+            max_length = 0
+            column_letter = get_column_letter(column_cells[0].column)
+
+            for cell in column_cells:
+                value = cell.value
+                if value is None:
+                    continue
+
+                max_length = max(max_length, len(str(value)))
+
+            worksheet.column_dimensions[column_letter].width = min(max_length + 4, 40)
+
+        worksheet.freeze_panes = "A2"
+
+    db.close()
+
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
