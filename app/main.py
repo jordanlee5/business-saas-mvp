@@ -349,6 +349,152 @@ def query_record_submit(
     )
 
 
+@app.get("/business-records", response_class=HTMLResponse)
+def business_records_page(
+    request: Request,
+    partner_id: int = Query(0),
+    keyword: str = Query(""),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+    review_status: str = Query("全部"),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    partners = (
+        db.query(User)
+        .filter(User.role == "partner")
+        .order_by(User.id.desc())
+        .all()
+    )
+
+    partner_options = [
+        {
+            "id": partner.id,
+            "username": partner.username,
+        }
+        for partner in partners
+    ]
+
+    query = db.query(BusinessRecord)
+
+    # 权限隔离：管理员看全部；上传方只能看自己的
+    if user.role == "partner":
+        query = query.filter(BusinessRecord.user_id == user.id)
+    else:
+        if partner_id != 0:
+            query = query.filter(BusinessRecord.user_id == partner_id)
+
+    keyword = keyword.strip()
+
+    if keyword:
+        query = query.filter(
+            or_(
+                BusinessRecord.business_no.contains(keyword),
+                BusinessRecord.name.contains(keyword),
+                BusinessRecord.phone.contains(keyword),
+                BusinessRecord.plate_number.contains(keyword),
+                BusinessRecord.bank_card.contains(keyword),
+            )
+        )
+
+    if start_date:
+        start_dt = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), time.min)
+        query = query.filter(BusinessRecord.created_at >= start_dt)
+
+    if end_date:
+        end_dt = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), time.max)
+        query = query.filter(BusinessRecord.created_at <= end_dt)
+
+    records = query.order_by(BusinessRecord.id.desc()).limit(200).all()
+
+    record_items = []
+
+    for record in records:
+        uploader = db.query(User).filter(User.id == record.user_id).first()
+
+        latest_review = (
+            db.query(MatchReview)
+            .filter(MatchReview.business_record_id == record.id)
+            .order_by(MatchReview.id.desc())
+            .first()
+        )
+
+        latest_review_status = "未审核"
+        latest_match_status = "未匹配"
+
+        if latest_review:
+            latest_review_status = latest_review.review_status
+            latest_match_status = latest_review.match_status
+
+        approved_reviews = (
+            db.query(MatchReview)
+            .filter(MatchReview.business_record_id == record.id)
+            .filter(MatchReview.review_status == "已通过")
+            .all()
+        )
+
+        approved_voucher_amount = 0
+
+        for approved_review in approved_reviews:
+            voucher = (
+                db.query(VoucherRecord)
+                .filter(VoucherRecord.id == approved_review.voucher_id)
+                .first()
+            )
+
+            if voucher and voucher.voucher_amount:
+                approved_voucher_amount += voucher.voucher_amount
+
+        business_amount = record.points_amount or 0
+        remaining_amount = business_amount - approved_voucher_amount
+
+        if remaining_amount < 0:
+            remaining_amount = 0
+
+        item = {
+            "business_no": record.business_no,
+            "name": record.name,
+            "phone": record.phone,
+            "plate_number": record.plate_number,
+            "points_amount": record.points_amount or 0,
+            "bank_card": record.bank_card,
+            "uploader_username": uploader.username if uploader else "未知上传方",
+            "latest_review_status": latest_review_status,
+            "latest_match_status": latest_match_status,
+            "approved_voucher_amount": round(approved_voucher_amount, 2),
+            "remaining_amount": round(remaining_amount, 2),
+            "created_at": record.created_at,
+        }
+
+        if review_status != "全部" and item["latest_review_status"] != review_status:
+            continue
+
+        record_items.append(item)
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "business_records.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "partners": partner_options,
+            "records": record_items,
+            "partner_id": partner_id,
+            "keyword": keyword,
+            "start_date": start_date,
+            "end_date": end_date,
+            "review_status": review_status,
+        },
+    )
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse(
