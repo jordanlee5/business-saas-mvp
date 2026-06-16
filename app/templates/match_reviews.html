@@ -480,6 +480,15 @@
                     {% endfor %}
                 </select>
 
+                <label>每页显示：</label>
+                <select name="page_size">
+                    {% for size in allowed_page_sizes %}
+                        <option value="{{ size }}" {% if page_size == size %}selected{% endif %}>
+                            {{ size }} 条
+                        </option>
+                    {% endfor %}
+                </select>
+
                 <button class="btn-primary" type="submit">筛选</button>
                 <a class="back-link" href="/match-reviews">重置筛选</a>
             </form>
@@ -497,6 +506,8 @@
         <form method="post" action="/match-reviews/batch-review">
             <input type="hidden" name="status_filter" value="{{ status_filter }}">
             <input type="hidden" name="partner_id" value="{{ partner_id }}">
+            <input type="hidden" name="page" value="{{ page }}">
+            <input type="hidden" name="page_size" value="{{ page_size }}">
 
             <div class="batch-bar" style="margin-bottom: 12px;">
                 <button
@@ -770,6 +781,44 @@
                                 </div>
                             </div>
                         {% endfor %}
+                        {% if total_reviews > 0 %}
+                        <div class="pagination">
+                            <div>
+                                共 {{ total_reviews }} 条审核记录，当前第 {{ page }} / {{ total_pages }} 页，本页 {{ review_items|length }} 条
+                            </div>
+
+                            <div class="page-links">
+                                {% if page > 1 %}
+                                    <a class="page-link"
+                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ page - 1 }}&page_size={{ page_size }}">
+                                        上一页
+                                    </a >
+                                {% else %}
+                                    <span class="page-link disabled">上一页</span>
+                                {% endif %}
+
+                                {% for p in range(1, total_pages + 1) %}
+                                    {% if p == page %}
+                                        <span class="page-link active">{{ p }}</span>
+                                    {% else %}
+                                        <a class="page-link"
+                                        href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ p }}&page_size={{ page_size }}">
+                                            {{ p }}
+                                        </a >
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page < total_pages %}
+                                    <a class="page-link"
+                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ page + 1 }}&page_size={{ page_size }}">
+                                        下一页
+                                    </a >
+                                {% else %}
+                                    <span class="page-link disabled">下一页</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}                       
                     {% else %}
                         <div class="empty">暂无匹配审核记录</div>
                     {% endif %}

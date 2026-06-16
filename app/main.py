@@ -1337,6 +1337,8 @@ def match_reviews_page(
     request: Request,
     status_filter: str = Query("全部"),
     partner_id: int = Query(0),
+    page: int = Query(1),
+    page_size: int = Query(3),
 ):
     user = get_current_user(request)
     if not user:
@@ -1380,9 +1382,31 @@ def match_reviews_page(
 
         latest_reviews = filtered_reviews
 
+    allowed_page_sizes = [3, 5, 10, 20]
+
+    if page_size not in allowed_page_sizes:
+        page_size = 3
+
+    total_reviews = len(latest_reviews)
+
+    total_pages = (total_reviews + page_size - 1) // page_size
+
+    if total_pages == 0:
+        total_pages = 1
+
+    if page < 1:
+        page = 1
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * page_size
+
+    page_reviews = latest_reviews[offset: offset + page_size]
+
     review_items = []
 
-    for review in latest_reviews:
+    for review in page_reviews:
         voucher = db.query(VoucherRecord).filter(VoucherRecord.id == review.voucher_id).first()
         record = db.query(BusinessRecord).filter(BusinessRecord.id == review.business_record_id).first()
 
@@ -1468,11 +1492,23 @@ def match_reviews_page(
             "status_filter": status_filter,
             "partners": partners,
             "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "total_reviews": total_reviews,
+            "total_pages": total_pages,
+            "allowed_page_sizes": allowed_page_sizes,
         },
     )
 
 @app.post("/match-reviews/{review_id}/approve")
-def approve_match_review(review_id: int, request: Request):
+def approve_match_review(
+    review_id: int, 
+    request: Request,
+    status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(3),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -1489,11 +1525,26 @@ def approve_match_review(review_id: int, request: Request):
 
     db.close()
 
-    return RedirectResponse(url="/match-reviews", status_code=302)
+    redirect_url = (
+        f"/match-reviews?"
+        f"status_filter={status_filter}"
+        f"&partner_id={partner_id}"
+        f"&page={page}"
+        f"&page_size={page_size}"
+    )   
+
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @app.post("/match-reviews/{review_id}/reject")
-def reject_match_review(review_id: int, request: Request):
+def reject_match_review(
+    review_id: int, 
+    request: Request,
+    status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(3),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -1510,7 +1561,15 @@ def reject_match_review(review_id: int, request: Request):
 
     db.close()
 
-    return RedirectResponse(url="/match-reviews", status_code=302)
+    redirect_url = (
+        f"/match-reviews?"
+        f"status_filter={status_filter}"
+        f"&partner_id={partner_id}"
+        f"&page={page}"
+        f"&page_size={page_size}"
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @app.post("/match-reviews/{review_id}/reopen")
