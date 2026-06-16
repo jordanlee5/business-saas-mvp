@@ -482,7 +482,7 @@ def build_business_record_items(
     if page < 1:
         page = 1
 
-    allowed_page_sizes = [5, 10, 20]
+    allowed_page_sizes = [3, 5, 10, 20]
 
     if page_size not in allowed_page_sizes:
         page_size = 10
@@ -511,6 +511,8 @@ def business_records_page(
     review_status: str = Query("全部"),
     page: int = Query(1),
     page_size: int = Query(10),
+    batch_page: int = Query(1),
+    batch_page_size: int = Query(5),
 ):
     user = get_current_user(request)
 
@@ -522,15 +524,39 @@ def business_records_page(
     batch_query = db.query(UploadBatch)
 
     # 权限隔离：
-    # 管理员可以看全部上传批次
+    # 管理员可以看全部上传批；如果选择了上传方，则只看该上传方的上传批次
     # 上传方只能看自己的上传批次
     if user.role != "admin":
         batch_query = batch_query.filter(UploadBatch.user_id == user.id)
+    else:
+        if partner_id != 0:
+            batch_query = batch_query.filter(UploadBatch.user_id == partner_id)
+
+    allowed_batch_page_sizes = [3, 5]
+
+    if batch_page < 1:
+        batch_page = 1
+
+    if batch_page_size not in allowed_batch_page_sizes:
+        batch_page_size = 5
+
+    batch_total_records = batch_query.count()
+
+    batch_total_pages = (batch_total_records + batch_page_size - 1) // batch_page_size
+
+    if batch_total_pages == 0:
+        batch_total_pages = 1
+
+    if batch_page > batch_total_pages:
+        batch_page = batch_total_pages
+
+    batch_offset = (batch_page - 1) * batch_page_size
 
     recent_batches = (
         batch_query
         .order_by(UploadBatch.id.desc())
-        .limit(5)
+        .offset(batch_offset)
+        .limit(batch_page_size)
         .all()
     )
 
@@ -551,7 +577,7 @@ def business_records_page(
             }
         )    
 
-    allowed_page_sizes = [5, 10, 20]
+    allowed_page_sizes = [3, 5, 10, 20]
 
     if page_size not in allowed_page_sizes:
         page_size = 10
@@ -595,6 +621,13 @@ def business_records_page(
             "partners": partner_options,
             "records": record_items,
             "recent_batches": recent_batch_items,
+
+            "batch_page": batch_page,
+            "batch_page_size": batch_page_size,
+            "batch_total_records": batch_total_records,
+            "batch_total_pages": batch_total_pages,
+            "allowed_batch_page_sizes": allowed_batch_page_sizes,
+
             "partner_id": partner_id,
             "keyword": keyword,
             "start_date": start_date,

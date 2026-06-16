@@ -142,6 +142,45 @@
             text-decoration: underline;
         }
 
+        .table-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .mini-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mini-form label {
+            font-size: 13px;
+            color: #4b5563;
+            font-weight: 600;
+        }
+
+        .mini-form select {
+            height: 34px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0 8px;
+        }
+
+        .mini-page-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pagination-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
         .table-card {
             background: white;
             border-radius: 18px;
@@ -294,6 +333,11 @@
         </div>
 
         <form class="filter-form" method="get" action="/business-records">
+            <input type="hidden" name="page" value="1">
+            <input type="hidden" name="page_size" value="{{ page_size }}">
+            <input type="hidden" name="batch_page" value="{{ batch_page }}">
+            <input type="hidden" name="batch_page_size" value="{{ batch_page_size }}">
+
             {% if role == "admin" %}
             <div class="form-item">
                 <label>上传方</label>
@@ -339,16 +383,6 @@
                 </select>
             </div>
 
-            <div class="form-item">
-                <label>每页显示</label>
-                <select name="page_size">
-                    {% for size in allowed_page_sizes %}
-                        <option value="{{ size }}" {% if page_size == size %}selected{% endif %}>
-                            {{ size }} 条
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
 
             <input type="hidden" name="page" value="1">
 
@@ -368,8 +402,57 @@
     <div class="table-card">
         <div class="table-title">
             <h2>最近上传批次</h2>
-            <div>
-                显示最近 5 次上传记录
+
+            <div class="table-actions">
+                <form method="get" action="/business-records" class="mini-form">
+                    <input type="hidden" name="partner_id" value="{{ partner_id }}">
+                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    <input type="hidden" name="start_date" value="{{ start_date }}">
+                    <input type="hidden" name="end_date" value="{{ end_date }}">
+                    <input type="hidden" name="review_status" value="{{ review_status }}">
+                    <input type="hidden" name="page" value="{{ page }}">
+                    <input type="hidden" name="page_size" value="{{ page_size }}">
+                    <input type="hidden" name="batch_page" value="1">
+
+                    <label>批次每页</label>
+                    <select name="batch_page_size" onchange="this.form.submit()">
+                        {% for size in allowed_batch_page_sizes %}
+                            <option value="{{ size }}" {% if batch_page_size == size %}selected{% endif %}>{{ size }} 条</option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                <div class="mini-page-links">
+                    {% if batch_page > 1 %}
+                        <a class="page-link"
+                        href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
+                            上一页
+                        </a >
+                    {% else %}
+                        <span class="page-link disabled">上一页</span>
+                    {% endif %}
+
+                    {% for p in range(1, batch_total_pages + 1) %}
+                        {% if p == batch_page %}
+                            <span class="page-link active">{{ p }}</span>
+                        {% else %}
+                            <a class="page-link"
+                            href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
+                                {{ p }}
+                            </a >
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if batch_page < batch_total_pages %}
+                        <a class="page-link"
+                        href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
+                            下一页
+                        </a >
+                    {% else %}
+                        <span class="page-link disabled">下一页</span>
+                    {% endif %}
+                </div>
+
                 <a class="small-link" href="/upload-batches">查看全部</a >
             </div>
         </div>
@@ -404,18 +487,13 @@
             </table>
         </div>
         {% else %}
-            <div class="empty">暂无上传批次记录</div>
+            <div class="empty">暂无上传批次记录</div>           
         {% endif %}
     </div>
 
     <div class="table-card">
         <div class="table-title">
             <h2>业务数据列表</h2>
-            <div>
-                共 {{ total_records }} 条，
-                当前第 {{ page }} / {{ total_pages }} 页，
-                本页 {{ records|length }} 条
-            </div>
         </div>
 
         <div class="table-wrap">
@@ -471,42 +549,64 @@
             {% endif %}
         </div>
 
+        {% if total_records > 0 %}
         <div class="pagination">
             <div>
-                共 {{ total_records }} 条数据，每页 {{ page_size }} 条
+                共 {{ total_records }} 条业务数据，当前第 {{ page }} / {{ total_pages }} 页，本页 {{ records|length }} 条
             </div>
 
-            <div class="page-links">
-                {% if page > 1 %}
-                    <a class="page-link"
-                       href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page - 1 }}&page_size={{ page_size }}">
-                        上一页
-                    </a >
-                {% else %}
-                    <span class="page-link disabled">上一页</span>
-                {% endif %}
+            <div class="pagination-actions">
+                <form method="get" action="/business-records" class="mini-form">
+                    <input type="hidden" name="partner_id" value="{{ partner_id }}">
+                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    <input type="hidden" name="start_date" value="{{ start_date }}">
+                    <input type="hidden" name="end_date" value="{{ end_date }}">
+                    <input type="hidden" name="review_status" value="{{ review_status }}">
+                    <input type="hidden" name="page" value="1">
+                    <input type="hidden" name="batch_page" value="{{ batch_page }}">
+                    <input type="hidden" name="batch_page_size" value="{{ batch_page_size }}">
 
-                {% for p in range(1, total_pages + 1) %}
-                    {% if p == page %}
-                        <span class="page-link active">{{ p }}</span>
-                    {% else %}
+                    <label>业务每页</label>
+                    <select name="page_size" onchange="this.form.submit()">
+                        {% for size in allowed_page_sizes %}
+                            <option value="{{ size }}" {% if page_size == size %}selected{% endif %}>{{ size }} 条</option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                <div class="page-links">
+                    {% if page > 1 %}
                         <a class="page-link"
-                           href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ p }}&page_size={{ page_size }}">
-                            {{ p }}
+                        href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                            上一页
                         </a >
+                    {% else %}
+                        <span class="page-link disabled">上一页</span>
                     {% endif %}
-                {% endfor %}
 
-                {% if page < total_pages %}
-                    <a class="page-link"
-                       href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page + 1 }}&page_size={{ page_size }}">
-                        下一页
-                    </a >
-                {% else %}
-                    <span class="page-link disabled">下一页</span>
-                {% endif %}
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                            <span class="page-link active">{{ p }}</span>
+                        {% else %}
+                            <a class="page-link"
+                            href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                {{ p }}
+                            </a >
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page < total_pages %}
+                        <a class="page-link"
+                        href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                            下一页
+                        </a >
+                    {% else %}
+                        <span class="page-link disabled">下一页</span>
+                    {% endif %}
+                </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 </body>
