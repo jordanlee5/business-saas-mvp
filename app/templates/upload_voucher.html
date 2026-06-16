@@ -69,6 +69,36 @@
         button:hover {
             background: #1d4ed8;
         }
+
+        .action-button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .action-button.primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .action-button.secondary {
+            background: #eef2ff;
+            color: #1d4ed8;
+        }
+
+        .action-muted {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        
         .message {
             margin-bottom: 18px;
             padding: 12px;
@@ -314,13 +344,17 @@
                             <td>{{ batch.total_created_reviews }}</td>
                             <td>{{ batch.created_at }}</td>
                             <td>
-                                <button
-                                    type="button"
-                                    onclick="window.location.href='/match-reviews'"
-                                    style="background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;"
-                                >
-                                    去审核
-                                </button>
+                                {% if batch.review_action_text == "无匹配记录" %}
+                                    <span class="action-muted">无匹配记录</span>
+                                {% else %}
+                                    <button
+                                        type="button"
+                                        class="action-button {{ batch.review_action_class }}"
+                                        onclick="window.location.href='/match-reviews'"
+                                    >
+                                        {{ batch.review_action_text }}
+                                    </button>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

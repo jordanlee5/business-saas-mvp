@@ -43,6 +43,7 @@ class VoucherRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     uploader_id = Column(Integer, ForeignKey("users.id"))
+    batch_id = Column(Integer, ForeignKey("upload_batches.id"), index=True)
     filename = Column(String)
     file_path = Column(String)
     file_hash = Column(String, index=True)

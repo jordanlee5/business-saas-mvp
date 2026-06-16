@@ -62,6 +62,73 @@ def get_current_user(request: Request):
     finally:
         db.close()
 
+
+def get_voucher_batch_review_summary(db, batch_id: int):
+    # 兼容不同字段名：如果你的 VoucherRecord 里叫 voucher_batch_id / batch_id / upload_batch_id，都能识别
+    batch_column = None
+
+    if hasattr(VoucherRecord, "voucher_batch_id"):
+        batch_column = VoucherRecord.voucher_batch_id
+    elif hasattr(VoucherRecord, "batch_id"):
+        batch_column = VoucherRecord.batch_id
+    elif hasattr(VoucherRecord, "upload_batch_id"):
+        batch_column = VoucherRecord.upload_batch_id
+
+    if batch_column is None:
+        return {
+            "total_review_count": 0,
+            "pending_review_count": 0,
+            "finished_review_count": 0,
+            "action_type": "none",
+            "action_text": "无匹配记录",
+        }
+
+    vouchers = db.query(VoucherRecord).filter(batch_column == batch_id).all()
+    voucher_ids = [voucher.id for voucher in vouchers]
+
+    if not voucher_ids:
+        return {
+            "total_review_count": 0,
+            "pending_review_count": 0,
+            "finished_review_count": 0,
+            "action_type": "none",
+            "action_text": "无匹配记录",
+        }
+
+    total_review_count = (
+        db.query(MatchReview)
+        .filter(MatchReview.voucher_id.in_(voucher_ids))
+        .count()
+    )
+
+    pending_review_count = (
+        db.query(MatchReview)
+        .filter(MatchReview.voucher_id.in_(voucher_ids))
+        .filter(MatchReview.review_status == "待审核")
+        .count()
+    )
+
+    finished_review_count = total_review_count - pending_review_count
+
+    if total_review_count == 0:
+        action_type = "none"
+        action_text = "无匹配记录"
+    elif pending_review_count > 0:
+        action_type = "pending"
+        action_text = "去审核"
+    else:
+        action_type = "finished"
+        action_text = "查看结果"
+
+    return {
+        "total_review_count": total_review_count,
+        "pending_review_count": pending_review_count,
+        "finished_review_count": finished_review_count,
+        "action_type": action_type,
+        "action_text": action_text,
+    }
+
+
 def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = ""):
     db = SessionLocal()
 
@@ -1076,6 +1143,41 @@ def build_voucher_upload_batch_items(db):
 
         uploader = db.query(User).filter(User.id == batch.uploader_id).first()
 
+        linked_voucher_count = (
+            db.query(VoucherRecord)
+            .filter(VoucherRecord.batch_id == batch.id)
+            .count()
+        )
+
+        pending_review_count = (
+            db.query(MatchReview)
+            .join(VoucherRecord, MatchReview.voucher_id == VoucherRecord.id)
+            .filter(VoucherRecord.batch_id == batch.id)
+            .filter(MatchReview.review_status == "待审核")
+            .count()
+        )
+
+        processed_review_count = (
+            db.query(MatchReview)
+            .join(VoucherRecord, MatchReview.voucher_id == VoucherRecord.id)
+            .filter(VoucherRecord.batch_id == batch.id)
+            .filter(MatchReview.review_status.in_(["已通过", "已驳回"]))
+            .count()
+        )
+
+        if (batch.total_created_reviews or 0) == 0:
+            review_action_text = "无匹配记录"
+            review_action_class = "muted"
+        elif linked_voucher_count == 0:
+            review_action_text = "查看审核结果"
+            review_action_class = "secondary"
+        elif pending_review_count > 0:
+            review_action_text = "去审核"
+            review_action_class = "primary"
+        else:
+            review_action_text = "查看审核结果"
+            review_action_class = "secondary"  
+
         batch_items.append(
             {
                 "id": batch.id,
@@ -1086,6 +1188,8 @@ def build_voucher_upload_batch_items(db):
                 "duplicate_files": batch.duplicate_files or 0,
                 "failed_files": batch.failed_files or 0,
                 "total_created_reviews": batch.total_created_reviews or 0,
+                "review_action_text": review_action_text,
+                "review_action_class": review_action_class,
                 "created_at": batch.created_at,
             }
         )
@@ -1229,6 +1333,7 @@ def upload_voucher_submit(
 
             voucher_record = VoucherRecord(
                 uploader_id=user.id,
+                batch_id=voucher_batch.id,
                 filename=file.filename,
                 file_path=file_path,
                 file_hash=file_hash,
