@@ -131,6 +131,17 @@
             font-weight: 700;
         }
 
+        .small-link {
+            margin-left: 12px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .small-link:hover {
+            text-decoration: underline;
+        }
+
         .table-card {
             background: white;
             border-radius: 18px;
@@ -352,6 +363,49 @@
                 </a >               
             </div>
         </form>
+    </div>
+
+    <div class="table-card">
+        <div class="table-title">
+            <h2>最近上传批次</h2>
+            <div>
+                显示最近 5 次上传记录
+                <a class="small-link" href="/upload-batches">查看全部</a >
+            </div>
+        </div>
+
+        {% if recent_batches and recent_batches|length > 0 %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>批次ID</th>
+                        <th>上传方</th>
+                        <th>文件名</th>
+                        <th>总行数</th>
+                        <th>成功行数</th>
+                        <th>失败行数</th>
+                        <th>上传时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in recent_batches %}
+                    <tr>
+                        <td>{{ batch.id }}</td>
+                        <td>{{ batch.username }}</td>
+                        <td>{{ batch.filename }}</td>
+                        <td>{{ batch.total_rows }}</td>
+                        <td class="amount-good">{{ batch.success_rows }}</td>
+                        <td class="amount-warning">{{ batch.failed_rows }}</td>
+                        <td>{{ batch.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <div class="empty">暂无上传批次记录</div>
+        {% endif %}
     </div>
 
     <div class="table-card">

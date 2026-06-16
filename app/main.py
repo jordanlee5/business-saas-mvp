@@ -519,6 +519,38 @@ def business_records_page(
 
     db = SessionLocal()
 
+    batch_query = db.query(UploadBatch)
+
+    # 权限隔离：
+    # 管理员可以看全部上传批次
+    # 上传方只能看自己的上传批次
+    if user.role != "admin":
+        batch_query = batch_query.filter(UploadBatch.user_id == user.id)
+
+    recent_batches = (
+        batch_query
+        .order_by(UploadBatch.id.desc())
+        .limit(5)
+        .all()
+    )
+
+    recent_batch_items = []
+
+    for batch in recent_batches:
+        uploader = db.query(User).filter(User.id == batch.user_id).first()
+
+        recent_batch_items.append(
+            {
+                "id": batch.id,
+                "username": uploader.username if uploader else "未知上传方",
+                "filename": batch.filename,
+                "total_rows": batch.total_rows or 0,
+                "success_rows": batch.success_rows or 0,
+                "failed_rows": batch.failed_rows or 0,
+                "created_at": batch.created_at,
+            }
+        )    
+
     allowed_page_sizes = [5, 10, 20]
 
     if page_size not in allowed_page_sizes:
@@ -562,6 +594,7 @@ def business_records_page(
             "role": user.role,
             "partners": partner_options,
             "records": record_items,
+            "recent_batches": recent_batch_items,
             "partner_id": partner_id,
             "keyword": keyword,
             "start_date": start_date,
