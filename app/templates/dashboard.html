@@ -77,8 +77,7 @@
     <div class="card">
         <h1>后台首页</h1>
         <div class="info">
-            你已经成功登录系统。当前阶段先验证登录闭环，下一步我们会继续增加：
-            上传方账号管理、服务费率设置、Excel 上传与业务数据查询。
+            你已经成功登录系统。当前系统已支持上传方管理、Excel业务数据上传、OCR凭证识别、匹配审核、经营看板、结算统计与业务数据管理。
         </div>
 
         <div class="grid">
@@ -88,13 +87,12 @@
                 <a href="/upload-excel" class="module">Excel模板上传</a >
                 <a href="/upload-batches" class="module">上传记录</a >
                 <a href="/business-records" class="module">业务数据管理</a >
-                <a href="/query-record" class="module">业务数据查询</a >
                 <a href="/upload-voucher" class="module">OCR凭证识别</a >
                 <a href="/match-reviews" class="module">匹配结果审核</a >
             {% else %}
                 <a href="/upload-excel" class="module">Excel模板上传</a >
                 <a href="/upload-batches" class="module">上传记录</a >
-                <a href="/query-record" class="module">业务数据查询</a >
+                <a href="/business-records" class="module">业务数据管理</a >
                 <a href="/my-settlement" class="module">我的结算报表</a >
             {% endif %}
         </div>
