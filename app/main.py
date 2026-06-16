@@ -510,9 +510,9 @@ def business_records_page(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     page: int = Query(1),
-    page_size: int = Query(10),
+    page_size: int = Query(3),
     batch_page: int = Query(1),
-    batch_page_size: int = Query(5),
+    batch_page_size: int = Query(3),
 ):
     user = get_current_user(request)
 
