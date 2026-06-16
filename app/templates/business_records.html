@@ -184,15 +184,46 @@
         .table-card {
             background: white;
             border-radius: 18px;
-            padding: 20px;
+            padding: 16px;
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .compact-card {
+            padding: 14px 16px;
+        }
+
+        .compact-card .table-title {
+            margin-bottom: 10px;
+        }
+
+        .compact-card .table-title h2 {
+            font-size: 22px;
+        }
+
+        .compact-card th {
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+
+        .compact-card td {
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+
+        .compact-card .pagination {
+            margin-top: 10px;
         }
 
         .table-title {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 14px;
+            margin-bottom: 8px;
+        }
+
+        .table-title h2 {
+            margin: 0;
+            font-size: 24px;
         }
 
         .table-wrap {
@@ -210,15 +241,15 @@
             color: #374151;
             text-align: left;
             font-size: 13px;
-            padding: 12px;
+            padding: 9px 12px;
             border-bottom: 1px solid #e5e7eb;
             white-space: nowrap;
         }
 
         td {
-            padding: 12px;
+            padding: 9px 12px;
             border-bottom: 1px solid #e5e7eb;
-            font-size: 14px;
+            font-size: 13px;
             white-space: nowrap;
         }
 
@@ -271,7 +302,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 12px;
-            margin-top: 18px;
+            margin-top: 10px;
             flex-wrap: wrap;
         }
 
@@ -399,9 +430,9 @@
         </form>
     </div>
 
-    <div class="table-card">
+    <div class="table-card compact-card">
         <div class="table-title">
-            <h2>最近上传批次</h2>
+            <h2>批次上传历史</h2>
 
             <div class="table-actions">
                 <form method="get" action="/business-records" class="mini-form">
