@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from decimal import Decimal, ROUND_HALF_UP
 
 
 REQUIRED_COLUMNS = ["姓名", "手机号", "车牌号", "积分金额", "银行卡号"]
@@ -42,6 +43,21 @@ def clean_digit_cell(value):
     return text
 
 
+def round_money_2(value):
+    if value is None:
+        return None
+
+    try:
+        return float(
+            Decimal(str(value)).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+        )
+    except Exception:
+        return None
+
+
 def parse_business_excel(file_path: str):
     """
     读取固定模板 Excel，并返回：
@@ -70,7 +86,7 @@ def parse_business_excel(file_path: str):
         bank_card = clean_digit_cell(row["银行卡号"])
 
         try:
-            points_amount = float(row["积分金额"])
+            points_amount = round_money_2(row["积分金额"])
         except Exception:
             points_amount = None
 

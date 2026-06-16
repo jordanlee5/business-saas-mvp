@@ -7,8 +7,9 @@ from sqlalchemy import or_
 import os
 import hashlib
 from datetime import datetime, time
+from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
@@ -30,6 +31,21 @@ os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 templates = Jinja2Templates(directory="app/templates")
+
+
+def money2(value):
+    if value is None:
+        return 0.0
+
+    try:
+        return float(
+            Decimal(str(value)).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+        )
+    except Exception:
+        return 0.0
 
 
 def get_current_user(request: Request):
@@ -431,11 +447,12 @@ def build_business_record_items(
             if voucher and voucher.voucher_amount:
                 approved_voucher_amount += voucher.voucher_amount
 
-        business_amount = record.points_amount or 0
-        remaining_amount = business_amount - approved_voucher_amount
+        business_amount = money2(record.points_amount)
+        approved_voucher_amount = money2(approved_voucher_amount)
+        remaining_amount = money2(business_amount - approved_voucher_amount)
 
         if remaining_amount < 0:
-            remaining_amount = 0
+            remaining_amount = 0.0
 
         item = {
             "business_no": record.business_no,
@@ -443,12 +460,12 @@ def build_business_record_items(
             "name": record.name,
             "phone": record.phone,
             "plate_number": record.plate_number,
-            "points_amount": record.points_amount or 0,
+            "points_amount": business_amount,
             "bank_card": record.bank_card,
             "latest_review_status": latest_review_status,
             "latest_match_status": latest_match_status,
-            "approved_voucher_amount": round(approved_voucher_amount, 2),
-            "remaining_amount": round(remaining_amount, 2),
+            "approved_voucher_amount": money2(approved_voucher_amount),
+            "remaining_amount": money2(remaining_amount),
             "created_at": record.created_at,
         }
 
@@ -606,7 +623,36 @@ def export_business_records(
             }
         )
 
+    total_points_amount = money2(sum(item["points_amount"] or 0 for item in record_items))
+    total_approved_voucher_amount = money2(sum(item["approved_voucher_amount"] or 0 for item in record_items))
+    total_remaining_amount = money2(sum(item["remaining_amount"] or 0 for item in record_items))
+
+    partner_name = "全部上传方"
+
+    if user.role == "partner":
+        partner_name = user.username
+    else:
+        if partner_id != 0:
+            selected_partner = db.query(User).filter(User.id == partner_id).first()
+            partner_name = selected_partner.username if selected_partner else "未知上传方"
+
     df = pd.DataFrame(export_rows)
+
+    summary_rows = [
+        {"项目": "报表名称", "内容": "业务数据管理导出"},
+        {"项目": "导出时间", "内容": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"项目": "上传方范围", "内容": partner_name},
+        {"项目": "关键词", "内容": keyword or "全部"},
+        {"项目": "开始日期", "内容": start_date or "不限"},
+        {"项目": "结束日期", "内容": end_date or "不限"},
+        {"项目": "审核状态", "内容": review_status or "全部"},
+        {"项目": "导出数据条数", "内容": total_records},
+        {"项目": "积分金额合计", "内容": money2(total_points_amount)},
+        {"项目": "已通过凭证金额合计", "内容": money2(total_approved_voucher_amount)},
+        {"项目": "剩余金额合计", "内容": money2(total_remaining_amount)},
+    ]
+
+    summary_df = pd.DataFrame(summary_rows)
 
     os.makedirs("exports", exist_ok=True)
 
@@ -614,27 +660,58 @@ def export_business_records(
     file_path = os.path.join("exports", filename)
 
     with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+        summary_df.to_excel(writer, index=False, sheet_name="汇总说明")
         df.to_excel(writer, index=False, sheet_name="业务数据")
 
-        worksheet = writer.sheets["业务数据"]
+        summary_sheet = writer.sheets["汇总说明"]
+        detail_sheet = writer.sheets["业务数据"]
 
-        for cell in worksheet[1]:
+        # 汇总说明页美化
+        for cell in summary_sheet[1]:
             cell.font = Font(bold=True)
 
-        for column_cells in worksheet.columns:
-            max_length = 0
-            column_letter = get_column_letter(column_cells[0].column)
+        summary_sheet.column_dimensions["A"].width = 24
+        summary_sheet.column_dimensions["B"].width = 40
 
-            for cell in column_cells:
-                value = cell.value
-                if value is None:
-                    continue
+        for row in summary_sheet.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(vertical="center")
 
-                max_length = max(max_length, len(str(value)))
+        # 业务数据页表头美化
+        for cell in detail_sheet[1]:
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            worksheet.column_dimensions[column_letter].width = min(max_length + 4, 40)
+        detail_sheet.freeze_panes = "A2"
 
-        worksheet.freeze_panes = "A2"
+        # 手机号、银行卡号、业务单号按文本格式处理
+        text_columns = ["A", "D", "G"]
+
+        for column_letter in text_columns:
+            for cell in detail_sheet[column_letter]:
+                cell.number_format = "@"
+
+        # 金额列保留两位小数
+        amount_columns = ["F", "J", "K"]
+
+        for column_letter in amount_columns:
+            for cell in detail_sheet[column_letter][1:]:
+                cell.number_format = "0.00"
+
+        # 自动列宽
+        for worksheet in [summary_sheet, detail_sheet]:
+            for column_cells in worksheet.columns:
+                max_length = 0
+                column_letter = get_column_letter(column_cells[0].column)
+
+                for cell in column_cells:
+                    value = cell.value
+                    if value is None:
+                        continue
+
+                    max_length = max(max_length, len(str(value)))
+
+                worksheet.column_dimensions[column_letter].width = min(max_length + 4, 45)
 
     db.close()
 
