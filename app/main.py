@@ -939,7 +939,7 @@ def dashboard(request: Request):
     )
 
 @app.get("/partners", response_class=HTMLResponse)
-def partners_page(request: Request):
+def partners_page(request: Request, edit_id: int = 0):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -949,6 +949,16 @@ def partners_page(request: Request):
 
     db = SessionLocal()
     partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+
+    edit_partner = None
+    if edit_id:
+        edit_partner = (
+            db.query(User)
+            .filter(User.id == edit_id)
+            .filter(User.role == "partner")
+            .first()
+        )
+
     db.close()
 
     return templates.TemplateResponse(
@@ -961,6 +971,8 @@ def partners_page(request: Request):
             "topbar_role": user.role,
             "active_page": "partners",
             "partners": partners,
+            "edit_partner": edit_partner,
+            "edit_id": edit_id,
             "message": None,
             "error": None,
         },
@@ -1222,10 +1234,15 @@ def edit_partner_submit(
 
     db.commit()
     db.refresh(partner)
+    db.commit()
+    db.refresh(partner)
+
+    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+
     db.close()
 
     return templates.TemplateResponse(
-        "edit_partner.html",
+        "partners.html",
         {
             "request": request,
             "username": user.username,
@@ -1233,7 +1250,9 @@ def edit_partner_submit(
             "topbar_username": user.username,
             "topbar_role": user.role,
             "active_page": "partners",
-            "partner": partner,
+            "partners": partners,
+            "edit_partner": partner,
+            "edit_id": partner.id,
             "message": "上传方账号修改成功。新费率只会影响之后新上传的数据，历史业务数据继续使用原费率快照。",
             "error": None,
         },
