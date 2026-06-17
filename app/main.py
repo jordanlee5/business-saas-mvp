@@ -907,6 +907,8 @@ def dashboard(request: Request):
             "request": request,
             "username": user.username,
             "role": user.role,
+            "active_page": "dashboard",
+            "page_title": "后台首页",
         },
     )
 

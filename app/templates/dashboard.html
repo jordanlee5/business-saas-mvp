@@ -1,102 +1,33 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>后台首页 - 业务数据管理SaaS MVP</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: "Microsoft YaHei", Arial, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
-        }
-        .topbar {
-            background: #0f172a;
-            color: white;
-            padding: 18px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .topbar a {
-            color: #bfdbfe;
-            text-decoration: none;
-        }
-        .container {
-            max-width: 1080px;
-            margin: 40px auto;
-            padding: 0 24px;
-        }
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
-        }
-        h1 {
-            margin-top: 0;
-            color: #0f172a;
-        }
-        .info {
-            color: #64748b;
-            line-height: 1.8;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 24px;
-        }
-        .module {
-            border: 1px solid #dbeafe;
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-radius: 12px;
-            padding: 22px;
-            font-weight: 700;
-            text-align: center;
-            text-decoration: none;
-        }
-        .disabled {
-            background: #f8fafc;
-            color: #94a3b8;
-            border-color: #e2e8f0;
-        }
-    </style>
-</head>
-<body>
-<div class="topbar">
-    <div>业务数据管理 SaaS MVP</div>
-    <div>
-        当前用户：{{ username }} ｜ 角色：{{ role }} ｜ <a href="/logout">退出登录</a >
-    </div>
-</div>
+{% extends "base.html" %}
 
-<div class="container">
-    <div class="card">
-        <h1>后台首页</h1>
-        <div class="info">
-            你已经成功登录系统。当前系统已支持上传方管理、Excel业务数据上传、OCR凭证识别、匹配审核、经营看板、结算统计与业务数据管理。
-        </div>
-
-        <div class="grid">
-            {% if role == "admin" %}
-                <a href="/stats-dashboard" class="module">经营数据看板</a >
-                <a href="/partners" class="module">上传方账号管理</a >
-                <a href="/upload-excel" class="module">Excel模板上传</a >
-                <a href="/upload-batches" class="module">上传记录</a >
-                <a href="/business-records" class="module">业务数据管理</a >
-                <a href="/upload-voucher" class="module">OCR凭证识别</a >
-                <a href="/match-reviews" class="module">匹配结果审核</a >
-            {% else %}
-                <a href="/upload-excel" class="module">Excel模板上传</a >
-                <a href="/upload-batches" class="module">上传记录</a >
-                <a href="/business-records" class="module">业务数据管理</a >
-                <a href="/my-settlement" class="module">我的结算报表</a >
-            {% endif %}
-        </div>
+{% block content %}
+<div class="page-card">
+    <div class="page-header">
+        <h1 class="page-title">后台首页</h1>
     </div>
+
+    {% if role == "admin" %}
+        <p style="color:#64748b; line-height:1.8;">
+            这里是管理员工作台。现在系统已改为左侧流程导航，你可以按照左侧业务流程依次操作：
+            维护上传方账号 → 查看业务数据 → 上传 OCR 凭证 → 匹配结果审核 → 回到业务数据管理导出结果。
+        </p >
+
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:24px;">
+            <a class="btn btn-primary" href=" ">进入业务数据管理</a >
+            <a class="btn btn-secondary" href="/match-reviews">查看匹配审核</a >
+            <a class="btn btn-secondary" href="/partners">维护上传方账号</a >
+            <a class="btn btn-secondary" href="/stats-dashboard">查看经营数据</a >
+        </div>
+    {% else %}
+        <p style="color:#64748b; line-height:1.8;">
+            这里是上传方工作台。你可以通过左侧导航上传 Excel 服务需求、查看业务数据状态，并导出自己的结算报表。
+        </p >
+
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:24px;">
+            <a class="btn btn-primary" href="/business-records">进入业务数据管理</a >
+            <a class="btn btn-secondary" href="/upload-excel">上传服务需求</a >
+            <a class="btn btn-secondary" href="/my-settlement">我的结算报表</a >
+        </div>
+    {% endif %}
 </div>
-</body>
-</html>
+{% endblock %}
