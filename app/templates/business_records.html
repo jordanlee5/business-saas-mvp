@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>业务数据管理</title>
-    <style>
+{% extends "base.html" %}
+
+{% block title %}业务数据管理{% endblock %}
+
+{% block content %}
+<style>
         body {
             margin: 0;
             font-family: "Microsoft YaHei", Arial, sans-serif;
@@ -340,17 +340,7 @@
                 grid-template-columns: repeat(2, minmax(160px, 1fr));
             }
         }
-    </style>
-</head>
-<body>
-<div class="topbar">
-    <div>业务数据管理 SaaS MVP</div>
-    <div>
-        当前用户：{{ username }} ｜ 角色：{{ role }}
-        <a href=" ">返回后台</a >
-        <a href="/logout">退出登录</a >
-    </div>
-</div>
+</style>
 
 <div class="container">
     <div class="card">
@@ -640,5 +630,5 @@
         {% endif %}
     </div>
 </div>
-</body>
-</html>        
+
+{% endblock %}

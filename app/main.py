@@ -63,6 +63,23 @@ def get_current_user(request: Request):
         db.close()
 
 
+def add_base_context(request: Request, context: dict):
+    user = get_current_user(request)
+
+    if user:
+        context["username"] = user.username
+        context["role"] = user.role
+        context["topbar_username"] = user.username
+        context["topbar_role"] = user.role
+    else:
+        context["username"] = ""
+        context["role"] = ""
+        context["topbar_username"] = ""
+        context["topbar_role"] = ""
+
+    return context
+
+
 def get_voucher_batch_review_summary(db, batch_id: int):
     # 兼容不同字段名：如果你的 VoucherRecord 里叫 voucher_batch_id / batch_id / upload_batch_id，都能识别
     batch_column = None
@@ -681,10 +698,9 @@ def business_records_page(
 
     return templates.TemplateResponse(
         "business_records.html",
-        {
+        add_base_context(request, {
             "request": request,
-            "username": user.username,
-            "role": user.role,
+            "active_page": "business_records",
             "partners": partner_options,
             "records": record_items,
             "recent_batches": recent_batch_items,
@@ -705,7 +721,7 @@ def business_records_page(
             "total_records": total_records,
             "total_pages": total_pages,
             "allowed_page_sizes": allowed_page_sizes,
-        },
+        }),
     )
 
 
