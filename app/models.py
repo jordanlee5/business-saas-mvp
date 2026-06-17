@@ -25,6 +25,10 @@ class BusinessRecord(Base):
     plate_number = Column(String, index=True)
     points_amount = Column(Float)
     bank_card = Column(String, index=True)
+
+    record_service_rate = Column(Float, default=0.0)
+    record_upstream_cost_rate = Column(Float, default=0.0)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class UploadBatch(Base):

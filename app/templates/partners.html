@@ -100,6 +100,21 @@
             font-weight: 700;
             font-size: 12px;
         }
+        .edit-link {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .edit-link:hover {
+            background: #dbeafe;
+        }
+          
         .empty {
             color: #64748b;
             padding: 20px 0;
@@ -161,6 +176,7 @@
                     <th>下游服务费率</th>
                     <th>上游成本费率</th>
                     <th>创建时间</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -172,6 +188,9 @@
                     <td>{{ partner.service_rate }}%</td>
                     <td>{{ partner.upstream_cost_rate }}%</td>
                     <td>{{ partner.created_at }}</td>
+                    <td>
+                        <a class="edit-link" href="/partners">编辑</a >
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>

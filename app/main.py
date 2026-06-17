@@ -233,8 +233,12 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         uploader = db.query(User).filter(User.id == record.user_id).first()
 
         points_amount = record.points_amount or 0
-        service_rate = uploader.service_rate if uploader else 0
-        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+        service_rate = record.record_service_rate if record.record_service_rate is not None else 0
+        upstream_cost_rate = (
+            record.record_upstream_cost_rate
+            if record.record_upstream_cost_rate is not None
+            else 0
+        )
 
         receivable_fee = points_amount * service_rate / 100
         payable_cost = points_amount * upstream_cost_rate / 100
@@ -410,8 +414,8 @@ def query_record_submit(
     for r in query_result:
         uploader = db.query(User).filter(User.id == r.user_id).first()
 
-        service_rate = uploader.service_rate if uploader else 0
-        upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+        service_rate = r.record_service_rate if r.record_service_rate is not None else 0
+        upstream_cost_rate = r.record_upstream_cost_rate if r.record_upstream_cost_rate is not None else 0
 
         points_amount = r.points_amount or 0
 
@@ -1145,6 +1149,8 @@ async def upload_excel_submit(
             plate_number=item["plate_number"],
             points_amount=item["points_amount"],
             bank_card=item["bank_card"],
+            record_service_rate=user.service_rate or 0,
+            record_upstream_cost_rate=user.upstream_cost_rate or 0,
         )
         db.add(business_record)
 
@@ -1581,8 +1587,12 @@ def match_reviews_page(
             elif voucher.filename:
                 voucher_url = "/uploads/vouchers/" + voucher.filename
             
-            service_rate = uploader.service_rate if uploader else 0
-            upstream_cost_rate = uploader.upstream_cost_rate if uploader else 0
+            service_rate = record.record_service_rate if record.record_service_rate is not None else 0
+            upstream_cost_rate = (
+                record.record_upstream_cost_rate
+                if record.record_upstream_cost_rate is not None
+                else 0
+            )
             points_amount = record.points_amount or 0
 
             receivable_fee = points_amount * service_rate / 100
@@ -1952,18 +1962,42 @@ def export_stats_dashboard(
         for partner_name, group in grouped:
             total_points = group["积分金额"].sum()
 
-            service_rate = group["下游服务费率"].iloc[0]
-            upstream_cost_rate = group["上游成本费率"].iloc[0]
+            if "下游服务率" in group.columns:
+                service_rate_column = "下游服务率"
+            elif "下游费率" in group.columns:
+                service_rate_column = "下游费率"
+            else:
+                service_rate_column = None
 
-            total_receivable_fee = total_points * service_rate / 100
-            total_payable_cost = total_points * upstream_cost_rate / 100
-            total_gross_profit = total_receivable_fee - total_payable_cost
+            if "上游成本率" in group.columns:
+                upstream_cost_rate_column = "上游成本率"
+            elif "上游成本费率" in group.columns:
+                upstream_cost_rate_column = "上游成本费率"
+            else:
+                upstream_cost_rate_column = None
+
+            if service_rate_column:
+                service_rates = group[service_rate_column].dropna().unique()
+                service_rate = service_rates[0] if len(service_rates) == 1 else "多版本费率"
+            else:
+                service_rate = "多版本费率"
+
+            if upstream_cost_rate_column:
+                upstream_cost_rates = group[upstream_cost_rate_column].dropna().unique()
+                upstream_cost_rate = upstream_cost_rates[0] if len(upstream_cost_rates) == 1 else "多版本费率"
+            else:
+                upstream_cost_rate = "多版本费率"
+
+            total_receivable_fee = group["应收服务费"].sum()
+            total_payable_cost = group["应付成本费"].sum()
+            total_gross_profit = group["毛利"].sum()
+
             approved_group = group[group["审核状态"] == "已通过"]
 
             approved_points = approved_group["积分金额"].sum()
-            approved_receivable_fee = approved_points * service_rate / 100
-            approved_payable_cost = approved_points * upstream_cost_rate / 100
-            approved_gross_profit = approved_receivable_fee - approved_payable_cost
+            approved_receivable_fee = approved_group["应收服务费"].sum()
+            approved_payable_cost = approved_group["应付成本费"].sum()
+            approved_gross_profit = approved_group["毛利"].sum()
 
             partner_summary_rows.append(
                 {
