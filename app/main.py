@@ -1836,6 +1836,9 @@ def upload_batches_page(request: Request):
             "request": request,
             "username": user.username,
             "role": user.role,
+            "topbar_username": user.username,
+            "topbar_role": user.role,
+            "active_page": "upload_batches",
             "batches": batch_items,
         },
     )
