@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>匹配结果审核</title>
-    <style>
+{% extends "base.html" %}
+
+{% block title %}匹配结果审核{% endblock %}
+
+{% block content %}
+<style>
         body {
             margin: 0;
             font-family: "Microsoft YaHei", Arial, sans-serif;
@@ -450,9 +450,8 @@
                 min-width: 0;
             }
         }
-    </style>
-</head>
-<body>
+</style>
+
 <div class="page">
     <div class="page-card">
         <div class="page-header">
@@ -841,5 +840,5 @@
         });
     }
 </script>
-</body>
-</html>
+
+{% endblock %}
