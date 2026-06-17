@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>经营数据看板 - 业务数据管理SaaS MVP</title>
+{% extends "base.html" %}
+
+{% block title %}经营数据看板{% endblock %}
+
+{% block content %}
     <style>
         body {
             margin: 0;
@@ -10,19 +10,7 @@
             background: #f5f7fb;
             color: #1f2937;
         }
-        .topbar {
-            background: #0f172a;
-            color: white;
-            padding: 18px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .topbar a {
-            color: #bfdbfe;
-            text-decoration: none;
-            margin-left: 12px;
-        }
+
         .container {
             max-width: 1280px;
             margin: 40px auto;
@@ -136,16 +124,7 @@
             color: #dc2626;
         }
     </style>
-</head>
-<body>
-<div class="topbar">
-    <div>业务数据管理 SaaS MVP</div>
-    <div>
-        当前用户：{{ username }} ｜ 角色：{{ role }}
-        <a href="/dashboard">返回后台</a >
-        <a href="/logout">退出登录</a >
-    </div>
-</div>
+
 
 <div class="container">
     <div class="card">
@@ -262,5 +241,5 @@
         </div>
     </div>
 </div>
-</body>
-</html>
+
+{% endblock %}

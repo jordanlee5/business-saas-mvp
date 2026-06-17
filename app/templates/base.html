@@ -85,30 +85,37 @@
 
         .topbar {
             height: 54px;
-            background: #0f172a;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
             display: flex;
             justify-content: flex-end;
             align-items: center;
             padding: 0 28px;
-            gap: 14px;
-            color: #e5e7eb;
+            gap: 10px;
+            color: #475569;
             font-size: 14px;
         }
 
-        .topbar span,
+        .topbar span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
         .topbar strong {
-            color: #e5e7eb;
+            color: #111827;
+            font-weight: 800;
         }
 
         .topbar a {
-            color: #93c5fd;
+            color: #2563eb;
             text-decoration: none;
             font-weight: 700;
+            white-space: nowrap;
         }
 
         .topbar a:hover {
-            color: #bfdbfe;
             text-decoration: underline;
         }
 
@@ -214,8 +221,8 @@
 
     <main class="main">
         <div class="topbar">
-            <span>当前用户：<strong>{{ username }}</strong></span>
-            <span>角色：<strong>{{ role }}</strong></span>
+            <span>当前用户：<strong>{{ topbar_username if topbar_username else username }}</strong></span>
+            <span>角色：<strong>{{ topbar_role if topbar_role else role }}</strong></span>
             <a href="/dashboard">首页</a >
             <a href="/logout">退出登录</a >
         </div>

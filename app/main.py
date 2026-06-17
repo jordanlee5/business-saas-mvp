@@ -1863,6 +1863,9 @@ def stats_dashboard_page(
             "request": request,
             "username": user.username,
             "role": user.role,
+            "topbar_username": user.username,
+            "topbar_role": user.role,
+            "active_page": "stats_dashboard",
             **stats,
         },
     )
