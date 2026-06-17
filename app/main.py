@@ -1069,6 +1069,177 @@ def create_partner(
     )
 
 
+@app.get("/partners/{partner_id}/edit", response_class=HTMLResponse)
+def edit_partner_page(request: Request, partner_id: int):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    partner = (
+        db.query(User)
+        .filter(User.id == partner_id)
+        .filter(User.role == "partner")
+        .first()
+    )
+
+    if not partner:
+        db.close()
+        return RedirectResponse(url="/partners", status_code=302)
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "edit_partner.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "topbar_username": user.username,
+            "topbar_role": user.role,
+            "active_page": "partners",
+            "partner": partner,
+            "message": None,
+            "error": None,
+        },
+    )
+
+
+@app.post("/partners/{partner_id}/edit", response_class=HTMLResponse)
+def edit_partner_submit(
+    request: Request,
+    partner_id: int,
+    username: str = Form(...),
+    service_rate: float = Form(...),
+    upstream_cost_rate: float = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    partner = (
+        db.query(User)
+        .filter(User.id == partner_id)
+        .filter(User.role == "partner")
+        .first()
+    )
+
+    if not partner:
+        db.close()
+        return RedirectResponse(url="/partners", status_code=302)
+
+    username = username.strip()
+
+    if not username:
+        db.close()
+        return templates.TemplateResponse(
+            "edit_partner.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "topbar_username": user.username,
+                "topbar_role": user.role,
+                "active_page": "partners",
+                "partner": partner,
+                "message": None,
+                "error": "上传方账号不能为空",
+            },
+        )
+
+    existing_user = (
+        db.query(User)
+        .filter(User.username == username)
+        .filter(User.id != partner.id)
+        .first()
+    )
+
+    if existing_user:
+        db.close()
+        return templates.TemplateResponse(
+            "edit_partner.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "topbar_username": user.username,
+                "topbar_role": user.role,
+                "active_page": "partners",
+                "partner": partner,
+                "message": None,
+                "error": "该账号名已存在，请换一个账号名",
+            },
+        )
+
+    if service_rate < 0 or service_rate > 100:
+        db.close()
+        return templates.TemplateResponse(
+            "edit_partner.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "topbar_username": user.username,
+                "topbar_role": user.role,
+                "active_page": "partners",
+                "partner": partner,
+                "message": None,
+                "error": "下游服务率必须在 0 到 100 之间",
+            },
+        )
+
+    if upstream_cost_rate < 0 or upstream_cost_rate > 100:
+        db.close()
+        return templates.TemplateResponse(
+            "edit_partner.html",
+            {
+                "request": request,
+                "username": user.username,
+                "role": user.role,
+                "topbar_username": user.username,
+                "topbar_role": user.role,
+                "active_page": "partners",
+                "partner": partner,
+                "message": None,
+                "error": "上游成本率必须在 0 到 100 之间",
+            },
+        )
+
+    partner.username = username
+    partner.service_rate = service_rate
+    partner.upstream_cost_rate = upstream_cost_rate
+
+    db.commit()
+    db.refresh(partner)
+    db.close()
+
+    return templates.TemplateResponse(
+        "edit_partner.html",
+        {
+            "request": request,
+            "username": user.username,
+            "role": user.role,
+            "topbar_username": user.username,
+            "topbar_role": user.role,
+            "active_page": "partners",
+            "partner": partner,
+            "message": "上传方账号修改成功。新费率只会影响之后新上传的数据，历史业务数据继续使用原费率快照。",
+            "error": None,
+        },
+    )
+
+
 @app.get("/upload-excel", response_class=HTMLResponse)
 def upload_excel_page(request: Request):
     user = get_current_user(request)

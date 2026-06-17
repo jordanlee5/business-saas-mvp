@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}编辑上传方账号{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        margin: 0;
+        font-family: "Microsoft YaHei", Arial, sans-serif;
+        background: #f5f7fb;
+        color: #1f2937;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 24px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        margin-bottom: 24px;
+    }
+
+    h1 {
+        margin-top: 0;
+        color: #0f172a;
+    }
+
+    .hint {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        line-height: 1.7;
+    }
+
+    .warning {
+        background: #fff7ed;
+        color: #9a3412;
+        border: 1px solid #fed7aa;
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        line-height: 1.7;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: end;
+    }
+
+    label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #334155;
+    }
+
+    input {
+        width: 100%;
+        height: 40px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 0 12px;
+        box-sizing: border-box;
+    }
+
+    .button-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    button {
+        border: none;
+        border-radius: 8px;
+        padding: 11px 20px;
+        background: #2563eb;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .back-link {
+        display: inline-block;
+        border-radius: 8px;
+        padding: 11px 20px;
+        background: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .error {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+
+    .success {
+        background: #dcfce7;
+        color: #166534;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+</style>
+
+<div class="container">
+    <div class="card">
+        <h1>编辑上传方账号</h1>
+
+        <div class="hint">
+            这里用于修改上传方账号名称、下游服务率和上游成本率。
+        </div>
+
+        <div class="warning">
+            注意：费率修改只影响修改后新上传的数据。已经上传过的历史业务数据，会继续使用上传当时保存的费率快照，不会被新费率回溯影响。
+        </div>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        {% if message %}
+            <div class="success">{{ message }}</div>
+        {% endif %}
+
+        <form method="post" action="/partners/{{ partner.id }}/edit">
+            <div class="form-grid">
+                <div>
+                    <label>上传方账号</label>
+                    <input type="text" name="username" value="{{ partner.username }}" required>
+                </div>
+
+                <div>
+                    <label>角色</label>
+                    <input type="text" value="{{ partner.role }}" disabled>
+                </div>
+
+                <div>
+                    <label>下游服务率（%）</label>
+                    <input type="number" step="0.01" min="0" max="100" name="service_rate" value="{{ partner.service_rate }}" required>
+                </div>
+
+                <div>
+                    <label>上游成本率（%）</label>
+                    <input type="number" step="0.01" min="0" max="100" name="upstream_cost_rate" value="{{ partner.upstream_cost_rate }}" required>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button type="submit">保存修改</button>
+                <a class="back-link" href="/partners">返回上传方管理</a >
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
