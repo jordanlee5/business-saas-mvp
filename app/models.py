@@ -40,6 +40,7 @@ class UploadBatch(Base):
     total_rows = Column(Integer, default=0)
     success_rows = Column(Integer, default=0)
     failed_rows = Column(Integer, default=0)
+    acceptance_status = Column(String, default="待承接")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class VoucherRecord(Base):

@@ -667,6 +667,7 @@ def business_records_page(
                 "total_rows": batch.total_rows or 0,
                 "success_rows": batch.success_rows or 0,
                 "failed_rows": batch.failed_rows or 0,
+                "acceptance_status": batch.acceptance_status or "待承接",
                 "created_at": batch.created_at,
             }
         )    
@@ -733,6 +734,58 @@ def business_records_page(
             "allowed_page_sizes": allowed_page_sizes,
         }),
     )
+
+
+@app.post("/upload-batches/{batch_id}/accept")
+def accept_upload_batch(request: Request, batch_id: int):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    batch = db.query(UploadBatch).filter(UploadBatch.id == batch_id).first()
+
+    if not batch:
+        db.close()
+        return RedirectResponse(url="/business-records", status_code=302)
+
+    batch.acceptance_status = "已承接"
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse(url="/business-records", status_code=302)
+
+
+@app.post("/upload-batches/{batch_id}/reject")
+def reject_upload_batch(request: Request, batch_id: int):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+
+    batch = db.query(UploadBatch).filter(UploadBatch.id == batch_id).first()
+
+    if not batch:
+        db.close()
+        return RedirectResponse(url="/business-records", status_code=302)
+
+    batch.acceptance_status = "已拒绝"
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse(url="/business-records", status_code=302)
 
 
 @app.get("/business-records/export")
@@ -1321,31 +1374,34 @@ async def upload_excel_submit(
         total_rows=len(records) + len(errors),
         success_rows=len(records),
         failed_rows=len(errors),
+        acceptance_status="待承接",
     )
     db.add(batch)
     db.commit()
     db.refresh(batch)
 
-    for row_index, item in enumerate(records, start=1):
-        batch_date = batch.created_at.strftime("%Y%m%d")
-        business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
+    if batch.acceptance_status == "已承接":
 
-        business_record = BusinessRecord(
-            user_id=user.id,
-            batch_id=batch.id,
-            business_no=business_no,
-            name=item["name"],
-            phone=item["phone"],
-            plate_number=item["plate_number"],
-            points_amount=item["points_amount"],
-            bank_card=item["bank_card"],
-            record_service_rate=user.service_rate or 0,
-            record_upstream_cost_rate=user.upstream_cost_rate or 0,
-        )
-        db.add(business_record)
+        for row_index, item in enumerate(records, start=1):
+            batch_date = batch.created_at.strftime("%Y%m%d")
+            business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
 
-    db.commit()
-    db.close()
+            business_record = BusinessRecord(
+                user_id=user.id,
+                batch_id=batch.id,
+                business_no=business_no,
+                name=item["name"],
+                phone=item["phone"],
+                plate_number=item["plate_number"],
+                points_amount=item["points_amount"],
+                bank_card=item["bank_card"],
+                record_service_rate=user.service_rate or 0,
+                record_upstream_cost_rate=user.upstream_cost_rate or 0,
+            )
+            db.add(business_record)
+
+        db.commit()
+        db.close()
 
     message = f"上传成功：共读取 {len(records) + len(errors)} 行，成功导入 {len(records)} 行，失败 {len(errors)} 行。"
 
