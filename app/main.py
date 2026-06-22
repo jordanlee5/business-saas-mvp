@@ -32,6 +32,15 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 templates = Jinja2Templates(directory="app/templates")
 
+ACCEPTED_BATCH_STATUS = "已承接"
+
+
+def apply_accepted_batch_filter(query):
+    return (
+        query
+        .join(UploadBatch, BusinessRecord.batch_id == UploadBatch.id)
+        .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+    )
 
 def money2(value):
     if value is None:
@@ -176,8 +185,11 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         selected_start_date = ""
         selected_end_date = ""
 
-    records_query = db.query(BusinessRecord)
-    batches_query = db.query(UploadBatch)
+    # 统计/核算口径：只统计已承接批次下的业务数据
+    records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
+    batches_query = db.query(UploadBatch).filter(
+        UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS
+    )
 
     if start_datetime:
         records_query = records_query.filter(BusinessRecord.created_at >= start_datetime)
@@ -192,6 +204,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         batches_query = batches_query.filter(UploadBatch.user_id == selected_partner_id)
 
     business_records = records_query.all()
+    accepted_record_ids = [record.id for record in business_records]
 
     total_records = len(business_records)
     total_batches = batches_query.count()
@@ -199,18 +212,20 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
 
     reviews_query = db.query(MatchReview)
 
+    # 匹配审核统计也只统计已承接批次下的业务数据
+    if accepted_record_ids:
+        reviews_query = reviews_query.filter(
+            MatchReview.business_record_id.in_(accepted_record_ids)
+        )
+    else:
+        reviews_query = reviews_query.filter(MatchReview.id == -1)
+
     if start_datetime:
         reviews_query = reviews_query.filter(MatchReview.created_at >= start_datetime)
 
     if end_datetime:
         reviews_query = reviews_query.filter(MatchReview.created_at <= end_datetime)
 
-    if selected_partner_id != 0:
-        partner_record_ids = [r.id for r in business_records]
-        if partner_record_ids:
-            reviews_query = reviews_query.filter(MatchReview.business_record_id.in_(partner_record_ids))
-        else:
-            reviews_query = reviews_query.filter(MatchReview.id == -1)
 
     pending_reviews = reviews_query.filter(MatchReview.review_status == "待审核").count()
     approved_reviews = reviews_query.filter(MatchReview.review_status == "已通过").count()
@@ -1380,28 +1395,26 @@ async def upload_excel_submit(
     db.commit()
     db.refresh(batch)
 
-    if batch.acceptance_status == "已承接":
+    for row_index, item in enumerate(records, start=1):
+        batch_date = batch.created_at.strftime("%Y%m%d")
+        business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
 
-        for row_index, item in enumerate(records, start=1):
-            batch_date = batch.created_at.strftime("%Y%m%d")
-            business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
+        business_record = BusinessRecord(
+            user_id=user.id,
+            batch_id=batch.id,
+            business_no=business_no,
+            name=item["name"],
+            phone=item["phone"],
+            plate_number=item["plate_number"],
+            points_amount=item["points_amount"],
+            bank_card=item["bank_card"],
+            record_service_rate=user.service_rate or 0,
+            record_upstream_cost_rate=user.upstream_cost_rate or 0,
+        )
+        db.add(business_record)
 
-            business_record = BusinessRecord(
-                user_id=user.id,
-                batch_id=batch.id,
-                business_no=business_no,
-                name=item["name"],
-                phone=item["phone"],
-                plate_number=item["plate_number"],
-                points_amount=item["points_amount"],
-                bank_card=item["bank_card"],
-                record_service_rate=user.service_rate or 0,
-                record_upstream_cost_rate=user.upstream_cost_rate or 0,
-            )
-            db.add(business_record)
-
-        db.commit()
-        db.close()
+    db.commit()
+    db.close()
 
     message = f"上传成功：共读取 {len(records) + len(errors)} 行，成功导入 {len(records)} 行，失败 {len(errors)} 行。"
 
@@ -1642,7 +1655,8 @@ def upload_voucher_submit(
             db.commit()
             db.refresh(voucher_record)
 
-            records_query = db.query(BusinessRecord)
+            # OCR 匹配源也只使用已承接批次下的业务数据
+            records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
 
             if partner_id != 0:
                 records_query = records_query.filter(BusinessRecord.user_id == partner_id)
