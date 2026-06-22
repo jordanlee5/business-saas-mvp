@@ -1444,11 +1444,30 @@ async def upload_excel_submit(
     )
 
 
-def build_voucher_upload_batch_items(db):
+def build_voucher_upload_batch_items(db, page: int = 1, page_size: int = 5):
+    if page < 1:
+        page = 1
+
+    allowed_page_sizes = [5, 10, 20]
+    if page_size not in allowed_page_sizes:
+        page_size = 5
+
+    total_batches = db.query(VoucherUploadBatch).count()
+
+    total_pages = (total_batches + page_size - 1) // page_size
+    if total_pages < 1:
+        total_pages = 1
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * page_size
+
     batches = (
         db.query(VoucherUploadBatch)
         .order_by(VoucherUploadBatch.id.desc())
-        .limit(20)
+        .offset(offset)
+        .limit(page_size)
         .all()
     )
 
@@ -1470,6 +1489,13 @@ def build_voucher_upload_batch_items(db):
             .count()
         )
 
+        total_review_count = (
+            db.query(MatchReview)
+            .join(VoucherRecord, MatchReview.voucher_id == VoucherRecord.id)
+            .filter(VoucherRecord.batch_id == batch.id)
+            .count()
+        )
+
         pending_review_count = (
             db.query(MatchReview)
             .join(VoucherRecord, MatchReview.voucher_id == VoucherRecord.id)
@@ -1486,18 +1512,18 @@ def build_voucher_upload_batch_items(db):
             .count()
         )
 
-        if (batch.total_created_reviews or 0) == 0:
+        if total_review_count == 0:
             review_action_text = "无匹配记录"
             review_action_class = "muted"
-        elif linked_voucher_count == 0:
-            review_action_text = "查看审核结果"
-            review_action_class = "secondary"
+        elif pending_review_count > 0 and processed_review_count > 0:
+            review_action_text = "继续审核"
+            review_action_class = "primary"
         elif pending_review_count > 0:
             review_action_text = "去审核"
             review_action_class = "primary"
         else:
-            review_action_text = "查看审核结果"
-            review_action_class = "secondary"  
+            review_action_text = "查看结果"
+            review_action_class = "secondary"
 
         batch_items.append(
             {
@@ -1508,18 +1534,32 @@ def build_voucher_upload_batch_items(db):
                 "success_files": batch.success_files or 0,
                 "duplicate_files": batch.duplicate_files or 0,
                 "failed_files": batch.failed_files or 0,
-                "total_created_reviews": batch.total_created_reviews or 0,
+                "linked_voucher_count": linked_voucher_count,
+                "total_created_reviews": total_review_count,
+                "pending_review_count": pending_review_count,
+                "processed_review_count": processed_review_count,
                 "review_action_text": review_action_text,
                 "review_action_class": review_action_class,
                 "created_at": batch.created_at,
             }
         )
 
-    return batch_items
+    pagination = {
+        "voucher_page": page,
+        "voucher_page_size": page_size,
+        "voucher_total_batches": total_batches,
+        "voucher_total_pages": total_pages,
+    }
+
+    return batch_items, pagination
 
 
 @app.get("/upload-voucher", response_class=HTMLResponse)
-def upload_voucher_page(request: Request):
+def upload_voucher_page(
+    request: Request,
+    voucher_page: int = Query(1),
+    voucher_page_size: int = Query(5),
+):
     user = get_current_user(request)
 
     if not user or user.role != "admin":
@@ -1542,7 +1582,11 @@ def upload_voucher_page(request: Request):
         for partner in partners
     ]
 
-    voucher_batches = build_voucher_upload_batch_items(db)
+    voucher_batches, voucher_pagination = build_voucher_upload_batch_items(
+        db,
+        page=voucher_page,
+        page_size=voucher_page_size,
+    )
 
     db.close()
 
@@ -1558,6 +1602,10 @@ def upload_voucher_page(request: Request):
             "partners": partner_options,
             "selected_partner_id": 0,
             "voucher_batches": voucher_batches,
+            "voucher_page": voucher_pagination["voucher_page"],
+            "voucher_page_size": voucher_pagination["voucher_page_size"],
+            "voucher_total_batches": voucher_pagination["voucher_total_batches"],
+            "voucher_total_pages": voucher_pagination["voucher_total_pages"],
         },
     )
 
@@ -1744,7 +1792,11 @@ def upload_voucher_submit(
     voucher_batch.total_created_reviews = total_created_reviews
     db.commit()
 
-    voucher_batches = build_voucher_upload_batch_items(db)
+    voucher_batches, voucher_pagination = build_voucher_upload_batch_items(
+        db,
+        page=1,
+        page_size=5,
+    )
 
     db.close()
 
@@ -1762,6 +1814,12 @@ def upload_voucher_submit(
             "batch_results": batch_results,
             "total_files": len(files),
             "total_created_reviews": total_created_reviews,
+            "voucher_batches": voucher_batches,
+            "voucher_batches": voucher_batches,
+            "voucher_page": voucher_pagination["voucher_page"],
+            "voucher_page_size": voucher_pagination["voucher_page_size"],
+            "voucher_total_batches": voucher_pagination["voucher_total_batches"],
+            "voucher_total_pages": voucher_pagination["voucher_total_pages"],
         },
     )
 

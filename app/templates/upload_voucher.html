@@ -182,6 +182,62 @@
             margin-top: 8px;
             color: #64748b;
             font-size: 13px;
+        }
+        
+        .section-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .section-title-row h2 {
+            margin: 0;
+        }
+
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        .page-link {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #eef2ff;
+            color: #1d4ed8;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .page-link.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .page-link.disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            pointer-events: none;
+        }
+
+        .page-size-form {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-size-form select {
+            height: 34px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0 8px;
+            background: white;
         }        
     </style>
 
@@ -287,10 +343,22 @@
 
     {% if voucher_batches %}
     <div class="card">
-        <h2>OCR 上传批次历史</h2>
+        <div class="section-title-row">
+            <h2>OCR 上传批次历史</h2>
+
+            <form method="get" action="/upload-voucher" class="page-size-form">
+                <input type="hidden" name="voucher_page" value="1">
+                <span>每页</span>
+                <select name="voucher_page_size" onchange="this.form.submit()">
+                    <option value="5" {% if voucher_page_size == 5 %}selected{% endif %}>5 条</option>
+                    <option value="10" {% if voucher_page_size == 10 %}selected{% endif %}>10 条</option>
+                    <option value="20" {% if voucher_page_size == 20 %}selected{% endif %}>20 条</option>
+                </select>
+            </form>
+        </div>
 
         <div class="hint">
-            这里显示最近 20 次 OCR 上传批次，便于追踪历史上传结果。
+            共 {{ voucher_total_batches }} 个 OCR 上传批次，当前第 {{ voucher_page }} / {{ voucher_total_pages }} 页。
         </div>
 
         <div class="table-wrap">
@@ -304,7 +372,7 @@
                         <th>成功数</th>
                         <th>重复数</th>
                         <th>失败数</th>
-                        <th>生成审核记录数</th>
+                        <th>审核进度</th>
                         <th>上传时间</th>
                         <th>操作</th>
                     </tr>
@@ -319,7 +387,12 @@
                             <td><span class="success-badge">{{ batch.success_files }}</span></td>
                             <td><span class="partial-badge">{{ batch.duplicate_files }}</span></td>
                             <td><span class="error">{{ batch.failed_files }}</span></td>
-                            <td>{{ batch.total_created_reviews }}</td>
+                            <td>
+                                {{ batch.processed_review_count }} / {{ batch.total_created_reviews }}
+                                {% if batch.pending_review_count > 0 %}
+                                    <span class="partial-badge">待审 {{ batch.pending_review_count }}</span>
+                                {% endif %}
+                            </td>
                             <td>{{ batch.created_at }}</td>
                             <td>
                                 {% if batch.review_action_text == "无匹配记录" %}
@@ -338,6 +411,31 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <div class="pagination-bar">
+            <a
+                class="page-link {% if voucher_page <= 1 %}disabled{% endif %}"
+                href="/upload-voucher?voucher_page={{ voucher_page - 1 }}&voucher_page_size={{ voucher_page_size }}"
+            >
+                上一页
+            </a >
+
+            {% for p in range(1, voucher_total_pages + 1) %}
+                <a
+                    class="page-link {% if p == voucher_page %}active{% endif %}"
+                    href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
+                >
+                    {{ p }}
+                </a >
+            {% endfor %}
+
+            <a
+                class="page-link {% if voucher_page >= voucher_total_pages %}disabled{% endif %}"
+                href="/upload-voucher?voucher_page={{ voucher_page + 1 }}&voucher_page_size={{ voucher_page_size }}"
+            >
+                下一页
+            </a >
         </div>
     </div>
     {% endif %}
