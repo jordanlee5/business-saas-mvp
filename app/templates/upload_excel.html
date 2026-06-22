@@ -4,107 +4,6 @@
 
 {% block content %}
     <style>
-        body {
-            margin: 0;
-            font-family: "Microsoft YaHei", Arial, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 24px;
-        }
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
-        }
-        h1, h2 {
-            margin-top: 0;
-            color: #0f172a;
-        }
-        .hint {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #bfdbfe;
-            padding: 14px;
-            border-radius: 10px;
-            margin-bottom: 18px;
-            line-height: 1.8;
-        }
-        input[type="file"] {
-            width: 100%;
-            padding: 14px;
-            border: 1px dashed #94a3b8;
-            border-radius: 10px;
-            background: #f8fafc;
-            margin-bottom: 18px;
-        }
-        button {
-            padding: 12px 22px;
-            border: none;
-            border-radius: 10px;
-            background: #2563eb;
-            color: white;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #1d4ed8;
-        }
-        .message {
-            margin-bottom: 18px;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        .success {
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #bbf7d0;
-        }
-        .error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-        ul {
-            line-height: 1.8;
-        }
-        /* 上传服务需求页：紧凑统一风格 V1 */
-        .container {
-            max-width: 980px;
-            margin: 28px auto;
-            padding: 0 20px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 18px;
-            padding: 24px 28px;
-            margin-bottom: 18px;
-            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0 0 14px 0;
-            color: #0f172a;
-        }
-
-        .hint {
-            padding: 10px 14px;
-            margin-bottom: 14px;
-            border-radius: 10px;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
         .upload-form {
             display: grid;
             grid-template-columns: 1fr 150px;
@@ -119,22 +18,34 @@
             margin: 0;
             padding: 8px 12px;
             border: 1px dashed #94a3b8;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             background: #f8fafc;
         }
 
-        .upload-form button {
+        .upload-form .ui-button-primary {
             height: 42px;
             padding: 0 18px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             font-size: 14px;
         }
 
         .message {
             margin-bottom: 14px;
             padding: 10px 14px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             font-size: 14px;
+        }
+
+        .success {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #bbf7d0;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
         }
 
         ul {
@@ -143,11 +54,11 @@
     </style>
 
 
-<div class="container">
-    <div class="card">
+<div class="page-container">
+    <div class="ui-card">
         <h1>上传服务需求</h1>
 
-        <div class="hint">
+        <div class="ui-hint">
             请上传固定模板 Excel 服务需求清单，需包含：姓名、手机号、车牌号、积分金额、银行卡号。
         </div>
 
@@ -168,7 +79,7 @@
 
         <form method="post" action="/upload-excel" enctype="multipart/form-data" class="upload-form">
             <input type="file" name="file" accept=".xlsx,.xls" required>
-            <button type="submit">上传并提交</button>
+            <button type="submit" class="ui-button-primary">上传并提交</button>
         </form>
     </div>
 </div>
