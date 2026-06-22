@@ -4,131 +4,6 @@
 
 {% block content %}
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, "Microsoft YaHei", sans-serif;
-            background: #f3f6fb;
-            color: #0f172a;
-        }
-
-        .container {
-            max-width: 980px;
-            margin: 40px auto;
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-        }
-
-        h1 {
-            margin-top: 0;
-            font-size: 30px;
-        }
-
-        .notice {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            color: #1d4ed8;
-            padding: 14px;
-            border-radius: 10px;
-            margin-bottom: 24px;
-        }
-
-        .filter-form {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-
-        .filter-form input {
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-
-        .filter-form button {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 10px;
-            background: #2563eb;
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .reset-link {
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .export-button {
-            display: inline-block;
-            margin-bottom: 24px;
-            padding: 11px 18px;
-            border-radius: 10px;
-            background: #16a34a;
-            color: white;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-
-        .card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 20px;
-        }
-
-        .settlement-card {
-            border: 1px solid #bbf7d0;
-            background: #f0fdf4;
-        }
-
-        .card-title {
-            color: #475569;
-            font-weight: 700;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .card-value {
-            font-size: 28px;
-            font-weight: 800;
-        }
-        /* 我的结算报表：紧凑统一风格 V1 */
-        .container {
-            max-width: 980px;
-            margin: 28px auto;
-            background: white;
-            border-radius: 18px;
-            padding: 24px 28px;
-            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0 0 14px 0;
-            color: #0f172a;
-        }
-
-        .notice {
-            padding: 10px 14px;
-            margin-bottom: 14px;
-            border-radius: 10px;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
         .filter-form {
             display: flex;
             align-items: center;
@@ -146,28 +21,31 @@
         .filter-form input {
             height: 36px;
             padding: 0 10px;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
         }
 
-        .filter-form button {
+        .filter-form .ui-button-primary {
             height: 36px;
             padding: 0 16px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             font-size: 14px;
         }
 
         .reset-link {
+            color: var(--text-muted);
+            text-decoration: none;
             font-size: 14px;
         }
 
+        .reset-link:hover {
+            text-decoration: underline;
+        }
+
         .export-button {
-            display: inline-block;
             margin-bottom: 16px;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 14px;
         }
 
         .cards {
@@ -178,7 +56,7 @@
 
         .cards .card {
             background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-light);
             border-radius: 14px;
             padding: 18px 20px;
         }
@@ -189,7 +67,7 @@
         }
 
         .card-title {
-            color: #64748b;
+            color: var(--text-muted);
             font-size: 13px;
             font-weight: 700;
             margin-bottom: 8px;
@@ -199,15 +77,39 @@
             font-size: 26px;
             font-weight: 800;
             line-height: 1.2;
-            color: #0f172a;
+            color: var(--text-main);
         }
+        .settlement-page {
+            max-width: 980px;
+        }
+
+        .settlement-page h1 {
+            font-size: 28px;
+            margin: 0 0 16px 0;
+        }
+
+        .settlement-page .ui-hint {
+            margin-bottom: 16px;
+        }
+
+        .settlement-page .filter-form {
+            margin-bottom: 18px;
+        }
+
+        .settlement-page .export-button {
+            margin-bottom: 20px;
+        }
+
+        .settlement-page .cards {
+            gap: 16px;
+        }        
     </style>
 
 
-    <div class="container">
+    <div class="page-container ui-card settlement-page">
         <h1>我的结算报表</h1>
 
-        <div class="notice">
+        <div class="ui-hint">
             本页面仅显示当前上传方自己的结算数据，不包含平台内部上游成本和毛利信息。
         </div>
 
@@ -218,13 +120,13 @@
             <label>结束日期：</label>
             <input type="date" name="end_date" value="{{ end_date }}">
 
-            <button type="submit">查看</button>
+            <button type="submit" class="ui-button-primary">查看</button>
 
             <a href="/my-settlement" class="reset-link">重置</a >
         </form>
 
         <a
-            class="export-button"
+            class="export-button ui-button-primary"
             href="/my-settlement/export?start_date={{ start_date }}&end_date={{ end_date }}"
         >
             导出结算明细 Excel
