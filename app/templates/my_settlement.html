@@ -105,6 +105,102 @@
             font-size: 28px;
             font-weight: 800;
         }
+        /* 我的结算报表：紧凑统一风格 V1 */
+        .container {
+            max-width: 980px;
+            margin: 28px auto;
+            background: white;
+            border-radius: 18px;
+            padding: 24px 28px;
+            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0 0 14px 0;
+            color: #0f172a;
+        }
+
+        .notice {
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            border-radius: 10px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .filter-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .filter-form label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .filter-form input {
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .filter-form button {
+            height: 36px;
+            padding: 0 16px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .reset-link {
+            font-size: 14px;
+        }
+
+        .export-button {
+            display: inline-block;
+            margin-bottom: 16px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .cards .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 18px 20px;
+        }
+
+        .cards .settlement-card {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .card-title {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #0f172a;
+        }
     </style>
 
 
