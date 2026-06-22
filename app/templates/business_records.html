@@ -334,6 +334,110 @@
             pointer-events: none;
         }
 
+        /* 业务数据管理页：紧凑统一风格 V1 */
+        .container {
+            max-width: 1360px;
+            margin: 28px auto;
+            padding: 0 20px;
+        }
+
+        .card,
+        .table-card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        .page-header {
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0;
+        }
+
+        .hint {
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            border-radius: 10px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .filter-form {
+            display: grid;
+            grid-template-columns: 240px 1fr 240px 240px 240px;
+            gap: 10px 12px;
+            align-items: end;
+        }
+
+        .form-item label {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        input,
+        select {
+            height: 36px;
+            padding: 0 10px;
+        }
+
+        .button-row {
+            gap: 8px;
+        }
+
+        button,
+        .btn-secondary,
+        .back-btn {
+            padding: 9px 14px;
+            border-radius: 10px;
+        }
+
+        .table-title {
+            margin-bottom: 8px;
+        }
+
+        .table-title h2 {
+            font-size: 22px;
+        }
+
+        .table-wrap {
+            margin-top: 6px;
+            overflow-x: auto;
+        }
+
+        table {
+            font-size: 13px;
+        }
+
+        th {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        td {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .status-pill {
+            padding: 3px 8px;
+            font-size: 12px;
+        }
+
+        .pagination {
+            margin-top: 8px;
+            gap: 8px;
+        }
+
+        .page-link {
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+
         @media (max-width: 1000px) {
             .filter-form {
                 grid-template-columns: repeat(2, minmax(160px, 1fr));
