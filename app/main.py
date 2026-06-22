@@ -523,6 +523,12 @@ def build_business_record_items(
     for record in all_records:
         uploader = db.query(User).filter(User.id == record.user_id).first()
 
+        batch = None
+        if record.batch_id:
+            batch = db.query(UploadBatch).filter(UploadBatch.id == record.batch_id).first()
+
+        acceptance_status = batch.acceptance_status if batch and batch.acceptance_status else "待承接"
+
         latest_review = (
             db.query(MatchReview)
             .filter(MatchReview.business_record_id == record.id)
@@ -530,12 +536,19 @@ def build_business_record_items(
             .first()
         )
 
-        latest_review_status = "未审核"
-        latest_match_status = "未匹配"
+        if acceptance_status == "已拒绝":
+            latest_review_status = "已拒绝承接"
+            latest_match_status = "-"
+        elif acceptance_status == "待承接":
+            latest_review_status = "待承接"
+            latest_match_status = "-"
+        else:
+            latest_review_status = "未审核"
+            latest_match_status = "未匹配"
 
-        if latest_review:
-            latest_review_status = latest_review.review_status
-            latest_match_status = latest_review.match_status
+            if latest_review:
+                latest_review_status = latest_review.review_status
+                latest_match_status = latest_review.match_status
 
         approved_reviews = (
             db.query(MatchReview)
@@ -566,6 +579,7 @@ def build_business_record_items(
         item = {
             "business_no": record.business_no,
             "uploader_username": uploader.username if uploader else "未知上传方",
+            "acceptance_status": acceptance_status,
             "name": record.name,
             "phone": record.phone,
             "plate_number": record.plate_number,
