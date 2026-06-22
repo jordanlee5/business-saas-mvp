@@ -1,0 +1,9 @@
+/* Business SaaS MVP 公共样式入口
+   后续会逐步把各页面重复的 container、card、hint、button、table 等样式迁移到这里。
+*/
+
+:root {
+    --primary-blue: #2563eb;
+    --page-bg: #f5f7fb;
+    --text-main: #0f172a;
+}
