@@ -12,29 +12,37 @@
         }
 
         .container {
-            max-width: 1400px;
-            margin: 40px auto;
-            padding: 0 24px;
+            max-width: 1280px;
+            margin: 36px auto;
+            padding: 0 20px;
         }
         .card {
             background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
+            border-radius: 18px;
+            padding: 24px 28px;
+            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+            margin-bottom: 22px;
         }
-        h1, h2 {
-            margin-top: 0;
+        h1 {
+            font-size: 28px;
+            margin: 0 0 14px 0;
+            color: #0f172a;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin: 0 0 12px 0;
             color: #0f172a;
         }
         .hint {
             background: #eff6ff;
             color: #1d4ed8;
             border: 1px solid #bfdbfe;
-            padding: 14px;
+            padding: 10px 14px;
             border-radius: 10px;
-            margin-bottom: 18px;
-            line-height: 1.8;
+            margin: 8px 0 12px 0;
+            line-height: 1.5;
+            font-size: 14px;
         }
         input[type="file"] {
             width: 100%;
@@ -111,16 +119,18 @@
         }
         .table-wrap {
             overflow-x: auto;
+            margin-top: 10px;
         }
         table {
             width: 100%;
-            min-width: 1200px;
+            min-width: 1050px;
             border-collapse: collapse;
-            margin-top: 18px;
+            margin-top: 0;
+            font-size: 14px;
         }
         th, td {
             border-bottom: 1px solid #e2e8f0;
-            padding: 12px 8px;
+            padding: 8px 8px;
             text-align: left;
             font-size: 14px;
             white-space: nowrap;
@@ -159,24 +169,6 @@
             color: #64748b;
             padding: 16px 0;
         }
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .form-group select {
-            height: 38px;
-            min-width: 220px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 0 10px;
-            background: #ffffff;
-        }
 
         .hint {
             margin-top: 8px;
@@ -200,14 +192,14 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 8px;
-            margin-top: 16px;
+            gap: 6px;
+            margin-top: 10px;
             font-size: 14px;
         }
 
         .page-link {
             display: inline-block;
-            padding: 8px 12px;
+            padding: 7px 11px;
             border-radius: 8px;
             background: #eef2ff;
             color: #1d4ed8;
@@ -238,6 +230,55 @@
             border-radius: 8px;
             padding: 0 8px;
             background: white;
+        }
+        
+        .compact-upload-form {
+            display: grid;
+            grid-template-columns: 220px 1fr 150px;
+            gap: 14px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .form-group select,
+        .form-group input[type="file"] {
+            width: 100%;
+            height: 40px;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        .form-group select {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0 10px;
+            background: #ffffff;
+        }
+
+        .form-group input[type="file"] {
+            padding: 8px 12px;
+            border: 1px dashed #94a3b8;
+            border-radius: 10px;
+            background: #f8fafc;
+            line-height: 22px;
+        }
+
+        .upload-button {
+            height: 42px;
+            padding: 0 18px;
+            border-radius: 10px;
         }        
     </style>
 
@@ -253,7 +294,7 @@
             <div class="message error">{{ error }}</div>
         {% endif %}
 
-        <form method="post" action="/upload-voucher" enctype="multipart/form-data">
+        <form method="post" action="/upload-voucher" enctype="multipart/form-data" class="compact-upload-form">
             <div class="form-group">
                 <label>选择上传方：</label>
                 <select name="partner_id">
@@ -267,13 +308,14 @@
                         </option>
                     {% endfor %}
                 </select>
-                <div class="hint">
-                    建议选择对应上传方，可减少误匹配，也能提高匹配速度。
-                </div>
             </div>
 
-            <input type="file" name="files" accept=".png,.jpg,.jpeg" multiple required>
-            <button type="submit">上传并识别匹配</button>
+            <div class="form-group">
+                <label>选择凭证图片：</label>
+                <input type="file" name="files" accept=".png,.jpg,.jpeg" multiple required>
+            </div>
+
+            <button type="submit" class="upload-button">上传并识别匹配</button>
         </form>
     </div>
 
@@ -447,62 +489,7 @@
     </div>
     {% endif %}
 
-    {% if match_results is not none %}
-    <div class="card">
-        <h2>匹配结果</h2>
 
-        {% if match_results|length == 0 %}
-            <div class="empty">未找到任何匹配记录，请检查凭证图片清晰度，或确认业务清单是否已导入。</div>
-        {% else %}
-        <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>匹配状态</th>
-                    <th>业务单号</th>
-                    <th>姓名</th>
-                    <th>手机号</th>
-                    <th>车牌号</th>
-                    <th>积分金额</th>
-                    <th>凭证金额</th>
-                    <th>银行卡号</th>
-                    <th>姓名匹配</th>
-                    <th>银行卡匹配</th>
-                    <th>金额匹配</th>
-                    <th>分数</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for item in match_results %}
-                <tr>
-                    <td>
-                        {% if item.status == "匹配成功" %}
-                            <span class="success-badge">{{ item.status }}</span>
-                        {% else %}
-                            <span class="partial-badge">{{ item.status }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ item.record.business_no }}</td>
-                    <td>{{ item.record.name }}</td>
-                    <td>{{ item.record.phone }}</td>
-                    <td>{{ item.record.plate_number }}</td>
-                    <td>{{ item.record.points_amount }}</td>
-                    <td>{{ item.voucher_amount }}</td>
-                    <td>{{ item.record.bank_card }}</td>
-                    <td class="{{ 'yes' if item.name_match else 'no' }}">
-                        {{ item.name_detail }}
-                    </td>
-                    <td class="{{ 'yes' if item.bank_match else 'no' }}">{{ '是' if item.bank_match else '否' }}</td>
-                    <td class="{{ 'yes' if item.amount_match else 'no' }}">{{ '是' if item.amount_match else '否' }}</td>
-                    <td>{{ item.score }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
 </div>
 
 {% endblock %}
