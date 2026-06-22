@@ -566,7 +566,11 @@
                                 <td>{{ item.points_amount }}</td>
                                 <td>{{ item.bank_card }}</td>
                                 <td>
-                                    {% if item.latest_review_status == "待审核" %}
+                                    {% if item.latest_review_status == "待承接" %}
+                                        <span class="status-pill status-pending">待承接</span>
+                                    {% elif item.latest_review_status == "已拒绝承接" %}
+                                        <span class="status-pill status-rejected">已拒绝承接</span>
+                                    {% elif item.latest_review_status == "待审核" %}
                                         <span class="status-pill status-pending">待审核</span>
                                     {% elif item.latest_review_status == "已通过" %}
                                         <span class="status-pill status-approved">已通过</span>
@@ -577,8 +581,20 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ item.latest_match_status }}</td>
-                                <td class="amount-good">{{ item.approved_voucher_amount }}</td>
-                                <td class="amount-warning">{{ item.remaining_amount }}</td>
+                                <td class="amount-good">
+                                    {% if item.acceptance_status != "已承接" %}
+                                        -
+                                    {% else %}
+                                        {{ item.approved_voucher_amount }}
+                                    {% endif %}                                   
+                                </td>
+                                <td class="amount-warning">
+                                    {% if item.acceptance_status != "已承接" %}
+                                        -
+                                    {% else %}
+                                        {{ item.remaining_amount }}
+                                    {% endif %}                                    
+                                </td>
                                 <td>{{ item.created_at }}</td>
                             </tr>
                         {% endfor %}
