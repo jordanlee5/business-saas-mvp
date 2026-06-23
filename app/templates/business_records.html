@@ -443,16 +443,32 @@
                 grid-template-columns: repeat(2, minmax(160px, 1fr));
             }
         }
+        /* 业务数据管理页：公共样式迁移后的页面宽度修正 */
+        .business-records-page {
+            max-width: 1500px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        .business-records-page .ui-card {
+            padding: 24px;
+            border-radius: 18px;
+            margin-bottom: 24px;
+        }
+
+        .business-records-page .ui-hint {
+            margin-bottom: 16px;
+        }        
     </style>
 
-<div class="container">
-    <div class="card">
+<div class="page-container business-records-page">
+    <div class="ui-card">
         <div class="page-header">
             <h1>业务数据管理</h1>
             <a class="back-btn" href="/dashboard">返回后台</a >
         </div>
 
-        <div class="hint">
+        <div class="ui-hint">
             这里用于统一查看业务数据、上传方、最新审核状态、已通过凭证金额和剩余金额。后续会继续加入分页、导出 Excel 和上传记录合并。
         </div>
 
