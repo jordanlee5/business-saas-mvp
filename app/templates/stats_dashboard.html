@@ -4,158 +4,28 @@
 
 {% block content %}
     <style>
-        body {
-            margin: 0;
-            font-family: "Microsoft YaHei", Arial, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
+        .stats-page {
+            max-width: 1360px;
         }
 
-        .container {
-            max-width: 1280px;
-            margin: 40px auto;
-            padding: 0 24px;
+        .stats-page .ui-card {
+            padding: 26px 30px;
         }
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
+
+        .stats-page h1 {
+            margin: 0 0 18px 0;
+            font-size: 28px;
         }
-        h1 {
-            margin-top: 0;
-            color: #0f172a;
+
+        .stats-page .ui-hint {
+            margin-bottom: 16px;
         }
-        .hint {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #bfdbfe;
-            padding: 14px;
-            border-radius: 10px;
-            margin-bottom: 24px;
-            line-height: 1.8;
-        }
+
         .filter-form {
             display: flex;
+            align-items: center;
             gap: 12px;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .filter-form label {
-            font-weight: 700;
-            color: #334155;
-        }
-
-        .filter-form select,
-        .filter-form input {
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            min-width: 180px;
-            font-size: 14px;
-        }
-
-        .filter-form button {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 10px;
-            background: #2563eb;
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .reset-link {
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 700;
-        }
-        .export-button {
-            display: inline-block;
-            margin-bottom: 24px;
-            padding: 11px 18px;
-            border-radius: 10px;
-            background: #16a34a;
-            color: white;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .export-button:hover {
-            background: #15803d;
-        }       
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
-        }
-        .stat-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 22px;
-            background: #f8fafc;
-        }
-        .settlement-card {
-            border: 1px solid #bbf7d0;
-            background: #f0fdf4;
-        }        
-        .stat-title {
-            color: #64748b;
-            font-size: 14px;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-        .stat-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: #0f172a;
-        }
-        .money {
-            color: #047857;
-        }
-        .profit {
-            color: #2563eb;
-        }
-        .warning {
-            color: #b45309;
-        }
-        .danger {
-            color: #dc2626;
-        }
-        /* 经营数据看板：紧凑统一风格 V1 */
-        .container {
-            max-width: 1280px;
-            margin: 28px auto;
-            padding: 0 20px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 18px;
-            padding: 22px 26px;
             margin-bottom: 18px;
-            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0 0 14px 0;
-        }
-
-        .hint {
-            padding: 10px 14px;
-            margin-bottom: 14px;
-            border-radius: 10px;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
-        .filter-form {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 14px;
             flex-wrap: wrap;
         }
 
@@ -170,61 +40,89 @@
             height: 36px;
             min-width: 170px;
             padding: 0 10px;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
         }
 
-        .filter-form button {
+        .filter-form .ui-button-primary {
             height: 36px;
             padding: 0 16px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
+            font-size: 14px;
         }
 
         .reset-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 700;
             font-size: 14px;
         }
 
+        .reset-link:hover {
+            text-decoration: underline;
+        }
+
         .export-button {
-            margin-bottom: 16px;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 14px;
+            margin-bottom: 20px;
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
+            gap: 16px;
         }
 
         .stat-card {
-            padding: 18px 20px;
+            border: 1px solid var(--border-light);
             border-radius: 14px;
+            padding: 20px 22px;
+            background: #f8fafc;
+        }
+
+        .settlement-card {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
         }
 
         .stat-title {
+            color: var(--text-muted);
             font-size: 13px;
             margin-bottom: 8px;
+            font-weight: 700;
         }
 
         .stat-value {
             font-size: 26px;
+            font-weight: 800;
+            color: var(--text-main);
             line-height: 1.2;
         }
 
-        .settlement-card {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-        }        
+        .money {
+            color: #047857;
+        }
+
+        .profit {
+            color: var(--primary-blue);
+        }
+
+        .warning {
+            color: var(--warning-orange);
+        }
+
+        .danger {
+            color: var(--danger-red);
+        }     
     </style>
 
 
-<div class="container">
-    <div class="card">
+<div class="page-container stats-page">
+    <div class="ui-card">
         <h1>经营数据看板</h1>
 
-        <div class="hint">
+        <div class="ui-hint">
             本页面仅管理员可见，用于查看平台整体经营数据、审核状态、服务费收入、上游成本和毛利。
         </div>
 
@@ -245,13 +143,13 @@
             <label>结束日期：</label>
             <input type="date" name="end_date" value="{{ selected_end_date }}">
 
-            <button type="submit">查看</button>
+            <button type="submit" class="ui-button-primary">查看</button>
 
-            <a href=" " class="reset-link">重置</a >
+            <a href="/stats-dashboard" class="reset-link">重置</a >
         </form>      
 
         <a
-            class="export-button"
+            class="export-button ui-button-primary"
             href="/stats-dashboard/export?partner_id={{ selected_partner_id }}&start_date={{ selected_start_date }}&end_date={{ selected_end_date }}"
         >
             导出结算汇总 Excel
