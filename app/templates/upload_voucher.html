@@ -34,6 +34,20 @@
             margin: 0 0 12px 0;
             color: #0f172a;
         }
+
+        .voucher-upload-page {
+            max-width: 1280px;
+        }
+
+        .voucher-upload-page .ui-card {
+            padding: 24px 28px;
+            margin-bottom: 22px;
+        }
+
+        .voucher-upload-page .ui-hint {
+            margin-bottom: 14px;
+        }
+
         .hint {
             background: #eff6ff;
             color: #1d4ed8;
@@ -282,11 +296,11 @@
         }        
     </style>
 
-<div class="container">
-    <div class="card">
+<div class="page-container voucher-upload-page">
+    <div class="ui-card">
         <h1>OCR凭证上传与匹配</h1>
 
-        <div class="hint">
+        <div class="ui-hint">
             支持上传 PNG / JPG / JPEG 图片凭证。系统会识别图片文字，并尝试与业务清单中的姓名、银行卡号、积分金额进行匹配。
         </div>
 
@@ -315,7 +329,7 @@
                 <input type="file" name="files" accept=".png,.jpg,.jpeg" multiple required>
             </div>
 
-            <button type="submit" class="upload-button">上传并识别匹配</button>
+            <button type="submit" class="upload-button ui-button-primary">上传并识别匹配</button>
         </form>
     </div>
 
@@ -384,7 +398,7 @@
     {% endif %}
 
     {% if voucher_batches %}
-    <div class="card">
+    <div class="ui-card">
         <div class="section-title-row">
             <h2>OCR 上传批次历史</h2>
 
@@ -399,7 +413,7 @@
             </form>
         </div>
 
-        <div class="hint">
+        <div class="ui-hint">
             共 {{ voucher_total_batches }} 个 OCR 上传批次，当前第 {{ voucher_page }} / {{ voucher_total_pages }} 页。
         </div>
 
@@ -483,7 +497,7 @@
     {% endif %}
 
     {% if ocr_text %}
-    <div class="card">
+    <div class="ui-card">
         <h2>OCR识别文本</h2>
         <pre>{{ ocr_text }}</pre>
     </div>
