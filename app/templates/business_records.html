@@ -9,7 +9,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
 
         h1 {
@@ -272,36 +272,12 @@
         }
 
         /* 业务数据管理页：紧凑统一风格 V1 */
-        .container {
-            max-width: 1360px;
-            margin: 28px auto;
-            padding: 0 20px;
-        }
-
-        .card,
         .table-card {
             background: white;
             border-radius: 18px;
             padding: 20px 24px;
             margin-bottom: 18px;
             box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        .page-header {
-            margin-bottom: 14px;
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0;
-        }
-
-        .hint {
-            padding: 10px 14px;
-            margin-bottom: 14px;
-            border-radius: 10px;
-            line-height: 1.5;
-            font-size: 14px;
         }
 
         @media (max-width: 1000px) {
@@ -323,7 +299,7 @@
         }
 
         .business-records-page .ui-hint {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }        
     </style>
 
@@ -335,7 +311,7 @@
         </div>
 
         <div class="ui-hint">
-            这里用于统一查看业务数据、上传方、最新审核状态、已通过凭证金额和剩余金额。后续会继续加入分页、导出 Excel 和上传记录合并。
+            这里用于统一查看业务数据、上传方、最新审核状态、已通过凭证金额和剩余金额。
         </div>
 
         <form class="filter-form" method="get" action="/business-records">
