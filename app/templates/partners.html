@@ -4,187 +4,38 @@
 
 {% block content %}
     <style>
-        body {
-            margin: 0;
-            font-family: "Microsoft YaHei", Arial, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
+        .partners-page {
+            max-width: 1240px;
         }
 
-        .container {
-            max-width: 1080px;
-            margin: 40px auto;
-            padding: 0 24px;
+        .partners-page .ui-card {
+            padding: 26px 30px;
+            margin-bottom: 20px;
         }
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
+
+        .partners-page h1 {
+            font-size: 28px;
+            margin: 0 0 18px 0;
+            color: var(--text-main);
         }
-        h1, h2 {
-            margin-top: 0;
-            color: #0f172a;
+
+        .partners-page h2 {
+            font-size: 22px;
+            margin: 0 0 14px 0;
+            color: var(--text-main);
         }
-        .hint {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #bfdbfe;
-            padding: 14px;
-            border-radius: 10px;
-            margin-bottom: 18px;
-            line-height: 1.7;
+
+        .partners-page .ui-hint {
+            margin-bottom: 16px;
         }
 
         .warning {
             background: #fff7ed;
             color: #9a3412;
             border: 1px solid #fed7aa;
-            padding: 14px;
-            border-radius: 10px;
-            margin-bottom: 18px;
-            line-height: 1.7;
-        }
-
-        .cancel-edit-link {
-            display: inline-block;
-            border-radius: 8px;
-            padding: 11px 16px;
-            background: #e5e7eb;
-            color: #374151;
-            text-decoration: none;
-            font-weight: 700;
-            text-align: center;
-        }
-        .editing-row {
-            background: #eff6ff;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr auto;
-            gap: 14px;
-            align-items: end;
-        }
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 11px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        button {
-            padding: 12px 22px;
-            border: none;
-            border-radius: 10px;
-            background: #2563eb;
-            color: white;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        button:hover {
-            background: #1d4ed8;
-        }
-        .message {
-            margin-bottom: 18px;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        .success {
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #bbf7d0;
-        }
-        .error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 18px;
-        }
-        th, td {
-            border-bottom: 1px solid #e2e8f0;
-            padding: 13px 10px;
-            text-align: left;
-            font-size: 14px;
-        }
-        th {
-            color: #475569;
-            background: #f8fafc;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: #eff6ff;
-            color: #1d4ed8;
-            font-weight: 700;
-            font-size: 12px;
-        }
-        .edit-link {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 8px;
-            background: #eff6ff;
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 13px;
-        }
-
-        .edit-link:hover {
-            background: #dbeafe;
-        }
-          
-        .empty {
-            color: #64748b;
-            padding: 20px 0;
-        }
-
-        /* 上传方账号管理页：紧凑统一风格 V1 */
-        .container {
-            max-width: 1180px;
-            margin: 28px auto;
-            padding: 0 20px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 18px;
-            padding: 22px 26px;
-            margin-bottom: 18px;
-            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0 0 14px 0;
-            color: #0f172a;
-        }
-
-        h2 {
-            font-size: 22px;
-            margin: 0 0 14px 0;
-            color: #0f172a;
-        }
-
-        .hint,
-        .warning {
             padding: 10px 14px;
             margin-bottom: 14px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             line-height: 1.5;
             font-size: 14px;
         }
@@ -192,33 +43,50 @@
         .message {
             margin-bottom: 14px;
             padding: 10px 14px;
-            border-radius: 10px;
+            border-radius: var(--radius-control);
             font-size: 14px;
+        }
+
+        .success {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #bbf7d0;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
         }
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
-            gap: 12px;
+            grid-template-columns: repeat(4, minmax(170px, 1fr)) auto;
+            gap: 16px;
             align-items: end;
         }
 
         .form-grid label {
+            display: block;
             font-size: 13px;
+            font-weight: 700;
             margin-bottom: 5px;
+            color: #334155;
         }
 
         .form-grid input {
+            width: 100%;
             height: 38px;
+            box-sizing: border-box;
             padding: 0 10px;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
             font-size: 14px;
         }
 
-        button {
+        .form-grid .ui-button-primary {
             height: 38px;
             padding: 0 16px;
-            border-radius: 10px;
             font-size: 14px;
         }
 
@@ -228,14 +96,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 10px;
             font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .editing-row {
+            background: #eff6ff;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 14px;
             font-size: 14px;
         }
 
@@ -243,8 +115,9 @@
         td {
             padding: 10px 10px;
             font-size: 13px;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid var(--border-light);
             white-space: nowrap;
+            text-align: left;
         }
 
         th {
@@ -253,25 +126,40 @@
         }
 
         .badge {
+            display: inline-block;
             padding: 3px 8px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 700;
             font-size: 12px;
         }
 
         .edit-link {
+            display: inline-block;
             padding: 5px 10px;
             border-radius: 8px;
+            background: #eff6ff;
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 700;
             font-size: 13px;
         }
 
+        .edit-link:hover {
+            background: #dbeafe;
+        }
+
         .empty {
+            color: var(--text-muted);
             padding: 24px 0;
             font-size: 14px;
-        }        
+        }       
     </style>
 
 
-<div class="container">
-    <div class="card">
+<div class="page-container partners-page">
+    <div class="ui-card">
         <h1>
             {% if edit_partner %}
                 编辑上传方账号
@@ -281,7 +169,7 @@
         </h1>
 
         {% if edit_partner %}
-            <div class="hint">
+            <div class="ui-hint">
                 当前模式：编辑账号。正在编辑：<strong>{{ edit_partner.username }}</strong>
             </div>
 
@@ -289,7 +177,7 @@
                 费率修改只影响修改后新上传的数据；已上传的历史业务数据继续按上传当时保存的费率快照计算，不会被新费率回溯影响。
             </div>
         {% else %}
-            <div class="hint">
+            <div class="ui-hint">
                 创建新的上传方账号。创建后，该上传方可登录系统上传 Excel 服务需求。
             </div>
         {% endif %}
@@ -355,7 +243,7 @@
                 </div>
 
                 <div>
-                    <button type="submit">
+                    <button type="submit" class="ui-button-primary">
                         {% if edit_partner %}
                             保存修改
                         {% else %}
@@ -363,14 +251,14 @@
                         {% endif %}
                     </button>
                     {% if edit_partner %}
-                        <a class="cancel-edit-link" href="/partners">取消编辑</a >
+                        <a class="cancel-edit-link ui-button-secondary" href="/partners">取消编辑</a >
                     {% endif %}
                 </div>
             </div>
         </form>
     </div>
 
-    <div class="card">
+    <div class="ui-card">
         <h2>上传方账号列表</h2>
 
         {% if partners %}
