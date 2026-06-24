@@ -51,16 +51,26 @@
     font-size: 14px;
 }
 
-.ui-button-primary {
-    display: inline-block;
+.ui-button-primary,
+.ui-button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: none;
-    background: var(--primary-blue);
-    color: white;
     border-radius: var(--radius-control);
     padding: 9px 14px;
+    font-size: 14px;
     font-weight: 700;
+    line-height: 1;
     text-decoration: none;
     cursor: pointer;
+    white-space: nowrap;
+}
+
+.ui-button-primary {
+    background: var(--primary-blue);
+    color: #ffffff;
 }
 
 .ui-button-primary:hover {
@@ -68,13 +78,10 @@
 }
 
 .ui-button-secondary {
-    display: inline-block;
-    border: none;
     background: #e5e7eb;
     color: #374151;
-    border-radius: var(--radius-control);
-    padding: 9px 14px;
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
+}
+
+.ui-button-secondary:hover {
+    background: #d1d5db;
 }

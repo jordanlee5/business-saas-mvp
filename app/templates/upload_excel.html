@@ -4,6 +4,13 @@
 
 {% block content %}
     <style>
+        .upload-excel-page .ui-hint {
+            margin-bottom: 16px;
+        }
+
+        .upload-excel-page .upload-form {
+            margin-top: 14px;
+        }        
         .upload-form {
             display: grid;
             grid-template-columns: 1fr 150px;
@@ -13,7 +20,7 @@
 
         .upload-form input[type="file"] {
             width: 100%;
-            height: 40px;
+            height: 42px;
             box-sizing: border-box;
             margin: 0;
             padding: 8px 12px;
@@ -54,7 +61,7 @@
     </style>
 
 
-<div class="page-container">
+<div class="page-container upload-excel-page">
     <div class="ui-card">
         <h1>上传服务需求</h1>
 
