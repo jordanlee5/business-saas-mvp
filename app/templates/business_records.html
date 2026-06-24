@@ -69,6 +69,14 @@
             background: #1d4ed8;
         }
 
+        .small-btn-danger {
+            background: #ef4444;
+        }
+
+        .small-btn-danger:hover {
+            background: #dc2626;
+        }
+
         .small-link {
             margin-left: 12px;
             color: #2563eb;
@@ -474,7 +482,7 @@
                                 </form>
 
                                 <form method="post" action="/upload-batches/{{ batch.id }}/reject" style="display:inline; margin-left:6px;">
-                                    <button type="submit" class="small-btn" style="background:#ef4444;">
+                                    <button type="submit" class="small-btn small-btn-danger">
                                         拒绝
                                     </button>
                                 </form>
