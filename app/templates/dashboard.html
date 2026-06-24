@@ -1,32 +1,807 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-card">
-    <div class="page-header">
-        <h1 class="page-title">后台首页</h1>
-    </div>
+<style>
+    .dashboard-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
 
+    .dashboard-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+    }
+
+    .dashboard-title {
+        margin: 0;
+        font-size: 26px;
+        color: #0f172a;
+    }
+
+    .dashboard-subtitle {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        gap: 16px;
+    }
+
+    .workflow-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 22px;
+        align-items: stretch;
+        padding-top: 22px;
+        padding-bottom: 20px;
+    }
+
+    .workflow-steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+        position: relative;
+    }
+
+    .workflow-steps::before {
+        content: "";
+        position: absolute;
+        left: 11%;
+        right: 11%;
+        top: 29px;
+        border-top: 2px dashed #cbd5e1;
+        z-index: 0;
+    }
+
+    .workflow-step {
+        position: relative;
+        text-align: center;
+        padding: 6px 10px 2px;
+        z-index: 1;
+    }
+
+    .step-number {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto 10px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 18px;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+        position: relative;
+        z-index: 2;
+    }
+
+    .workflow-step h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        color: #0f172a;
+    }
+
+    .workflow-step p {
+        margin: 0;
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.5;
+    }
+
+    .recommend-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 18px;
+        background: #ffffff;
+    }
+
+    .recommend-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .recommend-head h2,
+    .notice-head h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #0f172a;
+    }
+
+    .green-pill {
+        font-size: 12px;
+        color: #047857;
+        background: #ecfdf5;
+        border: 1px solid #bbf7d0;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-weight: 700;
+    }
+
+    .recommend-text {
+        margin: 0 0 16px;
+        font-size: 16px;
+        line-height: 1.6;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .recommend-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .recommend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        text-decoration: none;
+        color: #334155;
+        background: #f8fafc;
+    }
+
+    .recommend-item strong {
+        color: #2563eb;
+    }
+
+    .mini-num {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    .middle-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.8fr) minmax(360px, 1fr);
+        gap: 16px;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .metric-card {
+        border-radius: 16px;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+    }
+
+    .metric-blue { 
+        background: linear-gradient(135deg, #eff6ff, #dbeafe); 
+    }
+    .metric-green { 
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5); 
+    }
+    .metric-orange { 
+        background: linear-gradient(135deg, #fff7ed, #ffedd5); 
+    }
+    .metric-purple { 
+        background: linear-gradient(135deg, #f5f3ff, #ede9fe); 
+    }
+
+    .metric-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    .metric-label {
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .metric-value {
+        font-size: 26px;
+        font-weight: 900;
+        color: #0f172a;
+        line-height: 1.1;
+    }
+
+    .metric-change {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .mini-flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px dashed #dbe3ef;
+    }
+
+    .mini-flow-item {
+        text-align: center;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .mini-flow-dot {
+        width: 30px;
+        height: 30px;
+        margin: 0 auto 8px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+    }
+
+    .mini-flow-item.done .mini-flow-dot,
+    .mini-flow-item.active .mini-flow-dot {
+        background: #2563eb;
+        color: #ffffff;
+    }
+
+    .mini-flow-item.done .status {
+        color: #16a34a;
+    }
+
+    .mini-flow-item.active .status {
+        color: #2563eb;
+    }
+
+    .notice-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .notice-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .notice-item {
+        display: grid;
+        grid-template-columns: 10px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #eef2f7;
+    }
+
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+    }
+
+    .dot-blue { background: #2563eb; }
+    .dot-green { background: #10b981; }
+    .dot-orange { background: #f97316; }
+
+    .notice-text {
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .notice-text strong {
+        color: #2563eb;
+    }
+
+    .core-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .core-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 18px;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        min-height: 220px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .core-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+    }
+
+    .core-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .core-num {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 17px;
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.22);
+    }
+
+    .core-card h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        color: #0f172a;
+    }
+
+    .core-card p {
+        margin: 0 0 12px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .core-meta {
+        margin-top: auto;
+        font-size: 13px;
+        color: #334155;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .status-gray { background: #f1f5f9; color: #475569; }
+    .status-green { background: #dcfce7; color: #15803d; }
+    .status-orange { background: #ffedd5; color: #c2410c; }
+    .status-red { background: #fee2e2; color: #b91c1c; }
+
+    .core-card .ui-button-primary {
+        margin-top: 14px;
+        width: 100%;
+    }
+
+    .support-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.8fr) minmax(360px, 1fr);
+        gap: 16px;
+    }
+
+    .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .tool-card {
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        border: 1px solid #eef2f7;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .tool-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        background: #eff6ff;
+        color: #2563eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 10px;
+    }
+
+    .tool-card h3 {
+        margin: 8px 0 6px;
+        font-size: 15px;
+        color: #0f172a;
+    }
+
+    .tool-card p {
+        margin: 0 0 10px;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .tool-link {
+        display: inline-block;
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+    .announcement-list {
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+    }
+
+    .announcement-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .announcement-date {
+        color: #94a3b8;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1200px) {
+        .workflow-hero,
+        .middle-row,
+        .support-row {
+            grid-template-columns: 1fr;
+        }
+
+        .core-grid,
+        .metrics-grid,
+        .tool-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<div class="dashboard-page dashboard-grid">
     {% if role == "admin" %}
-        <p style="color:#64748b; line-height:1.8;">
-            这里是管理员工作台。现在系统已改为左侧流程导航，你可以按照左侧业务流程依次操作：
-            维护上传方账号 → 查看业务数据 → 上传 OCR 凭证 → 匹配结果审核 → 回到业务数据管理导出结果。
-        </p >
-
-        <div style="display:grid; grid-template-columns:repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:24px;">
-            <a class="btn btn-primary" href="business-records">进入业务数据管理</a >
-            <a class="btn btn-secondary" href="/match-reviews">查看匹配审核</a >
-            <a class="btn btn-secondary" href="/partners">维护上传方账号</a >
-            <a class="btn btn-secondary" href="/stats-dashboard">查看经营数据</a >
+        <div class="dashboard-title-row">
+            <div>
+                <h1 class="dashboard-title">运营工作台</h1>
+                <p class="dashboard-subtitle">按业务流程顺序处理上传方、业务清单、凭证识别与匹配审核。</p>
+            </div>
         </div>
-    {% else %}
-        <p style="color:#64748b; line-height:1.8;">
-            这里是上传方工作台。你可以通过左侧导航上传 Excel 服务需求、查看业务数据状态，并导出自己的结算报表。
-        </p >
 
-        <div style="display:grid; grid-template-columns:repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:24px;">
-            <a class="btn btn-primary" href="/business-records">进入业务数据管理</a >
-            <a class="btn btn-secondary" href="/upload-excel">上传服务需求</a >
-            <a class="btn btn-secondary" href="/my-settlement">我的结算报表</a >
+        <section class="ui-card workflow-hero">
+            <div>
+                <h2 style="margin:0; font-size:22px;">业务流程导航</h2>
+                <p class="dashboard-subtitle">遵循以下四个步骤，完成业务数据从上传到审核的全流程管理。</p>
+
+                <div class="workflow-steps">
+                    <a class="workflow-step" href="/partners" style="text-decoration:none;">
+                        <div class="step-number">1</div>
+                        <h3>上传方账号管理</h3>
+                        <p>维护上传方信息与权限</p>
+                    </a>
+
+                    <a class="workflow-step" href="/business-records" style="text-decoration:none;">
+                        <div class="step-number">2</div>
+                        <h3>业务数据管理</h3>
+                        <p>上传清单数据，管理业务单据</p>
+                    </a>
+
+                    <a class="workflow-step" href="/upload-voucher" style="text-decoration:none;">
+                        <div class="step-number">3</div>
+                        <h3>凭证识别</h3>
+                        <p>上传凭证文件，自动识别关键信息</p>
+                    </a>
+
+                    <a class="workflow-step" href="/match-reviews" style="text-decoration:none;">
+                        <div class="step-number">4</div>
+                        <h3>匹配结果审核</h3>
+                        <p>核对匹配结果，完成最终审核</p>
+                    </a>
+                </div>
+            </div>
+
+            <aside class="recommend-card">
+                <div class="recommend-head">
+                    <h2>推荐操作</h2>
+                    <span class="green-pill">查看操作指引</span>
+                </div>
+                <p class="recommend-text">先检查新上传清单，再上传凭证，最后完成匹配审核。</p>
+
+                <div class="recommend-list">
+                    <a class="recommend-item" href="/business-records">
+                        <span class="mini-num">1</span>
+                        <span>前往 <strong>业务数据管理</strong> 查看待承接清单</span>
+                    </a>
+                    <a class="recommend-item" href="/upload-voucher">
+                        <span class="mini-num">2</span>
+                        <span>前往 <strong>凭证识别</strong> 处理待凭证</span>
+                    </a>
+                    <a class="recommend-item" href="/match-reviews">
+                        <span class="mini-num">3</span>
+                        <span>前往 <strong>匹配结果审核</strong> 完成审核</span>
+                    </a>
+                </div>
+            </aside>
+        </section>
+
+        <section class="middle-row">
+            <div class="ui-card">
+                <h2 style="margin:0; font-size:20px;">今日待处理与流程提醒</h2>
+
+                <div class="metrics-grid">
+                    <div class="metric-card metric-blue">
+                        <div class="metric-icon">📋</div>
+                        <div>
+                            <div class="metric-label">待承接清单</div>
+                            <div class="metric-value">3</div>
+                            <div class="metric-change">较昨日 -1 ↓</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card metric-green">
+                        <div class="metric-icon">🧾</div>
+                        <div>
+                            <div class="metric-label">待凭证处理</div>
+                            <div class="metric-value">5</div>
+                            <div class="metric-change">较昨日 +2 ↑</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card metric-orange">
+                        <div class="metric-icon">✅</div>
+                        <div>
+                            <div class="metric-label">待审核记录</div>
+                            <div class="metric-value">8</div>
+                            <div class="metric-change">较昨日 +3 ↑</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card metric-purple">
+                        <div class="metric-icon">🎯</div>
+                        <div>
+                            <div class="metric-label">今日已完成</div>
+                            <div class="metric-value">12</div>
+                            <div class="metric-change">较昨日 +4 ↑</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mini-flow">
+                    <div class="mini-flow-item done">
+                        <div class="mini-flow-dot">✓</div>
+                        <div>上传方账号管理</div>
+                        <div class="status">已完成</div>
+                    </div>
+                    <div class="mini-flow-item active">
+                        <div class="mini-flow-dot">2</div>
+                        <div>业务数据管理</div>
+                        <div class="status">进行中</div>
+                    </div>
+                    <div class="mini-flow-item">
+                        <div class="mini-flow-dot">3</div>
+                        <div>凭证识别</div>
+                        <div class="status">待开始</div>
+                    </div>
+                    <div class="mini-flow-item">
+                        <div class="mini-flow-dot">4</div>
+                        <div>匹配结果审核</div>
+                        <div class="status">待开始</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-card">
+                <div class="notice-head">
+                    <h2>🔔 通知</h2>
+                    <a href="/business-records" class="tool-link">查看全部(3) ›</a>
+                </div>
+
+                <div class="notice-list">
+                    <div class="notice-item">
+                        <span class="dot dot-blue"></span>
+                        <div class="notice-text">有 3 条新上传业务待承接，请前往 <strong>业务数据管理</strong> 查看</div>
+                        <a href="/business-records" class="ui-button-secondary">去处理</a>
+                    </div>
+
+                    <div class="notice-item">
+                        <span class="dot dot-green"></span>
+                        <div class="notice-text">有 5 条凭证待处理，请前往 <strong>凭证识别</strong> 查看</div>
+                        <a href="/upload-voucher" class="ui-button-secondary">去处理</a>
+                    </div>
+
+                    <div class="notice-item">
+                        <span class="dot dot-orange"></span>
+                        <div class="notice-text">有 8 条匹配审核记录待处理，请尽快完成审核</div>
+                        <a href="/match-reviews" class="ui-button-secondary">去处理</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="core-grid">
+            <div class="core-card">
+                <div class="core-top">
+                    <div class="core-num">1</div>
+                    <span>👤</span>
+                </div>
+                <h3>上传方账号管理</h3>
+                <p>维护上传方信息、账号与权限配置。</p>
+                <div class="core-meta">
+                    <span class="status-pill status-gray">配置管理</span><br>
+                    最近更新：2026-06-23 15:48
+                </div>
+                <a href="/partners" class="ui-button-primary">进入模块 →</a>
+            </div>
+
+            <div class="core-card">
+                <div class="core-top">
+                    <div class="core-num">2</div>
+                    <span>📁</span>
+                </div>
+                <h3>业务数据管理</h3>
+                <p>上传清单数据，管理业务单据。</p>
+                <div class="core-meta">
+                    <span class="status-pill status-green">进行中</span><br>
+                    待承接清单：3 条
+                </div>
+                <a href="/business-records" class="ui-button-primary">进入模块 →</a>
+            </div>
+
+            <div class="core-card">
+                <div class="core-top">
+                    <div class="core-num">3</div>
+                    <span>🧾</span>
+                </div>
+                <h3>凭证识别</h3>
+                <p>上传凭证文件，自动识别关键信息。</p>
+                <div class="core-meta">
+                    <span class="status-pill status-orange">待处理</span><br>
+                    待凭证处理：5 条
+                </div>
+                <a href="/upload-voucher" class="ui-button-primary">进入模块 →</a>
+            </div>
+
+            <div class="core-card">
+                <div class="core-top">
+                    <div class="core-num">4</div>
+                    <span>🛡️</span>
+                </div>
+                <h3>匹配结果审核</h3>
+                <p>核对匹配结果，完成最终审核。</p>
+                <div class="core-meta">
+                    <span class="status-pill status-red">待审核</span><br>
+                    待审核记录：8 条
+                </div>
+                <a href="/match-reviews" class="ui-button-primary">进入模块 →</a>
+            </div>
+        </section>
+
+        <section class="support-row">
+            <div class="ui-card">
+                <h2 style="margin:0; font-size:20px;">支持工具与更多功能</h2>
+
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <div class="tool-icon">📊</div>
+                        <h3>经营数据看板</h3>
+                        <p>多维度数据分析与可视化看板。</p>
+                        <a class="tool-link" href="/stats-dashboard">查看看板</a>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-icon">📗</div>
+                        <h3>模板管理</h3>
+                        <p>上传模板，快速上传业务数据。</p>
+                        <a class="tool-link" href="/upload-excel">前往管理</a>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-icon">📤</div>
+                        <h3>上传记录</h3>
+                        <p>查看历史上传记录与结果。</p>
+                        <a class="tool-link" href="/upload-batches">查看记录</a>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-icon">📖</div>
+                        <h3>使用说明</h3>
+                        <p>操作指南与常见问题解答。</p>
+                        <a class="tool-link" href="#">查看文档</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-card">
+                <div class="notice-head">
+                    <h2>系统公告</h2>
+                    <a href="#" class="tool-link">更多 ›</a>
+                </div>
+
+                <ul class="announcement-list">
+                    <li>
+                        <span>系统将于 6月28日 22:00-23:00 进行维护升级</span>
+                        <span class="announcement-date">06-24</span>
+                    </li>
+                    <li>
+                        <span>优化凭证识别准确率，提升匹配效率</span>
+                        <span class="announcement-date">06-20</span>
+                    </li>
+                    <li>
+                        <span>新增批量审核功能，支持多条记录一次性审核</span>
+                        <span class="announcement-date">06-18</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+    {% else %}
+        <div class="ui-card">
+            <h1 style="margin-top:0;">上传方工作台</h1>
+            <p class="dashboard-subtitle">你可以上传 Excel 服务需求、查看业务数据状态，并导出自己的结算报表。</p>
+
+            <div class="core-grid" style="margin-top:20px;">
+                <div class="core-card">
+                    <div class="core-top">
+                        <div class="core-num">1</div>
+                        <span>📤</span>
+                    </div>
+                    <h3>上传服务需求</h3>
+                    <p>上传固定模板 Excel 服务需求清单。</p>
+                    <a href="/upload-excel" class="ui-button-primary">进入模块 →</a>
+                </div>
+
+                <div class="core-card">
+                    <div class="core-top">
+                        <div class="core-num">2</div>
+                        <span>📁</span>
+                    </div>
+                    <h3>业务数据管理</h3>
+                    <p>查看业务数据状态与处理进度。</p>
+                    <a href="/business-records" class="ui-button-primary">进入模块 →</a>
+                </div>
+
+                <div class="core-card">
+                    <div class="core-top">
+                        <div class="core-num">3</div>
+                        <span>📊</span>
+                    </div>
+                    <h3>我的结算报表</h3>
+                    <p>查看并导出自己的结算报表。</p>
+                    <a href="/my-settlement" class="ui-button-primary">进入模块 →</a>
+                </div>
+            </div>
         </div>
     {% endif %}
 </div>
