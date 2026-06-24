@@ -36,6 +36,17 @@
             margin-bottom: 18px;
             line-height: 1.8;
         }
+        .query-record-page {
+            max-width: 1100px;
+        }
+
+        .query-record-page .ui-card {
+            padding: 24px 28px;
+        }
+
+        .query-record-page .ui-hint {
+            margin-bottom: 16px;
+        }        
         form {
             display: flex;
             gap: 12px;
@@ -87,11 +98,11 @@
         }
     </style>
 
-<div class="container">
-    <div class="card">
+<div class="page-container query-record-page">
+    <div class="ui-card">
         <h1>业务数据查询</h1>
 
-        <div class="hint">
+        <div class="ui-hint">
             可输入姓名、手机号、车牌号或银行卡号进行查询。<br>
             管理员可查询全部数据；上传方只能查询自己上传的数据。
         </div>
@@ -103,7 +114,7 @@
     </div>
 
     {% if records is not none %}
-    <div class="card">
+    <div class="ui-card">
         <h1>查询结果</h1>
 
         {% if records|length == 0 %}
