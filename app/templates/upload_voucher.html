@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}OCR凭证识别{% endblock %}
+{% block title %}凭证识别{% endblock %}
 
 {% block content %}
     <style>
@@ -250,7 +250,7 @@
 
 <div class="page-container voucher-upload-page">
     <div class="ui-card">
-        <h1>OCR凭证上传与匹配</h1>
+        <h1>凭证上传与识别</h1>
 
         <div class="ui-hint">
             支持上传 PNG / JPG / JPEG 图片凭证。系统会识别图片文字，并尝试与业务清单中的姓名、银行卡号、积分金额进行匹配。
@@ -281,13 +281,13 @@
                 <input type="file" name="files" accept=".png,.jpg,.jpeg" multiple required>
             </div>
 
-            <button type="submit" class="upload-button ui-button-primary">上传并识别匹配</button>
+            <button type="submit" class="upload-button ui-button-primary">上传并识别</button>
         </form>
     </div>
 
     {% if batch_results %}
         <div class="result-card">
-            <h2>批量 OCR 处理结果</h2>
+            <h2>批量凭证处理结果</h2>
 
             <div class="summary">
                 本次上传 {{ total_files }} 个文件，
@@ -354,7 +354,7 @@
     {% if voucher_batches %}
     <div class="ui-card">
         <div class="section-title-row">
-            <h2>OCR 上传批次历史</h2>
+            <h2>凭证上传批次历史</h2>
 
             <form method="get" action="/upload-voucher" class="page-size-form">
                 <input type="hidden" name="voucher_page" value="1">
@@ -368,7 +368,7 @@
         </div>
 
         <div class="ui-hint">
-            共 {{ voucher_total_batches }} 个 OCR 上传批次，当前第 {{ voucher_page }} / {{ voucher_total_pages }} 页。
+            共 {{ voucher_total_batches }} 个 凭证 上传批次，当前第 {{ voucher_page }} / {{ voucher_total_pages }} 页。
         </div>
 
         <div class="table-wrap">
@@ -452,7 +452,7 @@
 
     {% if ocr_text %}
     <div class="ui-card">
-        <h2>OCR识别文本</h2>
+        <h2>凭证识别文本</h2>
         <pre>{{ ocr_text }}</pre>
     </div>
     {% endif %}
