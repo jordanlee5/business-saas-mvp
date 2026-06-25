@@ -54,12 +54,33 @@
             color: #64748b;
             padding: 18px 0;
         }
+        .subpage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .subpage-header h1 {
+            margin: 0;
+        }
+
+        @media (max-width: 700px) {
+            .subpage-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }        
     </style>
 
 
 <div class="page-container upload-batches-page">
     <div class="ui-card">
-        <h1>上传记录</h1>
+        <div class="subpage-header">
+            <h1>上传记录</h1>
+            <a href="/business-records" class="ui-button-secondary">返回业务数据管理</a >
+        </div>
 
         <div class="ui-hint">
             管理员可以查看所有上传方的 Excel 上传记录。<br>
