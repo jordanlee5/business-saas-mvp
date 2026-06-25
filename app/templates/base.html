@@ -147,6 +147,23 @@
             text-decoration: underline;
         }
 
+        .topbar-workbench-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #2563eb;
+            font-weight: 800;
+            text-decoration: none;
+            border: 1px solid #bfdbfe;
+        }
+
+        .topbar-workbench-link:hover {
+            background: #dbeafe;
+        }
+
         .content {
             padding: 28px;
         }
@@ -301,7 +318,7 @@
         <div class="topbar">
             <span>当前用户：<strong>{{ topbar_username if topbar_username else username }}</strong></span>
             <span>角色：<strong>{{ topbar_role if topbar_role else role }}</strong></span>
-            <a href="/dashboard">首页</a >
+            <a href="/dashboard" class="topbar-workbench-link">工作台</a >
             <a href="/logout">退出登录</a >
         </div>
 
