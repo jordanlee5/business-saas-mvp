@@ -6,7 +6,7 @@ from sqlalchemy import or_
 
 import os
 import hashlib
-from datetime import datetime, time
+from datetime import datetime, date, time
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 from openpyxl.styles import Font, Alignment
@@ -1008,17 +1008,48 @@ def dashboard(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+    
+    db = SessionLocal()
+    
+    pending_accept_batches = 0
+    pending_voucher_batches = 0
+    pending_review_records = 0
+    today_finished_reviews = 0
 
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {
-            "request": request,
-            "username": user.username,
-            "role": user.role,
-            "active_page": "dashboard",
-            "page_title": "后台首页",
-        },
+
+    pending_accept_batches = (
+        db.query(UploadBatch)
+        .filter(UploadBatch.acceptance_status == "待承接")
+        .count()
     )
+
+    pending_review_records = (
+        db.query(MatchReview)
+        .filter(MatchReview.review_status == "待审核")
+        .count()
+    )
+
+    today_finished_reviews = (
+        db.query(MatchReview)
+        .filter(MatchReview.review_status.in_(["已通过", "已驳回"]))
+        .count()
+    )
+
+    context = {
+        "request": request,
+        "username": user.username,
+        "role": user.role,
+        "active_page": "dashboard",
+        "page_title": "后台首页",
+        "pending_accept_batches": pending_accept_batches,
+        "pending_voucher_batches": pending_voucher_batches,
+        "pending_review_records": pending_review_records,
+        "today_finished_reviews": today_finished_reviews,
+    }
+
+    db.close()
+
+    return templates.TemplateResponse("dashboard.html", context)
 
 @app.get("/partners", response_class=HTMLResponse)
 def partners_page(request: Request, edit_id: int = 0):

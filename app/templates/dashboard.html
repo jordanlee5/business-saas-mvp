@@ -566,7 +566,7 @@
                         <div class="metric-icon">📋</div>
                         <div>
                             <div class="metric-label">待承接清单</div>
-                            <div class="metric-value">3</div>
+                            <div class="metric-value">{{ pending_accept_batches or 0 }}</div>
                             <div class="metric-change">较昨日 -1 ↓</div>
                         </div>
                     </div>
@@ -575,7 +575,7 @@
                         <div class="metric-icon">🧾</div>
                         <div>
                             <div class="metric-label">待凭证处理</div>
-                            <div class="metric-value">5</div>
+                            <div class="metric-value">{{ pending_voucher_batches or 0 }}</div>
                             <div class="metric-change">较昨日 +2 ↑</div>
                         </div>
                     </div>
@@ -584,7 +584,7 @@
                         <div class="metric-icon">✅</div>
                         <div>
                             <div class="metric-label">待审核记录</div>
-                            <div class="metric-value">8</div>
+                            <div class="metric-value">{{ pending_review_records or 0 }}</div>
                             <div class="metric-change">较昨日 +3 ↑</div>
                         </div>
                     </div>
@@ -592,9 +592,9 @@
                     <div class="metric-card metric-purple">
                         <div class="metric-icon">🎯</div>
                         <div>
-                            <div class="metric-label">今日已完成</div>
-                            <div class="metric-value">12</div>
-                            <div class="metric-change">较昨日 +4 ↑</div>
+                            <div class="metric-label">已完成审核</div>
+                            <div class="metric-value">{{ today_finished_reviews or 0 }}</div>
+                            <div class="metric-change">累计完成</div>
                         </div>
                     </div>
                 </div>
@@ -632,19 +632,19 @@
                 <div class="notice-list">
                     <div class="notice-item">
                         <span class="dot dot-blue"></span>
-                        <div class="notice-text">有 3 条新上传业务待承接，请前往 <strong>业务数据管理</strong> 查看</div>
+                        <div class="notice-text">有 {{ pending_accept_batches or 0 }} 条新上传业务待承接，请前往 <strong>业务数据管理</strong> 查看</div>
                         <a href="/business-records" class="ui-button-secondary">去处理</a>
                     </div>
 
                     <div class="notice-item">
                         <span class="dot dot-green"></span>
-                        <div class="notice-text">有 5 条凭证待处理，请前往 <strong>凭证识别</strong> 查看</div>
+                        <div class="notice-text">有 {{ pending_voucher_batches or 0 }} 条凭证待处理，请前往 <strong>凭证识别</strong> 查看</div>
                         <a href="/upload-voucher" class="ui-button-secondary">去处理</a>
                     </div>
 
                     <div class="notice-item">
                         <span class="dot dot-orange"></span>
-                        <div class="notice-text">有 8 条匹配审核记录待处理，请尽快完成审核</div>
+                        <div class="notice-text">有 {{ pending_review_records or 0 }} 条匹配审核记录待处理，请尽快完成审核</div>
                         <a href="/match-reviews" class="ui-button-secondary">去处理</a>
                     </div>
                 </div>
@@ -675,7 +675,7 @@
                 <p>上传清单数据，管理业务单据。</p>
                 <div class="core-meta">
                     <span class="status-pill status-green">进行中</span><br>
-                    待承接清单：3 条
+                    待承接清单：{{ pending_accept_batches or 0 }} 条
                 </div>
                 <a href="/business-records" class="ui-button-primary">进入模块 →</a>
             </div>
@@ -689,7 +689,7 @@
                 <p>上传凭证文件，自动识别关键信息。</p>
                 <div class="core-meta">
                     <span class="status-pill status-orange">待处理</span><br>
-                    待凭证处理：5 条
+                    待凭证处理：{{ pending_voucher_batches or 0 }} 条
                 </div>
                 <a href="/upload-voucher" class="ui-button-primary">进入模块 →</a>
             </div>
@@ -703,7 +703,7 @@
                 <p>核对匹配结果，完成最终审核。</p>
                 <div class="core-meta">
                     <span class="status-pill status-red">待审核</span><br>
-                    待审核记录：8 条
+                    待审核记录：{{ pending_review_records or 0 }} 条
                 </div>
                 <a href="/match-reviews" class="ui-button-primary">进入模块 →</a>
             </div>
