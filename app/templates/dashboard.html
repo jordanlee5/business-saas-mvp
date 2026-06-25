@@ -33,42 +33,41 @@
 
     .workflow-hero {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 360px;
-        gap: 22px;
-        align-items: stretch;
-        padding-top: 22px;
-        padding-bottom: 20px;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 18px;
+        align-items: center;
+        padding: 18px 22px 16px;
     }
 
     .workflow-steps {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-        margin-top: 18px;
+        gap: 10px;
+        margin-top: 14px;
         position: relative;
     }
 
     .workflow-steps::before {
         content: "";
         position: absolute;
-        left: 11%;
-        right: 11%;
-        top: 29px;
+        left: 12%;
+        right: 12%;
+        top: 23px;
         border-top: 2px dashed #cbd5e1;
-        z-index: 0;
+        z-index: 0; 
     }
 
     .workflow-step {
         position: relative;
         text-align: center;
-        padding: 6px 10px 2px;
+        padding: 4px 8px 0;
         z-index: 1;
     }
 
     .step-number {
-        width: 42px;
-        height: 42px;
-        margin: 0 auto 10px;
+        width: 38px;
+        height: 38px;
+        margin: 0 auto 8px;
         border-radius: 999px;
         background: #2563eb;
         color: #ffffff;
@@ -76,29 +75,29 @@
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 18px;
+        font-size: 17px;
         box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
         position: relative;
         z-index: 2;
     }
 
     .workflow-step h3 {
-        margin: 0 0 8px;
-        font-size: 16px;
+        margin: 0 0 5px;
+        font-size: 15px;
         color: #0f172a;
     }
 
     .workflow-step p {
         margin: 0;
-        font-size: 13px;
+        font-size: 12px;
         color: #64748b;
-        line-height: 1.5;
+        line-height: 1.4;
     }
 
     .recommend-card {
         border: 1px solid #e5e7eb;
         border-radius: 16px;
-        padding: 18px;
+        padding: 14px;
         background: #ffffff;
     }
 
@@ -106,7 +105,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 14px;
+        margin-bottom: 10px;
     }
 
     .recommend-head h2,
@@ -127,25 +126,25 @@
     }
 
     .recommend-text {
-        margin: 0 0 16px;
-        font-size: 16px;
-        line-height: 1.6;
+        margin: 0 0 12px;
+        font-size: 15px;
+        line-height: 1.55;
         font-weight: 800;
         color: #0f172a;
     }
 
     .recommend-list {
         display: grid;
-        gap: 10px;
+        gap: 8px;
     }
 
     .recommend-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
+        gap: 9px;
+        padding: 9px 10px;
         border: 1px solid #e5e7eb;
-        border-radius: 12px;
+        border-radius: 11px;
         text-decoration: none;
         color: #334155;
         background: #f8fafc;
@@ -334,11 +333,54 @@
         min-height: 220px;
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
+        position: relative;
+        overflow: hidden;
     }
 
     .core-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+    }
+
+    .core-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+    }
+
+    .core-blue {
+        background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+    }
+
+    .core-green {
+        background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
+    }
+
+    .core-orange {
+        background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+    }
+
+    .core-purple {
+        background: linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%);
+    }
+
+    .core-blue::before {
+        background: #2563eb;
+    }
+
+    .core-green::before {
+        background: #16a34a;
+    }
+
+    .core-orange::before {
+        background: #f97316;
+    }
+
+    .core-purple::before {
+        background: #7c3aed;
     }
 
     .core-top {
@@ -352,14 +394,32 @@
         width: 36px;
         height: 36px;
         border-radius: 11px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         color: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 900;
         font-size: 17px;
+    }
+
+    .core-blue .core-num {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         box-shadow: 0 8px 16px rgba(37, 99, 235, 0.22);
+    }
+
+    .core-green .core-num {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        box-shadow: 0 8px 16px rgba(22, 163, 74, 0.2);
+    }
+
+    .core-orange .core-num {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        box-shadow: 0 8px 16px rgba(249, 115, 22, 0.22);
+    }
+
+    .core-purple .core-num {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        box-shadow: 0 8px 16px rgba(124, 58, 237, 0.22);
     }
 
     .core-card h3 {
@@ -381,6 +441,54 @@
         color: #334155;
     }
 
+    .core-action {
+        margin-top: 14px;
+        width: 100%;
+        height: 38px;
+        border-radius: 10px;
+        border: none;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .action-blue {
+        background: #2563eb;
+    }
+
+    .action-blue:hover {
+        background: #1d4ed8;
+    }
+
+    .action-green {
+        background: #16a34a;
+    }
+
+    .action-green:hover {
+        background: #15803d;
+    }
+
+    .action-orange {
+        background: #f97316;
+    }
+
+    .action-orange:hover {
+        background: #ea580c;
+    }
+
+    .action-purple {
+        background: #7c3aed;
+    }
+
+    .action-purple:hover {
+        background: #6d28d9;
+    }
+
     .status-pill {
         display: inline-block;
         padding: 4px 9px;
@@ -395,10 +503,6 @@
     .status-orange { background: #ffedd5; color: #c2410c; }
     .status-red { background: #fee2e2; color: #b91c1c; }
 
-    .core-card .ui-button-primary {
-        margin-top: 14px;
-        width: 100%;
-    }
 
     .support-row {
         display: grid;
@@ -652,7 +756,7 @@
         </section>
 
         <section class="core-grid">
-            <div class="core-card">
+            <div class="core-card core-blue">
                 <div class="core-top">
                     <div class="core-num">1</div>
                     <span>👤</span>
@@ -663,10 +767,10 @@
                     <span class="status-pill status-gray">配置管理</span><br>
                     最近更新：2026-06-23 15:48
                 </div>
-                <a href="/partners" class="ui-button-primary">进入模块 →</a>
+                <a href="/partners" class="core-action action-blue">进入模块 →</a >
             </div>
 
-            <div class="core-card">
+            <div class="core-card core-green">
                 <div class="core-top">
                     <div class="core-num">2</div>
                     <span>📁</span>
@@ -677,10 +781,10 @@
                     <span class="status-pill status-green">进行中</span><br>
                     待承接清单：{{ pending_accept_batches or 0 }} 条
                 </div>
-                <a href="/business-records" class="ui-button-primary">进入模块 →</a>
+                <a href="/business-records" class="core-action action-green">进入模块 →</a >
             </div>
 
-            <div class="core-card">
+            <div class="core-card core-orange">
                 <div class="core-top">
                     <div class="core-num">3</div>
                     <span>🧾</span>
@@ -691,10 +795,10 @@
                     <span class="status-pill status-orange">待处理</span><br>
                     待凭证处理：{{ pending_voucher_batches or 0 }} 条
                 </div>
-                <a href="/upload-voucher" class="ui-button-primary">进入模块 →</a>
+                <a href="/upload-voucher" class="core-action action-orange">进入模块 →</a >
             </div>
 
-            <div class="core-card">
+            <div class="core-card core-purple">
                 <div class="core-top">
                     <div class="core-num">4</div>
                     <span>🛡️</span>
@@ -705,7 +809,7 @@
                     <span class="status-pill status-red">待审核</span><br>
                     待审核记录：{{ pending_review_records or 0 }} 条
                 </div>
-                <a href="/match-reviews" class="ui-button-primary">进入模块 →</a>
+                <a href="/match-reviews" class="core-action action-purple">进入模块 →</a >
             </div>
         </section>
 
