@@ -1029,6 +1029,15 @@ def dashboard(request: Request):
         .count()
     )
 
+    pending_voucher_batches = (
+        db.query(VoucherUploadBatch.id)
+        .join(VoucherRecord, VoucherRecord.batch_id == VoucherUploadBatch.id)
+        .join(MatchReview, MatchReview.voucher_id == VoucherRecord.id)
+        .filter(MatchReview.review_status == "待审核")
+        .distinct()
+        .count()
+    )
+
     today_finished_reviews = (
         db.query(MatchReview)
         .filter(MatchReview.review_status.in_(["已通过", "已驳回"]))
