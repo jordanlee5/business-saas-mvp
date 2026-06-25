@@ -26,6 +26,8 @@
             color: white;
             padding: 22px 18px;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .brand {
@@ -47,35 +49,57 @@
         }
 
         .side-link {
-            display: block;
-            color: #dbeafe;
-            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 9px;
             padding: 11px 12px;
             border-radius: 10px;
-            margin-bottom: 8px;
+            color: #e5e7eb;
+            text-decoration: none;
             font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
             background: rgba(255, 255, 255, 0.04);
         }
 
         .side-link:hover {
-            background: rgba(37, 99, 235, 0.35);
-            color: white;
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .side-link.active {
             background: #2563eb;
-            color: white;
-            font-weight: 700;
+            color: #ffffff;
         }
 
+        .side-icon {
+            width: 18px;
+            display: inline-flex;
+            justify-content: center;
+            flex-shrink: 0;
+        }        
         .side-note {
-            font-size: 12px;
-            line-height: 1.6;
-            color: #94a3b8;
-            margin-top: 18px;
-            padding: 12px;
+            margin-top: 24px;
+            padding: 14px;
             border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .side-note-title {
+            color: #ffffff;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .collapse-menu {
+            margin-top: auto;
+            padding-top: 18px;
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
         }
 
         .main {
@@ -188,36 +212,84 @@
         {% if role == "admin" %}
             <div class="side-section">
                 <div class="side-title">业务流程</div>
-                <a class="side-link {% if active_page == 'partners' %}active{% endif %}" href="/partners">1. 上传方账号管理</a >
-                <a class="side-link {% if active_page == 'business_records' %}active{% endif %}" href="/business-records">2. 业务数据管理</a >
-                <a class="side-link {% if active_page == 'upload_voucher' %}active{% endif %}" href="/upload-voucher">3. OCR凭证识别</a >
-                <a class="side-link {% if active_page == 'match_reviews' %}active{% endif %}" href="/match-reviews">4. 匹配结果审核</a >
+
+                <a class="side-link {% if active_page == 'partners' %}active{% endif %}" href="/partners">
+                    <span class="side-icon">👥</span>
+                    <span>1. 上传方账号管理</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'business_records' %}active{% endif %}" href="/business-records">
+                    <span class="side-icon">📄</span>
+                    <span>2. 业务数据管理</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'upload_voucher' %}active{% endif %}" href="/upload-voucher">
+                    <span class="side-icon">🧾</span>
+                    <span>3. 凭证识别</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'match_reviews' %}active{% endif %}" href="/match-reviews">
+                    <span class="side-icon">✅</span>
+                    <span>4. 匹配结果审核</span>
+                </a >
             </div>
 
             <div class="side-section">
                 <div class="side-title">经营辅助</div>
-                <a class="side-link {% if active_page == 'stats_dashboard' %}active{% endif %}" href="/stats-dashboard">经营数据看板</a >
+                <a class="side-link {% if active_page == 'stats_dashboard' %}active{% endif %}" href="/stats-dashboard">
+                    <span class="side-icon">📊</span>
+                    <span>经营数据看板</span>
+                </a >
             </div>
 
             <div class="side-section">
-                <div class="side-title">测试维护</div>
-                <a class="side-link {% if active_page == 'upload_excel' %}active{% endif %}" href="/upload-excel">Excel模板上传</a >
+                <div class="side-title">数据维护</div>
+
+                <a class="side-link {% if active_page == 'upload_excel' %}active{% endif %}" href="/upload-excel">
+                    <span class="side-icon">📗</span>
+                    <span>模板管理</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'upload_batches' %}active{% endif %}" href="/upload-batches">
+                    <span class="side-icon">📤</span>
+                    <span>上传记录</span>
+                </a >
             </div>
 
             <div class="side-note">
-                建议流程：先维护上传方账号，再查看业务数据，上传 OCR 凭证，完成匹配审核，最后回到业务数据管理导出结果。
+                <div class="side-note-title">💡 使用小贴士</div>
+                建议按流程依次操作：<br>
+                1. 检查新上传清单<br>
+                2. 上传凭证文件<br>
+                3. 完成匹配审核<br><br>
+                可大幅提升处理效率与准确率。
             </div>
+
+            <div class="collapse-menu">← 收起菜单</div>
         {% else %}
             <div class="side-section">
                 <div class="side-title">我的业务</div>
-                <a class="side-link {% if active_page == 'upload_excel' %}active{% endif %}" href="/upload-excel">上传服务需求</a >
-                <a class="side-link {% if active_page == 'business_records' %}active{% endif %}" href="/business-records">业务数据管理</a >
-                <a class="side-link {% if active_page == 'my_settlement' %}active{% endif %}" href="/my-settlement">我的结算报表</a >
+
+                <a class="side-link {% if active_page == 'upload_excel' %}active{% endif %}" href="/upload-excel">
+                    <span class="side-icon">📤</span>
+                    <span>上传服务需求</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'business_records' %}active{% endif %}" href="/business-records">
+                    <span class="side-icon">📄</span>
+                    <span>业务数据管理</span>
+                </a >
+
+                <a class="side-link {% if active_page == 'my_settlement' %}active{% endif %}" href="/my-settlement">
+                    <span class="side-icon">📊</span>
+                    <span>我的结算报表</span>
+                </a >
             </div>
 
             <div class="side-note">
                 你可以上传 Excel 服务需求，查看业务数据状态，并导出自己的结算报表。
             </div>
+            <div class="collapse-menu">← 收起菜单</div>
         {% endif %}
     </aside>
 
