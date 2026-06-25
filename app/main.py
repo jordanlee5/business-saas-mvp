@@ -1023,26 +1023,44 @@ def dashboard(request: Request):
         .count()
     )
 
-    pending_review_records = (
-        db.query(MatchReview)
-        .filter(MatchReview.review_status == "待审核")
-        .count()
-    )
+    all_reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
-    pending_voucher_batches = (
-        db.query(VoucherUploadBatch.id)
-        .join(VoucherRecord, VoucherRecord.batch_id == VoucherUploadBatch.id)
-        .join(MatchReview, MatchReview.voucher_id == VoucherRecord.id)
-        .filter(MatchReview.review_status == "待审核")
-        .distinct()
-        .count()
-    )
+    latest_reviews = []
+    seen_business_record_ids = set()
 
-    today_finished_reviews = (
-        db.query(MatchReview)
-        .filter(MatchReview.review_status.in_(["已通过", "已驳回"]))
-        .count()
-    )
+    for review in all_reviews:
+        if review.business_record_id in seen_business_record_ids:
+            continue
+
+        seen_business_record_ids.add(review.business_record_id)
+        latest_reviews.append(review)
+
+    pending_review_records = len([
+        review for review in latest_reviews
+        if review.review_status == "待审核"
+    ])
+
+    today_finished_reviews = len([
+        review for review in latest_reviews
+        if review.review_status in ["已通过", "已驳回"]
+    ])
+
+    pending_voucher_batch_ids = set()
+
+    for review in latest_reviews:
+        if review.review_status != "待审核":
+            continue
+
+        voucher = (
+            db.query(VoucherRecord)
+            .filter(VoucherRecord.id == review.voucher_id)
+            .first()
+        )
+
+        if voucher and voucher.batch_id:
+            pending_voucher_batch_ids.add(voucher.batch_id)
+
+    pending_voucher_batches = len(pending_voucher_batch_ids)
 
     context = {
         "request": request,
