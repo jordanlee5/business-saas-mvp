@@ -482,6 +482,7 @@ def build_business_record_items(
     start_date="",
     end_date="",
     review_status="全部",
+    acceptance_filter="全部",
     page=1,
     page_size=10,
     use_pagination=True,
@@ -594,6 +595,9 @@ def build_business_record_items(
 
         if review_status != "全部" and item["latest_review_status"] != review_status:
             continue
+        
+        if acceptance_filter != "全部" and item["acceptance_status"] != acceptance_filter:
+            continue
 
         all_record_items.append(item)
 
@@ -632,6 +636,7 @@ def business_records_page(
     start_date: str = Query(""),
     end_date: str = Query(""),
     review_status: str = Query("全部"),
+    acceptance_status: str = Query("全部"),
     page: int = Query(1),
     page_size: int = Query(3),
     batch_page: int = Query(1),
@@ -644,6 +649,11 @@ def business_records_page(
 
     db = SessionLocal()
 
+    allowed_acceptance_statuses = ["全部", "待承接", "已承接", "已拒绝"]
+
+    if acceptance_status not in allowed_acceptance_statuses:
+        acceptance_status = "全部"
+
     batch_query = db.query(UploadBatch)
 
     # 权限隔离：
@@ -654,6 +664,17 @@ def business_records_page(
     else:
         if partner_id != 0:
             batch_query = batch_query.filter(UploadBatch.user_id == partner_id)
+
+    if start_date:
+        start_dt = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), time.min)
+        batch_query = batch_query.filter(UploadBatch.created_at >= start_dt)
+
+    if end_date:
+        end_dt = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), time.max)
+        batch_query = batch_query.filter(UploadBatch.created_at <= end_dt)
+
+    if acceptance_status != "全部":
+        batch_query = batch_query.filter(UploadBatch.acceptance_status == acceptance_status)
 
     allowed_batch_page_sizes = [3, 5]
 
@@ -729,6 +750,7 @@ def business_records_page(
         start_date=start_date,
         end_date=end_date,
         review_status=review_status,
+        acceptance_filter=acceptance_status,
         page=page,
         page_size=page_size,
         use_pagination=True,
@@ -756,6 +778,7 @@ def business_records_page(
             "start_date": start_date,
             "end_date": end_date,
             "review_status": review_status,
+            "acceptance_status": acceptance_status,
             "page": page,
             "page_size": page_size,
             "total_records": total_records,
@@ -825,6 +848,7 @@ def export_business_records(
     start_date: str = Query(""),
     end_date: str = Query(""),
     review_status: str = Query("全部"),
+    acceptance_status: str = Query("全部"),
 ):
     user = get_current_user(request)
 
@@ -841,6 +865,7 @@ def export_business_records(
         start_date=start_date,
         end_date=end_date,
         review_status=review_status,
+        acceptance_filter=acceptance_status,
         use_pagination=False,
     )
 
@@ -887,6 +912,7 @@ def export_business_records(
         {"项目": "开始日期", "内容": start_date or "不限"},
         {"项目": "结束日期", "内容": end_date or "不限"},
         {"项目": "审核状态", "内容": review_status or "全部"},
+        {"项目": "承接状态", "内容": acceptance_status or "全部"},
         {"项目": "导出数据条数", "内容": total_records},
         {"项目": "积分金额合计", "内容": money2(total_points_amount)},
         {"项目": "已通过凭证金额合计", "内容": money2(total_approved_voucher_amount)},
