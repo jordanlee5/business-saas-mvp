@@ -1913,7 +1913,7 @@ def match_reviews_page(
     status_filter: str = Query("全部"),
     partner_id: int = Query(0),
     page: int = Query(1),
-    page_size: int = Query(3),
+    page_size: int = Query(1),
 ):
     user = get_current_user(request)
     if not user:
@@ -1957,10 +1957,10 @@ def match_reviews_page(
 
         latest_reviews = filtered_reviews
 
-    allowed_page_sizes = [3, 5, 10, 20]
+    allowed_page_sizes = [1, 3, 5, 10, 20]
 
     if page_size not in allowed_page_sizes:
-        page_size = 3
+        page_size = 1
 
     total_reviews = len(latest_reviews)
 
