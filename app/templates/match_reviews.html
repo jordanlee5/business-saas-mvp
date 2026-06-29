@@ -565,6 +565,16 @@
             font-size: 13px;
         }
 
+        .page-ellipsis {
+            min-width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-weight: 700;
+        }
+
         @media (max-width: 1100px) {
             .review-card {
                 grid-template-columns: 1fr;
@@ -586,6 +596,87 @@
                 min-width: 0;
             }
         }
+        .match-reviews-page .review-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #2563eb;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        .match-reviews-page .batch-check-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .match-reviews-page .batch-tip {
+            color: #64748b;
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
+        .match-reviews-page .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .match-reviews-page .page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 12px;
+            border-radius: 10px;
+            background: #e5e7eb;
+            color: #1f2937;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .match-reviews-page .page-link:hover {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .match-reviews-page .page-link.active {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .match-reviews-page .page-link.disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            pointer-events: none;
+        }
+
+        .match-reviews-page .review-empty {
+            margin-top: 20px;
+            padding: 42px 20px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 14px;
+            background: #f8fafc;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .match-reviews-page .review-empty-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .match-reviews-page .review-empty-desc {
+            font-size: 14px;
+            line-height: 1.7;
+        }        
     </style>
 
 <div class="page-container match-reviews-page">
@@ -628,12 +719,13 @@
             </form>
 
             <div class="batch-bar">
-                <label>
-                    <input type="checkbox" id="select-all">
+                {% if status_filter == "待审核" %}
+                <label class="batch-check-lable">
+                    <input type="checkbox" id="select-all" class="review-checkbox">
                     全选待审核
                 </label>
-
                 <span>批量操作只会处理已勾选且仍处于“待审核”的记录。</span>
+                {% endif %}
             </div>
         </div>
 
@@ -643,6 +735,7 @@
             <input type="hidden" name="page" value="{{ page }}">
             <input type="hidden" name="page_size" value="{{ page_size }}">
 
+            {% if status_filter == "待审核" %}
             <div class="batch-bar" style="margin-bottom: 12px;">
                 <button
                     type="submit"
@@ -653,6 +746,7 @@
                 >
                     批量通过
                 </button>
+
                 <button
                     type="submit"
                     name="action"
@@ -663,6 +757,7 @@
                     批量驳回
                 </button>
             </div>
+            {% endif %}
 
             <div class="review-panel">
                 <div class="review-list">
@@ -866,6 +961,7 @@
                                                 class="review-checkbox"
                                                 name="review_ids"
                                                 value="{{ item.review.id }}"
+                                                class="review-checkbox"
                                                 {% if item.review.review_status != "待审核" %}disabled{% endif %}
                                             >
                                             选择此条
@@ -931,14 +1027,19 @@
                                     <span class="page-link disabled">上一页</span>
                                 {% endif %}
 
+                                {% set left_page = page - 2 %}
+                                {% set right_page = page + 2 %}
+
                                 {% for p in range(1, total_pages + 1) %}
-                                    {% if p == page %}
-                                        <span class="page-link active">{{ p }}</span>
-                                    {% else %}
-                                        <a class="page-link"
+                                    {% if p == 1 or p == total_pages or (p >= left_page and p <= right_page) %}
+                                        <a class="page-link {% if p == page %}active{% endif %}"
                                         href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ p }}&page_size={{ page_size }}">
                                             {{ p }}
                                         </a >
+                                    {% elif p == 2 and left_page > 3 %}
+                                        <span class="page-ellipsis">...</span>
+                                    {% elif p == total_pages - 1 and right_page < total_pages - 2 %}
+                                        <span class="page-ellipsis">...</span>
                                     {% endif %}
                                 {% endfor %}
 
@@ -954,7 +1055,13 @@
                         </div>
                         {% endif %}                       
                     {% else %}
-                        <div class="empty">暂无匹配审核记录</div>
+                        <div class="empty">
+                            <div class="review-empty-title">暂无匹配审核记录</div>
+                            <div class="review-empty-desc">
+                                当前筛选条件下没有可展示的审核记录。<br>
+                                可以调整审核状态、上传方或每页显示后重新筛选。
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
             </div>
