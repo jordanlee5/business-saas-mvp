@@ -2234,6 +2234,8 @@ def upload_batches_page(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    batch_page: int = 1,
+    batch_page_size: int = 10,
 ):
     user = get_current_user(request)
     if not user:
@@ -2278,7 +2280,27 @@ def upload_batches_page(
     if acceptance_status != "全部":
         query = query.filter(UploadBatch.acceptance_status == acceptance_status)
 
-    batches = query.order_by(UploadBatch.id.desc()).all()
+    allowed_batch_page_sizes = [5, 10, 20]
+
+    if batch_page_size not in allowed_batch_page_sizes:
+        batch_page_size = 10
+
+    if batch_page < 1:
+        batch_page = 1
+
+    batch_total = query.count()
+    batch_total_pages = max((batch_total + batch_page_size - 1) // batch_page_size, 1)
+
+    if batch_page > batch_total_pages:
+        batch_page = batch_total_pages
+
+    batches = (
+        query
+        .order_by(UploadBatch.id.desc())
+        .offset((batch_page - 1) * batch_page_size)
+        .limit(batch_page_size)
+        .all()
+    )
 
     batch_items = []
 
@@ -2317,6 +2339,11 @@ def upload_batches_page(
             "end_date": end_date,
             "review_status": review_status,
             "acceptance_status": acceptance_status,
+            "batch_page": batch_page,
+            "batch_page_size": batch_page_size,
+            "batch_total": batch_total,
+            "batch_total_pages": batch_total_pages,
+            "allowed_batch_page_sizes": allowed_batch_page_sizes,
         },
     )
 
