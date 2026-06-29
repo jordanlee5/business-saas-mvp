@@ -189,6 +189,29 @@
             font-size: 13px;
         }
 
+        .empty-state {
+            padding: 30px 16px;
+            text-align: center;
+            color: #64748b;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        .empty-state-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .empty-state-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+        
         th {
             background: #f9fafb;
             color: #374151;
@@ -517,7 +540,12 @@
             </table>
         </div>
         {% else %}
-            <div class="empty">暂无上传批次记录</div>           
+            <div class="empty-state">暂无上传批次记录
+                <div class="empty-state-title">暂无符合当前筛选条件的上传批次</div>
+                <div class="empty-state-desc">
+                    可以调整上传方、开始日期、结束日期、审核状态或承接状态后重新筛选。
+                </div>
+            </div>           
         {% endif %}
     </div>
 
@@ -591,7 +619,12 @@
                     </tbody>
                 </table>
             {% else %}
-                <div class="empty">暂无符合条件的业务数据</div>
+                <div class="empty">暂无符合条件的业务数据
+                    <div class="empty-state-title">暂无符合当前筛选条件的业务数据</div>
+                    <div class="empty-state-desc">
+                        可以调整关键词、上传方、日期、审核状态或承接状态后重新筛选。
+                    </div>
+                </div>
             {% endif %}
         </div>
 
