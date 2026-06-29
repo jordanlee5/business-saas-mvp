@@ -124,6 +124,44 @@
             font-size: 14px;
         }
 
+        .batch-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 12px;
+            border-radius: 8px;
+            background: #e5e7eb;
+            color: #334155;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+        }
+
+        .batch-page-link:hover {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .batch-page-link.active {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .batch-page-link.disabled {
+            background: #e5e7eb;
+            color: #94a3b8;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        .batch-page-text {
+            color: #334155;
+            font-weight: 600;
+        }
+
         .batch-page-actions {
             display: flex;
             align-items: center;
@@ -242,7 +280,7 @@
             </tbody>
         </table>
         <div class="batch-pagination">
-            <div>
+            <div class="batch-page-text">
                 共 {{ batch_total }} 条上传记录，当前第 {{ batch_page }} / {{ batch_total_pages }} 页
             </div>
 
@@ -266,19 +304,19 @@
                     </select>
                 </form>
 
-                <a class="page-link {% if batch_page <= 1 %}disabled{% endif %}"
+                <a class="batch-page-link {% if batch_page <= 1 %}disabled{% endif %}"
                 href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
                     上一页
                 </a >
 
                 {% for p in range(1, batch_total_pages + 1) %}
-                    <a class="page-link {% if p == batch_page %}active{% endif %}"
+                    <a class="batch-page-link {% if p == batch_page %}active{% endif %}"
                     href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
                         {{ p }}
                     </a >
                 {% endfor %}
 
-                <a class="page-link {% if batch_page >= batch_total_pages %}disabled{% endif %}"
+                <a class="batch-page-link {% if batch_page >= batch_total_pages %}disabled{% endif %}"
                 href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
                     下一页
                 </a >
