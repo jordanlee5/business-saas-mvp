@@ -2241,6 +2241,16 @@ def upload_batches_page(
 
     db = SessionLocal()
 
+    partners = []
+
+    if user.role == "admin":
+        partners = (
+            db.query(User)
+            .filter(User.role == "partner")
+            .order_by(User.id.desc())
+            .all()
+        )
+
     allowed_acceptance_statuses = ["全部", "待承接", "已承接", "已拒绝"]
 
     if acceptance_status not in allowed_acceptance_statuses:
@@ -2300,6 +2310,7 @@ def upload_batches_page(
             "topbar_role": user.role,
             "active_page": "upload_batches",
             "batches": batch_items,
+            "partners": partners,
             "partner_id": partner_id,
             "keyword": keyword,
             "start_date": start_date,
