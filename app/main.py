@@ -2226,12 +2226,25 @@ def batch_review_match_reviews(
     return RedirectResponse(url=redirect_url, status_code=302)
 
 @app.get("/upload-batches", response_class=HTMLResponse)
-def upload_batches_page(request: Request):
+def upload_batches_page(
+    request: Request,
+    partner_id: int = Query(0),
+    keyword: str = Query(""),
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+    review_status: str = Query("全部"),
+    acceptance_status: str = Query("全部"),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
     db = SessionLocal()
+
+    allowed_acceptance_statuses = ["全部", "待承接", "已承接", "已拒绝"]
+
+    if acceptance_status not in allowed_acceptance_statuses:
+        acceptance_status = "全部"
 
     query = db.query(UploadBatch)
 
@@ -2240,6 +2253,20 @@ def upload_batches_page(request: Request):
     # 上传方只能查看自己的上传记录
     if user.role != "admin":
         query = query.filter(UploadBatch.user_id == user.id)
+    else:
+        if partner_id != 0:
+            query = query.filter(UploadBatch.user_id == partner_id)
+
+    if start_date:
+        start_dt = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), time.min)
+        query = query.filter(UploadBatch.created_at >= start_dt)
+
+    if end_date:
+        end_dt = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), time.max)
+        query = query.filter(UploadBatch.created_at <= end_dt)
+
+    if acceptance_status != "全部":
+        query = query.filter(UploadBatch.acceptance_status == acceptance_status)
 
     batches = query.order_by(UploadBatch.id.desc()).all()
 
@@ -2256,6 +2283,7 @@ def upload_batches_page(request: Request):
                 "total_rows": batch.total_rows,
                 "success_rows": batch.success_rows,
                 "failed_rows": batch.failed_rows,
+                "acceptance_status": batch.acceptance_status or "待承接",
                 "created_at": batch.created_at,
             }
         )
@@ -2272,6 +2300,12 @@ def upload_batches_page(request: Request):
             "topbar_role": user.role,
             "active_page": "upload_batches",
             "batches": batch_items,
+            "partner_id": partner_id,
+            "keyword": keyword,
+            "start_date": start_date,
+            "end_date": end_date,
+            "review_status": review_status,
+            "acceptance_status": acceptance_status,
         },
     )
 

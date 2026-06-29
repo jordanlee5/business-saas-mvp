@@ -79,7 +79,7 @@
     <div class="ui-card">
         <div class="subpage-header">
             <h1>上传记录</h1>
-            <a href="/business-records" class="ui-button-secondary">返回业务数据管理</a >
+            <a href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}" class="ui-button-secondary">返回业务数据管理</a >
         </div>
 
         <div class="ui-hint">
@@ -97,6 +97,7 @@
                     <th>总行数</th>
                     <th>成功行数</th>
                     <th>失败行数</th>
+                    <th>承接状态</th>
                     <th>上传时间</th>
                 </tr>
             </thead>
@@ -109,6 +110,7 @@
                     <td>{{ item.total_rows }}</td>
                     <td class="success">{{ item.success_rows }}</td>
                     <td class="error">{{ item.failed_rows }}</td>
+                    <td>{{ item.acceptance_status }}</td>
                     <td>{{ item.created_at }}</td>
                 </tr>
             {% endfor %}
