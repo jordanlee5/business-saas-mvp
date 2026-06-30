@@ -789,7 +789,11 @@ def business_records_page(
 
 
 @app.post("/upload-batches/{batch_id}/accept")
-def accept_upload_batch(request: Request, batch_id: int):
+def accept_upload_batch(
+    request: Request,
+    batch_id: int,
+    return_url: str = Form("/business-records"),
+):
     user = get_current_user(request)
 
     if not user:
@@ -811,11 +815,18 @@ def accept_upload_batch(request: Request, batch_id: int):
     db.commit()
     db.close()
 
-    return RedirectResponse(url="/business-records", status_code=302)
+    if not return_url.startswith("/") or return_url.startswith("//"):
+        return_url = "/business-records"
+
+    return RedirectResponse(url=return_url, status_code=302)
 
 
 @app.post("/upload-batches/{batch_id}/reject")
-def reject_upload_batch(request: Request, batch_id: int):
+def reject_upload_batch(
+    request: Request,
+    batch_id: int,
+    return_url: str = Form("/business-records"),
+):
     user = get_current_user(request)
 
     if not user:
@@ -837,7 +848,10 @@ def reject_upload_batch(request: Request, batch_id: int):
     db.commit()
     db.close()
 
-    return RedirectResponse(url="/business-records", status_code=302)
+    if not return_url.startswith("/") or return_url.startswith("//"):
+        return_url = "/business-records"
+
+    return RedirectResponse(url=return_url, status_code=302)
 
 
 @app.get("/business-records/export")

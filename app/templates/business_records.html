@@ -517,10 +517,12 @@
                             {% if role == "admin" and batch.acceptance_status == "待承接" %}
 
                                 <form method="post" action="/upload-batches/{{ batch.id }}/accept" style="display:inline;">
+                                    <input type="hidden" name="return_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
                                     <button type="submit" class="small-btn">承接</button>
                                 </form>
 
                                 <form method="post" action="/upload-batches/{{ batch.id }}/reject" style="display:inline; margin-left:6px;">
+                                    <input type="hidden" name="return_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
                                     <button type="submit" class="small-btn small-btn-danger">
                                         拒绝
                                     </button>
