@@ -85,3 +85,128 @@
 .ui-button-secondary:hover {
     background: #d1d5db;
 }
+
+/* =========================
+   公共分页样式
+   适用：业务数据、批次历史、上传记录、匹配审核等分页按钮
+========================= */
+
+.page-link,
+.batch-page-link,
+.ui-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: #e5e7eb;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.page-link:hover,
+.batch-page-link:hover,
+.ui-page-link:hover {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.page-link.active,
+.batch-page-link.active,
+.ui-page-link.active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.page-link.disabled,
+.batch-page-link.disabled,
+.ui-page-link.disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.page-ellipsis,
+.batch-page-ellipsis,
+.ui-page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 34px;
+    padding: 0 6px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+/* 公共分页按钮样式 V2：统一 page-link / batch-page-link */
+.page-links,
+.mini-page-links,
+.pagination-bar,
+.batch-pagination,
+.batch-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.page-link,
+.batch-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #e5e7eb;
+    color: #334155 !important;
+    text-decoration: none !important;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    line-height: 1;
+}
+
+.page-link:hover,
+.batch-page-link:hover {
+    background: #dbeafe;
+    color: #2563eb !important;
+    text-decoration: none !important;
+}
+
+.page-link.active,
+.batch-page-link.active {
+    background: #2563eb;
+    color: #ffffff !important;
+}
+
+.page-link.disabled,
+.batch-page-link.disabled {
+    background: #e5e7eb;
+    color: #94a3b8 !important;
+    pointer-events: none;
+    cursor: not-allowed;
+    text-decoration: none !important;
+}
+
+.page-ellipsis,
+.batch-page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    color: #64748b;
+    font-weight: 700;
+}
