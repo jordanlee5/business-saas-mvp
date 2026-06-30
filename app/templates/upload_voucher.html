@@ -173,6 +173,16 @@
             font-weight: 700;
         }
 
+        .page-ellipsis {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 34px;
+            padding: 0 8px;
+            color: #64748b;
+            font-weight: 700;
+        }
+
         .page-link.active {
             background: #2563eb;
             color: white;
@@ -431,14 +441,31 @@
                 上一页
             </a >
 
-            {% for p in range(1, voucher_total_pages + 1) %}
-                <a
-                    class="page-link {% if p == voucher_page %}active{% endif %}"
-                    href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
-                >
-                    {{ p }}
-                </a >
-            {% endfor %}
+            {% if voucher_total_pages <= 7 %}
+                {% for p in range(1, voucher_total_pages + 1) %}
+                    <a
+                        class="page-link {% if p == voucher_page %}active{% endif %}"
+                        href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
+                    >
+                        {{ p }}
+                    </a >
+                {% endfor %}
+            {% else %}
+                {% for p in range(1, voucher_total_pages + 1) %}
+                    {% if p == 1 or p == voucher_total_pages or (p >= voucher_page - 2 and p <= voucher_page + 2) %}
+                        <a
+                            class="page-link {% if p == voucher_page %}active{% endif %}"
+                            href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
+                        >
+                            {{ p }}
+                        </a >
+                    {% elif p == 2 and voucher_page > 4 %}
+                        <span class="page-ellipsis">...</span>
+                    {% elif p == voucher_total_pages - 1 and voucher_page < voucher_total_pages - 3 %}
+                        <span class="page-ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
 
             <a
                 class="page-link {% if voucher_page >= voucher_total_pages %}disabled{% endif %}"
