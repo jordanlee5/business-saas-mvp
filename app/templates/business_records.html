@@ -300,6 +300,17 @@
             font-weight: 700;
         }
 
+        .page-ellipsis {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-weight: 700;
+        }
+
         .page-link.active {
             background: #2563eb;
             color: white;
@@ -464,16 +475,35 @@
                         <span class="page-link disabled">上一页</span>
                     {% endif %}
 
-                    {% for p in range(1, batch_total_pages + 1) %}
-                        {% if p == batch_page %}
-                            <span class="page-link active">{{ p }}</span>
-                        {% else %}
-                            <a class="page-link"
-                            href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
-                                {{ p }}
-                            </a >
-                        {% endif %}
-                    {% endfor %}
+                    {% if batch_total_pages <= 7 %}
+                        {% for p in range(1, batch_total_pages + 1) %}
+                            {% if p == batch_page %}
+                                <span class="page-link active">{{ p }}</span>
+                            {% else %}
+                                <a class="page-link"
+                                href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                    {{ p }}
+                                </a >
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% for p in range(1, batch_total_pages + 1) %}
+                            {% if p == 1 or p == batch_total_pages or (p >= batch_page - 2 and p <= batch_page + 2) %}
+                                {% if p == batch_page %}
+                                    <span class="page-link active">{{ p }}</span>
+                                {% else %}
+                                    <a class="page-link"
+                                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                        {{ p }}
+                                    </a >
+                                {% endif %}
+                            {% elif p == 2 and batch_page > 4 %}
+                                <span class="page-ellipsis">...</span>
+                            {% elif p == batch_total_pages - 1 and batch_page < batch_total_pages - 3 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
 
                     {% if batch_page < batch_total_pages %}
                         <a class="page-link"
@@ -663,16 +693,35 @@
                         <span class="page-link disabled">上一页</span>
                     {% endif %}
 
-                    {% for p in range(1, total_pages + 1) %}
-                        {% if p == page %}
-                            <span class="page-link active">{{ p }}</span>
-                        {% else %}
-                            <a class="page-link"
-                            href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
-                                {{ p }}
-                            </a >
-                        {% endif %}
-                    {% endfor %}
+                    {% if total_pages <= 7 %}
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <span class="page-link active">{{ p }}</span>
+                            {% else %}
+                                <a class="page-link"
+                                href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                    {{ p }}
+                                </a >
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                                {% if p == page %}
+                                    <span class="page-link active">{{ p }}</span>
+                                {% else %}
+                                    <a class="page-link"
+                                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                        {{ p }}
+                                    </a >
+                                {% endif %}
+                            {% elif p == 2 and page > 4 %}
+                                <span class="page-ellipsis">...</span>
+                            {% elif p == total_pages - 1 and page < total_pages - 3 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
 
                     {% if page < total_pages %}
                         <a class="page-link"
