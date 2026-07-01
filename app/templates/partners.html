@@ -158,6 +158,13 @@
     </style>
 
 
+{% set partner_keyword = partner_keyword | default('') %}
+{% set partner_page = partner_page | default(1) %}
+{% set partner_page_size = partner_page_size | default(5) %}
+{% set partner_total = partner_total | default(partners|length) %}
+{% set partner_total_pages = partner_total_pages | default(1) %}
+{% set allowed_partner_page_sizes = allowed_partner_page_sizes | default([5, 10, 20]) %}
+
 <div class="page-container partners-page">
     <div class="ui-card">
         <h1>
@@ -193,6 +200,7 @@
         <form method="post" action="{% if edit_partner %}/partners/{{ edit_partner.id }}/edit{% else %}/partners{% endif %}">
             <input type="hidden" name="partner_page" value="{{ partner_page }}">
             <input type="hidden" name="partner_page_size" value="{{ partner_page_size }}">
+            <input type="hidden" name="partner_keyword" value="{{ partner_keyword }}">
             <div class="form-grid">
                 <div>
                     <label>上传方账号</label>
@@ -253,7 +261,7 @@
                         {% endif %}
                     </button>
                     {% if edit_partner %}
-                        <a class="cancel-edit-link ui-button-secondary" href="/partners?partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}">取消编辑</a >
+                        <a class="cancel-edit-link ui-button-secondary" href="/partners?partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">取消编辑</a >
                     {% endif %}
                 </div>
             </div>
@@ -262,6 +270,22 @@
 
     <div class="ui-card">
         <h2>上传方账号列表</h2>
+        <form method="get" action="/partners" style="display:flex; align-items:center; gap:10px; margin: 10px 0 12px 0;">
+            <input type="hidden" name="partner_page" value="1">
+            <input type="hidden" name="partner_page_size" value="{{ partner_page_size }}">
+
+            <input
+                type="text"
+                name="partner_keyword"
+                value="{{ partner_keyword }}"
+                placeholder="按上传方账号搜索，例如：test / 广西 / 中保"
+                style="height:36px; width:280px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px;"
+            >
+
+            <button type="submit" class="ui-button-primary" style="height:36px; padding:0 14px;">筛选</button>
+
+            <a href="/partners?partner_page_size={{ partner_page_size }}" class="ui-button-secondary" style="height:36px; padding:0 14px; display:inline-flex; align-items:center;">重置</a >
+        </form>
 
         {% if partners %}
         <table>
@@ -274,6 +298,7 @@
                     <form method="get" action="/partners" style="display:flex; align-items:center; gap:8px;">
                         {% if edit_id %}
                             <input type="hidden" name="edit_id" value="{{ edit_id }}">
+                            <input type="hidden" name="partner_keyword" value="{{ partner_keyword }}">
                         {% endif %}
                         <input type="hidden" name="partner_page" value="1">
 
@@ -292,7 +317,7 @@
                     </form>
 
                     {% if partner_page > 1 %}
-                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page - 1 }}&partner_page_size={{ partner_page_size }}">上一页</a >
+                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page - 1 }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">上一页</a >
                     {% else %}
                         <span class="page-link disabled">上一页</span>
                     {% endif %}
@@ -302,7 +327,7 @@
                             {% if p == partner_page %}
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
-                                <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}">{{ p }}</a >
+                                <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">{{ p }}</a >
                             {% endif %}
                         {% endfor %}
                     {% else %}
@@ -311,7 +336,7 @@
                                 {% if p == partner_page %}
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
-                                    <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}">{{ p }}</a >
+                                    <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">{{ p }}</a >
                                 {% endif %}
                             {% elif p == 2 and partner_page > 4 %}
                                 <span class="page-ellipsis">...</span>
@@ -322,7 +347,7 @@
                     {% endif %}
 
                     {% if partner_page < partner_total_pages %}
-                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page + 1 }}&partner_page_size={{ partner_page_size }}">下一页</a >
+                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page + 1 }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">下一页</a >
                     {% else %}
                         <span class="page-link disabled">下一页</span>
                     {% endif %}
@@ -349,7 +374,7 @@
                     <td>{{ partner.upstream_cost_rate }}%</td>
                     <td>{{ partner.created_at }}</td>
                     <td>
-                        <a class="edit-link" href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}">编辑</a >
+                        <a class="edit-link" href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">编辑</a >
                     </td>
                 </tr>
             {% endfor %}

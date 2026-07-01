@@ -1124,6 +1124,7 @@ def partners_page(
     edit_id: int = Query(0),
     partner_page: int = Query(1),
     partner_page_size: int = Query(5),
+    partner_keyword: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -1141,7 +1142,12 @@ def partners_page(
     if partner_page < 1:
         partner_page = 1
 
+    partner_keyword = partner_keyword.strip()
+
     partner_query = db.query(User).filter(User.role == "partner")
+
+    if partner_keyword:
+        partner_query = partner_query.filter(User.username.contains(partner_keyword))
 
     partner_total = partner_query.count()
     partner_total_pages = max((partner_total + partner_page_size - 1) // partner_page_size, 1)
@@ -1185,6 +1191,7 @@ def partners_page(
             "partner_total": partner_total,
             "partner_total_pages": partner_total_pages,
             "allowed_partner_page_sizes": allowed_partner_page_sizes,
+            "partner_keyword": partner_keyword,
             "message": None,
             "error": None,
         },
@@ -1343,6 +1350,7 @@ def edit_partner_submit(
     upstream_cost_rate: float = Form(...),
     partner_page: int = Form(1),
     partner_page_size: int = Form(5),
+    partner_keyword: str = Form(""),
 ):
     user = get_current_user(request)
 
@@ -1459,7 +1467,13 @@ def edit_partner_submit(
     if partner_page < 1:
         partner_page = 1
 
+
+    partner_keyword = partner_keyword.strip()
+
     partner_query = db.query(User).filter(User.role == "partner")
+
+    if partner_keyword:
+        partner_query = partner_query.filter(User.username.contains(partner_keyword))
 
     partner_total = partner_query.count()
     partner_total_pages = max((partner_total + partner_page_size - 1) // partner_page_size, 1)
@@ -1494,6 +1508,7 @@ def edit_partner_submit(
             "partner_total": partner_total,
             "partner_total_pages": partner_total_pages,
             "allowed_partner_page_sizes": allowed_partner_page_sizes,
+            "partner_keyword": partner_keyword,
             "message": "上传方账号修改成功。新费率只会影响之后新上传的数据，历史业务数据继续使用原费率快照。",
             "error": None,
         },
