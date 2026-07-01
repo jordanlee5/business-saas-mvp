@@ -1119,7 +1119,12 @@ def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", context)
 
 @app.get("/partners", response_class=HTMLResponse)
-def partners_page(request: Request, edit_id: int = 0):
+def partners_page(
+    request: Request,
+    edit_id: int = Query(0),
+    partner_page: int = Query(1),
+    partner_page_size: int = Query(5),
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -1128,7 +1133,29 @@ def partners_page(request: Request, edit_id: int = 0):
         return RedirectResponse(url="/dashboard", status_code=302)
 
     db = SessionLocal()
-    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+    allowed_partner_page_sizes = [5, 10, 20]
+
+    if partner_page_size not in allowed_partner_page_sizes:
+        partner_page_size = 5
+
+    if partner_page < 1:
+        partner_page = 1
+
+    partner_query = db.query(User).filter(User.role == "partner")
+
+    partner_total = partner_query.count()
+    partner_total_pages = max((partner_total + partner_page_size - 1) // partner_page_size, 1)
+
+    if partner_page > partner_total_pages:
+        partner_page = partner_total_pages
+
+    partners = (
+        partner_query
+        .order_by(User.id.desc())
+        .offset((partner_page - 1) * partner_page_size)
+        .limit(partner_page_size)
+        .all()
+    )
 
     edit_partner = None
     if edit_id:
@@ -1153,6 +1180,11 @@ def partners_page(request: Request, edit_id: int = 0):
             "partners": partners,
             "edit_partner": edit_partner,
             "edit_id": edit_id,
+            "partner_page": partner_page,
+            "partner_page_size": partner_page_size,
+            "partner_total": partner_total,
+            "partner_total_pages": partner_total_pages,
+            "allowed_partner_page_sizes": allowed_partner_page_sizes,
             "message": None,
             "error": None,
         },
@@ -1309,6 +1341,8 @@ def edit_partner_submit(
     username: str = Form(...),
     service_rate: float = Form(...),
     upstream_cost_rate: float = Form(...),
+    partner_page: int = Form(1),
+    partner_page_size: int = Form(5),
 ):
     user = get_current_user(request)
 
@@ -1417,7 +1451,29 @@ def edit_partner_submit(
     db.commit()
     db.refresh(partner)
 
-    partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+    allowed_partner_page_sizes = [5, 10, 20]
+
+    if partner_page_size not in allowed_partner_page_sizes:
+        partner_page_size = 5
+
+    if partner_page < 1:
+        partner_page = 1
+
+    partner_query = db.query(User).filter(User.role == "partner")
+
+    partner_total = partner_query.count()
+    partner_total_pages = max((partner_total + partner_page_size - 1) // partner_page_size, 1)
+
+    if partner_page > partner_total_pages:
+        partner_page = partner_total_pages
+
+    partners = (
+        partner_query
+        .order_by(User.id.desc())
+        .offset((partner_page - 1) * partner_page_size)
+        .limit(partner_page_size)
+        .all()
+    )
 
     db.close()
 
@@ -1433,6 +1489,11 @@ def edit_partner_submit(
             "partners": partners,
             "edit_partner": partner,
             "edit_id": partner.id,
+            "partner_page": partner_page,
+            "partner_page_size": partner_page_size,
+            "partner_total": partner_total,
+            "partner_total_pages": partner_total_pages,
+            "allowed_partner_page_sizes": allowed_partner_page_sizes,
             "message": "上传方账号修改成功。新费率只会影响之后新上传的数据，历史业务数据继续使用原费率快照。",
             "error": None,
         },

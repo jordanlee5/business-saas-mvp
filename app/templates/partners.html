@@ -191,6 +191,8 @@
         {% endif %}
 
         <form method="post" action="{% if edit_partner %}/partners/{{ edit_partner.id }}/edit{% else %}/partners{% endif %}">
+            <input type="hidden" name="partner_page" value="{{ partner_page }}">
+            <input type="hidden" name="partner_page_size" value="{{ partner_page_size }}">
             <div class="form-grid">
                 <div>
                     <label>上传方账号</label>
@@ -251,7 +253,7 @@
                         {% endif %}
                     </button>
                     {% if edit_partner %}
-                        <a class="cancel-edit-link ui-button-secondary" href="/partners">取消编辑</a >
+                        <a class="cancel-edit-link ui-button-secondary" href="/partners?partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}">取消编辑</a >
                     {% endif %}
                 </div>
             </div>
@@ -263,6 +265,69 @@
 
         {% if partners %}
         <table>
+            <div class="pagination-bar" style="margin-top: 14px; justify-content: space-between;">
+                <div style="font-size: 14px; color: #0f172a;">
+                    共 {{ partner_total }} 个上传方账号，当前第 {{ partner_page }} / {{ partner_total_pages }} 页
+                </div>
+
+                <div class="page-links">
+                    <form method="get" action="/partners" style="display:flex; align-items:center; gap:8px;">
+                        {% if edit_id %}
+                            <input type="hidden" name="edit_id" value="{{ edit_id }}">
+                        {% endif %}
+                        <input type="hidden" name="partner_page" value="1">
+
+                        <label style="font-size:13px; font-weight:700;">每页</label>
+                        <select 
+                            name="partner_page_size" 
+                            onchange="this.form.submit()"
+                            style="height:34px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px;"
+                        >
+                            {% for size in allowed_partner_page_sizes %}
+                                <option value="{{ size }}" {% if partner_page_size == size %}selected{% endif %}>
+                                    {{ size }} 条
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+
+                    {% if partner_page > 1 %}
+                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page - 1 }}&partner_page_size={{ partner_page_size }}">上一页</a >
+                    {% else %}
+                        <span class="page-link disabled">上一页</span>
+                    {% endif %}
+
+                    {% if partner_total_pages <= 7 %}
+                        {% for p in range(1, partner_total_pages + 1) %}
+                            {% if p == partner_page %}
+                                <span class="page-link active">{{ p }}</span>
+                            {% else %}
+                                <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}">{{ p }}</a >
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% for p in range(1, partner_total_pages + 1) %}
+                            {% if p == 1 or p == partner_total_pages or (p >= partner_page - 2 and p <= partner_page + 2) %}
+                                {% if p == partner_page %}
+                                    <span class="page-link active">{{ p }}</span>
+                                {% else %}
+                                    <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ p }}&partner_page_size={{ partner_page_size }}">{{ p }}</a >
+                                {% endif %}
+                            {% elif p == 2 and partner_page > 4 %}
+                                <span class="page-ellipsis">...</span>
+                            {% elif p == partner_total_pages - 1 and partner_page < partner_total_pages - 3 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if partner_page < partner_total_pages %}
+                        <a class="page-link" href="/partners?edit_id={{ edit_id }}&partner_page={{ partner_page + 1 }}&partner_page_size={{ partner_page_size }}">下一页</a >
+                    {% else %}
+                        <span class="page-link disabled">下一页</span>
+                    {% endif %}
+                </div>
+            </div>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -284,7 +349,7 @@
                     <td>{{ partner.upstream_cost_rate }}%</td>
                     <td>{{ partner.created_at }}</td>
                     <td>
-                        <a class="edit-link" href="/partners?edit_id={{ partner.id }}">编辑</a >
+                        <a class="edit-link" href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}">编辑</a >
                     </td>
                 </tr>
             {% endfor %}
