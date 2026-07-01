@@ -2249,7 +2249,7 @@ def upload_batches_page(
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
     batch_page: int = 1,
-    batch_page_size: int = 10,
+    batch_page_size: int = 5,
 ):
     user = get_current_user(request)
     if not user:
@@ -2297,7 +2297,7 @@ def upload_batches_page(
     allowed_batch_page_sizes = [5, 10, 20]
 
     if batch_page_size not in allowed_batch_page_sizes:
-        batch_page_size = 10
+        batch_page_size = 5
 
     if batch_page < 1:
         batch_page = 1
