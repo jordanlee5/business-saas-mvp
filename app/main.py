@@ -8,6 +8,7 @@ import os
 import hashlib
 from datetime import datetime, date, time
 from decimal import Decimal, ROUND_HALF_UP
+from urllib.parse import urlencode
 import pandas as pd
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -2004,6 +2005,7 @@ def match_reviews_page(
     partner_id: int = Query(0),
     page: int = Query(1),
     page_size: int = Query(1),
+    customer_name: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -2043,6 +2045,21 @@ def match_reviews_page(
             ).first()
 
             if record and record.user_id == partner_id:
+                filtered_reviews.append(review)
+
+        latest_reviews = filtered_reviews
+
+    customer_name = customer_name.strip()
+
+    if customer_name:
+        filtered_reviews = []
+
+        for review in latest_reviews:
+            record = db.query(BusinessRecord).filter(
+                BusinessRecord.id == review.business_record_id
+            ).first()
+
+            if record and customer_name in (record.name or ""):
                 filtered_reviews.append(review)
 
         latest_reviews = filtered_reviews
@@ -2166,6 +2183,7 @@ def match_reviews_page(
             "partner_id": partner_id,
             "page": page,
             "page_size": page_size,
+            "customer_name": customer_name,
             "total_reviews": total_reviews,
             "total_pages": total_pages,
             "allowed_page_sizes": allowed_page_sizes,
@@ -2179,7 +2197,8 @@ def approve_match_review(
     status_filter: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
-    page_size: int = Form(3),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -2197,12 +2216,14 @@ def approve_match_review(
 
     db.close()
 
-    redirect_url = (
-        f"/match-reviews?"
-        f"status_filter={status_filter}"
-        f"&partner_id={partner_id}"
-        f"&page={page}"
-        f"&page_size={page_size}"
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
     )   
 
     return RedirectResponse(url=redirect_url, status_code=302)
@@ -2215,7 +2236,8 @@ def reject_match_review(
     status_filter: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
-    page_size: int = Form(3),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -2233,19 +2255,29 @@ def reject_match_review(
 
     db.close()
 
-    redirect_url = (
-        f"/match-reviews?"
-        f"status_filter={status_filter}"
-        f"&partner_id={partner_id}"
-        f"&page={page}"
-        f"&page_size={page_size}"
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
     )
 
     return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @app.post("/match-reviews/{review_id}/reopen")
-def reopen_match_review(review_id: int, request: Request):
+def reopen_match_review(
+    review_id: int,
+    request: Request,
+    status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
+):
     user = get_current_user(request)
 
     if not user or user.role != "admin":
@@ -2261,7 +2293,17 @@ def reopen_match_review(review_id: int, request: Request):
 
     db.close()
 
-    return RedirectResponse(url="/match-reviews", status_code=302)
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @app.post("/match-reviews/batch-review")
@@ -2271,6 +2313,9 @@ def batch_review_match_reviews(
     action: str = Form(...),
     status_filter: str = Form("全部"),
     partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -2308,10 +2353,15 @@ def batch_review_match_reviews(
 
     db.close()
 
-    redirect_url = "/match-reviews"
-
-    if status_filter and status_filter != "全部":
-        redirect_url = f"/match-reviews?status_filter={status_filter}"
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
+    )
 
     return RedirectResponse(url=redirect_url, status_code=302)
 

@@ -3,6 +3,7 @@
 {% block title %}匹配结果审核{% endblock %}
 
 {% block content %}
+{% set customer_name = customer_name | default('') %}
     <style>
         .match-reviews-page {
             max-width: 1500px;
@@ -660,6 +661,15 @@
                     {% endfor %}
                 </select>
 
+                <label>姓名：</label>
+                <input
+                    type="text"
+                    name="customer_name"
+                    value="{{ customer_name }}"
+                    placeholder="输入姓名关键词"
+                    style="height:34px; border:1px solid #d1d5db; border-radius:8px; padding:0 10px; width:150px;"
+                >
+
                 <label>每页显示：</label>
                 <select name="page_size">
                     {% for size in allowed_page_sizes %}
@@ -689,6 +699,7 @@
             <input type="hidden" name="partner_id" value="{{ partner_id }}">
             <input type="hidden" name="page" value="{{ page }}">
             <input type="hidden" name="page_size" value="{{ page_size }}">
+            <input type="hidden" name="customer_name" value="{{ customer_name }}">
 
             {% if status_filter == "待审核" %}
             <div class="batch-bar" style="margin-bottom: 12px;">
@@ -975,7 +986,7 @@
                             <div class="page-links">
                                 {% if page > 1 %}
                                     <a class="page-link"
-                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ page - 1 }}&page_size={{ page_size }}">
+                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&customer_name={{ customer_name | urlencode }}&page={{ page - 1 }}&page_size={{ page_size }}">
                                         上一页
                                     </a >
                                 {% else %}
@@ -988,7 +999,7 @@
                                 {% for p in range(1, total_pages + 1) %}
                                     {% if p == 1 or p == total_pages or (p >= left_page and p <= right_page) %}
                                         <a class="page-link {% if p == page %}active{% endif %}"
-                                        href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ p }}&page_size={{ page_size }}">
+                                        href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&customer_name={{ customer_name | urlencode }}&page={{ p }}&page_size={{ page_size }}">
                                             {{ p }}
                                         </a >
                                     {% elif p == 2 and left_page > 3 %}
@@ -1000,7 +1011,7 @@
 
                                 {% if page < total_pages %}
                                     <a class="page-link"
-                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&page={{ page + 1 }}&page_size={{ page_size }}">
+                                    href="/match-reviews?status_filter={{ status_filter }}&partner_id={{ partner_id }}&customer_name={{ customer_name | urlencode }}&page={{ page + 1 }}&page_size={{ page_size }}">
                                         下一页
                                     </a >
                                 {% else %}
