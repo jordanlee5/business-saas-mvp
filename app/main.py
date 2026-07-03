@@ -1993,18 +1993,26 @@ def upload_voucher_submit(
 
                     total_created_reviews += created_review_count
 
-                    message = (
-                        f"该凭证已上传过，已复用凭证ID：{existing_voucher.id}，"
-                        f"基于当前已承接清单重新匹配，新增 {created_review_count} 条审核记录"
-                    )
-
-                    if skipped_review_count > 0:
-                        message += f"，跳过 {skipped_review_count} 条已存在审核记录"
+                    if created_review_count > 0:
+                        message = (
+                            f"复用凭证ID：{existing_voucher.id}，"
+                            f"当前清单新增 {created_review_count} 条审核记录"
+                        )
+                    elif skipped_review_count > 0:
+                        message = (
+                            f"复用凭证ID：{existing_voucher.id}，"
+                            f"当前清单已有审核记录，跳过 {skipped_review_count} 条"
+                        )
+                    else:
+                        message = (
+                            f"复用凭证ID：{existing_voucher.id}，"
+                            f"当前清单内未找到匹配业务"
+                        )
 
                     batch_results.append(
                         {
                             "filename": file.filename,
-                            "status": "处理成功",
+                            "status": "复用匹配",
                             "message": message,
                             "voucher_amount": existing_voucher.voucher_amount or 0,
                             "match_count": created_review_count,
@@ -2015,7 +2023,7 @@ def upload_voucher_submit(
                         {
                             "filename": file.filename,
                             "status": "重复跳过",
-                            "message": f"该凭证已上传过，凭证ID：{existing_voucher.id}。如需重新匹配，请先选择对应的已承接清单。",
+                            "message": f"凭证ID：{existing_voucher.id} 已存在；如需重匹配，请先选择已承接清单。",
                             "voucher_amount": existing_voucher.voucher_amount or 0,
                             "match_count": 0,
                         }
@@ -2066,13 +2074,20 @@ def upload_voucher_submit(
             success_files += 1
             total_created_reviews += created_review_count
 
+            if created_review_count > 0:
+                result_status = "识别成功"
+                result_message = f"新增 {created_review_count} 条审核记录"
+            else:
+                result_status = "未匹配"
+                result_message = "当前清单内未找到匹配业务"
+
             batch_results.append(
                 {
                     "filename": file.filename,
-                    "status": "处理成功",
-                    "message": f"识别成功，生成 {created_review_count} 条匹配审核记录",
+                    "status": result_status,
                     "voucher_amount": voucher_amount,
                     "match_count": created_review_count,
+                    "message": result_message,
                 }
             )
 
