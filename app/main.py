@@ -1647,6 +1647,87 @@ def build_accepted_business_batch_options(db, partner_id: int):
 
     return options
 
+def build_voucher_matching_records(db, partner_id: int, selected_business_batch_id: int):
+    # OCR 匹配源只使用已承接批次下的业务数据
+    records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
+
+    if partner_id != 0:
+        records_query = records_query.filter(BusinessRecord.user_id == partner_id)
+
+    # 如果管理员选择了某一份已承接业务清单，则只在该清单对应的业务数据里匹配
+    if selected_business_batch_id != 0:
+        selected_batch_query = (
+            db.query(UploadBatch)
+            .filter(UploadBatch.id == selected_business_batch_id)
+            .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+        )
+
+        if partner_id != 0:
+            selected_batch_query = selected_batch_query.filter(
+                UploadBatch.user_id == partner_id
+            )
+
+        selected_batch = selected_batch_query.first()
+
+        if selected_batch:
+            records_query = records_query.filter(
+                BusinessRecord.batch_id == selected_business_batch_id
+            )
+        else:
+            records_query = records_query.filter(BusinessRecord.id == -1)
+
+    return records_query.all()
+
+
+def create_match_reviews_for_voucher(db, voucher_record, records):
+    raw_match_results = match_ocr_with_records(
+        voucher_record.ocr_text or "",
+        records,
+        voucher_amount=voucher_record.voucher_amount or 0,
+    )
+
+    created_review_count = 0
+    skipped_review_count = 0
+
+    for item in raw_match_results:
+        record = item["record"]
+
+        existing_review = (
+            db.query(MatchReview)
+            .filter(MatchReview.voucher_id == voucher_record.id)
+            .filter(MatchReview.business_record_id == record.id)
+            .first()
+        )
+
+        if existing_review:
+            skipped_review_count += 1
+            continue
+
+        review = MatchReview(
+            voucher_id=voucher_record.id,
+            business_record_id=record.id,
+            match_status=item["status"],
+            name_match=item.get("name_detail", "未知"),
+            bank_match=item.get(
+                "bank_detail",
+                "是" if item["bank_match"] else "否",
+            ),
+            amount_match=(
+                "是"
+                if item["amount_match"]
+                else item.get("partial_amount_detail", "否")
+            ),
+            score=item["score"],
+            review_status="待审核",
+        )
+
+        db.add(review)
+        created_review_count += 1
+
+    db.commit()
+
+    return created_review_count, skipped_review_count
+
 def build_voucher_upload_batch_items(db, page: int = 1, page_size: int = 5):
     if page < 1:
         page = 1
@@ -1896,15 +1977,50 @@ def upload_voucher_submit(
             if existing_voucher:
                 duplicate_files += 1
 
-                batch_results.append(
-                    {
-                        "filename": file.filename,
-                        "status": "重复跳过",
-                        "message": f"该凭证已上传过，凭证ID：{existing_voucher.id}",
-                        "voucher_amount": existing_voucher.voucher_amount or 0,
-                        "match_count": 0,
-                    }
-                )
+                # 如果重复凭证这次选择了已承接清单，则复用已有凭证重新匹配当前清单
+                if selected_business_batch_id != 0:
+                    records = build_voucher_matching_records(
+                        db,
+                        partner_id,
+                        selected_business_batch_id,
+                    )
+
+                    created_review_count, skipped_review_count = create_match_reviews_for_voucher(
+                        db,
+                        existing_voucher,
+                        records,
+                    )
+
+                    total_created_reviews += created_review_count
+
+                    message = (
+                        f"该凭证已上传过，已复用凭证ID：{existing_voucher.id}，"
+                        f"基于当前已承接清单重新匹配，新增 {created_review_count} 条审核记录"
+                    )
+
+                    if skipped_review_count > 0:
+                        message += f"，跳过 {skipped_review_count} 条已存在审核记录"
+
+                    batch_results.append(
+                        {
+                            "filename": file.filename,
+                            "status": "处理成功",
+                            "message": message,
+                            "voucher_amount": existing_voucher.voucher_amount or 0,
+                            "match_count": created_review_count,
+                        }
+                    )
+                else:
+                    batch_results.append(
+                        {
+                            "filename": file.filename,
+                            "status": "重复跳过",
+                            "message": f"该凭证已上传过，凭证ID：{existing_voucher.id}。如需重新匹配，请先选择对应的已承接清单。",
+                            "voucher_amount": existing_voucher.voucher_amount or 0,
+                            "match_count": 0,
+                        }
+                    )
+
                 continue
 
             safe_filename = file.filename.replace("\\", "_").replace("/", "_")
@@ -1935,69 +2051,17 @@ def upload_voucher_submit(
             db.commit()
             db.refresh(voucher_record)
 
-            # OCR 匹配源只使用已承接批次下的业务数据
-            records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
-
-            if partner_id != 0:
-                records_query = records_query.filter(BusinessRecord.user_id == partner_id)
-
-            # 如果管理员选择了某一份已承接业务清单，则只在该清单对应的业务数据里匹配
-            if selected_business_batch_id != 0:
-                selected_batch_query = (
-                    db.query(UploadBatch)
-                    .filter(UploadBatch.id == selected_business_batch_id)
-                    .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
-                )
-
-                if partner_id != 0:
-                    selected_batch_query = selected_batch_query.filter(
-                        UploadBatch.user_id == partner_id
-                    )
-
-                selected_batch = selected_batch_query.first()
-
-                if selected_batch:
-                    records_query = records_query.filter(
-                        BusinessRecord.batch_id == selected_business_batch_id
-                    )
-                else:
-                    records_query = records_query.filter(BusinessRecord.id == -1)
-
-            records = records_query.all()
-
-            raw_match_results = match_ocr_with_records(
-                ocr_text,
-                records,
-                voucher_amount=voucher_amount,
+            records = build_voucher_matching_records(
+                db,
+                partner_id,
+                selected_business_batch_id,
             )
 
-            created_review_count = 0
-
-            for item in raw_match_results:
-                record = item["record"]
-
-                review = MatchReview(
-                    voucher_id=voucher_record.id,
-                    business_record_id=record.id,
-                    match_status=item["status"],
-                    name_match=item.get("name_detail", "未知"),
-                    bank_match=item.get(
-                        "bank_detail",
-                        "是" if item["bank_match"] else "否",
-                    ),
-                    amount_match=(
-                        "是"
-                        if item["amount_match"]
-                        else item.get("partial_amount_detail", "否")
-                    ),
-                    score=item["score"],
-                    review_status="待审核",
-                )
-
-                db.add(review)
-                created_review_count += 1
-
-            db.commit()
+            created_review_count, skipped_review_count = create_match_reviews_for_voucher(
+                db,
+                voucher_record,
+                records,
+            )
 
             success_files += 1
             total_created_reviews += created_review_count
