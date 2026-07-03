@@ -1935,11 +1935,33 @@ def upload_voucher_submit(
             db.commit()
             db.refresh(voucher_record)
 
-            # OCR 匹配源也只使用已承接批次下的业务数据
+            # OCR 匹配源只使用已承接批次下的业务数据
             records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
 
             if partner_id != 0:
                 records_query = records_query.filter(BusinessRecord.user_id == partner_id)
+
+            # 如果管理员选择了某一份已承接业务清单，则只在该清单对应的业务数据里匹配
+            if selected_business_batch_id != 0:
+                selected_batch_query = (
+                    db.query(UploadBatch)
+                    .filter(UploadBatch.id == selected_business_batch_id)
+                    .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+                )
+
+                if partner_id != 0:
+                    selected_batch_query = selected_batch_query.filter(
+                        UploadBatch.user_id == partner_id
+                    )
+
+                selected_batch = selected_batch_query.first()
+
+                if selected_batch:
+                    records_query = records_query.filter(
+                        BusinessRecord.batch_id == selected_business_batch_id
+                    )
+                else:
+                    records_query = records_query.filter(BusinessRecord.id == -1)
 
             records = records_query.all()
 
