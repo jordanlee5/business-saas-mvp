@@ -1619,6 +1619,34 @@ async def upload_excel_submit(
     )
 
 
+def build_accepted_business_batch_options(db, partner_id: int):
+    if not partner_id or partner_id == 0:
+        return []
+
+    batches = (
+        db.query(UploadBatch)
+        .filter(UploadBatch.user_id == partner_id)
+        .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+        .order_by(UploadBatch.id.desc())
+        .all()
+    )
+
+    options = []
+
+    for batch in batches:
+        created_text = "-"
+        if batch.created_at:
+            created_text = batch.created_at.strftime("%Y-%m-%d %H:%M")
+
+        options.append(
+            {
+                "id": batch.id,
+                "label": f"批次 {batch.id}｜{batch.filename}｜成功 {batch.success_rows or 0} 条｜{created_text}",
+            }
+        )
+
+    return options
+
 def build_voucher_upload_batch_items(db, page: int = 1, page_size: int = 5):
     if page < 1:
         page = 1
@@ -1734,6 +1762,8 @@ def upload_voucher_page(
     request: Request,
     voucher_page: int = Query(1),
     voucher_page_size: int = Query(5),
+    partner_id: int = Query(0),
+    selected_business_batch_id: int = Query(0),
 ):
     user = get_current_user(request)
 
@@ -1763,6 +1793,11 @@ def upload_voucher_page(
         page_size=voucher_page_size,
     )
 
+    accepted_business_batches = build_accepted_business_batch_options(
+        db,
+        partner_id,
+    )
+
     db.close()
 
     return templates.TemplateResponse(
@@ -1775,7 +1810,9 @@ def upload_voucher_page(
             "topbar_role": user.role,
             "active_page": "upload_voucher",
             "partners": partner_options,
-            "selected_partner_id": 0,
+            "selected_partner_id": partner_id,
+            "selected_business_batch_id": selected_business_batch_id,
+            "accepted_business_batches": accepted_business_batches,
             "voucher_batches": voucher_batches,
             "voucher_page": voucher_pagination["voucher_page"],
             "voucher_page_size": voucher_pagination["voucher_page_size"],
@@ -1790,6 +1827,7 @@ def upload_voucher_submit(
     request: Request,
     files: list[UploadFile] = File(...),
     partner_id: int = Form(0),
+    selected_business_batch_id: int = Form(0),
 ):
     user = get_current_user(request)
 
@@ -1812,6 +1850,11 @@ def upload_voucher_submit(
         }
         for partner in partners
     ]
+
+    accepted_business_batches = build_accepted_business_batch_options(
+        db,
+        partner_id,
+    )
 
     os.makedirs("uploads/vouchers", exist_ok=True)
 
@@ -1986,6 +2029,8 @@ def upload_voucher_submit(
             "active_page": "upload_voucher",
             "partners": partner_options,
             "selected_partner_id": partner_id,
+            "selected_business_batch_id": selected_business_batch_id,
+            "accepted_business_batches": accepted_business_batches,
             "batch_results": batch_results,
             "total_files": len(files),
             "total_created_reviews": total_created_reviews,

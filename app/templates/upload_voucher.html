@@ -3,6 +3,8 @@
 {% block title %}凭证识别{% endblock %}
 
 {% block content %}
+{% set selected_business_batch_id = selected_business_batch_id | default(0) %}
+{% set accepted_business_batches = accepted_business_batches | default([]) %}
     <style>
         h1 {
             font-size: 28px;
@@ -179,7 +181,7 @@
         
         .compact-upload-form {
             display: grid;
-            grid-template-columns: 220px 1fr 150px;
+            grid-template-columns: 220px 330px 1fr 150px;
             gap: 14px;
             align-items: end;
         }
@@ -242,7 +244,10 @@
         <form method="post" action="/upload-voucher" enctype="multipart/form-data" class="compact-upload-form">
             <div class="form-group">
                 <label>选择上传方：</label>
-                <select name="partner_id">
+                <select name="partner_id"
+                    name="partner_id"
+                    onchange="window.location.href='/upload-voucher?partner_id=' + this.value + '&voucher_page_size={{ voucher_page_size }}'"
+                >
                     <option value="0" {% if selected_partner_id == 0 %}selected{% endif %}>
                         全部上传方
                     </option>
@@ -250,6 +255,27 @@
                     {% for partner in partners %}
                         <option value="{{ partner.id }}" {% if selected_partner_id == partner.id %}selected{% endif %}>
                             {{ partner.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>选择已承接清单：</label>
+                <select name="selected_business_batch_id" {% if selected_partner_id == 0 %}disabled{% endif %}>
+                    <option value="0" {% if selected_business_batch_id == 0 %}selected{% endif %}>
+                        {% if selected_partner_id == 0 %}
+                            请先选择上传方
+                        {% elif not accepted_business_batches %}
+                            该上传方暂无已承接清单
+                        {% else %}
+                            请选择已承接清单
+                        {% endif %}
+                    </option>
+
+                    {% for batch in accepted_business_batches %}
+                        <option value="{{ batch.id }}" {% if selected_business_batch_id == batch.id %}selected{% endif %}>
+                            {{ batch.label }}
                         </option>
                     {% endfor %}
                 </select>
@@ -337,6 +363,8 @@
 
             <form method="get" action="/upload-voucher" class="page-size-form">
                 <input type="hidden" name="voucher_page" value="1">
+                <input type="hidden" name="partner_id" value="{{ selected_partner_id }}">
+                <input type="hidden" name="selected_business_batch_id" value="{{ selected_business_batch_id }}">
                 <span>每页</span>
                 <select name="voucher_page_size" onchange="this.form.submit()">
                     <option value="5" {% if voucher_page_size == 5 %}selected{% endif %}>5 条</option>
@@ -405,7 +433,7 @@
         <div class="pagination-bar">
             <a
                 class="page-link {% if voucher_page <= 1 %}disabled{% endif %}"
-                href="/upload-voucher?voucher_page={{ voucher_page - 1 }}&voucher_page_size={{ voucher_page_size }}"
+                href="/upload-voucher?voucher_page={{ voucher_page - 1 }}&voucher_page_size={{ voucher_page_size }}&partner_id={{ selected_partner_id }}&selected_business_batch_id={{ selected_business_batch_id }}"
             >
                 上一页
             </a >
@@ -414,7 +442,7 @@
                 {% for p in range(1, voucher_total_pages + 1) %}
                     <a
                         class="page-link {% if p == voucher_page %}active{% endif %}"
-                        href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
+                        href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}&partner_id={{ selected_partner_id }}&selected_business_batch_id={{ selected_business_batch_id }}"
                     >
                         {{ p }}
                     </a >
@@ -424,7 +452,7 @@
                     {% if p == 1 or p == voucher_total_pages or (p >= voucher_page - 2 and p <= voucher_page + 2) %}
                         <a
                             class="page-link {% if p == voucher_page %}active{% endif %}"
-                            href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}"
+                            href="/upload-voucher?voucher_page={{ p }}&voucher_page_size={{ voucher_page_size }}&partner_id={{ selected_partner_id }}&selected_business_batch_id={{ selected_business_batch_id }}"
                         >
                             {{ p }}
                         </a >
@@ -438,7 +466,7 @@
 
             <a
                 class="page-link {% if voucher_page >= voucher_total_pages %}disabled{% endif %}"
-                href="/upload-voucher?voucher_page={{ voucher_page + 1 }}&voucher_page_size={{ voucher_page_size }}"
+                href="/upload-voucher?voucher_page={{ voucher_page + 1 }}&voucher_page_size={{ voucher_page_size }}&partner_id={{ selected_partner_id }}&selected_business_batch_id={{ selected_business_batch_id }}"
             >
                 下一页
             </a >
