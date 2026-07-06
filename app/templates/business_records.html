@@ -569,6 +569,7 @@
                             <th>已通过凭证金额</th>
                             <th>剩余金额</th>
                             <th>导入时间</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -612,6 +613,14 @@
                                     {% endif %}                                    
                                 </td>
                                 <td>{{ item.created_at }}</td>
+                                <td>
+                                    <a
+                                        class="small-link"
+                                        href="/business-records/{{ item.id }}?return_url={{ (request.url.path ~ ('?' ~ request.url.query if request.url.query else '')) | urlencode }}"
+                                    >
+                                        详情
+                                    </a >
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>

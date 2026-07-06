@@ -579,6 +579,7 @@ def build_business_record_items(
             remaining_amount = 0.0
 
         item = {
+            "id": record.id,
             "business_no": record.business_no,
             "uploader_username": uploader.username if uploader else "未知上传方",
             "acceptance_status": acceptance_status,
@@ -1001,6 +1002,163 @@ def export_business_records(
         path=file_path,
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.get("/business-records/{record_id}", response_class=HTMLResponse)
+def business_record_detail_page(
+    request: Request,
+    record_id: int,
+    return_url: str = Query("/business-records"),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    record = (
+        db.query(BusinessRecord)
+        .filter(BusinessRecord.id == record_id)
+        .first()
+    )
+
+    if not record:
+        db.close()
+        return RedirectResponse(url="/business-records", status_code=302)
+
+    # 权限隔离：上传方只能看自己的业务数据
+    if user.role == "partner" and record.user_id != user.id:
+        db.close()
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    uploader = db.query(User).filter(User.id == record.user_id).first()
+
+    batch = None
+    if record.batch_id:
+        batch = db.query(UploadBatch).filter(UploadBatch.id == record.batch_id).first()
+
+    acceptance_status = batch.acceptance_status if batch and batch.acceptance_status else "待承接"
+
+    reviews = (
+        db.query(MatchReview)
+        .filter(MatchReview.business_record_id == record.id)
+        .order_by(MatchReview.id.desc())
+        .all()
+    )
+
+    voucher_items = []
+    approved_voucher_amount = 0.0
+
+    for review in reviews:
+        voucher = (
+            db.query(VoucherRecord)
+            .filter(VoucherRecord.id == review.voucher_id)
+            .first()
+        )
+
+        if not voucher:
+            continue
+
+        voucher_url = ""
+
+        if voucher.file_path:
+            normalized_path = voucher.file_path.replace("\\", "/")
+
+            if "/uploads/" in normalized_path:
+                relative_path = normalized_path.split("/uploads/", 1)[1]
+                voucher_url = "/uploads/" + relative_path
+            elif normalized_path.startswith("uploads/"):
+                voucher_url = "/" + normalized_path
+            else:
+                voucher_url = "/uploads/" + os.path.basename(normalized_path)
+        elif voucher.filename:
+            voucher_url = "/uploads/vouchers/" + voucher.filename
+
+        voucher_amount = money2(voucher.voucher_amount or 0)
+
+        if review.review_status == "已通过":
+            approved_voucher_amount += voucher_amount
+
+        ocr_text = voucher.ocr_text or ""
+        ocr_excerpt = ocr_text[:120] + "..." if len(ocr_text) > 120 else ocr_text
+
+        voucher_items.append(
+            {
+                "review_id": review.id,
+                "voucher_id": voucher.id,
+                "filename": voucher.filename,
+                "voucher_amount": voucher_amount,
+                "match_status": review.match_status,
+                "review_status": review.review_status,
+                "score": review.score,
+                "name_match": review.name_match,
+                "bank_match": review.bank_match,
+                "amount_match": review.amount_match,
+                "created_at": review.created_at,
+                "voucher_url": voucher_url,
+                "ocr_excerpt": ocr_excerpt,
+            }
+        )
+
+    business_amount = money2(record.points_amount or 0)
+    approved_voucher_amount = money2(approved_voucher_amount)
+    raw_remaining_amount = money2(business_amount - approved_voucher_amount)
+
+    remaining_amount = raw_remaining_amount
+    if remaining_amount < 0:
+        remaining_amount = 0.0
+
+    overpaid_amount = 0.0
+    if approved_voucher_amount > business_amount:
+        overpaid_amount = money2(approved_voucher_amount - business_amount)
+
+    if approved_voucher_amount <= 0:
+        payment_status = "未付款"
+    elif approved_voucher_amount < business_amount:
+        payment_status = "部分付款"
+    elif approved_voucher_amount == business_amount:
+        payment_status = "已足额付款"
+    else:
+        payment_status = "超额付款"
+
+    detail = {
+        "id": record.id,
+        "business_no": record.business_no,
+        "uploader_username": uploader.username if uploader else "未知上传方",
+        "batch_id": record.batch_id,
+        "batch_filename": batch.filename if batch else "-",
+        "acceptance_status": acceptance_status,
+        "name": record.name,
+        "phone": record.phone,
+        "plate_number": record.plate_number,
+        "points_amount": business_amount,
+        "bank_card": record.bank_card,
+        "record_service_rate": record.record_service_rate or 0,
+        "record_upstream_cost_rate": record.record_upstream_cost_rate or 0,
+        "created_at": record.created_at,
+        "approved_voucher_amount": approved_voucher_amount,
+        "remaining_amount": money2(remaining_amount),
+        "overpaid_amount": overpaid_amount,
+        "payment_status": payment_status,
+        "voucher_count": len(voucher_items),
+    }
+
+    if not return_url.startswith("/") or return_url.startswith("//"):
+        return_url = "/business-records"
+
+    db.close()
+
+    return templates.TemplateResponse(
+        "business_record_detail.html",
+        add_base_context(request, {
+            "request": request,
+            "active_page": "business_records",
+            "detail": detail,
+            "voucher_items": voucher_items,
+            "return_url": return_url,
+        }),
     )
 
 
