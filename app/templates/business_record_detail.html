@@ -462,7 +462,76 @@
     .detail-table.voucher-records-table td:nth-child(13) {
         min-width: 380px;
     }
-     
+
+    /* V1.3：待审核状态可点击、文件名缩略、匹配说明分行 */
+    .status-link {
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .status-link:hover {
+        text-decoration: underline;
+        filter: brightness(0.96);
+    }
+
+    .filename-short {
+        display: inline-block;
+        max-width: 170px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    .match-text {
+        white-space: normal;
+        line-height: 1.55;
+        word-break: break-word;
+    }
+
+    .match-text .match-line {
+        display: block;
+    }
+
+    .detail-table.voucher-records-table td:nth-child(3),
+    .detail-table.voucher-records-table th:nth-child(3) {
+        min-width: 170px;
+        max-width: 190px;
+    }
+
+    .detail-table.voucher-records-table td:nth-child(7),
+    .detail-table.voucher-records-table th:nth-child(7) {
+        min-width: 170px;
+    }
+
+    .detail-table.voucher-records-table td:nth-child(8),
+    .detail-table.voucher-records-table th:nth-child(8) {
+        min-width: 260px;
+    }
+
+    .detail-table.voucher-records-table td:nth-child(9),
+    .detail-table.voucher-records-table th:nth-child(9) {
+        min-width: 300px;
+    }
+
+    /* 让匹配说明列可以换行，不再强行横向一整句 */
+    .detail-table.voucher-records-table td:nth-child(7),
+    .detail-table.voucher-records-table td:nth-child(8),
+    .detail-table.voucher-records-table td:nth-child(9) {
+        white-space: normal;
+        vertical-align: top;
+    }
+
+    .status-skipped {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+
+    .review-row-skipped {
+        background: #f8fafc;
+    }
+
 </style>
 
 <div class="page-container business-detail-page">
@@ -600,28 +669,84 @@
                     </thead>
                     <tbody>
                         {% for item in voucher_items %}
-                            <tr class="{% if item.review_status == '已通过' %}review-row-approved{% elif item.review_status == '待审核' %}review-row-pending{% elif item.review_status == '已驳回' %}review-row-rejected{% endif %}">
+                            {% set is_settled_pending = item.review_status == '待审核' and (detail.remaining_amount|float <= 0) %}
+                            <tr class="{% if item.review_status == '已通过' %}review-row-approved{% elif is_settled_pending %}review-row-skipped{% elif item.review_status == '待审核' %}review-row-pending{% elif item.review_status == '已驳回' %}review-row-rejected{% endif %}">
                                 <td>{{ item.review_id }}</td>
                                 <td>{{ item.voucher_id }}</td>
-                                <td>{{ item.filename }}</td>
+                                <td title="{{ item.filename if item.filename else '' }}">
+                                    {% set filename_text = item.filename if item.filename else "-" %}
+                                    <span class="filename-short">
+                                        {% if filename_text|length > 18 %}
+                                            {{ filename_text[:6] }}...{{ filename_text[-10:] }}
+                                        {% else %}
+                                            {{ filename_text }}
+                                        {% endif %}
+                                    </span>
+                                </td>
                                 <td class="col-amount">{{ item.voucher_amount }}</td>
                                 <td>{{ item.match_status }}</td>
                                 
                                 <td class="col-status review-status-cell">
                                     {% if item.review_status == "已通过" %}
                                         <span class="status-pill status-approved">已通过</span>
+
                                     {% elif item.review_status == "待审核" %}
-                                        <span class="status-pill status-pending">待审核</span>
+                                        {% if detail.remaining_amount|float <= 0 %}
+                                            <span
+                                                class="status-pill status-skipped"
+                                                title="该业务已足额付款，当前凭证记录不再进入匹配审核处理"
+                                            >
+                                                无需审核
+                                            </span>
+                                        {% elif role == "admin" and item.review_id %}
+                                            <a
+                                                class="status-pill status-pending status-link"
+                                                href="/match-reviews?review_id={{ item.review_id }}&amp;status_filter=待审核&amp;customer_name={{ detail.name | urlencode }}&amp;page_size=1"
+                                                title="去匹配结果审核页处理"
+                                            >
+                                                待审核
+                                            </a >
+                                        {% else %}
+                                            <span
+                                                class="status-pill status-pending"
+                                                title="该状态仅管理员可进入审核处理"
+                                            >
+                                                待审核
+                                            </span>
+                                        {% endif %}
+
                                     {% elif item.review_status == "已驳回" %}
                                         <span class="status-pill status-rejected">已驳回</span>
+
                                     {% else %}
                                         <span class="status-pill status-none">{{ item.review_status }}</span>
                                     {% endif %}
                                 </td>
 
-                                <td>{{ item.name_match }}</td>
-                                <td>{{ item.bank_match }}</td>
-                                <td>{{ item.amount_match }}</td>
+                                <td>
+                                    <div class="match-text">
+                                        {{ item.name_match }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="match-text">
+                                        {{ item.bank_match 
+                                        | replace("，", "<br>")
+                                        | replace("：", "：")
+                                        | safe
+                                        }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="match-text">
+                                        {{ item.amount_match 
+                                            | replace("，", "<br>")
+                                            | replace("小于业务金额", "<br>小于业务金额")
+                                            | replace("大于业务金额", "<br>大于业务金额")
+                                            | safe                                            
+                                        }}
+                                    </div>
+                                </td>
                                 <td class="col-score">{{ item.score }}</td>
                                 <td class="col-created-at">{{ item.created_at }}</td>
                                 <td class="col-voucher-link">

@@ -2324,6 +2324,7 @@ def match_reviews_page(
     page: int = Query(1),
     page_size: int = Query(1),
     customer_name: str = Query(""),
+    review_id: int = Query(0),
 ):
     user = get_current_user(request)
     if not user:
@@ -2336,7 +2337,15 @@ def match_reviews_page(
 
     partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
 
-    reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
+    if review_id > 0:
+        reviews = (
+            db.query(MatchReview)
+            .filter(MatchReview.id == review_id)
+            .order_by(MatchReview.id.desc())
+            .all()
+        )
+    else:
+        reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
     latest_reviews = []
     seen_business_record_ids = set()
@@ -2502,6 +2511,7 @@ def match_reviews_page(
             "page": page,
             "page_size": page_size,
             "customer_name": customer_name,
+            "review_id": review_id,
             "total_reviews": total_reviews,
             "total_pages": total_pages,
             "allowed_page_sizes": allowed_page_sizes,
