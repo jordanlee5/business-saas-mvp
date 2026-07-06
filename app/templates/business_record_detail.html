@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+
     .business-detail-page {
         max-width: 1320px;
         margin: 32px auto;
@@ -51,6 +52,50 @@
         word-break: break-all;
     }
 
+    .detail-name-highlight {
+        background: linear-gradient(180deg, #fffbe8 0%, #fffdf3 100%);
+        border: 1px solid #f3d77a;
+        box-shadow: 0 0 0 1px rgba(243, 215, 122, 0.15);
+    }
+
+    .detail-name-highlight .detail-label {
+        color: #8a6a00;
+        font-weight: 700;
+    }
+
+    .name-highlight-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: #1f2937;
+        letter-spacing: 0.5px;
+    }
+
+    .ocr-summary-cell {
+        width: 360px;
+        min-width: 360px;
+        max-width: 420px;
+        vertical-align: top;
+    }
+
+    .ocr-summary-box {
+        background: #f8fbff;
+        border: 1px solid #d7e8ff;
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #334155;
+        line-height: 1.55;
+        font-size: 13px;
+        font-weight: 400;
+        white-space: normal;
+        word-break: break-word;
+        overflow: hidden;
+
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+
     .summary-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -88,7 +133,7 @@
     }
 
     .summary-value {
-        font-size: 24px;
+        font-size: 23px;
         color: #0f172a;
         font-weight: 800;
     }
@@ -179,6 +224,47 @@
         margin-top: 12px;
     }
 
+    .voucher-records-table-wrap {
+        overflow-x: auto;
+    }
+
+    .voucher-records-table {
+        width: max-content;
+        min-width: 100%;
+        table-layout: auto;
+        border-collapse: collapse;
+    }
+
+    .voucher-records-table td,
+    .voucher-records-table th {
+        vertical-align: top;
+        padding: 10px 12px;
+    }
+
+    .voucher-records-table tr {
+        height: auto;
+    }
+
+    .col-amount {
+        width: 90px;
+    }
+
+    .col-status {
+        width: 90px;
+    }
+
+    .col-score {
+        width: 70px;
+    }
+
+    .col-created-at {
+        width: 140px;
+    }
+
+    .col-voucher-link {
+        width: 90px;
+    }
+
     .ocr-excerpt {
         max-width: 260px;
         white-space: normal;
@@ -192,6 +278,191 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
+    /* V1.2 收尾：压缩业务详情上方卡片高度 */
+    .business-detail-page {
+        margin-top: 20px;
+        margin-bottom: 28px;
+    }
+
+    .business-detail-page .ui-card {
+        padding: 22px 24px;
+    }
+
+    .business-detail-page .ui-card:first-of-type {
+        padding-bottom: 18px;
+    }
+
+    .detail-header {
+        margin-bottom: 10px;
+    }
+
+    .detail-header h1 {
+        font-size: 26px;
+        line-height: 1.2;
+    }
+
+    .business-detail-page .ui-hint {
+        margin: 10px 0 12px;
+        padding: 9px 12px;
+        line-height: 1.45;
+    }
+
+    .summary-grid {
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .summary-card {
+        padding: 11px 14px;
+        min-height: 58px;
+    }
+
+    .summary-label {
+        margin-bottom: 5px;
+        font-size: 12px;
+    }
+
+    .summary-value {
+        font-size: 23px;
+        line-height: 1.15;
+    }
+
+    .detail-grid {
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .detail-item {
+        padding: 9px 12px;
+        min-height: 54px;
+    }
+
+    .detail-label {
+        margin-bottom: 4px;
+        font-size: 12px;
+    }
+
+    .detail-value {
+        font-size: 14.5px;
+        line-height: 1.25;
+    }
+
+    /* 姓名高光保留，但不要撑太高 */
+    .name-highlight-value {
+        font-size: 24px;
+        line-height: 1.15;
+    }
+
+    /* V1.2 收尾：关联凭证记录中，除 OCR 摘要外文字放大 */
+    .voucher-records-table th,
+    .detail-table th {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .voucher-records-table td,
+    .detail-table td {
+        padding: 11px 12px;
+        line-height: 1.55;
+    }
+
+    .voucher-records-table td:not(.ocr-summary-cell),
+    .detail-table td:not(.ocr-summary-cell) {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .voucher-records-table a,
+    .detail-table a {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    /* OCR 摘要保持轻一点，避免大段文字压迫感 */
+    .ocr-summary-cell {
+        font-size: 13px;
+        font-weight: 400;
+    }
+
+    .ocr-summary-box {
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.55;
+    }
+
+    /* V1.2 修复：关联凭证表格防止长字段互相挤压 */
+    .detail-table.voucher-records-table th,
+    .detail-table.voucher-records-table td {
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(1),
+    .detail-table.voucher-records-table td:nth-child(1) {
+        min-width: 70px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(2),
+    .detail-table.voucher-records-table td:nth-child(2) {
+        min-width: 70px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(3),
+    .detail-table.voucher-records-table td:nth-child(3) {
+        min-width: 220px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(4),
+    .detail-table.voucher-records-table td:nth-child(4) {
+        min-width: 100px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(5),
+    .detail-table.voucher-records-table td:nth-child(5) {
+        min-width: 140px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(6),
+    .detail-table.voucher-records-table td:nth-child(6) {
+        min-width: 90px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(7),
+    .detail-table.voucher-records-table td:nth-child(7) {
+        min-width: 180px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(8),
+    .detail-table.voucher-records-table td:nth-child(8) {
+        min-width: 300px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(9),
+    .detail-table.voucher-records-table td:nth-child(9) {
+        min-width: 360px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(10),
+    .detail-table.voucher-records-table td:nth-child(10) {
+        min-width: 80px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(11),
+    .detail-table.voucher-records-table td:nth-child(11) {
+        min-width: 150px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(12),
+    .detail-table.voucher-records-table td:nth-child(12) {
+        min-width: 90px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(13),
+    .detail-table.voucher-records-table td:nth-child(13) {
+        min-width: 380px;
+    }
+     
 </style>
 
 <div class="page-container business-detail-page">
@@ -250,9 +521,9 @@
                 <div class="detail-value">{{ detail.uploader_username }}</div>
             </div>
 
-            <div class="detail-item">
+            <div class="detail-item detail-name-highlight">
                 <div class="detail-label">姓名</div>
-                <div class="detail-value">{{ detail.name }}</div>
+                <div class="detail-value name-highlight-value">{{ detail.name }}</div>
             </div>
 
             <div class="detail-item">
@@ -308,23 +579,23 @@
         </div>
 
         {% if voucher_items %}
-            <div class="detail-table-wrap">
-                <table class="detail-table">
+            <div class="detail-table-wrap voucher-records-table-wrap">
+                <table class="detail-table voucher-records-table">
                     <thead>
                         <tr>
                             <th>审核ID</th>
                             <th>凭证ID</th>
                             <th>文件名</th>
-                            <th>凭证金额</th>
+                            <th class="col-amount">凭证金额</th>
                             <th>匹配状态</th>
-                            <th>审核状态</th>
+                            <th class="col-status review-status-cell">审核状态</th>
                             <th>姓名匹配</th>
                             <th>银行卡匹配</th>
                             <th>金额匹配</th>
-                            <th>匹配分数</th>
-                            <th>创建时间</th>
-                            <th>凭证</th>
-                            <th>OCR 摘要</th>
+                            <th class="col-score">匹配分数</th>
+                            <th class="col-created-at">创建时间</th>
+                            <th class="col-voucher-link">凭证</th>
+                            <th class="ocr-summary-cell">OCR 摘要</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -333,9 +604,10 @@
                                 <td>{{ item.review_id }}</td>
                                 <td>{{ item.voucher_id }}</td>
                                 <td>{{ item.filename }}</td>
-                                <td>{{ item.voucher_amount }}</td>
+                                <td class="col-amount">{{ item.voucher_amount }}</td>
                                 <td>{{ item.match_status }}</td>
-                                <td class="review-status-cell">
+                                
+                                <td class="col-status review-status-cell">
                                     {% if item.review_status == "已通过" %}
                                         <span class="status-pill status-approved">已通过</span>
                                     {% elif item.review_status == "待审核" %}
@@ -346,20 +618,24 @@
                                         <span class="status-pill status-none">{{ item.review_status }}</span>
                                     {% endif %}
                                 </td>
+
                                 <td>{{ item.name_match }}</td>
                                 <td>{{ item.bank_match }}</td>
                                 <td>{{ item.amount_match }}</td>
-                                <td>{{ item.score }}</td>
-                                <td>{{ item.created_at }}</td>
-                                <td>
+                                <td class="col-score">{{ item.score }}</td>
+                                <td class="col-created-at">{{ item.created_at }}</td>
+                                <td class="col-voucher-link">
                                     {% if item.voucher_url %}
-                                        <a class="small-link" href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
+                                        <a href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <div class="ocr-excerpt">
+                                <td class="ocr-summary-cell">
+                                    <div
+                                        class="ocr-summary-box"
+                                        title="{{ item.ocr_excerpt if item.ocr_excerpt else '' }}"
+                                    >
                                         {{ item.ocr_excerpt if item.ocr_excerpt else "-" }}
                                     </div>
                                 </td>
