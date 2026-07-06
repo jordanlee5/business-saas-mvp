@@ -133,16 +133,35 @@
     .status-approved {
         background: #dcfce7;
         color: #166534;
+        border: 1px solid #86efac;
     }
 
     .status-pending {
         background: #fef3c7;
         color: #92400e;
+        border: 1px solid #fcd34d;
     }
 
     .status-rejected {
         background: #fee2e2;
         color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    .review-row-approved {
+        background: #f0fdf4;
+    }
+
+    .review-row-pending {
+        background: #fffbeb;
+    }
+
+    .review-row-rejected {
+        background: #fef2f2;
+    }
+
+    .review-status-cell {
+        font-weight: 800;
     }
 
     .status-none {
@@ -310,13 +329,13 @@
                     </thead>
                     <tbody>
                         {% for item in voucher_items %}
-                            <tr>
+                            <tr class="{% if item.review_status == '已通过' %}review-row-approved{% elif item.review_status == '待审核' %}review-row-pending{% elif item.review_status == '已驳回' %}review-row-rejected{% endif %}">
                                 <td>{{ item.review_id }}</td>
                                 <td>{{ item.voucher_id }}</td>
                                 <td>{{ item.filename }}</td>
                                 <td>{{ item.voucher_amount }}</td>
                                 <td>{{ item.match_status }}</td>
-                                <td>
+                                <td class="review-status-cell">
                                     {% if item.review_status == "已通过" %}
                                         <span class="status-pill status-approved">已通过</span>
                                     {% elif item.review_status == "待审核" %}

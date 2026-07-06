@@ -1048,6 +1048,20 @@ def business_record_detail_page(
         .all()
     )
 
+    review_status_order = {
+        "已通过": 0,
+        "待审核": 1,
+        "已驳回": 2,
+    }
+
+    reviews = sorted(
+        reviews,
+        key=lambda review: (
+            review_status_order.get(review.review_status, 9),
+            -review.id,
+        ),
+    )
+
     voucher_items = []
     approved_voucher_amount = 0.0
 
