@@ -2358,15 +2358,10 @@ def match_reviews_page(
     else:
         reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
-    latest_reviews = []
-    seen_business_record_ids = set()
-
-    for review in reviews:
-        if review.business_record_id in seen_business_record_ids:
-            continue
-
-        seen_business_record_ids.add(review.business_record_id)
-        latest_reviews.append(review)
+    # 匹配结果审核页的展示单位应该是“审核记录 MatchReview”，不是“业务数据 BusinessRecord”。
+    # 同一条业务可能关联多张凭证，其中既可能有已通过，也可能有已驳回、待审核、无需审核。
+    # 如果按 business_record_id 去重，只保留最新一条，就会把较早的“已通过”历史审核记录隐藏掉。
+    latest_reviews = reviews
 
     if status_filter in ["待审核", "已通过", "已驳回"]:
         latest_reviews = [
