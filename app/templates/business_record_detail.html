@@ -531,7 +531,12 @@
     .review-row-skipped {
         background: #f8fafc;
     }
-
+    .muted-text {
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
 </style>
 
 <div class="page-container business-detail-page">
@@ -751,7 +756,17 @@
                                 <td class="col-created-at">{{ item.created_at }}</td>
                                 <td class="col-voucher-link">
                                     {% if item.voucher_url %}
-                                        <a href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
+                                        {% if role == "admin" %}
+                                            <a href="{{ item.voucher_url }}" target="_blank" target="_blank">查看凭证</a >
+                                        {% elif item.review_status == "已通过" %}
+                                            <a href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
+                                        {% elif item.review_status == "待审核" %}
+                                            <span class="muted-text">审核通过后可查看</span>
+                                        {% elif item.review_status == "已驳回" %}
+                                            <span class="muted-text">暂不可查看</span>
+                                        {% else %}
+                                            <span class="muted-text">暂不可查看</span>
+                                        {% endif %}
                                     {% else %}
                                         -
                                     {% endif %}
