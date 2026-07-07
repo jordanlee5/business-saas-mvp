@@ -636,8 +636,21 @@
             </div>
 
             <div class="detail-item">
-                <div class="detail-label">关联凭证数</div>
-                <div class="detail-value">{{ detail.voucher_count }}</div>
+                <div class="detail-label">
+                    {% if role == "partner" and (detail.remaining_amount|float <= 0) %}
+                        已通过凭证数
+                    {% else %}
+                        关联凭证数
+                    {% endif %}
+                </div>
+
+                <div class="detail-value">
+                    {% if role == "partner" and (detail.remaining_amount|float <= 0) %}
+                        {{ voucher_items | selectattr("review_status", "equalto", "已通过") | list | length }}
+                    {% else %}
+                        {{ detail.voucher_count }}
+                    {% endif %}
+                </div>
             </div>
 
             <div class="detail-item">
@@ -674,6 +687,11 @@
                     </thead>
                     <tbody>
                         {% for item in voucher_items %}
+
+                        {% set hide_from_partner_when_completed = role == "partner" and (detail.remaining_amount|float <= 0) and item.review_status != "已通过" %}
+
+                        {% if not hide_from_partner_when_completed %}
+
                             {% set is_settled_pending = item.review_status == '待审核' and (detail.remaining_amount|float <= 0) %}
                             <tr class="{% if item.review_status == '已通过' %}review-row-approved{% elif is_settled_pending %}review-row-skipped{% elif item.review_status == '待审核' %}review-row-pending{% elif item.review_status == '已驳回' %}review-row-rejected{% endif %}">
                                 <td>{{ item.review_id }}</td>
@@ -780,6 +798,7 @@
                                     </div>
                                 </td>
                             </tr>
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
