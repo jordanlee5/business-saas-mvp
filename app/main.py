@@ -578,6 +578,17 @@ def build_business_record_items(
         if remaining_amount < 0:
             remaining_amount = 0.0
 
+        # 业务完成优先：
+        # 如果已通过凭证金额已经覆盖业务金额，则业务列表的审核状态应展示为“已通过”，
+        # 不再被后续生成的“待审核 / 无需审核”等过程记录覆盖。
+        if (
+            acceptance_status == "已承接"
+            and business_amount > 0
+            and approved_voucher_amount > 0
+            and remaining_amount <= 0
+        ):
+            latest_review_status = "已通过"
+
         item = {
             "id": record.id,
             "business_no": record.business_no,
