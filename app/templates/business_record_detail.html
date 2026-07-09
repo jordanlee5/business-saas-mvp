@@ -775,9 +775,9 @@
                                 <td class="col-voucher-link">
                                     {% if item.voucher_url %}
                                         {% if role == "admin" %}
-                                            <a href="{{ item.voucher_url }}" target="_blank" target="_blank">查看凭证</a >
-                                        {% elif item.review_status == "已通过" %}
                                             <a href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
+                                        {% elif item.review_status == "已通过" and item.review_id %}
+                                            <a href="/vouchers/{{ item.review_id }}/download">下载凭证</a >
                                         {% elif item.review_status == "待审核" %}
                                             <span class="muted-text">审核通过后可查看</span>
                                         {% elif item.review_status == "已驳回" %}

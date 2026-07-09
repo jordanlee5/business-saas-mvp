@@ -90,6 +90,78 @@ def add_base_context(request: Request, context: dict):
     return context
 
 
+@app.get("/vouchers/{review_id}/download")
+def download_approved_voucher(
+    request: Request,
+    review_id: int,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = SessionLocal()
+
+    try:
+        review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
+
+        if not review:
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        # 下载入口只允许下载“已通过”的凭证
+        if review.review_status != "已通过":
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        business_record = (
+            db.query(BusinessRecord)
+            .filter(BusinessRecord.id == review.business_record_id)
+            .first()
+        )
+
+        voucher = (
+            db.query(VoucherRecord)
+            .filter(VoucherRecord.id == review.voucher_id)
+            .first()
+        )
+
+        if not business_record or not voucher:
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        # 权限隔离：
+        # 管理员可以下载已通过凭证；
+        # 上传方只能下载自己业务数据关联的已通过凭证。
+        if user.role == "partner" and business_record.user_id != user.id:
+            return RedirectResponse(url="/dashboard", status_code=302)
+
+        if user.role not in ["admin", "partner"]:
+            return RedirectResponse(url="/dashboard", status_code=302)
+
+        if not voucher.file_path:
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        relative_path = voucher.file_path.replace("\\", "/").lstrip("/")
+        absolute_file_path = os.path.abspath(relative_path)
+        uploads_root = os.path.abspath("uploads")
+
+        # 防止下载 uploads 目录外的文件
+        if os.path.commonpath([uploads_root, absolute_file_path]) != uploads_root:
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        if not os.path.exists(absolute_file_path):
+            return RedirectResponse(url="/business-records", status_code=302)
+
+        download_filename = voucher.filename or os.path.basename(absolute_file_path)
+
+        return FileResponse(
+            path=absolute_file_path,
+            filename=download_filename,
+            media_type="application/octet-stream",
+        )
+
+    finally:
+        db.close()
+
+
 def get_voucher_batch_review_summary(db, batch_id: int):
     # 兼容不同字段名：如果你的 VoucherRecord 里叫 voucher_batch_id / batch_id / upload_batch_id，都能识别
     batch_column = None
