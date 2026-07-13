@@ -26,6 +26,7 @@ from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUpl
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
+from .business_no import generate_public_business_no
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -41,6 +42,43 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 templates = Jinja2Templates(directory="app/templates")
 
 ACCEPTED_BATCH_STATUS = "已承接"
+
+
+def generate_unique_public_business_no(
+    db,
+    reserved_numbers=None,
+    max_attempts=100,
+):
+    """
+    生成一个数据库中尚未使用的公开业务单号。
+
+    reserved_numbers 用于防止同一次批量上传过程中，
+    尚未提交的多条业务意外获得相同编号。
+    """
+    if reserved_numbers is None:
+        reserved_numbers = set()
+
+    for _ in range(max_attempts):
+        candidate = generate_public_business_no()
+
+        if candidate in reserved_numbers:
+            continue
+
+        exists = (
+            db.query(BusinessRecord.id)
+            .filter(
+                BusinessRecord.public_business_no == candidate
+            )
+            .first()
+        )
+
+        if not exists:
+            reserved_numbers.add(candidate)
+            return candidate
+
+    raise RuntimeError(
+        "多次生成公开业务单号均发生重复，请停止操作并检查。"
+    )
 
 
 def apply_accepted_batch_filter(query):
@@ -711,6 +749,8 @@ def query_record_submit(
 
     query_result = query.filter(
         or_(
+            BusinessRecord.business_no == keyword,
+            BusinessRecord.public_business_no == keyword,
             BusinessRecord.name == keyword,
             BusinessRecord.phone == keyword,
             BusinessRecord.plate_number == keyword,
@@ -796,6 +836,7 @@ def build_business_record_items(
         query = query.filter(
             or_(
                 BusinessRecord.business_no.contains(keyword),
+                BusinessRecord.public_business_no.contains(keyword),
                 BusinessRecord.name.contains(keyword),
                 BusinessRecord.phone.contains(keyword),
                 BusinessRecord.plate_number.contains(keyword),
@@ -2060,6 +2101,8 @@ async def upload_excel_submit(
     db.commit()
     db.refresh(batch)
 
+    reserved_public_business_nos = set()
+
     for row_index, item in enumerate(records, start=1):
         batch_date = batch.created_at.strftime("%Y%m%d")
         business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
@@ -2068,6 +2111,10 @@ async def upload_excel_submit(
             user_id=user.id,
             batch_id=batch.id,
             business_no=business_no,
+            public_business_no=generate_unique_public_business_no(
+                db,
+                reserved_public_business_nos,
+            ),            
             name=item["name"],
             phone=item["phone"],
             plate_number=item["plate_number"],
