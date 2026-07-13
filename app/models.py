@@ -19,7 +19,17 @@ class BusinessRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     batch_id = Column(Integer, ForeignKey("upload_batches.id"))
+    
+    # 旧业务单号：暂时保留，用于历史兼容。
     business_no = Column(String, index=True)
+    
+    # 新公开业务单号：后续用于页面、导出和凭证文件命名。
+    public_business_no = Column(
+        String(32),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
     name = Column(String)
     phone = Column(String, index=True)
     plate_number = Column(String, index=True)
