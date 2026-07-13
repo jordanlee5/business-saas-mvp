@@ -795,8 +795,30 @@
     </div>
 
     <div class="ui-card" style="margin-top: 20px;">
+
+        {% set approved_voucher_items =
+            voucher_items
+            | selectattr("review_status", "equalto", "已通过")
+            | list
+        %}
+
         <div class="detail-header">
+
             <h1 style="font-size: 24px;">关联凭证记录</h1>
+
+            {% if role == "partner"
+                and approved_voucher_items | length >= 2 %}
+
+            <a
+                class="voucher-action-button voucher-action-download"
+                href="/business-records/{{ detail.id }}/vouchers/download-all"
+                title="下载当前业务全部已通过凭证"
+            >
+                打包下载全部凭证（{{ approved_voucher_items | length }}）
+            </a >
+
+            {% endif %}
+
         </div>
 
         {% if voucher_items %}

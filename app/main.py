@@ -1,11 +1,18 @@
 from fastapi import FastAPI, Request, Form, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    FileResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
 import os
 import hashlib
+import io
+import zipfile
 from datetime import datetime, date, time
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlencode
@@ -156,6 +163,176 @@ def download_approved_voucher(
             path=absolute_file_path,
             filename=download_filename,
             media_type="application/octet-stream",
+        )
+
+    finally:
+        db.close()
+
+
+@app.get("/business-records/{record_id}/vouchers/download-all")
+def download_all_approved_vouchers(
+    request: Request,
+    record_id: int,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # 当前批量下载功能先只开放给上传方。
+    if user.role != "partner":
+        return RedirectResponse(
+            url=f"/business-records/{record_id}",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        business_record = (
+            db.query(BusinessRecord)
+            .filter(BusinessRecord.id == record_id)
+            .first()
+        )
+
+        if not business_record:
+            return RedirectResponse(
+                url="/business-records",
+                status_code=302,
+            )
+
+        # 上传方只能批量下载自己名下业务的凭证。
+        if business_record.user_id != user.id:
+            return RedirectResponse(
+                url="/dashboard",
+                status_code=302,
+            )
+
+        approved_reviews = (
+            db.query(MatchReview)
+            .filter(MatchReview.business_record_id == business_record.id)
+            .filter(MatchReview.review_status == "已通过")
+            .order_by(MatchReview.id.asc())
+            .all()
+        )
+
+        if not approved_reviews:
+            return RedirectResponse(
+                url=f"/business-records/{record_id}",
+                status_code=302,
+            )
+
+        uploads_root = os.path.abspath("uploads")
+        zip_buffer = io.BytesIO()
+
+        added_file_count = 0
+        seen_voucher_ids = set()
+
+        with zipfile.ZipFile(
+            zip_buffer,
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+        ) as zip_file:
+
+            for review in approved_reviews:
+                # 防止同一凭证因重复审核记录被加入两次。
+                if review.voucher_id in seen_voucher_ids:
+                    continue
+
+                seen_voucher_ids.add(review.voucher_id)
+
+                voucher = (
+                    db.query(VoucherRecord)
+                    .filter(VoucherRecord.id == review.voucher_id)
+                    .first()
+                )
+
+                if not voucher or not voucher.file_path:
+                    continue
+
+                relative_path = (
+                    voucher.file_path
+                    .replace("\\", "/")
+                    .lstrip("/")
+                )
+
+                absolute_file_path = os.path.abspath(relative_path)
+
+                # 防止访问 uploads 目录之外的文件。
+                try:
+                    common_path = os.path.commonpath(
+                        [uploads_root, absolute_file_path]
+                    )
+                except ValueError:
+                    continue
+
+                if common_path != uploads_root:
+                    continue
+
+                if not os.path.isfile(absolute_file_path):
+                    continue
+
+                original_filename = (
+                    voucher.filename
+                    or os.path.basename(absolute_file_path)
+                )
+
+                # 避免文件名中包含目录分隔符。
+                safe_filename = (
+                    os.path.basename(original_filename)
+                    .replace("/", "_")
+                    .replace("\\", "_")
+                )
+
+                added_file_count += 1
+
+                # 本轮只增加序号防止重名；
+                # 正式命名规范留到后续版本统一处理。
+                archive_filename = (
+                    f"{added_file_count:03d}_{safe_filename}"
+                )
+
+                zip_file.write(
+                    absolute_file_path,
+                    arcname=archive_filename,
+                )
+
+        # 可能存在数据库记录，但对应文件全部丢失的情况。
+        if added_file_count == 0:
+            return RedirectResponse(
+                url=f"/business-records/{record_id}",
+                status_code=302,
+            )
+
+        zip_buffer.seek(0)
+
+        business_no = (
+            business_record.business_no
+            or f"business_{business_record.id}"
+        )
+
+        # ZIP 外层文件名先使用业务单号，避免中文响应头兼容问题。
+        safe_business_no = "".join(
+            character
+            for character in business_no
+            if character.isalnum() or character in ("-", "_")
+        )
+
+        if not safe_business_no:
+            safe_business_no = f"business_{business_record.id}"
+
+        download_filename = (
+            f"{safe_business_no}_approved_vouchers.zip"
+        )
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{download_filename}"'
+                )
+            },
         )
 
     finally:
