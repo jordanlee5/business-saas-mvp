@@ -537,6 +537,140 @@
         font-weight: 600;
         white-space: nowrap;
     }
+    /* V2.0：凭证查看与下载按钮 */
+    .voucher-action-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 76px;
+        padding: 6px 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 13px !important;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .voucher-action-button:hover {
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    /* 管理员查看凭证 */
+    .voucher-action-view {
+        color: #7e22ce !important;
+        background: #f3e8ff;
+        border-color: #d8b4fe;
+    }
+
+    .voucher-action-view:hover {
+        background: #e9d5ff;
+        border-color: #c084fc;
+    }
+
+    /* 上传方下载凭证 */
+    .voucher-action-download {
+        color: #1d4ed8 !important;
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    .voucher-action-download:hover {
+        background: #bfdbfe;
+        border-color: #60a5fa;
+    }
+
+    /*
+    V2.0：上传方凭证表精简。
+
+    隐藏以下偏技术或管理员审核使用的列：
+    1 审核ID
+    2 凭证ID
+    3 文件名
+    5 匹配状态
+    7 姓名匹配
+    8 银行卡匹配
+    10 匹配分数
+    */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(1),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(1),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(2),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(2),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(3),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(3),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(5),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(5),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(7),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(7),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(8),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(8),
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(10),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(10) {
+        display: none;
+    }
+
+    /* 上传方表格在正常桌面宽度下尽量完整展示 */
+    .detail-table.voucher-records-table.partner-voucher-table {
+        width: 100%;
+        min-width: 860px;
+        table-layout: fixed;
+    }
+
+    /* 凭证金额 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(4),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(4) {
+        width: 11%;
+        min-width: 0;
+    }
+
+    /* 审核状态 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(6),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(6) {
+        width: 12%;
+        min-width: 0;
+    }
+
+    /* 金额匹配 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(9),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(9) {
+        width: 22%;
+        min-width: 0;
+        white-space: normal;
+    }
+
+    /* 创建时间 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(11),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(11) {
+        width: 16%;
+        min-width: 0;
+    }
+
+    /* 凭证操作 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(12),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(12) {
+        width: 12%;
+        min-width: 0;
+        text-align: center;
+    }
+
+    /* OCR 摘要 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(13),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(13) {
+        width: 27%;
+        min-width: 0;
+        max-width: none;
+        white-space: normal;
+    }
+
+    .partner-voucher-table .ocr-summary-box {
+        padding: 8px 10px;
+    }
 </style>
 
 <div class="page-container business-detail-page">
@@ -667,7 +801,7 @@
 
         {% if voucher_items %}
             <div class="detail-table-wrap voucher-records-table-wrap">
-                <table class="detail-table voucher-records-table">
+                <table class="detail-table voucher-records-table{% if role == 'partner' %} partner-voucher-table{% endif %}">
                     <thead>
                         <tr>
                             <th>审核ID</th>
@@ -775,9 +909,23 @@
                                 <td class="col-voucher-link">
                                     {% if item.voucher_url %}
                                         {% if role == "admin" %}
-                                            <a href="{{ item.voucher_url }}" target="_blank">查看凭证</a >
+
+                                        <a
+                                        class="voucher-action-button voucher-action-view"
+                                        href="{{ item.voucher_url }}"
+                                        target="_blank"
+                                        >
+                                        查看凭证
+                                        </a >
+
                                         {% elif item.review_status == "已通过" and item.review_id %}
-                                            <a href="/vouchers/{{ item.review_id }}/download">下载凭证</a >
+
+                                        <a
+                                        class="voucher-action-button voucher-action-download"
+                                        href="/vouchers/{{ item.review_id }}/download"
+                                        >
+                                        下载凭证
+                                        </a >
                                         {% elif item.review_status == "待审核" %}
                                             <span class="muted-text">审核通过后可查看</span>
                                         {% elif item.review_status == "已驳回" %}
