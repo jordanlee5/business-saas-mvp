@@ -41,6 +41,25 @@ class BusinessRecord(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    @property
+    def display_business_no(self) -> str:
+        """
+        对外展示使用公开业务单号。
+
+        如果个别历史异常数据缺少公开编号，
+        则临时回退到旧业务单号，避免页面和导出报错。
+        """
+        if self.public_business_no:
+            return self.public_business_no
+
+        if self.business_no:
+            return self.business_no
+
+        if self.id is not None:
+            return f"BR-{self.id}"
+
+        return "未生成业务单号"
+
 class UploadBatch(Base):
     __tablename__ = "upload_batches"
 

@@ -347,7 +347,7 @@ def download_all_approved_vouchers(
                 )
 
                 business_no_part = clean_zip_filename_part(
-                    business_record.business_no,
+                    business_record.display_business_no,
                     f"business_{business_record.id}",
                 )
 
@@ -389,7 +389,7 @@ def download_all_approved_vouchers(
         zip_buffer.seek(0)
 
         business_no = (
-            business_record.business_no
+            business_record.display_business_no
             or f"business_{business_record.id}"
         )
 
@@ -622,7 +622,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         rows.append(
             {
                 "上传方": uploader.username if uploader else "未知上传方",
-                "业务单号": record.business_no,
+                "业务单号": record.display_business_no,
                 "姓名": record.name,
                 "手机号": record.phone,
                 "车牌号": record.plate_number,
@@ -775,7 +775,7 @@ def query_record_submit(
         records.append(
             {
                 "id": r.id,
-                "business_no": r.business_no,
+                "business_no": r.display_business_no,
                 "name": r.name,
                 "phone": r.phone,
                 "plate_number": r.plate_number,
@@ -925,7 +925,7 @@ def build_business_record_items(
 
         item = {
             "id": record.id,
-            "business_no": record.business_no,
+            "business_no": record.display_business_no,
             "uploader_username": uploader.username if uploader else "未知上传方",
             "acceptance_status": acceptance_status,
             "name": record.name,
@@ -1484,7 +1484,7 @@ def business_record_detail_page(
 
     detail = {
         "id": record.id,
-        "business_no": record.business_no,
+        "business_no": record.display_business_no,
         "uploader_username": uploader.username if uploader else "未知上传方",
         "batch_id": record.batch_id,
         "batch_filename": batch.filename if batch else "-",
