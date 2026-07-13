@@ -228,6 +228,35 @@ def download_all_approved_vouchers(
         added_file_count = 0
         seen_voucher_ids = set()
 
+        def clean_zip_filename_part(value, fallback):
+            """
+            清理 ZIP 内部文件名组成部分。
+
+            不修改数据库和磁盘上的原文件名，
+            仅用于生成用户下载后看到的规范名称。
+            """
+            text = str(value or "").strip()
+
+            invalid_characters = '<>:"/\\|?*'
+
+            for invalid_character in invalid_characters:
+                text = text.replace(invalid_character, "_")
+
+            text = (
+                text
+                .replace("\r", "_")
+                .replace("\n", "_")
+                .replace("\t", "_")
+            )
+
+            while "__" in text:
+                text = text.replace("__", "_")
+
+            # Windows 文件名不适合以空格或英文句点结尾。
+            text = text.strip(" ._")
+
+            return text or fallback
+
         with zipfile.ZipFile(
             zip_buffer,
             mode="w",
@@ -272,24 +301,39 @@ def download_all_approved_vouchers(
                 if not os.path.isfile(absolute_file_path):
                     continue
 
-                original_filename = (
-                    voucher.filename
-                    or os.path.basename(absolute_file_path)
-                )
-
-                # 避免文件名中包含目录分隔符。
-                safe_filename = (
-                    os.path.basename(original_filename)
-                    .replace("/", "_")
-                    .replace("\\", "_")
-                )
-
                 added_file_count += 1
 
-                # 本轮只增加序号防止重名；
-                # 正式命名规范留到后续版本统一处理。
+                customer_name = clean_zip_filename_part(
+                    business_record.name,
+                    "未知姓名",
+                )
+
+                business_no_part = clean_zip_filename_part(
+                    business_record.business_no,
+                    f"business_{business_record.id}",
+                )
+
+                voucher_amount_text = (
+                    f"{float(voucher.voucher_amount or 0):.2f}"
+                )
+
+                review_id_text = f"MR{review.id}"
+
+                # 保留原文件的实际扩展名。
+                file_extension = os.path.splitext(
+                    absolute_file_path
+                )[1].lower()
+
+                if not file_extension:
+                    file_extension = ".bin"
+
                 archive_filename = (
-                    f"{added_file_count:03d}_{safe_filename}"
+                    f"{added_file_count:03d}_"
+                    f"{customer_name}_"
+                    f"{business_no_part}_"
+                    f"{voucher_amount_text}_"
+                    f"{review_id_text}"
+                    f"{file_extension}"
                 )
 
                 zip_file.write(
