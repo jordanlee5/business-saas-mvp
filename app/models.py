@@ -11,6 +11,27 @@ class User(Base):
     role = Column(String)  # admin / partner
     service_rate = Column(Float, default=0.0)
     upstream_cost_rate = Column(Float, default=0.0)
+
+    # 下游服务费率计算方式：
+    # external = 外扣
+    # internal = 内扣
+    service_rate_mode = Column(
+        String(20),
+        nullable=False,
+        default="external",
+        server_default="external",
+    )
+
+    # 上游成本费率计算方式：
+    # external = 外扣
+    # internal = 内扣
+    upstream_cost_rate_mode = Column(
+        String(20),
+        nullable=False,
+        default="external",
+        server_default="external",
+    )
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # 业务数据表
@@ -38,6 +59,26 @@ class BusinessRecord(Base):
 
     record_service_rate = Column(Float, default=0.0)
     record_upstream_cost_rate = Column(Float, default=0.0)
+
+    # 上传业务时保存下游服务费率计算方式快照：
+    # external = 外扣
+    # internal = 内扣
+    record_service_rate_mode = Column(
+        String(20),
+        nullable=False,
+        default="external",
+        server_default="external",
+    )
+
+    # 上传业务时保存上游成本费率计算方式快照：
+    # external = 外扣
+    # internal = 内扣
+    record_upstream_cost_rate_mode = Column(
+        String(20),
+        nullable=False,
+        default="external",
+        server_default="external",
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
