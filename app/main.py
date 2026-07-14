@@ -88,6 +88,81 @@ def apply_accepted_batch_filter(query):
         .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
     )
 
+def clean_zip_filename_part(value, fallback):
+    """
+    清理 ZIP 内部文件名组成部分。
+
+    不修改数据库和磁盘上的原文件名，
+    仅用于生成用户下载后看到的规范名称。
+    """
+    text = str(value or "").strip()
+
+    invalid_characters = '<>:"/\\|?*'
+
+    for invalid_character in invalid_characters:
+        text = text.replace(invalid_character, "_")
+
+    text = (
+        text
+        .replace("\r", "_")
+        .replace("\n", "_")
+        .replace("\t", "_")
+    )
+
+    while "__" in text:
+        text = text.replace("__", "_")
+
+    # Windows 文件名不适合以空格或英文句点结尾。
+    text = text.strip(" ._")
+
+    return text or fallback
+
+
+def build_voucher_zip_filename(
+    sequence,
+    business_record,
+    voucher,
+    review,
+    absolute_file_path,
+):
+    """
+    统一生成 ZIP 内的凭证文件名。
+
+    命名规范：
+    序号_客户姓名_公开业务单号_凭证金额_审核记录ID.扩展名
+    """
+    customer_name = clean_zip_filename_part(
+        business_record.name,
+        "未知姓名",
+    )
+
+    business_no_part = clean_zip_filename_part(
+        business_record.display_business_no,
+        f"business_{business_record.id}",
+    )
+
+    voucher_amount_text = (
+        f"{float(voucher.voucher_amount or 0):.2f}"
+    )
+
+    review_id_text = f"MR{review.id}"
+
+    file_extension = os.path.splitext(
+        absolute_file_path
+    )[1].lower()
+
+    if not file_extension:
+        file_extension = ".bin"
+
+    return (
+        f"{sequence:03d}_"
+        f"{customer_name}_"
+        f"{business_no_part}_"
+        f"{voucher_amount_text}_"
+        f"{review_id_text}"
+        f"{file_extension}"
+    )
+
 def money2(value):
     if value is None:
         return 0.0
@@ -266,34 +341,6 @@ def download_all_approved_vouchers(
         added_file_count = 0
         seen_voucher_ids = set()
 
-        def clean_zip_filename_part(value, fallback):
-            """
-            清理 ZIP 内部文件名组成部分。
-
-            不修改数据库和磁盘上的原文件名，
-            仅用于生成用户下载后看到的规范名称。
-            """
-            text = str(value or "").strip()
-
-            invalid_characters = '<>:"/\\|?*'
-
-            for invalid_character in invalid_characters:
-                text = text.replace(invalid_character, "_")
-
-            text = (
-                text
-                .replace("\r", "_")
-                .replace("\n", "_")
-                .replace("\t", "_")
-            )
-
-            while "__" in text:
-                text = text.replace("__", "_")
-
-            # Windows 文件名不适合以空格或英文句点结尾。
-            text = text.strip(" ._")
-
-            return text or fallback
 
         with zipfile.ZipFile(
             zip_buffer,
@@ -341,37 +388,12 @@ def download_all_approved_vouchers(
 
                 added_file_count += 1
 
-                customer_name = clean_zip_filename_part(
-                    business_record.name,
-                    "未知姓名",
-                )
-
-                business_no_part = clean_zip_filename_part(
-                    business_record.display_business_no,
-                    f"business_{business_record.id}",
-                )
-
-                voucher_amount_text = (
-                    f"{float(voucher.voucher_amount or 0):.2f}"
-                )
-
-                review_id_text = f"MR{review.id}"
-
-                # 保留原文件的实际扩展名。
-                file_extension = os.path.splitext(
-                    absolute_file_path
-                )[1].lower()
-
-                if not file_extension:
-                    file_extension = ".bin"
-
-                archive_filename = (
-                    f"{added_file_count:03d}_"
-                    f"{customer_name}_"
-                    f"{business_no_part}_"
-                    f"{voucher_amount_text}_"
-                    f"{review_id_text}"
-                    f"{file_extension}"
+                archive_filename = build_voucher_zip_filename(
+                    sequence=added_file_count,
+                    business_record=business_record,
+                    voucher=voucher,
+                    review=review,
+                    absolute_file_path=absolute_file_path,
                 )
 
                 zip_file.write(
@@ -405,6 +427,264 @@ def download_all_approved_vouchers(
 
         download_filename = (
             f"{safe_business_no}_approved_vouchers.zip"
+        )
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{download_filename}"'
+                )
+            },
+        )
+
+    finally:
+        db.close()
+
+
+@app.get("/my-settlement/vouchers/download")
+def download_my_settlement_vouchers(
+    request: Request,
+    start_date: str = Query(""),
+    end_date: str = Query(""),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    # 第一版只开放给上传方。
+    if user.role != "partner":
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    redirect_query = urlencode(
+        {
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+    )
+    settlement_url = f"/my-settlement?{redirect_query}"
+
+    start_datetime = None
+    end_datetime = None
+
+    try:
+        if start_date:
+            start_datetime = datetime.combine(
+                datetime.strptime(
+                    start_date,
+                    "%Y-%m-%d",
+                ).date(),
+                time.min,
+            )
+
+        if end_date:
+            end_datetime = datetime.combine(
+                datetime.strptime(
+                    end_date,
+                    "%Y-%m-%d",
+                ).date(),
+                time.max,
+            )
+
+    except ValueError:
+        return RedirectResponse(
+            url=settlement_url,
+            status_code=302,
+        )
+
+    if (
+        start_datetime
+        and end_datetime
+        and start_datetime > end_datetime
+    ):
+        return RedirectResponse(
+            url=settlement_url,
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        # 与“我的结算报表”保持一致：
+        # 只查询已承接批次下、当前 Partner 自己的业务。
+        records_query = apply_accepted_batch_filter(
+            db.query(BusinessRecord)
+        ).filter(
+            BusinessRecord.user_id == user.id
+        )
+
+        if start_datetime:
+            records_query = records_query.filter(
+                BusinessRecord.created_at >= start_datetime
+            )
+
+        if end_datetime:
+            records_query = records_query.filter(
+                BusinessRecord.created_at <= end_datetime
+            )
+
+        business_records = (
+            records_query
+            .order_by(BusinessRecord.id.asc())
+            .all()
+        )
+
+        if not business_records:
+            return RedirectResponse(
+                url=settlement_url,
+                status_code=302,
+            )
+
+        uploads_root = os.path.abspath("uploads")
+        zip_buffer = io.BytesIO()
+        total_added_file_count = 0
+
+        with zipfile.ZipFile(
+            zip_buffer,
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+        ) as zip_file:
+
+            for business_record in business_records:
+                # 与结算页当前口径一致：
+                # 最新审核结果为“已通过”才属于已通过结算业务。
+                latest_review = (
+                    db.query(MatchReview)
+                    .filter(
+                        MatchReview.business_record_id
+                        == business_record.id
+                    )
+                    .order_by(MatchReview.id.desc())
+                    .first()
+                )
+
+                if (
+                    not latest_review
+                    or latest_review.review_status != "已通过"
+                ):
+                    continue
+
+                approved_reviews = (
+                    db.query(MatchReview)
+                    .filter(
+                        MatchReview.business_record_id
+                        == business_record.id
+                    )
+                    .filter(
+                        MatchReview.review_status == "已通过"
+                    )
+                    .order_by(MatchReview.id.asc())
+                    .all()
+                )
+
+                if not approved_reviews:
+                    continue
+
+                folder_name = clean_zip_filename_part(
+                    business_record.display_business_no,
+                    f"business_{business_record.id}",
+                )
+
+                # 每个业务文件夹独立去重并重新从 001 编号。
+                seen_voucher_ids = set()
+                business_file_count = 0
+
+                for review in approved_reviews:
+                    if review.voucher_id in seen_voucher_ids:
+                        continue
+
+                    seen_voucher_ids.add(review.voucher_id)
+
+                    voucher = (
+                        db.query(VoucherRecord)
+                        .filter(
+                            VoucherRecord.id
+                            == review.voucher_id
+                        )
+                        .first()
+                    )
+
+                    if not voucher or not voucher.file_path:
+                        continue
+
+                    relative_path = (
+                        voucher.file_path
+                        .replace("\\", "/")
+                        .lstrip("/")
+                    )
+
+                    absolute_file_path = os.path.abspath(
+                        relative_path
+                    )
+
+                    # 防止 ZIP 下载访问 uploads 目录之外的文件。
+                    try:
+                        common_path = os.path.commonpath(
+                            [
+                                uploads_root,
+                                absolute_file_path,
+                            ]
+                        )
+                    except ValueError:
+                        continue
+
+                    if common_path != uploads_root:
+                        continue
+
+                    if not os.path.isfile(absolute_file_path):
+                        continue
+
+                    business_file_count += 1
+                    total_added_file_count += 1
+
+                    archive_filename = build_voucher_zip_filename(
+                        sequence=business_file_count,
+                        business_record=business_record,
+                        voucher=voucher,
+                        review=review,
+                        absolute_file_path=absolute_file_path,
+                    )
+
+                    zip_file.write(
+                        absolute_file_path,
+                        arcname=(
+                            f"{folder_name}/"
+                            f"{archive_filename}"
+                        ),
+                    )
+
+        if total_added_file_count == 0:
+            return RedirectResponse(
+                url=settlement_url,
+                status_code=302,
+            )
+
+        zip_buffer.seek(0)
+
+        start_date_part = (
+            start_date.replace("-", "")
+            if start_date
+            else "all"
+        )
+
+        end_date_part = (
+            end_date.replace("-", "")
+            if end_date
+            else "all"
+        )
+
+        download_filename = (
+            "my_settlement_vouchers_"
+            f"{start_date_part}_"
+            f"{end_date_part}.zip"
         )
 
         return StreamingResponse(

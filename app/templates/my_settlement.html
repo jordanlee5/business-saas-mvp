@@ -96,8 +96,16 @@
             margin-bottom: 18px;
         }
 
-        .settlement-page .export-button {
+        .settlement-page .export-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-bottom: 20px;
+        }
+
+        .settlement-page .export-actions .export-button {
+            margin-bottom: 0;
         }
 
         .settlement-page .cards {
@@ -125,12 +133,21 @@
             <a href="/my-settlement" class="reset-link">重置</a >
         </form>
 
-        <a
-            class="export-button ui-button-primary"
-            href="/my-settlement/export?start_date={{ start_date }}&end_date={{ end_date }}"
-        >
-            导出结算明细 Excel
-        </a >
+        <div class="export-actions">
+            <a
+                class="export-button ui-button-primary"
+                href="/my-settlement/export?start_date={{ start_date }}&amp;end_date={{ end_date }}"
+            >
+                导出结算明细 Excel
+            </a >
+
+            <a
+                class="export-button ui-button-secondary"
+                href="/my-settlement/vouchers/download?start_date={{ start_date }}&amp;end_date={{ end_date }}"
+            >
+                下载结算凭证 ZIP
+            </a >
+        </div>
 
         <div class="cards">
             <div class="card">
