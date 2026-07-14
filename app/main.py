@@ -2394,7 +2394,7 @@ async def upload_excel_submit(
             public_business_no=generate_unique_public_business_no(
                 db,
                 reserved_public_business_nos,
-            ),            
+            ),
             name=item["name"],
             phone=item["phone"],
             plate_number=item["plate_number"],
@@ -2402,6 +2402,22 @@ async def upload_excel_submit(
             bank_card=item["bank_card"],
             record_service_rate=user.service_rate or 0,
             record_upstream_cost_rate=user.upstream_cost_rate or 0,
+            record_service_rate_mode=(
+                user.service_rate_mode
+                if user.service_rate_mode in (
+                    "external",
+                    "internal",
+                )
+                else "external"
+            ),
+            record_upstream_cost_rate_mode=(
+                user.upstream_cost_rate_mode
+                if user.upstream_cost_rate_mode in (
+                    "external",
+                    "internal",
+                )
+                else "external"
+            ),
         )
         db.add(business_record)
 
