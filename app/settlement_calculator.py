@@ -45,6 +45,28 @@ class RateCalculationResult:
     fee_amount: Decimal
 
 
+@dataclass(frozen=True)
+class BusinessSettlementResult:
+    """
+    单条业务的完整上下游核算结果。
+
+    downstream:
+        下游服务费计算结果。
+
+    upstream:
+        上游成本费计算结果。
+
+    gross_profit:
+        已按分规范的下游服务费，
+        减去已按分规范的上游成本费。
+    """
+
+    base_amount: Decimal
+    downstream: RateCalculationResult
+    upstream: RateCalculationResult
+    gross_profit: Decimal
+
+
 def _to_decimal(
     value,
     field_name: str,
@@ -208,4 +230,46 @@ def calculate_rate_settlement(
         mode=mode,
         settlement_total=settlement_total,
         fee_amount=fee_amount,
+    )
+
+def calculate_business_settlement(
+    base_amount,
+    downstream_rate_percent,
+    downstream_mode: str,
+    upstream_rate_percent,
+    upstream_mode: str,
+) -> BusinessSettlementResult:
+    """
+    计算单条业务的上下游金额和毛利。
+
+    核算口径：
+    1. 下游服务费独立计算并保留到分；
+    2. 上游成本费独立计算并保留到分；
+    3. 毛利使用两个已规范到分的费用相减。
+
+    这样保证：
+        下游服务费 - 上游成本费 = 毛利
+    """
+    downstream_result = calculate_rate_settlement(
+        base_amount,
+        downstream_rate_percent,
+        downstream_mode,
+    )
+
+    upstream_result = calculate_rate_settlement(
+        base_amount,
+        upstream_rate_percent,
+        upstream_mode,
+    )
+
+    gross_profit = _round_money(
+        downstream_result.fee_amount
+        - upstream_result.fee_amount
+    )
+
+    return BusinessSettlementResult(
+        base_amount=downstream_result.base_amount,
+        downstream=downstream_result,
+        upstream=upstream_result,
+        gross_profit=gross_profit,
     )

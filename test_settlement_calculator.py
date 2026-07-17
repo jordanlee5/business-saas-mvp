@@ -4,9 +4,9 @@ from decimal import Decimal
 from app.settlement_calculator import (
     EXTERNAL_MODE,
     INTERNAL_MODE,
+    calculate_business_settlement,
     calculate_rate_settlement,
 )
-
 
 class SettlementCalculatorTests(
     unittest.TestCase
@@ -100,35 +100,153 @@ class SettlementCalculatorTests(
     def test_downstream_and_upstream_modes_are_independent(
         self,
     ):
-        downstream = calculate_rate_settlement(
+        result = calculate_business_settlement(
             "10000",
             "5",
             INTERNAL_MODE,
-        )
-
-        upstream = calculate_rate_settlement(
-            "10000",
             "3",
             EXTERNAL_MODE,
         )
 
-        gross_profit = (
-            downstream.settlement_total
-            - upstream.settlement_total
+        self.assertEqual(
+            result.downstream.settlement_total,
+            Decimal("10526.32"),
         )
 
         self.assertEqual(
-            downstream.settlement_total,
-            Decimal("10526.32"),
+            result.downstream.fee_amount,
+            Decimal("526.32"),
         )
+
         self.assertEqual(
-            upstream.settlement_total,
+            result.upstream.settlement_total,
             Decimal("10300.00"),
         )
+
         self.assertEqual(
-            gross_profit,
+            result.upstream.fee_amount,
+            Decimal("300.00"),
+        )
+
+        self.assertEqual(
+            result.gross_profit,
             Decimal("226.32"),
         )
+
+
+    def test_business_profit_matches_rounded_fees(
+        self,
+    ):
+        # 下游：
+        # 1.00 × 0.5% = 0.005
+        # ROUND_HALF_UP 后服务费为 0.01。
+        #
+        # 上游：
+        # 1.00 × 0.4% = 0.004
+        # ROUND_HALF_UP 后成本费为 0.00。
+        result = calculate_business_settlement(
+            "1.00",
+            "0.5",
+            EXTERNAL_MODE,
+            "0.4",
+            EXTERNAL_MODE,
+        )
+
+        self.assertEqual(
+            result.downstream.fee_amount,
+            Decimal("0.01"),
+        )
+
+        self.assertEqual(
+            result.upstream.fee_amount,
+            Decimal("0.00"),
+        )
+
+        self.assertEqual(
+            result.gross_profit,
+            Decimal("0.01"),
+        )
+
+        self.assertEqual(
+            result.gross_profit,
+            (
+                result.downstream.fee_amount
+                - result.upstream.fee_amount
+            ),
+        )
+
+
+    def test_aggregate_totals_equal_row_sums(
+        self,
+    ):
+        first_result = calculate_business_settlement(
+            "10000",
+            "5",
+            EXTERNAL_MODE,
+            "3",
+            EXTERNAL_MODE,
+        )
+
+        second_result = calculate_business_settlement(
+            "1.00",
+            "0.5",
+            EXTERNAL_MODE,
+            "0.4",
+            EXTERNAL_MODE,
+        )
+
+        results = [
+            first_result,
+            second_result,
+        ]
+
+        total_receivable_fee = sum(
+            (
+                result.downstream.fee_amount
+                for result in results
+            ),
+            Decimal("0.00"),
+        )
+
+        total_payable_cost = sum(
+            (
+                result.upstream.fee_amount
+                for result in results
+            ),
+            Decimal("0.00"),
+        )
+
+        total_gross_profit = sum(
+            (
+                result.gross_profit
+                for result in results
+            ),
+            Decimal("0.00"),
+        )
+
+        self.assertEqual(
+            total_receivable_fee,
+            Decimal("500.01"),
+        )
+
+        self.assertEqual(
+            total_payable_cost,
+            Decimal("300.00"),
+        )
+
+        self.assertEqual(
+            total_gross_profit,
+            Decimal("200.01"),
+        )
+
+        self.assertEqual(
+            total_gross_profit,
+            (
+                total_receivable_fee
+                - total_payable_cost
+            ),
+        )
+
 
     def test_invalid_mode_is_rejected(self):
         with self.assertRaises(ValueError):
