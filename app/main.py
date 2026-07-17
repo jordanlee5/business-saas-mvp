@@ -27,6 +27,9 @@ from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
+from .settlement_calculator import (
+    calculate_business_settlement,
+)
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -844,15 +847,23 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     rejected_reviews = reviews_query.filter(MatchReview.review_status == "已驳回").count()
 
     total_points = 0
-    total_receivable_fee = 0
-    total_payable_cost = 0
-    total_gross_profit = 0
+
+    # 费用按单条业务先精确到分，再使用 Decimal 汇总。
+    total_receivable_fee = Decimal("0.00")
+    total_payable_cost = Decimal("0.00")
+    total_gross_profit = Decimal("0.00")
 
     approved_settlement_count = 0
     approved_settlement_points = 0
-    approved_settlement_receivable_fee = 0
-    approved_settlement_payable_cost = 0
-    approved_settlement_gross_profit = 0
+    approved_settlement_receivable_fee = Decimal(
+        "0.00"
+    )
+    approved_settlement_payable_cost = Decimal(
+        "0.00"
+    )
+    approved_settlement_gross_profit = Decimal(
+        "0.00"
+    )
 
     rows = []
 
@@ -867,9 +878,43 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
             else 0
         )
 
-        receivable_fee = points_amount * service_rate / 100
-        payable_cost = points_amount * upstream_cost_rate / 100
-        gross_profit = receivable_fee - payable_cost
+        service_rate_mode = (
+            record.record_service_rate_mode
+            if record.record_service_rate_mode
+            in (
+                "external",
+                "internal",
+            )
+            else "external"
+        )
+
+        upstream_cost_rate_mode = (
+            record.record_upstream_cost_rate_mode
+            if record.record_upstream_cost_rate_mode
+            in (
+                "external",
+                "internal",
+            )
+            else "external"
+        )
+
+        settlement_result = calculate_business_settlement(
+            base_amount=points_amount,
+            downstream_rate_percent=service_rate,
+            downstream_mode=service_rate_mode,
+            upstream_rate_percent=upstream_cost_rate,
+            upstream_mode=upstream_cost_rate_mode,
+        )
+
+        receivable_fee = (
+            settlement_result.downstream.fee_amount
+        )
+
+        payable_cost = (
+            settlement_result.upstream.fee_amount
+        )
+
+        gross_profit = settlement_result.gross_profit
 
         total_points += points_amount
         total_receivable_fee += receivable_fee
@@ -909,10 +954,10 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
                 "积分金额": points_amount,
                 "银行卡号": record.bank_card,
                 "下游服务费率": service_rate,
-                "应收服务费": round(receivable_fee, 2),
+                "应收服务费": float(receivable_fee),
                 "上游成本费率": upstream_cost_rate,
-                "应付成本费": round(payable_cost, 2),
-                "毛利": round(gross_profit, 2),
+                "应付成本费": float(payable_cost),
+                "毛利": float(gross_profit),
                 "审核状态": review_status,
                 "导入时间": record.created_at,
             }
@@ -932,15 +977,27 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         "approved_reviews": approved_reviews,
         "rejected_reviews": rejected_reviews,
         "total_points": round(total_points, 2),
-        "total_receivable_fee": round(total_receivable_fee, 2),
-        "total_payable_cost": round(total_payable_cost, 2),
-        "total_gross_profit": round(total_gross_profit, 2),
+        "total_receivable_fee": float(
+            total_receivable_fee
+        ),
+        "total_payable_cost": float(
+            total_payable_cost
+        ),
+        "total_gross_profit": float(
+            total_gross_profit
+        ),
 
         "approved_settlement_count": approved_settlement_count,
         "approved_settlement_points": round(approved_settlement_points, 2),
-        "approved_settlement_receivable_fee": round(approved_settlement_receivable_fee, 2),
-        "approved_settlement_payable_cost": round(approved_settlement_payable_cost, 2),
-        "approved_settlement_gross_profit": round(approved_settlement_gross_profit, 2),
+        "approved_settlement_receivable_fee": float(
+            approved_settlement_receivable_fee
+        ),
+        "approved_settlement_payable_cost": float(
+            approved_settlement_payable_cost
+        ),
+        "approved_settlement_gross_profit": float(
+            approved_settlement_gross_profit
+        ),
 
         "rows": rows,
     }
