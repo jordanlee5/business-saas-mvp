@@ -35,6 +35,58 @@ from .settlement_calculator import (
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
+@app.middleware("http")
+async def enforce_active_user_session(
+    request: Request,
+    call_next,
+):
+    path = request.url.path
+
+    # 登录、退出、健康检查和静态资源不做会话拦截。
+    if (
+        path in {"/login", "/logout", "/health"}
+        or path.startswith("/static/")
+    ):
+        return await call_next(request)
+
+    user_id = request.cookies.get("user_id")
+
+    # 没有登录 Cookie 时，继续交给原有路由处理。
+    if not user_id:
+        return await call_next(request)
+
+    db = SessionLocal()
+
+    try:
+        try:
+            user_id_value = int(user_id)
+        except (TypeError, ValueError):
+            user_id_value = None
+
+        user = None
+
+        if user_id_value is not None:
+            user = (
+                db.query(User)
+                .filter(User.id == user_id_value)
+                .first()
+            )
+
+        # 用户不存在、Cookie 非法或账号已停用：
+        # 立即退出登录并删除旧 Cookie。
+        if not user or not user.is_active:
+            response = RedirectResponse(
+                url="/login",
+                status_code=302,
+            )
+            response.delete_cookie("user_id")
+            return response
+
+    finally:
+        db.close()
+
+    return await call_next(request)
+
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
@@ -185,15 +237,26 @@ def money2(value):
 
 def get_current_user(request: Request):
     user_id = request.cookies.get("user_id")
+
     if not user_id:
         return None
 
     db = SessionLocal()
+
     try:
-        user = db.query(User).filter(User.id == int(user_id)).first()
+        user = (
+            db.query(User)
+            .filter(
+                User.id == int(user_id),
+                User.is_active.is_(True),
+            )
+            .first()
+        )
         return user
-    except Exception:
+
+    except (TypeError, ValueError):
         return None
+
     finally:
         db.close()
 
@@ -1912,22 +1975,47 @@ def login_submit(
     password: str = Form(...),
 ):
     db = SessionLocal()
-    user = db.query(User).filter(User.username == username).first()
-    db.close()
 
-    if not user or not verify_password(password, user.password_hash):
-        return templates.TemplateResponse(
-            "login.html",
-            {
-                "request": request,
-                "error": "用户名或密码错误",
-            },
+    try:
+        user = (
+            db.query(User)
+            .filter(User.username == username)
+            .first()
         )
 
-    response = RedirectResponse(url="/dashboard", status_code=302)
+        if not user or not verify_password(
+            password,
+            user.password_hash,
+        ):
+            return templates.TemplateResponse(
+                "login.html",
+                {
+                    "request": request,
+                    "error": "用户名或密码错误",
+                },
+            )
+
+        if not user.is_active:
+            return templates.TemplateResponse(
+                "login.html",
+                {
+                    "request": request,
+                    "error": "该账号已停用，请联系管理员",
+                },
+            )
+
+        user_id = user.id
+
+    finally:
+        db.close()
+
+    response = RedirectResponse(
+        url="/dashboard",
+        status_code=302,
+    )
     response.set_cookie(
         key="user_id",
-        value=str(user.id),
+        value=str(user_id),
         httponly=True,
         max_age=60 * 60 * 8,
     )
