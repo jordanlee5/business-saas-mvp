@@ -28,6 +28,8 @@ from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
 from .settlement_calculator import (
+    EXTERNAL_MODE,
+    INTERNAL_MODE,
     calculate_business_settlement,
 )
 
@@ -2007,6 +2009,51 @@ def dashboard(request: Request):
 
     return templates.TemplateResponse("dashboard.html", context)
 
+RATE_MODE_LABELS = {
+    EXTERNAL_MODE: "外扣",
+    INTERNAL_MODE: "内扣",
+}
+
+
+def validate_partner_rate_config(
+    rate: float,
+    mode: str,
+    field_label: str,
+) -> str:
+    """
+    验证上传方的费率和计算方式配置。
+
+    外扣：
+        费率允许 0～100。
+
+    内扣：
+        费率允许 0～小于 100。
+        因为 100% 会导致除数为 0。
+    """
+    normalized_mode = (
+        mode or ""
+    ).strip().lower()
+
+    if normalized_mode not in RATE_MODE_LABELS:
+        raise ValueError(
+            f"{field_label}计算方式必须选择外扣或内扣"
+        )
+
+    if rate < 0 or rate > 100:
+        raise ValueError(
+            f"{field_label}必须在 0 到 100 之间"
+        )
+
+    if (
+        normalized_mode == INTERNAL_MODE
+        and rate >= 100
+    ):
+        raise ValueError(
+            f"{field_label}采用内扣时必须小于 100"
+        )
+
+    return normalized_mode
+
 @app.get("/partners", response_class=HTMLResponse)
 def partners_page(
     request: Request,
@@ -2093,7 +2140,9 @@ def create_partner(
     username: str = Form(...),
     password: str = Form(...),
     service_rate: float = Form(...),
+    service_rate_mode: str = Form(...),
     upstream_cost_rate: float = Form(...),
+    upstream_cost_rate_mode: str = Form(...),
 ):
     user = get_current_user(request)
     if not user:
@@ -2123,27 +2172,33 @@ def create_partner(
             },
         )
 
-    if service_rate < 0 or service_rate > 100:
-        partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
-        db.close()
-        return templates.TemplateResponse(
-            "partners.html",
-            {
-                "request": request,
-                "username": user.username,
-                "role": user.role,
-                "topbar_username": user.username,
-                "topbar_role": user.role,
-                "active_page": "partners",
-                "partners": partners,
-                "message": None,
-                "error": "服务费率必须在 0 到 100 之间",
-            },
+    try:
+        service_rate_mode = (
+            validate_partner_rate_config(
+                service_rate,
+                service_rate_mode,
+                "下游服务费率",
+            )
         )
 
-    if upstream_cost_rate < 0 or upstream_cost_rate > 100:
-        partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
+        upstream_cost_rate_mode = (
+            validate_partner_rate_config(
+                upstream_cost_rate,
+                upstream_cost_rate_mode,
+                "上游成本费率",
+            )
+        )
+
+    except ValueError as exc:
+        partners = (
+            db.query(User)
+            .filter(User.role == "partner")
+            .order_by(User.id.desc())
+            .all()
+        )
+
         db.close()
+
         return templates.TemplateResponse(
             "partners.html",
             {
@@ -2155,7 +2210,7 @@ def create_partner(
                 "active_page": "partners",
                 "partners": partners,
                 "message": None,
-                "error": "上游成本费率必须在 0 到 100 之间",
+                "error": str(exc),
             },
         )
 
@@ -2164,7 +2219,11 @@ def create_partner(
         password_hash=get_password_hash(password),
         role="partner",
         service_rate=service_rate,
+        service_rate_mode=service_rate_mode,
         upstream_cost_rate=upstream_cost_rate,
+        upstream_cost_rate_mode=(
+            upstream_cost_rate_mode
+        ),
     )
 
     db.add(new_partner)
@@ -2172,6 +2231,14 @@ def create_partner(
 
     partners = db.query(User).filter(User.role == "partner").order_by(User.id.desc()).all()
     db.close()
+
+    service_mode_label = RATE_MODE_LABELS[
+        service_rate_mode
+    ]
+
+    upstream_mode_label = RATE_MODE_LABELS[
+        upstream_cost_rate_mode
+    ]
 
     return templates.TemplateResponse(
         "partners.html",
@@ -2183,7 +2250,13 @@ def create_partner(
             "topbar_role": user.role,
             "active_page": "partners",
             "partners": partners,
-            "message": f"上传方账号 {username} 创建成功，下游服务费率为 {service_rate}%，上游成本费率为 {upstream_cost_rate}%",
+            "message": (
+                f"上传方账号 {username} 创建成功，"
+                f"下游服务费率为 {service_rate}%"
+                f"（{service_mode_label}），"
+                f"上游成本费率为 {upstream_cost_rate}%"
+                f"（{upstream_mode_label}）"
+            ),
             "error": None,
         },
     )
@@ -2236,7 +2309,9 @@ def edit_partner_submit(
     partner_id: int,
     username: str = Form(...),
     service_rate: float = Form(...),
+    service_rate_mode: str = Form(...),
     upstream_cost_rate: float = Form(...),
+    upstream_cost_rate_mode: str = Form(...),
     partner_page: int = Form(1),
     partner_page_size: int = Form(5),
     partner_keyword: str = Form(""),
@@ -2305,25 +2380,26 @@ def edit_partner_submit(
             },
         )
 
-    if service_rate < 0 or service_rate > 100:
-        db.close()
-        return templates.TemplateResponse(
-            "edit_partner.html",
-            {
-                "request": request,
-                "username": user.username,
-                "role": user.role,
-                "topbar_username": user.username,
-                "topbar_role": user.role,
-                "active_page": "partners",
-                "partner": partner,
-                "message": None,
-                "error": "下游服务率必须在 0 到 100 之间",
-            },
+    try:
+        service_rate_mode = (
+            validate_partner_rate_config(
+                service_rate,
+                service_rate_mode,
+                "下游服务费率",
+            )
         )
 
-    if upstream_cost_rate < 0 or upstream_cost_rate > 100:
+        upstream_cost_rate_mode = (
+            validate_partner_rate_config(
+                upstream_cost_rate,
+                upstream_cost_rate_mode,
+                "上游成本费率",
+            )
+        )
+
+    except ValueError as exc:
         db.close()
+
         return templates.TemplateResponse(
             "edit_partner.html",
             {
@@ -2335,13 +2411,17 @@ def edit_partner_submit(
                 "active_page": "partners",
                 "partner": partner,
                 "message": None,
-                "error": "上游成本率必须在 0 到 100 之间",
+                "error": str(exc),
             },
         )
 
     partner.username = username
     partner.service_rate = service_rate
+    partner.service_rate_mode = service_rate_mode
     partner.upstream_cost_rate = upstream_cost_rate
+    partner.upstream_cost_rate_mode = (
+        upstream_cost_rate_mode
+    )
 
     db.commit()
     db.refresh(partner)

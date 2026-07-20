@@ -52,7 +52,8 @@
         color: #334155;
     }
 
-    input {
+    input,
+    select {
         width: 100%;
         height: 40px;
         border: 1px solid #d1d5db;
@@ -109,11 +110,11 @@
         <h1>编辑上传方账号</h1>
 
         <div class="ui-hint">
-            这里用于修改上传方账号名称、下游服务率和上游成本率。
+            这里用于修改上传方账号名称、上下游费率及其外扣/内扣计算方式。
         </div>
 
         <div class="warning">
-            注意：费率修改只影响修改后新上传的数据。已经上传过的历史业务数据，会继续使用上传当时保存的费率快照，不会被新费率回溯影响。
+            注意：费率和计算方式修改只影响修改后新上传的数据。已经上传过的历史业务数据，会继续使用上传当时保存的费率和计算方式快照，不会被新配置回溯影响。内扣费率必须小于 100%。
         </div>
 
         {% if error %}
@@ -142,9 +143,68 @@
                 </div>
 
                 <div>
+                    <label>下游计算方式</label>
+
+                    <select
+                        name="service_rate_mode"
+                        required
+                    >
+                        <option
+                            value="external"
+                            {% if partner.service_rate_mode
+                                != "internal" %}
+                                selected
+                            {% endif %}
+                        >
+                            外扣：金额 ×（1 + 费率）
+                        </option>
+
+                        <option
+                            value="internal"
+                            {% if partner.service_rate_mode
+                                == "internal" %}
+                                selected
+                            {% endif %}
+                        >
+                            内扣：金额 ÷（1 - 费率）
+                        </option>
+                    </select>
+                </div>
+
+                <div>
                     <label>上游成本率（%）</label>
                     <input type="number" step="0.01" min="0" max="100" name="upstream_cost_rate" value="{{ partner.upstream_cost_rate }}" required>
                 </div>
+
+                <div>
+                    <label>上游计算方式</label>
+
+                    <select
+                        name="upstream_cost_rate_mode"
+                        required
+                    >
+                        <option
+                            value="external"
+                            {% if partner.upstream_cost_rate_mode
+                                != "internal" %}
+                                selected
+                            {% endif %}
+                        >
+                            外扣：金额 ×（1 + 费率）
+                        </option>
+
+                        <option
+                            value="internal"
+                            {% if partner.upstream_cost_rate_mode
+                                == "internal" %}
+                                selected
+                            {% endif %}
+                        >
+                            内扣：金额 ÷（1 - 费率）
+                        </option>
+                    </select>
+                </div>
+
             </div>
 
             <div class="button-row">
