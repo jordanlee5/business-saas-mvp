@@ -3178,9 +3178,43 @@ def match_reviews_page(
             )
             points_amount = record.points_amount or 0
 
-            receivable_fee = points_amount * service_rate / 100
-            payable_cost = points_amount * upstream_cost_rate / 100
-            gross_profit = receivable_fee - payable_cost
+            service_rate_mode = (
+                record.record_service_rate_mode
+                if record.record_service_rate_mode
+                in (
+                    "external",
+                    "internal",
+                )
+                else "external"
+            )
+
+            upstream_cost_rate_mode = (
+                record.record_upstream_cost_rate_mode
+                if record.record_upstream_cost_rate_mode
+                in (
+                    "external",
+                    "internal",
+                )
+                else "external"
+            )
+
+            settlement_result = calculate_business_settlement(
+                base_amount=points_amount,
+                downstream_rate_percent=service_rate,
+                downstream_mode=service_rate_mode,
+                upstream_rate_percent=upstream_cost_rate,
+                upstream_mode=upstream_cost_rate_mode,
+            )
+
+            receivable_fee = (
+                settlement_result.downstream.fee_amount
+            )
+
+            payable_cost = (
+                settlement_result.upstream.fee_amount
+            )
+
+            gross_profit = settlement_result.gross_profit
 
             approved_reviews_for_record = (
                 db.query(MatchReview)
@@ -3216,9 +3250,9 @@ def match_reviews_page(
                     "uploader_username": uploader.username if uploader else "未知上传方",
                     "service_rate": service_rate,
                     "upstream_cost_rate": upstream_cost_rate,
-                    "receivable_fee": round(receivable_fee, 2),
-                    "payable_cost": round(payable_cost, 2),
-                    "gross_profit": round(gross_profit, 2),
+                    "receivable_fee": float(receivable_fee),
+                    "payable_cost": float(payable_cost),
+                    "gross_profit": float(gross_profit),
                     "voucher_amount": voucher.voucher_amount or 0,
                     "approved_voucher_amount": round(approved_voucher_amount, 2),
                     "remaining_amount": round(remaining_amount, 2),
