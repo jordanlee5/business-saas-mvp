@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    text,
+)
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -9,6 +18,15 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String)  # admin / partner
+    # 账号是否启用：
+    # True = 启用，可以登录和使用系统
+    # False = 停用，保留历史数据但禁止继续使用账号
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("1"),
+    )
     service_rate = Column(Float, default=0.0)
     upstream_cost_rate = Column(Float, default=0.0)
 
