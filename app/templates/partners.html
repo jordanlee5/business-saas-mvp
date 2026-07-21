@@ -429,6 +429,7 @@
                     <th>ID</th>
                     <th>账号</th>
                     <th>角色</th>
+                    <th>账号状态</th>
                     <th>下游费率配置</th>
                     <th>上游费率配置</th>
                     <th>创建时间</th>
@@ -441,6 +442,17 @@
                     <td>{{ partner.id }}</td>
                     <td>{{ partner.username }}</td>
                     <td><span class="badge">{{ partner.role }}</span></td>
+                    <td>
+                        {% if partner.is_active %}
+                            <span class="ui-status-badge ui-status-active">
+                                已启用
+                            </span>
+                        {% else %}
+                            <span class="ui-status-badge ui-status-disabled">
+                                已停用
+                            </span>
+                        {% endif %}
+                    </td>
                     <td>
                         {{ "内扣"
                             if partner.service_rate_mode == "internal"
@@ -463,7 +475,57 @@
                     </td>
                     <td>{{ partner.created_at }}</td>
                     <td>
-                        <a class="edit-link" href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}">编辑</a >
+                        <div class="partner-row-actions">
+                            <a
+                                class="edit-link"
+                                href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}"
+                            >
+                                编辑
+                            </a >
+
+                            <form
+                                method="post"
+                                action="/partners/{{ partner.id }}/toggle-active"
+                                class="partner-status-form"
+                                onsubmit="return confirm(
+                                    '{% if partner.is_active %}确定停用该上传方账号吗？停用后该账号将立即退出系统。{% else %}确定恢复启用该上传方账号吗？{% endif %}'
+                                );"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="partner_page"
+                                    value="{{ partner_page }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="partner_page_size"
+                                    value="{{ partner_page_size }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="partner_keyword"
+                                    value="{{ partner_keyword }}"
+                                >
+
+                                {% if partner.is_active %}
+                                    <button
+                                        type="submit"
+                                        class="ui-button-danger ui-button-compact"
+                                    >
+                                        停用
+                                    </button>
+                                {% else %}
+                                    <button
+                                        type="submit"
+                                        class="ui-button-success ui-button-compact"
+                                    >
+                                        恢复启用
+                                    </button>
+                                {% endif %}
+                            </form>
+                        </div>
                     </td>
                 </tr>
             {% endfor %}

@@ -2149,6 +2149,8 @@ def partners_page(
     partner_page: int = Query(1),
     partner_page_size: int = Query(5),
     partner_keyword: str = Query(""),
+    message: str = Query(""),
+    error: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -2216,8 +2218,8 @@ def partners_page(
             "partner_total_pages": partner_total_pages,
             "allowed_partner_page_sizes": allowed_partner_page_sizes,
             "partner_keyword": partner_keyword,
-            "message": None,
-            "error": None,
+            "message": message or None,
+            "error": error or None,
         },
     )
 
@@ -2347,6 +2349,79 @@ def create_partner(
             ),
             "error": None,
         },
+    )
+
+
+@app.post("/partners/{partner_id}/toggle-active")
+def toggle_partner_active(
+    request: Request,
+    partner_id: int,
+    partner_page: int = Form(1),
+    partner_page_size: int = Form(5),
+    partner_keyword: str = Form(""),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if user.role != "admin":
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    message = ""
+    error = ""
+
+    db = SessionLocal()
+
+    try:
+        partner = (
+            db.query(User)
+            .filter(
+                User.id == partner_id,
+                User.role == "partner",
+            )
+            .first()
+        )
+
+        if not partner:
+            error = "未找到该上传方账号"
+        else:
+            partner.is_active = not bool(partner.is_active)
+            db.commit()
+
+            action_text = "恢复启用" if partner.is_active else "停用"
+            message = (
+                f"上传方账号 {partner.username} 已{action_text}"
+            )
+
+    except Exception:
+        db.rollback()
+        error = "账号状态更新失败，请重试"
+
+    finally:
+        db.close()
+
+    redirect_url = request.url_for(
+        "partners_page"
+    ).include_query_params(
+        partner_page=partner_page,
+        partner_page_size=partner_page_size,
+        partner_keyword=partner_keyword,
+    )
+
+    if message:
+        redirect_url = redirect_url.include_query_params(
+            message=message
+        )
+
+    if error:
+        redirect_url = redirect_url.include_query_params(
+            error=error
+        )
+
+    return RedirectResponse(
+        url=str(redirect_url),
+        status_code=303,
     )
 
 
