@@ -18,6 +18,19 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String)  # admin / partner
+
+    # 管理员级别：
+    # super_admin = 超级管理员
+    # primary_reviewer = 初审管理员
+    # secondary_reviewer = 复核管理员
+    # operator = 运营管理员
+    # partner 账号保持为空
+    admin_level = Column(
+        String(30),
+        nullable=True,
+        default=None,
+    )
+
     # 账号是否启用：
     # True = 启用，可以登录和使用系统
     # False = 停用，保留历史数据但禁止继续使用账号
