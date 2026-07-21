@@ -2149,6 +2149,7 @@ def partners_page(
     partner_page: int = Query(1),
     partner_page_size: int = Query(5),
     partner_keyword: str = Query(""),
+    partner_status: str = Query("all"),
     message: str = Query(""),
     error: str = Query(""),
 ):
@@ -2170,10 +2171,30 @@ def partners_page(
 
     partner_keyword = partner_keyword.strip()
 
+    partner_status = partner_status.strip().lower()
+
+    allowed_partner_statuses = {
+        "all",
+        "active",
+        "disabled",
+    }
+
+    if partner_status not in allowed_partner_statuses:
+        partner_status = "all"
+
     partner_query = db.query(User).filter(User.role == "partner")
 
     if partner_keyword:
         partner_query = partner_query.filter(User.username.contains(partner_keyword))
+
+    if partner_status == "active":
+        partner_query = partner_query.filter(
+            User.is_active.is_(True)
+        )
+    elif partner_status == "disabled":
+        partner_query = partner_query.filter(
+            User.is_active.is_(False)
+        )
 
     partner_total = partner_query.count()
     partner_total_pages = max((partner_total + partner_page_size - 1) // partner_page_size, 1)
@@ -2218,6 +2239,7 @@ def partners_page(
             "partner_total_pages": partner_total_pages,
             "allowed_partner_page_sizes": allowed_partner_page_sizes,
             "partner_keyword": partner_keyword,
+            "partner_status": partner_status,
             "message": message or None,
             "error": error or None,
         },
@@ -2359,6 +2381,7 @@ def toggle_partner_active(
     partner_page: int = Form(1),
     partner_page_size: int = Form(5),
     partner_keyword: str = Form(""),
+    partner_status: str = Form("all"),
 ):
     user = get_current_user(request)
 
@@ -2407,6 +2430,7 @@ def toggle_partner_active(
         partner_page=partner_page,
         partner_page_size=partner_page_size,
         partner_keyword=partner_keyword,
+        partner_status=partner_status,
     )
 
     if message:
