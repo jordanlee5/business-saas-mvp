@@ -26,7 +26,7 @@ ADMIN_MANAGEMENT_LEVELS = frozenset(
 )
 
 
-# 可以执行初审
+# 可以执行匹配结果初审
 PRIMARY_REVIEW_LEVELS = frozenset(
     {
         SUPER_ADMIN,
@@ -35,7 +35,7 @@ PRIMARY_REVIEW_LEVELS = frozenset(
 )
 
 
-# 可以执行二级复核
+# 可以执行匹配结果二级复核
 SECONDARY_REVIEW_LEVELS = frozenset(
     {
         SUPER_ADMIN,
@@ -44,10 +44,62 @@ SECONDARY_REVIEW_LEVELS = frozenset(
 )
 
 
-# 可以执行运营类操作
+# 可以执行传统运营类写操作
+#
+# 暂时保留现有定义，避免影响尚未完成权限拆分的旧路由。
+# 后续将逐个路由替换为更精细的权限函数。
 OPERATION_LEVELS = frozenset(
     {
         SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+# 可以查看上传方账号列表
+PARTNER_VIEW_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
+        OPERATOR,
+    }
+)
+
+
+# 可以创建、编辑、停用或恢复上传方账号
+PARTNER_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+# 可以上传凭证并执行 OCR 识别
+VOUCHER_UPLOAD_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
+        OPERATOR,
+    }
+)
+
+
+# 可以查看经营数据看板
+STATS_VIEW_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
+        OPERATOR,
+    }
+)
+
+
+# 可以导出经营汇总数据
+STATS_EXPORT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
         OPERATOR,
     }
 )
@@ -122,8 +174,48 @@ def can_secondary_review(user: object | None) -> bool:
 
 
 def can_operate(user: object | None) -> bool:
-    """是否可以执行运营类操作。"""
+    """是否可以执行尚未拆分的传统运营类写操作。"""
     return has_admin_level(
         user,
         OPERATION_LEVELS,
+    )
+
+
+def can_view_partners(user: object | None) -> bool:
+    """是否可以只读查看上传方账号列表与费率配置。"""
+    return has_admin_level(
+        user,
+        PARTNER_VIEW_LEVELS,
+    )
+
+
+def can_manage_partners(user: object | None) -> bool:
+    """是否可以创建、编辑、停用或恢复上传方账号。"""
+    return has_admin_level(
+        user,
+        PARTNER_MANAGEMENT_LEVELS,
+    )
+
+
+def can_upload_vouchers(user: object | None) -> bool:
+    """是否可以上传凭证并执行 OCR 识别。"""
+    return has_admin_level(
+        user,
+        VOUCHER_UPLOAD_LEVELS,
+    )
+
+
+def can_view_stats(user: object | None) -> bool:
+    """是否可以查看经营数据看板。"""
+    return has_admin_level(
+        user,
+        STATS_VIEW_LEVELS,
+    )
+
+
+def can_export_stats(user: object | None) -> bool:
+    """是否可以导出经营汇总数据。"""
+    return has_admin_level(
+        user,
+        STATS_EXPORT_LEVELS,
     )
