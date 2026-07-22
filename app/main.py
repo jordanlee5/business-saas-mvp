@@ -32,6 +32,13 @@ from .settlement_calculator import (
     INTERNAL_MODE,
     calculate_business_settlement,
 )
+from .admin_permissions import (
+    OPERATOR,
+    PRIMARY_REVIEWER,
+    SECONDARY_REVIEWER,
+    SUPER_ADMIN,
+    can_manage_administrators,
+)
 
 app = FastAPI(title="业务数据管理SaaS MVP")
 
@@ -96,7 +103,24 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-templates = Jinja2Templates(directory="app/templates")
+def admin_navigation_context(request: Request) -> dict:
+    """
+    为所有模板统一提供管理员导航权限。
+
+    无论当前访问哪个功能页面，
+    base.html 都能稳定获得 can_manage_administrators。
+    """
+    user = get_current_user(request)
+
+    return {
+        "can_manage_administrators": can_manage_administrators(user),
+    }
+
+
+templates = Jinja2Templates(
+    directory="app/templates",
+    context_processors=[admin_navigation_context],
+)
 
 ACCEPTED_BATCH_STATUS = "已承接"
 
@@ -267,15 +291,82 @@ def add_base_context(request: Request, context: dict):
     if user:
         context["username"] = user.username
         context["role"] = user.role
+        context["admin_level"] = user.admin_level
+        context["can_manage_administrators"] = (
+            can_manage_administrators(user)
+        )
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
         context["username"] = ""
         context["role"] = ""
+        context["admin_level"] = None
+        context["can_manage_administrators"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
     return context
+
+
+@app.get("/administrators", response_class=HTMLResponse)
+def administrators_page(request: Request):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_administrators(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        administrator_records = (
+            db.query(User)
+            .filter(User.role == "admin")
+            .order_by(User.id.asc())
+            .all()
+        )
+
+        administrators = [
+            {
+                "id": administrator.id,
+                "username": administrator.username,
+                "admin_level": administrator.admin_level,
+                "is_active": bool(administrator.is_active),
+                "created_at": administrator.created_at,
+            }
+            for administrator in administrator_records
+        ]
+
+        context = add_base_context(
+            request,
+            {
+                "request": request,
+                "active_page": "administrators",
+                "administrators": administrators,
+                "current_user_id": user.id,
+                "admin_level_labels": {
+                    SUPER_ADMIN: "超级管理员",
+                    PRIMARY_REVIEWER: "初审管理员",
+                    SECONDARY_REVIEWER: "复核管理员",
+                    OPERATOR: "运营管理员",
+                },
+            },
+        )
+
+        return templates.TemplateResponse(
+            "administrators.html",
+            context,
+        )
+    finally:
+        db.close()
 
 
 @app.get("/vouchers/{review_id}/download")

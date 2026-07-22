@@ -277,6 +277,20 @@
                 </a >
             </div>
 
+            {% if can_manage_administrators | default(false) %}
+            <div class="side-section">
+                <div class="side-title">系统管理</div>
+
+                <a
+                    class="side-link {% if active_page == 'administrators' %}active{% endif %}"
+                    href="/administrators"
+                >
+                    <span class="side-icon">⚙️</span>
+                    <span>管理员账号管理</span>
+                </a >
+            </div>
+            {% endif %}
+
             <div class="side-note">
                 <div class="side-note-title">💡 使用小贴士</div>
                 建议按流程依次操作：<br>
@@ -306,6 +320,7 @@
                     <span>我的结算报表</span>
                 </a >
             </div>
+
 
             <div class="side-note">
                 你可以上传 Excel 服务需求，查看业务数据状态，并导出自己的结算报表。

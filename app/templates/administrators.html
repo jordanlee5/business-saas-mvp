@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .administrators-page {
+        width: min(1200px, calc(100% - 32px));
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .administrators-page .ui-card {
+        padding: 26px 28px;
+    }
+
+    .administrators-page h1 {
+        margin: 0 0 14px;
+        font-size: 28px;
+        line-height: 1.25;
+    }
+
+    .administrator-summary {
+        margin: 14px 0 12px;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .administrator-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .administrator-table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .administrator-table th,
+    .administrator-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        vertical-align: middle;
+        font-size: 14px;
+    }
+
+    .administrator-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .administrator-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .administrator-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .administrator-table th:nth-child(1),
+    .administrator-table td:nth-child(1) {
+        width: 7%;
+    }
+
+    .administrator-table th:nth-child(2),
+    .administrator-table td:nth-child(2) {
+        width: 18%;
+    }
+
+    .administrator-table th:nth-child(3),
+    .administrator-table td:nth-child(3) {
+        width: 18%;
+    }
+
+    .administrator-table th:nth-child(4),
+    .administrator-table td:nth-child(4) {
+        width: 14%;
+    }
+
+    .administrator-table th:nth-child(5),
+    .administrator-table td:nth-child(5) {
+        width: 25%;
+    }
+
+    .administrator-table th:nth-child(6),
+    .administrator-table td:nth-child(6) {
+        width: 18%;
+    }
+
+    .current-account {
+        color: #2563eb;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .administrators-empty {
+        padding: 30px 12px;
+        text-align: center;
+        color: #64748b;
+    }
+</style>
+
+<div class="page-container administrators-page">
+    <div class="ui-card">
+        <h1>管理员账号管理</h1>
+
+        <div class="ui-hint">
+            这里用于查看系统中的管理员账号、管理员级别和启用状态。
+            当前版本暂时只提供查看功能。
+        </div>
+
+        <div class="administrator-summary">
+            共 {{ administrators | length }} 个管理员账号
+        </div>
+
+        {% if administrators %}
+        <div class="administrator-table-wrap">
+            <table class="administrator-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>管理员账号</th>
+                        <th>管理员级别</th>
+                        <th>账号状态</th>
+                        <th>创建时间</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for administrator in administrators %}
+                    <tr>
+                        <td>{{ administrator.id }}</td>
+
+                        <td>{{ administrator.username }}</td>
+
+                        <td>
+                            <span class="badge">
+                                {{
+                                    admin_level_labels.get(
+                                        administrator.admin_level,
+                                        administrator.admin_level
+                                        or "未配置"
+                                    )
+                                }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {% if administrator.is_active %}
+                            <span class="ui-status-badge ui-status-active">
+                                已启用
+                            </span>
+                            {% else %}
+                            <span class="ui-status-badge ui-status-disabled">
+                                已停用
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if administrator.created_at %}
+                                {{
+                                    administrator.created_at.strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    )
+                                }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if administrator.id == current_user_id %}
+                            <span class="current-account">当前账号</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="administrators-empty">
+            暂无管理员账号。
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
