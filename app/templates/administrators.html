@@ -105,6 +105,111 @@
         text-align: center;
         color: #64748b;
     }
+
+    .administrator-message {
+        margin: 14px 0;
+        padding: 11px 14px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .administrator-message-success {
+        color: #166534;
+        background: #ecfdf3;
+        border-color: #bbf7d0;
+    }
+
+    .administrator-message-error {
+        color: #b91c1c;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .administrator-create-panel {
+        margin: 16px 0 20px;
+        padding: 18px;
+        border: 1px solid #dbe5f0;
+        border-radius: 12px;
+        background: #f8fbff;
+    }
+
+    .administrator-create-panel h2 {
+        margin: 0 0 14px;
+        color: #0f172a;
+        font-size: 18px;
+        line-height: 1.3;
+    }
+
+    .administrator-create-form {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+
+    .administrator-form-item {
+        min-width: 0;
+    }
+
+    .administrator-form-item label {
+        display: block;
+        margin-bottom: 6px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .administrator-form-item input,
+    .administrator-form-item select {
+        width: 100%;
+        height: 40px;
+        box-sizing: border-box;
+        padding: 0 11px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0f172a;
+        font-size: 14px;
+    }
+
+    .administrator-form-item input:focus,
+    .administrator-form-item select:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .administrator-create-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .administrator-create-note {
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .administrator-list-divider {
+        margin: 18px 0 0;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    @media (max-width: 900px) {
+        .administrator-create-form {
+            grid-template-columns: 1fr;
+        }
+
+        .administrator-create-actions {
+            grid-column: auto;
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
 </style>
 
 <div class="page-container administrators-page">
@@ -115,6 +220,100 @@
             这里用于查看系统中的管理员账号、管理员级别和启用状态。
             当前版本暂时只提供查看功能。
         </div>
+
+        {% if message %}
+            <div class="administrator-message administrator-message-success">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="administrator-message administrator-message-error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <section class="administrator-create-panel">
+            <h2>创建管理员账号</h2>
+
+            <form
+                method="post"
+                action="/administrators"
+                class="administrator-create-form"
+                onsubmit="return confirm('确定创建该管理员账号吗？');"
+            >
+                <div class="administrator-form-item">
+                    <label for="administrator_username">
+                        管理员账号
+                    </label>
+
+                    <input
+                        id="administrator_username"
+                        type="text"
+                        name="username"
+                        minlength="2"
+                        maxlength="50"
+                        placeholder="例如：reviewer01"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
+
+                <div class="administrator-form-item">
+                    <label for="administrator_password">
+                        初始密码
+                    </label>
+
+                    <input
+                        id="administrator_password"
+                        type="password"
+                        name="password"
+                        minlength="8"
+                        placeholder="至少 8 个字符"
+                        autocomplete="new-password"
+                        required
+                    >
+                </div>
+
+                <div class="administrator-form-item">
+                    <label for="administrator_level">
+                        管理员级别
+                    </label>
+
+                    <select
+                        id="administrator_level"
+                        name="admin_level"
+                        required
+                    >
+                        <option value="" selected disabled>
+                            请选择管理员级别
+                        </option>
+
+                        {% for admin_level in creatable_admin_levels %}
+                            <option value="{{ admin_level.value }}">
+                                {{ admin_level.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="administrator-create-actions">
+                    <button
+                        type="submit"
+                        class="ui-button-primary"
+                    >
+                        创建管理员
+                    </button>
+
+                    <span class="administrator-create-note">
+                        当前可创建初审管理员、复核管理员和运营管理员。
+                        超级管理员不能通过本页面创建。
+                    </span>
+                </div>
+            </form>
+        </section>
+
+        <div class="administrator-list-divider"></div>
 
         <div class="administrator-summary">
             共 {{ administrators | length }} 个管理员账号

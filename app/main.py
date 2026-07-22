@@ -8,6 +8,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 import os
 import hashlib
@@ -309,7 +310,11 @@ def add_base_context(request: Request, context: dict):
 
 
 @app.get("/administrators", response_class=HTMLResponse)
-def administrators_page(request: Request):
+def administrators_page(
+    request: Request,
+    message: str = Query(""),
+    error: str = Query(""),
+):
     user = get_current_user(request)
 
     if not user:
@@ -323,6 +328,28 @@ def administrators_page(request: Request):
             url="/dashboard",
             status_code=302,
         )
+
+    admin_level_labels = {
+        SUPER_ADMIN: "超级管理员",
+        PRIMARY_REVIEWER: "初审管理员",
+        SECONDARY_REVIEWER: "复核管理员",
+        OPERATOR: "运营管理员",
+    }
+
+    creatable_admin_levels = [
+        {
+            "value": PRIMARY_REVIEWER,
+            "label": admin_level_labels[PRIMARY_REVIEWER],
+        },
+        {
+            "value": SECONDARY_REVIEWER,
+            "label": admin_level_labels[SECONDARY_REVIEWER],
+        },
+        {
+            "value": OPERATOR,
+            "label": admin_level_labels[OPERATOR],
+        },
+    ]
 
     db = SessionLocal()
 
@@ -352,12 +379,10 @@ def administrators_page(request: Request):
                 "active_page": "administrators",
                 "administrators": administrators,
                 "current_user_id": user.id,
-                "admin_level_labels": {
-                    SUPER_ADMIN: "超级管理员",
-                    PRIMARY_REVIEWER: "初审管理员",
-                    SECONDARY_REVIEWER: "复核管理员",
-                    OPERATOR: "运营管理员",
-                },
+                "admin_level_labels": admin_level_labels,
+                "creatable_admin_levels": creatable_admin_levels,
+                "message": message or None,
+                "error": error or None,
             },
         )
 
@@ -365,8 +390,124 @@ def administrators_page(request: Request):
             "administrators.html",
             context,
         )
+
     finally:
         db.close()
+
+
+@app.post("/administrators", response_class=HTMLResponse)
+def create_administrator(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    admin_level: str = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_administrators(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    def redirect_to_administrators(
+        *,
+        message: str = "",
+        error: str = "",
+    ) -> RedirectResponse:
+        redirect_url = request.url_for("administrators_page")
+
+        if message:
+            redirect_url = redirect_url.include_query_params(
+                message=message,
+            )
+
+        if error:
+            redirect_url = redirect_url.include_query_params(
+                error=error,
+            )
+
+        return RedirectResponse(
+            url=str(redirect_url),
+            status_code=303,
+        )
+
+    normalized_username = username.strip()
+
+    if not normalized_username:
+        return redirect_to_administrators(
+            error="管理员账号不能为空",
+        )
+
+    if len(password) < 8 or not password.strip():
+        return redirect_to_administrators(
+            error="初始密码至少需要 8 个字符",
+        )
+
+    allowed_admin_levels = {
+        PRIMARY_REVIEWER,
+        SECONDARY_REVIEWER,
+        OPERATOR,
+    }
+
+    if admin_level not in allowed_admin_levels:
+        return redirect_to_administrators(
+            error="管理员级别无效",
+        )
+
+    db = SessionLocal()
+
+    try:
+        existing_user = (
+            db.query(User)
+            .filter(User.username == normalized_username)
+            .first()
+        )
+
+        if existing_user:
+            return redirect_to_administrators(
+                error="该账号已存在，请更换管理员账号",
+            )
+
+        new_administrator = User(
+            username=normalized_username,
+            password_hash=get_password_hash(password),
+            role="admin",
+            admin_level=admin_level,
+            is_active=True,
+            service_rate=0.0,
+            upstream_cost_rate=0.0,
+        )
+
+        db.add(new_administrator)
+        db.commit()
+
+    except IntegrityError:
+        db.rollback()
+
+        return redirect_to_administrators(
+            error="该账号已存在，请更换管理员账号",
+        )
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_administrators(
+            error="管理员账号创建失败，请重试",
+        )
+
+    finally:
+        db.close()
+
+    return redirect_to_administrators(
+        message=f"管理员账号 {normalized_username} 创建成功",
+    )
 
 
 @app.get("/vouchers/{review_id}/download")
