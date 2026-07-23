@@ -807,6 +807,29 @@
             grid-template-columns: 1fr;
         }
     }
+
+    .permission-disabled {
+        cursor: not-allowed;
+        opacity: 0.62;
+    }
+
+    .permission-disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .permission-note {
+        display: block;
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .permission-disabled-button {
+        cursor: not-allowed;
+        opacity: 0.62;
+    }
 </style>
 
 <div class="dashboard-page dashboard-grid">
@@ -822,11 +845,26 @@
                 <p class="workflow-desc">按 1 → 2 → 3 → 4 的顺序处理业务，减少漏审和重复操作。</p >
 
                 <div class="workflow-steps-line">
-                    <a class="workflow-step-line" href=" ">
-                        <div class="workflow-step-number">1</div>
-                        <h3>上传方账号管理</h3>
-                        <p>维护上传方信息与权限</p >
-                    </a >
+                    {% if can_view_partners %}
+                        <a class="workflow-step-line" href="/partners">
+                            <div class="workflow-step-number">1</div>
+                            <h3>上传方账号管理</h3>
+                            <p>维护上传方信息与权限</p >
+                        </a >
+                    {% else %}
+                        <div
+                            class="workflow-step-line permission-disabled"
+                            aria-disabled="true"
+                            title="该步骤属于完整业务流程，当前账号暂无上传方账号查看权限"
+                        >
+                            <div class="workflow-step-number">1</div>
+                            <h3>上传方账号管理</h3>
+                            <p>维护上传方信息与权限</p >
+                            <span class="permission-note">
+                                流程说明 · 当前账号暂无权限
+                            </span>
+                        </div>
+                    {% endif %}
 
                     <a class="workflow-step-line" href="/business-records">
                         <div class="workflow-step-number">2</div>
@@ -834,11 +872,24 @@
                         <p>查看清单、承接业务、管理单据</p >
                     </a >
 
-                    <a class="workflow-step-line" href="/upload-voucher">
-                        <div class="workflow-step-number">3</div>
-                        <h3>凭证识别</h3>
-                        <p>上传凭证文件，自动识别关键信息</p >
-                    </a >
+                    {% if can_upload_vouchers %}
+                        <a class="workflow-step-line" href="/upload-voucher">
+                            <div class="workflow-step-number">3</div>
+                            <h3>凭证识别</h3>
+                            <p>上传凭证文件，自动识别关键信息</p >
+                        </a >
+                    {% else %}
+                        <div
+                            class="workflow-step-line permission-disabled"
+                            aria-disabled="true"
+                            title="该步骤属于完整业务流程，当前账号暂无凭证上传权限"
+                        >
+                            <div class="workflow-step-number">3</div>
+                            <h3>凭证识别</h3>
+                            <p>上传凭证文件，自动识别关键信息</p >
+                            <span class="permission-note">流程说明 · 当前账号暂无权限</span>
+                        </div>
+                    {% endif %}
 
                     <a class="workflow-step-line" href="/match-reviews">
                         <div class="workflow-step-number">4</div>
@@ -862,10 +913,24 @@
                         <span>前往 <strong>业务数据管理</strong> 查看待承接清单</span>
                     </a >
 
-                    <a class="recommend-item" href="/upload-voucher">
-                        <span class="mini-num">2</span>
-                        <span>前往 <strong>凭证识别</strong> 处理待凭证</span>
-                    </a >
+                    {% if can_upload_vouchers %}
+                        <a class="recommend-item" href="/upload-voucher">
+                            <span class="mini-num">2</span>
+                            <span>前往 <strong>凭证识别</strong> 处理待凭证</span>
+                        </a >
+                    {% else %}
+                        <div
+                            class="recommend-item permission-disabled"
+                            aria-disabled="true"
+                            title="当前账号暂无凭证上传权限"
+                        >
+                            <span class="mini-num">2</span>
+                            <span>
+                                了解 <strong>凭证识别</strong> 流程
+                                <small class="permission-note">当前账号暂无权限</small>
+                            </span>
+                        </div>
+                    {% endif %}
 
                     <a class="recommend-item" href="/match-reviews">
                         <span class="mini-num">3</span>
@@ -978,8 +1043,27 @@
 
                     <div class="notice-item">
                         <span class="dot dot-green"></span>
-                        <div class="notice-text">有 {{ pending_voucher_batches or 0 }} 条凭证待处理，请前往 <strong>凭证识别</strong> 查看</div>
-                        <a href="/upload-voucher" class="ui-button-secondary">去处理</a>
+
+                        {% if can_upload_vouchers %}
+                            <div class="notice-text">
+                                有 {{ pending_voucher_batches or 0 }} 条凭证待处理，请前往
+                                <strong>凭证识别</strong> 查看
+                            </div>
+                            <a href="/upload-voucher" class="ui-button-secondary">去处理</a >
+                        {% else %}
+                            <div class="notice-text">
+                                当前有 {{ pending_voucher_batches or 0 }} 条凭证待处理，
+                                该环节由具备凭证上传权限的管理员处理
+                            </div>
+                            <button
+                                type="button"
+                                class="ui-button-secondary permission-disabled-button"
+                                disabled
+                                title="当前账号暂无凭证上传权限"
+                            >
+                                暂无权限
+                            </button>
+                        {% endif %}
                     </div>
 
                     <div class="notice-item">
@@ -992,19 +1076,49 @@
         </section>
 
         <section class="core-grid">
-            <a class="core-card core-blue" href="/partners">
-                <div class="core-top">
-                    <div class="core-num">1</div>
-                    <span>👤</span>
+            {% if can_view_partners %}
+                <a class="core-card core-blue" href="/partners">
+                    <div class="core-top">
+                        <div class="core-num">1</div>
+                        <span>👥</span>
+                    </div>
+
+                    <h3>上传方账号管理</h3>
+                    <p>维护上传方信息、账号与权限配置。</p >
+
+                    <div class="core-meta">
+                        <span class="status-pill status-gray">配置管理</span><br>
+                        最近更新：2026-06-23 15:48
+                    </div>
+
+                    <span class="core-action action-blue">
+                        进入模块 →
+                    </span>
+                </a >
+            {% else %}
+                <div
+                    class="core-card core-blue permission-disabled"
+                    aria-disabled="true"
+                    title="该卡片用于展示完整业务流程，当前账号暂无上传方账号查看权限"
+                >
+                    <div class="core-top">
+                        <div class="core-num">1</div>
+                        <span>👥</span>
+                    </div>
+
+                    <h3>上传方账号管理</h3>
+                    <p>维护上传方信息、账号与权限配置。</p >
+
+                    <div class="core-meta">
+                        <span class="status-pill status-gray">流程环节</span><br>
+                        当前账号暂无查看权限
+                    </div>
+
+                    <span class="core-action action-blue">
+                        流程说明 · 暂无权限
+                    </span>
                 </div>
-                <h3>上传方账号管理</h3>
-                <p>维护上传方信息、账号与权限配置。</p>
-                <div class="core-meta">
-                    <span class="status-pill status-gray">配置管理</span><br>
-                    最近更新：2026-06-23 15:48
-                </div>
-                <span class="core-action action-blue">进入模块 →</span>
-            </a>
+            {% endif %}
 
             <a class="core-card core-green" href="/business-records">
                 <div class="core-top">
@@ -1020,19 +1134,41 @@
                 <span class="core-action action-green">进入模块 →</span>
             </a>
 
-            <a class="core-card core-orange" href="/upload-voucher">
-                <div class="core-top">
-                    <div class="core-num">3</div>
-                    <span>🧾</span>
+            {% if can_upload_vouchers %}
+                <a class="core-card core-orange" href="/upload-voucher">
+                    <div class="core-top">
+                        <div class="core-num">3</div>
+                        <span>📄</span>
+                    </div>
+                    <h3>凭证识别</h3>
+                    <p>上传凭证文件，自动识别关键信息。</p >
+                    <div class="core-meta">
+                        <span class="status-pill status-orange">待处理</span><br>
+                        待凭证处理：{{ pending_voucher_batches or 0 }} 条
+                    </div>
+                    <span class="core-action action-orange">进入模块 →</span>
+                </a >
+            {% else %}
+                <div
+                    class="core-card core-orange permission-disabled"
+                    aria-disabled="true"
+                    title="该卡片用于展示完整业务流程，当前账号暂无凭证上传权限"
+                >
+                    <div class="core-top">
+                        <div class="core-num">3</div>
+                        <span>📄</span>
+                    </div>
+                    <h3>凭证识别</h3>
+                    <p>上传凭证文件，自动识别关键信息。</p >
+                    <div class="core-meta">
+                        <span class="status-pill status-orange">流程环节</span><br>
+                        待凭证处理：{{ pending_voucher_batches or 0 }} 条
+                    </div>
+                    <span class="core-action action-orange">
+                        流程说明 · 暂无权限
+                    </span>
                 </div>
-                <h3>凭证识别</h3>
-                <p>上传凭证文件，自动识别关键信息。</p>
-                <div class="core-meta">
-                    <span class="status-pill status-orange">待处理</span><br>
-                    待凭证处理：{{ pending_voucher_batches or 0 }} 条
-                </div>
-                <span class="core-action action-orange">进入模块 →</span>
-            </a>
+            {% endif %}
 
             <a class="core-card core-purple" href="/match-reviews">
                 <div class="core-top">
