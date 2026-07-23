@@ -246,10 +246,12 @@
                     <span>2. 业务数据管理</span>
                 </a >
 
+                {% if can_upload_vouchers %}
                 <a class="side-link {% if active_page == 'upload_voucher' %}active{% endif %}" href="/upload-voucher">
-                    <span class="side-icon">🧾</span>
+                    <span class="side-icon">📄</span>
                     <span>3. 凭证识别</span>
                 </a >
+                {% endif %}
 
                 <a class="side-link {% if active_page == 'match_reviews' %}active{% endif %}" href="/match-reviews">
                     <span class="side-icon">✅</span>

@@ -41,6 +41,7 @@ from .admin_permissions import (
     can_manage_administrators,
     can_manage_partners,
     can_view_partners,
+    can_upload_vouchers,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -118,6 +119,7 @@ def admin_navigation_context(request: Request) -> dict:
         "can_manage_administrators": can_manage_administrators(user),
         "can_view_partners": can_view_partners(user),
         "can_manage_partners": can_manage_partners(user),
+        "can_upload_vouchers": can_upload_vouchers(user),
     }
 
 
@@ -301,6 +303,7 @@ def add_base_context(request: Request, context: dict):
         )
         context["can_view_partners"] = can_view_partners(user)
         context["can_manage_partners"] = can_manage_partners(user)
+        context["can_upload_vouchers"] = can_upload_vouchers(user)
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -310,6 +313,7 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_administrators"] = False
         context["can_view_partners"] = False
         context["can_manage_partners"] = False
+        context["can_upload_vouchers"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -3280,8 +3284,17 @@ def upload_voucher_page(
 ):
     user = get_current_user(request)
 
-    if not user or user.role != "admin":
-        return RedirectResponse(url="/login", status_code=302)
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_upload_vouchers(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
@@ -3344,8 +3357,17 @@ def upload_voucher_submit(
 ):
     user = get_current_user(request)
 
-    if not user or user.role != "admin":
-        return RedirectResponse(url="/login", status_code=302)
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_upload_vouchers(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 

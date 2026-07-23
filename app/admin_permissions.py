@@ -56,6 +56,15 @@ OPERATION_LEVELS = frozenset(
 )
 
 
+# 可以进入凭证识别页面并上传凭证
+VOUCHER_UPLOAD_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
+    }
+)
+
+
 # 可以查看上传方账号列表
 PARTNER_VIEW_LEVELS = frozenset(
     {
@@ -70,16 +79,6 @@ PARTNER_VIEW_LEVELS = frozenset(
 PARTNER_MANAGEMENT_LEVELS = frozenset(
     {
         SUPER_ADMIN,
-        OPERATOR,
-    }
-)
-
-
-# 可以上传凭证并执行 OCR 识别
-VOUCHER_UPLOAD_LEVELS = frozenset(
-    {
-        SUPER_ADMIN,
-        PRIMARY_REVIEWER,
         OPERATOR,
     }
 )
@@ -181,6 +180,14 @@ def can_operate(user: object | None) -> bool:
     )
 
 
+def can_upload_vouchers(user: object | None) -> bool:
+    """是否可以进入凭证识别页面并上传凭证。"""
+    return has_admin_level(
+        user,
+        VOUCHER_UPLOAD_LEVELS,
+    )
+
+
 def can_view_partners(user: object | None) -> bool:
     """是否可以只读查看上传方账号列表与费率配置。"""
     return has_admin_level(
@@ -196,13 +203,6 @@ def can_manage_partners(user: object | None) -> bool:
         PARTNER_MANAGEMENT_LEVELS,
     )
 
-
-def can_upload_vouchers(user: object | None) -> bool:
-    """是否可以上传凭证并执行 OCR 识别。"""
-    return has_admin_level(
-        user,
-        VOUCHER_UPLOAD_LEVELS,
-    )
 
 
 def can_view_stats(user: object | None) -> bool:

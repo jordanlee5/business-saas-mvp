@@ -106,7 +106,7 @@ class AdminPermissionsTests(unittest.TestCase):
 
         self.assertTrue(can_view_partners(user))
         self.assertTrue(can_manage_partners(user))
-        self.assertTrue(can_upload_vouchers(user))
+        self.assertFalse(can_upload_vouchers(user))
         self.assertTrue(can_view_stats(user))
         self.assertTrue(can_export_stats(user))
 
