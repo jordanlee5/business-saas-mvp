@@ -29,6 +29,13 @@
             margin-bottom: 16px;
         }
 
+        .partner-readonly-label {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
         .warning {
             background: #fff7ed;
             color: #9a3412;
@@ -182,6 +189,7 @@
 
 {% set partner_keyword = partner_keyword | default('') %}
 {% set partner_status = partner_status | default('all') %}
+{% set can_manage_partners = can_manage_partners | default(false) %}
 {% set partner_page = partner_page | default(1) %}
 {% set partner_page_size = partner_page_size | default(5) %}
 {% set partner_total = partner_total | default(partners|length) %}
@@ -191,20 +199,30 @@
 <div class="page-container partners-page">
     <div class="ui-card">
         <h1>
-            {% if edit_partner %}
+            {% if not can_manage_partners %}
+                上传方账号查看
+            {% elif edit_partner %}
                 编辑上传方账号
             {% else %}
                 上传方账号管理
             {% endif %}
         </h1>
 
-        {% if edit_partner %}
+        {% if not can_manage_partners %}
             <div class="ui-hint">
-                当前模式：编辑账号。正在编辑：<strong>{{ edit_partner.username }}</strong>
+                当前为只读权限，可以查看上传方账号状态、下游费率和上游费率配置，
+                不能创建、编辑、停用或恢复上传方账号。
+            </div>
+        {% elif edit_partner %}
+            <div class="ui-hint">
+                当前模式：编辑账号。正在编辑：
+                <strong>{{ edit_partner.username }}</strong>
             </div>
 
             <div class="warning">
-                费率和计算方式修改只影响修改后新上传的数据；已上传的历史业务数据继续按上传当时保存的费率和计算方式快照计算，不会被新配置回溯影响。内扣费率必须小于 100%。
+                费率和计算方式修改只影响修改后新上传的数据；
+                已上传的历史业务数据继续按上传当时保存的费率和计算方式快照计算，
+                不会被新配置回溯影响。内扣费率必须小于 100%。
             </div>
         {% else %}
             <div class="ui-hint">
@@ -220,6 +238,7 @@
             <div class="message error">{{ error }}</div>
         {% endif %}
 
+        {% if can_manage_partners %}
         <form method="post" action="{% if edit_partner %}/partners/{{ edit_partner.id }}/edit{% else %}/partners{% endif %}">
             <input type="hidden" name="partner_page" value="{{ partner_page }}">
             <input type="hidden" name="partner_page_size" value="{{ partner_page_size }}">
@@ -351,6 +370,7 @@
                 </div>
             </div>
         </form>
+        {% endif %}
     </div>
 
     <div class="ui-card">
@@ -527,63 +547,67 @@
                     </td>
                     <td>{{ partner.created_at }}</td>
                     <td>
-                        <div class="partner-row-actions">
-                            <a
-                                class="edit-link"
-                                href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}&partner_status={{ partner_status | urlencode }}"
-                            >
-                                编辑
-                            </a >
-
-                            <form
-                                method="post"
-                                action="/partners/{{ partner.id }}/toggle-active"
-                                class="partner-status-form"
-                                onsubmit="return confirm(
-                                    '{% if partner.is_active %}确定停用该上传方账号吗？停用后该账号将立即退出系统。{% else %}确定恢复启用该上传方账号吗？{% endif %}'
-                                );"
-                            >
-                                <input
-                                    type="hidden"
-                                    name="partner_page"
-                                    value="{{ partner_page }}"
+                        {% if can_manage_partners %}
+                            <div class="partner-row-actions">
+                                <a
+                                    class="edit-link"
+                                    href="/partners?edit_id={{ partner.id }}&partner_page={{ partner_page }}&partner_page_size={{ partner_page_size }}&partner_keyword={{ partner_keyword | urlencode }}&partner_status={{ partner_status | urlencode }}"
                                 >
+                                    编辑
+                                </a >
 
-                                <input
-                                    type="hidden"
-                                    name="partner_status"
-                                    value="{{ partner_status }}"
+                                <form
+                                    method="post"
+                                    action="/partners/{{ partner.id }}/toggle-active"
+                                    class="partner-status-form"
+                                    onsubmit="return confirm(
+                                        '{% if partner.is_active %}确定停用该上传方账号吗？停用后该账号将立即退出系统。{% else %}确定恢复启用该上传方账号吗？{% endif %}'
+                                    );"
                                 >
-
-                                <input
-                                    type="hidden"
-                                    name="partner_page_size"
-                                    value="{{ partner_page_size }}"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="partner_keyword"
-                                    value="{{ partner_keyword }}"
-                                >
-
-                                {% if partner.is_active %}
-                                    <button
-                                        type="submit"
-                                        class="ui-button-danger ui-button-compact"
+                                    <input
+                                        type="hidden"
+                                        name="partner_page"
+                                        value="{{ partner_page }}"
                                     >
-                                        停用
-                                    </button>
-                                {% else %}
-                                    <button
-                                        type="submit"
-                                        class="ui-button-success ui-button-compact"
+
+                                    <input
+                                        type="hidden"
+                                        name="partner_status"
+                                        value="{{ partner_status }}"
                                     >
-                                        恢复启用
-                                    </button>
-                                {% endif %}
-                            </form>
-                        </div>
+
+                                    <input
+                                        type="hidden"
+                                        name="partner_page_size"
+                                        value="{{ partner_page_size }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="partner_keyword"
+                                        value="{{ partner_keyword }}"
+                                    >
+
+                                    {% if partner.is_active %}
+                                        <button
+                                            type="submit"
+                                            class="ui-button-danger ui-button-compact"
+                                        >
+                                            停用
+                                        </button>
+                                    {% else %}
+                                        <button
+                                            type="submit"
+                                            class="ui-button-success ui-button-compact"
+                                        >
+                                            恢复启用
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        {% else %}
+                            <span class="partner-readonly-label">只读</span>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -605,7 +629,11 @@
                     </div>
 
                     <div class="empty-description">
-                        请先在上方填写账号信息并创建上传方账号。
+                        {% if can_manage_partners %}
+                            请先在上方填写账号信息并创建上传方账号。
+                        {% else %}
+                            当前暂无可查看的上传方账号。
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>

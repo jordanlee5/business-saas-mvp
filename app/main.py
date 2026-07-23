@@ -39,6 +39,8 @@ from .admin_permissions import (
     SECONDARY_REVIEWER,
     SUPER_ADMIN,
     can_manage_administrators,
+    can_manage_partners,
+    can_view_partners,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -106,15 +108,16 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def admin_navigation_context(request: Request) -> dict:
     """
-    为所有模板统一提供管理员导航权限。
-
+    为所有模板统一提供管理员导航和页面操作权限。
     无论当前访问哪个功能页面，
-    base.html 都能稳定获得 can_manage_administrators。
+    base.html 都能稳定获得对应的权限状态。
     """
     user = get_current_user(request)
 
     return {
         "can_manage_administrators": can_manage_administrators(user),
+        "can_view_partners": can_view_partners(user),
+        "can_manage_partners": can_manage_partners(user),
     }
 
 
@@ -296,6 +299,8 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_administrators"] = (
             can_manage_administrators(user)
         )
+        context["can_view_partners"] = can_view_partners(user)
+        context["can_manage_partners"] = can_manage_partners(user)
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -303,6 +308,8 @@ def add_base_context(request: Request, context: dict):
         context["role"] = ""
         context["admin_level"] = None
         context["can_manage_administrators"] = False
+        context["can_view_partners"] = False
+        context["can_manage_partners"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -2389,8 +2396,15 @@ def partners_page(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_view_partners(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    # 只读账号即使手动添加 edit_id，也不能进入编辑模式。
+    if edit_id and not can_manage_partners(user):
+        edit_id = 0
 
     db = SessionLocal()
     allowed_partner_page_sizes = [5, 10, 20]
@@ -2492,8 +2506,11 @@ def create_partner(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_manage_partners(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
@@ -2620,8 +2637,11 @@ def toggle_partner_active(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_manage_partners(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     message = ""
     error = ""
@@ -2740,8 +2760,11 @@ def edit_partner_submit(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_manage_partners(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
