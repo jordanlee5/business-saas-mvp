@@ -44,6 +44,9 @@ from .admin_permissions import (
     can_view_partners,
     can_view_stats,
     can_upload_vouchers,
+    can_export_business_records,
+    can_manage_business_batches,
+    can_view_business_records,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -124,6 +127,21 @@ def admin_navigation_context(request: Request) -> dict:
         "can_upload_vouchers": can_upload_vouchers(user),
         "can_view_stats": can_view_stats(user),
         "can_export_stats": can_export_stats(user),
+        "can_view_business_records": bool(
+            user
+            and (
+                user.role == "partner"
+                or can_view_business_records(user)
+            )
+        ),
+        "can_manage_business_batches": can_manage_business_batches(user),
+        "can_export_business_records": bool(
+            user
+            and (
+                user.role == "partner"
+                or can_export_business_records(user)
+            )
+        ),
     }
 
 
@@ -310,6 +328,17 @@ def add_base_context(request: Request, context: dict):
         context["can_upload_vouchers"] = can_upload_vouchers(user)
         context["can_view_stats"] = can_view_stats(user)
         context["can_export_stats"] = can_export_stats(user)
+        context["can_view_business_records"] = (
+            user.role == "partner"
+            or can_view_business_records(user)
+        )
+        context["can_manage_business_batches"] = (
+            can_manage_business_batches(user)
+        )
+        context["can_export_business_records"] = (
+            user.role == "partner"
+            or can_export_business_records(user)
+        )
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -322,6 +351,9 @@ def add_base_context(request: Request, context: dict):
         context["can_upload_vouchers"] = False
         context["can_view_stats"] = False
         context["can_export_stats"] = False
+        context["can_view_business_records"] = False
+        context["can_manage_business_batches"] = False
+        context["can_export_business_records"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -1681,6 +1713,15 @@ def business_records_page(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
+    if (
+        user.role == "admin"
+        and not can_view_business_records(user)
+    ):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
     db = SessionLocal()
 
     allowed_acceptance_statuses = ["全部", "待承接", "已承接", "已拒绝"]
@@ -1833,8 +1874,11 @@ def accept_upload_batch(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_manage_business_batches(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
@@ -1866,8 +1910,11 @@ def reject_upload_batch(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if not can_manage_business_batches(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
@@ -1902,6 +1949,15 @@ def export_business_records(
 
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+
+    if (
+        user.role == "admin"
+        and not can_export_business_records(user)
+    ):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 
@@ -2047,6 +2103,15 @@ def business_record_detail_page(
 
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+
+    if (
+        user.role == "admin"
+        and not can_view_business_records(user)
+    ):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
 
     db = SessionLocal()
 

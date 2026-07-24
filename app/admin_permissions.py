@@ -84,6 +84,35 @@ PARTNER_MANAGEMENT_LEVELS = frozenset(
 )
 
 
+# 可以查看业务数据列表、上传批次和业务详情
+BUSINESS_VIEW_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        PRIMARY_REVIEWER,
+        SECONDARY_REVIEWER,
+        OPERATOR,
+    }
+)
+
+
+# 可以承接或拒绝上传方提交的业务批次
+BUSINESS_BATCH_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+# 可以导出包含客户明细的业务数据
+BUSINESS_EXPORT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 # 可以查看经营数据看板
 STATS_VIEW_LEVELS = frozenset(
     {
@@ -203,6 +232,29 @@ def can_manage_partners(user: object | None) -> bool:
         PARTNER_MANAGEMENT_LEVELS,
     )
 
+
+def can_view_business_records(user: object | None) -> bool:
+    """是否可以查看业务数据列表、上传批次和业务详情。"""
+    return has_admin_level(
+        user,
+        BUSINESS_VIEW_LEVELS,
+    )
+
+
+def can_manage_business_batches(user: object | None) -> bool:
+    """是否可以承接或拒绝上传方提交的业务批次。"""
+    return has_admin_level(
+        user,
+        BUSINESS_BATCH_MANAGEMENT_LEVELS,
+    )
+
+
+def can_export_business_records(user: object | None) -> bool:
+    """是否可以导出包含客户明细的业务数据。"""
+    return has_admin_level(
+        user,
+        BUSINESS_EXPORT_LEVELS,
+    )
 
 
 def can_view_stats(user: object | None) -> bool:
