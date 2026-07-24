@@ -3963,6 +3963,14 @@ def approve_match_review(
 
     if review:
         review.review_status = "已通过"
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type="approve_match",
+            target_type="match_review",
+            target_id=review.id,
+            description=f"管理员审核通过匹配结果 #{review.id}",
+        )
         db.commit()
 
     db.close()
@@ -4002,6 +4010,14 @@ def reject_match_review(
 
     if review:
         review.review_status = "已驳回"
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type="reject_match",
+            target_type="match_review",
+            target_id=review.id,
+            description=f"管理员驳回匹配结果 #{review.id}",
+        )
         db.commit()
 
     db.close()
