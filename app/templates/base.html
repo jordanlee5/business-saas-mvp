@@ -259,6 +259,7 @@
                 </a >
             </div>
 
+            {% if can_view_stats %}
             <div class="side-section">
                 <div class="side-title">经营辅助</div>
                 <a class="side-link {% if active_page == 'stats_dashboard' %}active{% endif %}" href="/stats-dashboard">
@@ -266,6 +267,7 @@
                     <span>经营数据看板</span>
                 </a >
             </div>
+            {% endif %}
 
             <div class="side-section">
                 <div class="side-title">数据维护</div>

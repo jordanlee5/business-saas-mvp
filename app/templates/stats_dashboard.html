@@ -123,7 +123,7 @@
         <h1>经营数据看板</h1>
 
         <div class="ui-hint">
-            本页面仅管理员可见，用于查看平台整体经营数据、审核状态、服务费收入、上游成本和毛利。
+            本页面仅具备经营数据查看权限的管理员可见，用于查看平台整体经营数据、审核状态、服务费收入、上游成本和毛利。
         </div>
 
         <form method="get" action="/stats-dashboard" class="filter-form">
@@ -148,12 +148,23 @@
             <a href="/stats-dashboard" class="reset-link">重置</a >
         </form>      
 
+        {% if can_export_stats %}
         <a
             class="export-button ui-button-primary"
             href="/stats-dashboard/export?partner_id={{ selected_partner_id }}&start_date={{ selected_start_date }}&end_date={{ selected_end_date }}"
         >
-            导出结算汇总 Excel
+            导出经营汇总 Excel
         </a >
+        {% else %}
+        <button
+            type="button"
+            class="export-button ui-button-secondary"
+            disabled
+            title="当前账号暂无经营数据导出权限"
+        >
+            暂无导出权限
+        </button>
+        {% endif %}
 
         <div class="stats-grid">
             <div class="stat-card">

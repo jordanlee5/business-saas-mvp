@@ -38,9 +38,11 @@ from .admin_permissions import (
     PRIMARY_REVIEWER,
     SECONDARY_REVIEWER,
     SUPER_ADMIN,
+    can_export_stats,
     can_manage_administrators,
     can_manage_partners,
     can_view_partners,
+    can_view_stats,
     can_upload_vouchers,
 )
 
@@ -120,6 +122,8 @@ def admin_navigation_context(request: Request) -> dict:
         "can_view_partners": can_view_partners(user),
         "can_manage_partners": can_manage_partners(user),
         "can_upload_vouchers": can_upload_vouchers(user),
+        "can_view_stats": can_view_stats(user),
+        "can_export_stats": can_export_stats(user),
     }
 
 
@@ -304,6 +308,8 @@ def add_base_context(request: Request, context: dict):
         context["can_view_partners"] = can_view_partners(user)
         context["can_manage_partners"] = can_manage_partners(user)
         context["can_upload_vouchers"] = can_upload_vouchers(user)
+        context["can_view_stats"] = can_view_stats(user)
+        context["can_export_stats"] = can_export_stats(user)
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -314,6 +320,8 @@ def add_base_context(request: Request, context: dict):
         context["can_view_partners"] = False
         context["can_manage_partners"] = False
         context["can_upload_vouchers"] = False
+        context["can_view_stats"] = False
+        context["can_export_stats"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -4137,7 +4145,7 @@ def stats_dashboard_page(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
+    if not can_view_stats(user):
         return RedirectResponse(url="/dashboard", status_code=302)
 
     stats = build_stats_data(
@@ -4170,7 +4178,7 @@ def export_stats_dashboard(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if user.role != "admin":
+    if not can_export_stats(user):
         return RedirectResponse(url="/dashboard", status_code=302)
 
     stats = build_stats_data(
