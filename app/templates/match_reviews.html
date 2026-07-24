@@ -1040,17 +1040,142 @@
 </div>
 
 <script>
-    const selectAll = document.getElementById("select-all");
+document.addEventListener("DOMContentLoaded", function () {
 
-    if (selectAll) {
-        selectAll.addEventListener("change", function () {
-            const checkboxes = document.querySelectorAll(".review-checkbox:not(:disabled)");
+    const storageKey = "match_review_selected_ids";
 
-            checkboxes.forEach(function (checkbox) {
-                checkbox.checked = selectAll.checked;
-            });
+    let selectedIds = new Set(
+        JSON.parse(sessionStorage.getItem(storageKey) || "[]")
+    );
+
+
+    function saveSelectedIds() {
+        sessionStorage.setItem(
+            storageKey,
+            JSON.stringify(Array.from(selectedIds))
+        );
+    }
+
+
+    function syncCheckboxState() {
+        const checkboxes = document.querySelectorAll(
+            ".review-checkbox:not(:disabled)"
+        );
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectedIds.has(
+                Number(checkbox.value)
+            );
         });
     }
+
+
+    const checkboxes = document.querySelectorAll(
+        ".review-checkbox:not(:disabled)"
+    );
+
+
+    checkboxes.forEach(function (checkbox) {
+
+        checkbox.addEventListener("change", function () {
+
+            const id = Number(this.value);
+
+            if (this.checked) {
+                selectedIds.add(id);
+            } else {
+                selectedIds.delete(id);
+            }
+
+            saveSelectedIds();
+
+        });
+
+    });
+
+
+    const selectAll = document.getElementById("select-all");
+
+
+    if (selectAll) {
+
+        selectAll.addEventListener("change", function () {
+
+            checkboxes.forEach(function (checkbox) {
+
+                checkbox.checked = selectAll.checked;
+
+                const id = Number(checkbox.value);
+
+                if (selectAll.checked) {
+                    selectedIds.add(id);
+                } else {
+                    selectedIds.delete(id);
+                }
+
+            });
+
+            saveSelectedIds();
+
+        });
+
+    }
+
+
+    syncCheckboxState();
+
+
+
+    // 批量审核提交前同步隐藏字段
+    const batchForms = document.querySelectorAll(
+        "form"
+    );
+
+
+    batchForms.forEach(function(form){
+
+        form.addEventListener(
+            "submit",
+            function(){
+
+                if (
+                    form.querySelector(
+                        "button[name='action']"
+                    )
+                ) {
+
+                    form.querySelectorAll(
+                        "input[name='review_ids']"
+                    ).forEach(function(input){
+                        input.remove();
+                    });
+
+
+                    selectedIds.forEach(function(id){
+
+                        const hidden =
+                            document.createElement("input");
+
+                        hidden.type = "hidden";
+                        hidden.name = "review_ids";
+                        hidden.value = id;
+
+                        form.appendChild(hidden);
+
+                    });
+
+
+                    sessionStorage.removeItem(storageKey);
+                    selectedIds.clear();
+
+                }
+
+            }
+        );
+
+    });
+
+});
 </script>
 
 {% endblock %}
