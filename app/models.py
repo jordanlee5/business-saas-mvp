@@ -187,3 +187,21 @@ class MatchReview(Base):
     score = Column(Integer)
     review_status = Column(String, default="待审核")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AdminActionLog(Base):
+    __tablename__ = "admin_action_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    admin_id = Column(Integer, ForeignKey("users.id"))
+
+    action_type = Column(String, nullable=False)
+
+    target_type = Column(String, nullable=True)
+
+    target_id = Column(Integer, nullable=True)
+
+    description = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
