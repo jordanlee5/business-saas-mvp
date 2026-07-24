@@ -1911,6 +1911,15 @@ def accept_upload_batch(
 
     batch.acceptance_status = "已承接"
 
+    create_admin_action_log(
+        db=db,
+        admin_id=user.id,
+        action_type="accept_batch",
+        target_type="upload_batch",
+        target_id=batch.id,
+        description=f"管理员承接上传批次 #{batch.id}",
+    )
+
     db.commit()
     db.close()
 
@@ -1946,6 +1955,15 @@ def reject_upload_batch(
         return RedirectResponse(url="/business-records", status_code=302)
 
     batch.acceptance_status = "已拒绝"
+
+    create_admin_action_log(
+        db=db,
+        admin_id=user.id,
+        action_type="reject_batch",
+        target_type="upload_batch",
+        target_id=batch.id,
+        description=f"管理员拒绝上传批次 #{batch.id}",
+    )
 
     db.commit()
     db.close()
