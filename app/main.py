@@ -4112,10 +4112,30 @@ def batch_review_match_reviews(
     db = SessionLocal()
 
     if review_ids:
-        db.query(MatchReview).filter(MatchReview.id.in_(review_ids)).update(
+        db.query(MatchReview).filter(
+            MatchReview.id.in_(review_ids)
+        ).update(
             {MatchReview.review_status: new_status},
             synchronize_session=False,
         )
+
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type=(
+                "batch_approve_match"
+                if action == "approve"
+                else "batch_reject_match"
+            ),
+            target_type="match_review_batch",
+            target_id=None,
+            description=(
+                f"管理员批量"
+                f"{'审核通过' if action == 'approve' else '驳回'}"
+                f"{len(review_ids)}条匹配结果"
+            ),
+        )
+
         db.commit()
 
     db.close()
