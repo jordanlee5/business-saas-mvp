@@ -1005,11 +1005,23 @@
                 </div>
 
                 <div class="mini-flow">
-                    <div class="mini-flow-item done">
-                        <div class="mini-flow-dot">✓</div>
-                        <div>上传方账号管理</div>
-                        <div class="status">已完成</div>
-                    </div>
+                    {% if can_view_partners %}
+                        <div class="mini-flow-item done">
+                            <div class="mini-flow-dot">✓</div>
+                            <div>上传方账号管理</div>
+                            <div class="status">已完成</div>
+                        </div>
+                    {% else %}
+                        <div
+                            class="mini-flow-item permission-disabled"
+                            aria-disabled="true"
+                            title="当前账号暂无上传方账号查看权限"
+                        >
+                            <div class="mini-flow-dot">1</div>
+                            <div>上传方账号管理</div>
+                            <div class="status">暂无权限</div>
+                        </div>
+                    {% endif %}
                     <div class="mini-flow-item active">
                         <div class="mini-flow-dot">2</div>
                         <div>业务数据管理</div>
