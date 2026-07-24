@@ -23,7 +23,7 @@ from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
 from . import models
-from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUploadBatch ,MatchReview
+from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUploadBatch, MatchReview, AdminActionLog
 from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
@@ -50,6 +50,27 @@ from .admin_permissions import (
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
+
+def create_admin_action_log(
+    db,
+    admin_id,
+    action_type,
+    target_type=None,
+    target_id=None,
+    description=None,
+):
+    log = AdminActionLog(
+        admin_id=admin_id,
+        action_type=action_type,
+        target_type=target_type,
+        target_id=target_id,
+        description=description,
+    )
+
+    db.add(log)
+    db.commit()
+
+    return log
 
 @app.middleware("http")
 async def enforce_active_user_session(
