@@ -649,10 +649,21 @@
             <form class="filter-form" method="get" action="/match-reviews">
                 <label>审核状态：</label>
                 <select name="status_filter">
-                    <option value="全部" {% if status_filter == "全部" %}selected{% endif %}>全部</option>
-                    <option value="待审核" {% if status_filter == "待审核" %}selected{% endif %}>待审核</option>
-                    <option value="已通过" {% if status_filter == "已通过" %}selected{% endif %}>已通过</option>
-                    <option value="已驳回" {% if status_filter == "已驳回" %}selected{% endif %}>已驳回</option>
+                    <option value="全部" {% if status_filter == "全部" %}selected{% endif %}>
+                        全部
+                    </option>
+                    <option value="待初审" {% if status_filter in ["待审核", "待初审"] %}selected{% endif %}>
+                        待初审
+                    </option>
+                    <option value="待复核" {% if status_filter == "待复核" %}selected{% endif %}>
+                        待复核
+                    </option>
+                    <option value="已通过" {% if status_filter == "已通过" %}selected{% endif %}>
+                        已通过
+                    </option>
+                    <option value="已驳回" {% if status_filter == "已驳回" %}selected{% endif %}>
+                        已驳回
+                    </option>
                 </select>
 
                 <label>上传方：</label>
@@ -687,47 +698,9 @@
                 <a class="ui-button-secondary" href="/match-reviews">重置筛选</a>
             </form>
 
-            <div class="batch-bar">
-                {% if status_filter == "待审核" %}
-                <label class="batch-check-lable">
-                    <input type="checkbox" id="select-all" class="review-checkbox">
-                    全选待审核
-                </label>
-                <span>批量操作只会处理已勾选且仍处于“待审核”的记录。</span>
-                {% endif %}
-            </div>
+
         </div>
 
-        <form method="post" action="/match-reviews/batch-review">
-            <input type="hidden" name="status_filter" value="{{ status_filter }}">
-            <input type="hidden" name="partner_id" value="{{ partner_id }}">
-            <input type="hidden" name="page" value="{{ page }}">
-            <input type="hidden" name="page_size" value="{{ page_size }}">
-            <input type="hidden" name="customer_name" value="{{ customer_name }}">
-
-            {% if status_filter == "待审核" %}
-            <div class="batch-bar" style="margin-bottom: 12px;">
-                <button
-                    type="submit"
-                    name="action"
-                    value="approve"
-                    class="btn-approve"
-                    onclick="return confirm('确定要批量通过已勾选的审核记录吗？')"
-                >
-                    批量通过
-                </button>
-
-                <button
-                    type="submit"
-                    name="action"
-                    value="reject"
-                    class="btn-reject"
-                    onclick="return confirm('确定要批量驳回已勾选的审核记录吗？')"
-                >
-                    批量驳回
-                </button>
-            </div>
-            {% endif %}
 
             <div class="review-panel">
                 <div class="review-list">
@@ -915,68 +888,147 @@
                                     <div class="action-top">
                                         <div class="section-title">审核操作</div>
 
-                                        {% if item.review.review_status == "待审核" %}
-                                            <span class="status-pill status-pending">待审核</span>
+                                        {% if item.review.review_status in ["待审核", "待初审"] %}
+                                            <span class="status-pill status-pending">
+                                                待初审
+                                            </span>
+                                        {% elif item.review.review_status == "待复核" %}
+                                            <span class="status-pill status-pending">
+                                                待复核
+                                            </span>
                                         {% elif item.review.review_status == "已通过" %}
-                                            <span class="status-pill status-approved">已通过</span>
+                                            <span class="status-pill status-approved">
+                                                已通过
+                                            </span>
                                         {% elif item.review.review_status == "已驳回" %}
-                                            <span class="status-pill status-rejected">已驳回</span>
+                                            <span class="status-pill status-rejected">
+                                                已驳回
+                                            </span>
                                         {% else %}
-                                            <span class="status-pill status-pending">{{ item.review.review_status }}</span>
+                                            <span class="status-pill status-pending">
+                                                {{ item.review.review_status }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if item.can_primary_review or item.can_secondary_review %}
+
+                                        {% if item.can_primary_review %}
+                                            {% set review_endpoint = "/match-reviews/" ~ item.review.id ~ "/primary-review" %}
+                                            {% set review_stage_label = "初审" %}
+                                        {% else %}
+                                            {% set review_endpoint = "/match-reviews/" ~ item.review.id ~ "/secondary-review" %}
+                                            {% set review_stage_label = "复核" %}
                                         {% endif %}
 
-                                        <label class="checkbox-row">
+                                        <form
+                                            method="post"
+                                            action="{{ review_endpoint }}"
+                                            class="review-action-form"
+                                        >
                                             <input
-                                                type="checkbox"
-                                                class="review-checkbox"
-                                                name="review_ids"
-                                                value="{{ item.review.id }}"
-                                                class="review-checkbox"
-                                                {% if item.review.review_status != "待审核" %}disabled{% endif %}
+                                                type="hidden"
+                                                name="status_filter"
+                                                value="{{ status_filter }}"
                                             >
-                                            选择此条
-                                        </label>
-                                    </div>
+                                            <input
+                                                type="hidden"
+                                                name="partner_id"
+                                                value="{{ partner_id }}"
+                                            >
+                                            <input
+                                                type="hidden"
+                                                name="page"
+                                                value="{{ page }}"
+                                            >
+                                            <input
+                                                type="hidden"
+                                                name="page_size"
+                                                value="{{ page_size }}"
+                                            >
+                                            <input
+                                                type="hidden"
+                                                name="customer_name"
+                                                value="{{ customer_name }}"
+                                            >
 
-                                    <div class="action-buttons">
-                                        {% if item.review.review_status == "待审核" %}
-                                            <button
-                                                type="submit"
-                                                class="btn-approve"
-                                                formaction="/match-reviews/{{ item.review.id }}/approve"
-                                                formmethod="post"
-                                                onclick="return confirm('确定要通过这条审核记录吗？')"
+                                            <label
+                                                for="review-comment-{{ item.review.id }}"
+                                                style="display:block; margin:12px 0 6px; font-weight:600;"
                                             >
-                                                通过
-                                            </button>
+                                                {{ review_stage_label }}意见
+                                            </label>
 
-                                            <button
-                                                type="submit"
-                                                class="btn-reject"
-                                                formaction="/match-reviews/{{ item.review.id }}/reject"
-                                                formmethod="post"
-                                                onclick="return confirm('确定要驳回这条审核记录吗？')"
-                                            >
-                                                驳回
-                                            </button>
-                                        {% else %}
-                                            <div class="handled-text">此记录已处理</div>
+                                            <textarea
+                                                id="review-comment-{{ item.review.id }}"
+                                                name="comment"
+                                                rows="3"
+                                                placeholder="通过意见可选；驳回时必须填写原因"
+                                                style="width:100%; box-sizing:border-box; resize:vertical; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px;"
+                                            ></textarea>
 
-                                            <button
-                                                type="submit"
-                                                class="btn-secondary"
-                                                formaction="/match-reviews/{{ item.review.id }}/reopen"
-                                                formmethod="post"
-                                                onclick="return confirm('确定要将这条记录重新改为待审核吗？')"
-                                            >
-                                                重新审核
-                                            </button>                
-                                        {% endif %}
-                                    </div>
+                                            <div class="action-buttons">
+                                                <button
+                                                    type="submit"
+                                                    name="result"
+                                                    value="通过"
+                                                    class="btn-approve"
+                                                    onclick="return confirm('确定要{{ review_stage_label }}通过这条记录吗？')"
+                                                >
+                                                    {{ review_stage_label }}通过
+                                                </button>
+
+                                                <button
+                                                    type="submit"
+                                                    name="result"
+                                                    value="驳回"
+                                                    class="btn-reject"
+                                                    onclick="
+                                                        if (!this.form.elements['comment'].value.trim()) {
+                                                            alert('驳回时必须填写审核原因');
+                                                            return false;
+                                                        }
+                                                        return confirm('确定要{{ review_stage_label }}驳回这条记录吗？');
+                                                    "
+                                                >
+                                                    {{ review_stage_label }}驳回
+                                                </button>
+                                            </div>
+                                        </form>
+
+                                    {% else %}
+
+                                        <div class="handled-text">
+                                            {% if item.review.review_status in ["待审核", "待初审"] %}
+                                                当前账号没有此条记录的初审权限
+                                            {% elif item.review.review_status == "待复核" %}
+                                                等待另一名具有复核权限的管理员处理
+                                            {% else %}
+                                                此记录已完成审核
+                                            {% endif %}
+                                        </div>
+
+                                    {% endif %}
 
                                     <div class="meta">
                                         审核记录ID：{{ item.review.id }}<br>
                                         生成时间：{{ item.review.created_at }}
+
+                                        {% if item.review.primary_review_result %}
+                                            <br>
+                                            初审结果：{{ item.review.primary_review_result }}<br>
+                                            初审管理员ID：{{ item.review.primary_reviewer_id }}<br>
+                                            初审时间：{{ item.review.primary_reviewed_at }}<br>
+                                            初审意见：{{ item.review.primary_review_comment or "-" }}
+                                        {% endif %}
+
+                                        {% if item.review.secondary_review_result %}
+                                            <br>
+                                            复核结果：{{ item.review.secondary_review_result }}<br>
+                                            复核管理员ID：{{ item.review.secondary_reviewer_id }}<br>
+                                            复核时间：{{ item.review.secondary_reviewed_at }}<br>
+                                            复核意见：{{ item.review.secondary_review_comment or "-" }}
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -1035,147 +1087,9 @@
                     {% endif %}
                 </div>
             </div>
-        </form>
+
     </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    const storageKey = "match_review_selected_ids";
-
-    let selectedIds = new Set(
-        JSON.parse(sessionStorage.getItem(storageKey) || "[]")
-    );
-
-
-    function saveSelectedIds() {
-        sessionStorage.setItem(
-            storageKey,
-            JSON.stringify(Array.from(selectedIds))
-        );
-    }
-
-
-    function syncCheckboxState() {
-        const checkboxes = document.querySelectorAll(
-            ".review-checkbox:not(:disabled)"
-        );
-
-        checkboxes.forEach(function (checkbox) {
-            checkbox.checked = selectedIds.has(
-                Number(checkbox.value)
-            );
-        });
-    }
-
-
-    const checkboxes = document.querySelectorAll(
-        ".review-checkbox:not(:disabled)"
-    );
-
-
-    checkboxes.forEach(function (checkbox) {
-
-        checkbox.addEventListener("change", function () {
-
-            const id = Number(this.value);
-
-            if (this.checked) {
-                selectedIds.add(id);
-            } else {
-                selectedIds.delete(id);
-            }
-
-            saveSelectedIds();
-
-        });
-
-    });
-
-
-    const selectAll = document.getElementById("select-all");
-
-
-    if (selectAll) {
-
-        selectAll.addEventListener("change", function () {
-
-            checkboxes.forEach(function (checkbox) {
-
-                checkbox.checked = selectAll.checked;
-
-                const id = Number(checkbox.value);
-
-                if (selectAll.checked) {
-                    selectedIds.add(id);
-                } else {
-                    selectedIds.delete(id);
-                }
-
-            });
-
-            saveSelectedIds();
-
-        });
-
-    }
-
-
-    syncCheckboxState();
-
-
-
-    // 批量审核提交前同步隐藏字段
-    const batchForms = document.querySelectorAll(
-        "form"
-    );
-
-
-    batchForms.forEach(function(form){
-
-        form.addEventListener(
-            "submit",
-            function(){
-
-                if (
-                    form.querySelector(
-                        "button[name='action']"
-                    )
-                ) {
-
-                    form.querySelectorAll(
-                        "input[name='review_ids']"
-                    ).forEach(function(input){
-                        input.remove();
-                    });
-
-
-                    selectedIds.forEach(function(id){
-
-                        const hidden =
-                            document.createElement("input");
-
-                        hidden.type = "hidden";
-                        hidden.name = "review_ids";
-                        hidden.value = id;
-
-                        form.appendChild(hidden);
-
-                    });
-
-
-                    sessionStorage.removeItem(storageKey);
-                    selectedIds.clear();
-
-                }
-
-            }
-        );
-
-    });
-
-});
-</script>
 
 {% endblock %}

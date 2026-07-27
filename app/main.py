@@ -51,9 +51,13 @@ from .admin_permissions import (
 )
 
 from .match_review_workflow import (
+    PRIMARY_PENDING_REVIEW_STATUSES,
+    PENDING_SECONDARY_REVIEW_STATUS,
     REVIEW_RESULT_APPROVED,
     apply_primary_review_decision,
     apply_secondary_review_decision,
+    can_primary_review_match,
+    can_secondary_review_match,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -4129,7 +4133,19 @@ def match_reviews_page(
     # 如果按 business_record_id 去重，只保留最新一条，就会把较早的“已通过”历史审核记录隐藏掉。
     latest_reviews = reviews
 
-    if status_filter in ["待审核", "已通过", "已驳回"]:
+    if status_filter in ["待审核", "待初审"]:
+        latest_reviews = [
+            review for review in latest_reviews
+            if (
+                review.review_status
+                in PRIMARY_PENDING_REVIEW_STATUSES
+            )
+        ]
+    elif status_filter in [
+        PENDING_SECONDARY_REVIEW_STATUS,
+        "已通过",
+        "已驳回",
+    ]:
         latest_reviews = [
             review for review in latest_reviews
             if review.review_status == status_filter
@@ -4295,6 +4311,18 @@ def match_reviews_page(
                     "voucher_amount": voucher.voucher_amount or 0,
                     "approved_voucher_amount": round(approved_voucher_amount, 2),
                     "remaining_amount": round(remaining_amount, 2),
+                    "can_primary_review": (
+                        can_primary_review_match(
+                            user,
+                            review,
+                        )
+                    ),
+                    "can_secondary_review": (
+                        can_secondary_review_match(
+                            user,
+                            review,
+                        )
+                    ),
                 }
             )
 
@@ -4481,216 +4509,6 @@ def secondary_review_match(
     )
 
 
-@app.post("/match-reviews/{review_id}/approve")
-def approve_match_review(
-    review_id: int, 
-    request: Request,
-    status_filter: str = Form("全部"),
-    partner_id: int = Form(0),
-    page: int = Form(1),
-    page_size: int = Form(1),
-    customer_name: str = Form(""),
-):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
-
-    db = SessionLocal()
-    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
-
-    if review:
-        review.review_status = "已通过"
-        create_admin_action_log(
-            db=db,
-            admin_id=user.id,
-            action_type="approve_match",
-            target_type="match_review",
-            target_id=review.id,
-            description=f"管理员审核通过匹配结果 #{review.id}",
-        )
-        db.commit()
-
-    db.close()
-
-    redirect_url = "/match-reviews?" + urlencode(
-        {
-            "status_filter": status_filter,
-            "partner_id": partner_id,
-            "page": page,
-            "page_size": page_size,
-            "customer_name": customer_name,
-        }
-    )   
-
-    return RedirectResponse(url=redirect_url, status_code=302)
-
-
-@app.post("/match-reviews/{review_id}/reject")
-def reject_match_review(
-    review_id: int, 
-    request: Request,
-    status_filter: str = Form("全部"),
-    partner_id: int = Form(0),
-    page: int = Form(1),
-    page_size: int = Form(1),
-    customer_name: str = Form(""),
-):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
-
-    db = SessionLocal()
-    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
-
-    if review:
-        review.review_status = "已驳回"
-        create_admin_action_log(
-            db=db,
-            admin_id=user.id,
-            action_type="reject_match",
-            target_type="match_review",
-            target_id=review.id,
-            description=f"管理员驳回匹配结果 #{review.id}",
-        )
-        db.commit()
-
-    db.close()
-
-    redirect_url = "/match-reviews?" + urlencode(
-        {
-            "status_filter": status_filter,
-            "partner_id": partner_id,
-            "page": page,
-            "page_size": page_size,
-            "customer_name": customer_name,
-        }
-    )
-
-    return RedirectResponse(url=redirect_url, status_code=302)
-
-
-@app.post("/match-reviews/{review_id}/reopen")
-def reopen_match_review(
-    review_id: int,
-    request: Request,
-    status_filter: str = Form("全部"),
-    partner_id: int = Form(0),
-    page: int = Form(1),
-    page_size: int = Form(1),
-    customer_name: str = Form(""),
-):
-    user = get_current_user(request)
-
-    if not user or user.role != "admin":
-        return RedirectResponse(url="/login", status_code=302)
-
-    db = SessionLocal()
-
-    review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
-
-    if review:
-        review.review_status = "待审核"
-        db.commit()
-
-    db.close()
-
-    redirect_url = "/match-reviews?" + urlencode(
-        {
-            "status_filter": status_filter,
-            "partner_id": partner_id,
-            "page": page,
-            "page_size": page_size,
-            "customer_name": customer_name,
-        }
-    )
-
-    return RedirectResponse(url=redirect_url, status_code=302)
-
-
-@app.post("/match-reviews/batch-review")
-def batch_review_match_reviews(
-    request: Request,
-    review_ids: list[int] = Form([]),
-    action: str = Form(...),
-    status_filter: str = Form("全部"),
-    partner_id: int = Form(0),
-    page: int = Form(1),
-    page_size: int = Form(1),
-    customer_name: str = Form(""),
-):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    if user.role != "admin":
-        return RedirectResponse(url="/dashboard", status_code=302)
-
-    if action not in ["approve", "reject"]:
-        query_params = []
-
-        if status_filter and status_filter != "全部":
-            query_params.append(f"status_filter={status_filter}")
-
-        if partner_id != 0:
-            query_params.append(f"partner_id={partner_id}")
-
-        redirect_url = "/match-reviews"
-
-        if query_params:
-            redirect_url = "/match-reviews?" + "&".join(query_params)
-
-        return RedirectResponse(url=redirect_url, status_code=302)
-
-    new_status = "已通过" if action == "approve" else "已驳回"
-
-    db = SessionLocal()
-
-    if review_ids:
-        db.query(MatchReview).filter(
-            MatchReview.id.in_(review_ids)
-        ).update(
-            {MatchReview.review_status: new_status},
-            synchronize_session=False,
-        )
-
-        create_admin_action_log(
-            db=db,
-            admin_id=user.id,
-            action_type=(
-                "batch_approve_match"
-                if action == "approve"
-                else "batch_reject_match"
-            ),
-            target_type="match_review_batch",
-            target_id=None,
-            description=(
-                f"管理员批量"
-                f"{'审核通过' if action == 'approve' else '驳回'}"
-                f"{len(review_ids)}条匹配结果"
-            ),
-        )
-
-        db.commit()
-
-    db.close()
-
-    redirect_url = "/match-reviews?" + urlencode(
-        {
-            "status_filter": status_filter,
-            "partner_id": partner_id,
-            "page": page,
-            "page_size": page_size,
-            "customer_name": customer_name,
-        }
-    )
-
-    return RedirectResponse(url=redirect_url, status_code=302)
 
 @app.get("/upload-batches", response_class=HTMLResponse)
 def upload_batches_page(
