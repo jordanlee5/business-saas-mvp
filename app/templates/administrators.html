@@ -237,6 +237,49 @@
         white-space: nowrap;
     }
 
+    .administrator-status-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .administrator-status-form {
+        display: inline-flex;
+        margin: 0;
+    }
+
+    .administrator-status-button {
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .administrator-status-disable {
+        color: #b91c1c;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .administrator-status-disable:hover {
+        background: #fee2e2;
+    }
+
+    .administrator-status-activate {
+        color: #166534;
+        background: #ecfdf3;
+        border-color: #bbf7d0;
+    }
+
+    .administrator-status-activate:hover {
+        background: #dcfce7;
+    }
+
     @media (max-width: 900px) {
         .administrator-create-form {
             grid-template-columns: 1fr;
@@ -255,7 +298,7 @@
         <h1>管理员账号管理</h1>
 
         <div class="ui-hint">
-            超级管理员可以创建管理员账号，并调整其他非超级管理员的级别。
+            超级管理员可以创建管理员账号，并调整其他非超级管理员的级别和启用状态。
             当前登录账号和超级管理员账号受保护，不能通过此页面修改。
         </div>
 
@@ -429,15 +472,71 @@
                         </td>
 
                         <td>
-                            {% if administrator.is_active %}
-                            <span class="ui-status-badge ui-status-active">
-                                已启用
-                            </span>
-                            {% else %}
-                            <span class="ui-status-badge ui-status-disabled">
-                                已停用
-                            </span>
-                            {% endif %}
+                            <div class="administrator-status-control">
+
+                                {% if administrator.is_active %}
+
+                                <span class="ui-status-badge ui-status-active">
+                                    已启用
+                                </span>
+
+                                {% if administrator.can_edit %}
+
+                                <form
+                                    method="post"
+                                    action="/administrators/{{ administrator.id }}/status"
+                                    class="administrator-status-form"
+                                    onsubmit="return confirm('确定停用该管理员吗？停用后该账号将在下一次操作时退出登录。');"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="status_action"
+                                        value="disable"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="administrator-status-button administrator-status-disable"
+                                    >
+                                        停用
+                                    </button>
+                                </form>
+
+                                {% endif %}
+
+                                {% else %}
+
+                                <span class="ui-status-badge ui-status-disabled">
+                                    已停用
+                                </span>
+
+                                {% if administrator.can_edit %}
+
+                                <form
+                                    method="post"
+                                    action="/administrators/{{ administrator.id }}/status"
+                                    class="administrator-status-form"
+                                    onsubmit="return confirm('确定重新启用该管理员吗？');"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="status_action"
+                                        value="activate"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="administrator-status-button administrator-status-activate"
+                                    >
+                                        启用
+                                    </button>
+                                </form>
+
+                                {% endif %}
+
+                                {% endif %}
+
+                            </div>
                         </td>
 
                         <td>

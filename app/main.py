@@ -816,6 +816,149 @@ def update_administrator_level(
     )
 
 
+@app.post(
+    "/administrators/{administrator_id}/status",
+    response_class=HTMLResponse,
+)
+def update_administrator_status(
+    request: Request,
+    administrator_id: int,
+    status_action: str = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_administrators(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    def redirect_to_administrators(
+        *,
+        message: str = "",
+        error: str = "",
+    ) -> RedirectResponse:
+        redirect_url = request.url_for(
+            "administrators_page"
+        )
+
+        if message:
+            redirect_url = (
+                redirect_url.include_query_params(
+                    message=message,
+                )
+            )
+
+        if error:
+            redirect_url = (
+                redirect_url.include_query_params(
+                    error=error,
+                )
+            )
+
+        return RedirectResponse(
+            url=str(redirect_url),
+            status_code=303,
+        )
+
+    allowed_status_actions = {
+        "activate",
+        "disable",
+    }
+
+    if status_action not in allowed_status_actions:
+        return redirect_to_administrators(
+            error="管理员状态操作无效",
+        )
+
+    desired_is_active = (
+        status_action == "activate"
+    )
+
+    db = SessionLocal()
+
+    try:
+        administrator = (
+            db.query(User)
+            .filter(User.id == administrator_id)
+            .filter(User.role == "admin")
+            .first()
+        )
+
+        if not administrator:
+            return redirect_to_administrators(
+                error="管理员账号不存在",
+            )
+
+        if not can_edit_administrator_account(
+            user,
+            administrator,
+        ):
+            return redirect_to_administrators(
+                error="该管理员账号不允许修改状态",
+            )
+
+        administrator_username = (
+            administrator.username
+        )
+
+        current_is_active = bool(
+            administrator.is_active
+        )
+
+        if current_is_active == desired_is_active:
+            return redirect_to_administrators(
+                message="管理员账号状态未发生变化",
+            )
+
+        administrator.is_active = desired_is_active
+
+        if desired_is_active:
+            action_type = "activate_administrator"
+            action_text = "恢复启用"
+        else:
+            action_type = "disable_administrator"
+            action_text = "停用"
+
+        # 状态修改和审计日志在同一数据库会话中提交。
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type=action_type,
+            target_type="administrator",
+            target_id=administrator.id,
+            description=(
+                f"管理员账号 "
+                f"{administrator_username} "
+                f"已{action_text}"
+            ),
+        )
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_administrators(
+            error="管理员账号状态修改失败，请重试",
+        )
+
+    finally:
+        db.close()
+
+    return redirect_to_administrators(
+        message=(
+            f"管理员账号 "
+            f"{administrator_username} "
+            f"已{action_text}"
+        ),
+    )
+
+
 @app.get("/vouchers/{review_id}/download")
 def download_approved_voucher(
     request: Request,
