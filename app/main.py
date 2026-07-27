@@ -40,6 +40,8 @@ from .admin_permissions import (
     SUPER_ADMIN,
     can_export_stats,
     can_manage_administrators,
+    can_primary_review,
+    can_secondary_review,
     can_edit_administrator_account,
     can_manage_partners,
     can_view_partners,
@@ -4339,6 +4341,8 @@ def match_reviews_page(
             "topbar_username": user.username,
             "topbar_role": user.role,
             "active_page": "match_reviews",
+            "can_primary_review_user": can_primary_review(user),
+            "can_secondary_review_user": can_secondary_review(user),
             "reviews": review_items,
             "status_filter": status_filter,
             "partners": partners,
@@ -4531,14 +4535,17 @@ def batch_review_match_reviews(
             status_code=302,
         )
 
-    redirect_url = (
-        "/match-reviews"
-        f"?status_filter={quote(str(status_filter))}"
-        f"&partner_id={quote(str(partner_id))}"
-        f"&customer_name={quote(str(customer_name))}"
-        f"&page={page}"
-        f"&page_size={page_size}"
+    redirect_query = urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "customer_name": customer_name,
+            "page": page,
+            "page_size": page_size,
+        }
     )
+
+    redirect_url = f"/match-reviews?{redirect_query}"
 
     if stage not in {"primary", "secondary"}:
         return RedirectResponse(
@@ -4578,15 +4585,15 @@ def batch_review_match_reviews(
         for review in reviews:
             if stage == "primary":
                 applied = apply_primary_review_decision(
+                    user=user,
                     review=review,
-                    reviewer=user,
                     result=result,
                     comment=comment,
                 )
             else:
                 applied = apply_secondary_review_decision(
+                    user=user,
                     review=review,
-                    reviewer=user,
                     result=result,
                     comment=comment,
                 )

@@ -4,6 +4,18 @@
 
 {% block content %}
 {% set customer_name = customer_name | default('') %}
+
+{% set primary_batch_mode = status_filter in ["待审核", "待初审"] and can_primary_review_user %}
+{% set secondary_batch_mode = status_filter == "待复核" and can_secondary_review_user %}
+
+{% if primary_batch_mode %}
+    {% set batch_stage = "primary" %}
+    {% set batch_stage_label = "初审" %}
+{% elif secondary_batch_mode %}
+    {% set batch_stage = "secondary" %}
+    {% set batch_stage_label = "复核" %}
+{% endif %}
+
     <style>
         .match-reviews-page {
             max-width: 1500px;
@@ -701,13 +713,106 @@
 
         </div>
 
+            {% if primary_batch_mode or secondary_batch_mode %}
+                <form
+                    id="batch-review-form"
+                    method="post"
+                    action="/match-reviews/batch-review"
+                    data-storage-key="match_review_selected_ids_{{ topbar_username }}_{{ batch_stage }}_{{ partner_id }}_{{ customer_name }}"
+                    data-stage-label="{{ batch_stage_label }}"
+                >
+                    <input
+                        type="hidden"
+                        name="stage"
+                        value="{{ batch_stage }}"
+                    >
+                    <input
+                        type="hidden"
+                        name="status_filter"
+                        value="{{ status_filter }}"
+                    >
+                    <input
+                        type="hidden"
+                        name="partner_id"
+                        value="{{ partner_id }}"
+                    >
+                    <input
+                        type="hidden"
+                        name="customer_name"
+                        value="{{ customer_name }}"
+                    >
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="{{ page }}"
+                    >
+                    <input
+                        type="hidden"
+                        name="page_size"
+                        value="{{ page_size }}"
+                    >
+
+                    <div
+                        class="batch-bar"
+                        style="padding:12px 14px; border:1px solid #dbeafe; border-radius:12px; background:#f8fbff;"
+                    >
+                        <label class="batch-check-label">
+                            <input
+                                type="checkbox"
+                                id="select-all"
+                                class="review-checkbox"
+                            >
+                            全选本页可{{ batch_stage_label }}记录
+                        </label>
+
+                        <span class="batch-tip">
+                            已跨页选择
+                            <strong id="selected-review-count">0</strong>
+                            条
+                        </span>
+
+                        <label
+                            for="batch-review-comment"
+                            style="font-weight:600;"
+                        >
+                            批量{{ batch_stage_label }}意见
+                        </label>
+
+                        <textarea
+                            id="batch-review-comment"
+                            name="comment"
+                            rows="2"
+                            placeholder="通过意见可选；驳回时必须填写原因"
+                            style="min-width:260px; flex:1 1 300px; resize:vertical; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px;"
+                        ></textarea>
+
+                        <button
+                            type="submit"
+                            name="result"
+                            value="通过"
+                            class="btn-approve"
+                        >
+                            批量{{ batch_stage_label }}通过
+                        </button>
+
+                        <button
+                            type="submit"
+                            name="result"
+                            value="驳回"
+                            class="btn-reject"
+                        >
+                            批量{{ batch_stage_label }}驳回
+                        </button>
+                    </div>
+                </form>
+            {% endif %}
 
             <div class="review-panel">
                 <div class="review-list">
                     {% if review_items %}
                         {% for item in review_items %}
                             <div class="review-card
-                                {% if item.review.review_status == '待审核' %}pending{% endif %}
+                                {% if item.review.review_status in ['待审核', '待初审', '待复核'] %}pending{% endif %}
                                 {% if item.review.review_status == '已通过' %}approved{% endif %}
                                 {% if item.review.review_status == '已驳回' %}rejected{% endif %}
                             ">
@@ -911,6 +1016,24 @@
                                         {% endif %}
                                     </div>
 
+                                    {% if
+                                        (primary_batch_mode and item.can_primary_review)
+                                        or
+                                        (secondary_batch_mode and item.can_secondary_review)
+                                    %}
+                                        <label
+                                            class="batch-check-label"
+                                            style="margin-top:10px;"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                class="review-checkbox batch-review-checkbox"
+                                                value="{{ item.review.id }}"
+                                            >
+                                            选择此条
+                                        </label>
+                                    {% endif %}
+
                                     {% if item.can_primary_review or item.can_secondary_review %}
 
                                         {% if item.can_primary_review %}
@@ -1090,6 +1213,188 @@
 
     </div>
 </div>
+
+
+{% if primary_batch_mode or secondary_batch_mode %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const batchForm = document.getElementById("batch-review-form");
+
+    if (!batchForm) {
+        return;
+    }
+
+    // 清理旧版批量审核遗留的未分阶段缓存。
+    sessionStorage.removeItem("match_review_selected_ids");
+
+    const storageKey = batchForm.dataset.storageKey;
+    const stageLabel = batchForm.dataset.stageLabel;
+    const selectAll = document.getElementById("select-all");
+    const selectedCount = document.getElementById(
+        "selected-review-count"
+    );
+    const checkboxes = Array.from(
+        document.querySelectorAll(
+            ".batch-review-checkbox:not(:disabled)"
+        )
+    );
+
+    let storedIds = [];
+
+    try {
+        const parsedIds = JSON.parse(
+            sessionStorage.getItem(storageKey) || "[]"
+        );
+
+        if (Array.isArray(parsedIds)) {
+            storedIds = parsedIds;
+        }
+    } catch (error) {
+        sessionStorage.removeItem(storageKey);
+    }
+
+    const selectedIds = new Set(
+        storedIds.map(function (id) {
+            return String(id);
+        })
+    );
+
+    function saveSelection() {
+        sessionStorage.setItem(
+            storageKey,
+            JSON.stringify(Array.from(selectedIds))
+        );
+    }
+
+    function updateSelectedCount() {
+        selectedCount.textContent = String(selectedIds.size);
+    }
+
+    function updateSelectAllState() {
+        const selectedOnPage = checkboxes.filter(
+            function (checkbox) {
+                return checkbox.checked;
+            }
+        ).length;
+
+        selectAll.checked = (
+            checkboxes.length > 0
+            && selectedOnPage === checkboxes.length
+        );
+
+        selectAll.indeterminate = (
+            selectedOnPage > 0
+            && selectedOnPage < checkboxes.length
+        );
+    }
+
+    function restoreCurrentPageSelection() {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectedIds.has(
+                String(checkbox.value)
+            );
+        });
+
+        updateSelectedCount();
+        updateSelectAllState();
+    }
+
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener("change", function () {
+            const reviewId = String(checkbox.value);
+
+            if (checkbox.checked) {
+                selectedIds.add(reviewId);
+            } else {
+                selectedIds.delete(reviewId);
+            }
+
+            saveSelection();
+            updateSelectedCount();
+            updateSelectAllState();
+        });
+    });
+
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+
+            const reviewId = String(checkbox.value);
+
+            if (selectAll.checked) {
+                selectedIds.add(reviewId);
+            } else {
+                selectedIds.delete(reviewId);
+            }
+        });
+
+        saveSelection();
+        updateSelectedCount();
+        updateSelectAllState();
+    });
+
+    batchForm.addEventListener("submit", function (event) {
+        const submitter = event.submitter;
+
+        if (
+            !submitter
+            || !["通过", "驳回"].includes(submitter.value)
+        ) {
+            event.preventDefault();
+            return;
+        }
+
+        if (selectedIds.size === 0) {
+            event.preventDefault();
+            alert("请至少选择一条可以处理的审核记录");
+            return;
+        }
+
+        const comment = batchForm.elements["comment"].value.trim();
+
+        if (submitter.value === "驳回" && !comment) {
+            event.preventDefault();
+            alert("批量驳回时必须填写审核原因");
+            return;
+        }
+
+        const confirmed = confirm(
+            "确定要批量"
+            + stageLabel
+            + submitter.value
+            + selectedIds.size
+            + "条匹配结果吗？"
+        );
+
+        if (!confirmed) {
+            event.preventDefault();
+            return;
+        }
+
+        batchForm.querySelectorAll(
+            "[data-generated-review-id='true']"
+        ).forEach(function (input) {
+            input.remove();
+        });
+
+        selectedIds.forEach(function (reviewId) {
+            const hiddenInput = document.createElement("input");
+
+            hiddenInput.type = "hidden";
+            hiddenInput.name = "review_ids";
+            hiddenInput.value = reviewId;
+            hiddenInput.dataset.generatedReviewId = "true";
+
+            batchForm.appendChild(hiddenInput);
+        });
+
+        sessionStorage.removeItem(storageKey);
+    });
+
+    restoreCurrentPageSelection();
+});
+</script>
+{% endif %}
 
 
 {% endblock %}
