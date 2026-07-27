@@ -54,6 +54,7 @@ from .match_review_workflow import (
     PRIMARY_PENDING_REVIEW_STATUSES,
     PENDING_SECONDARY_REVIEW_STATUS,
     REVIEW_RESULT_APPROVED,
+    REVIEW_RESULT_REJECTED,
     apply_primary_review_decision,
     apply_secondary_review_decision,
     can_primary_review_match,
@@ -4508,6 +4509,125 @@ def secondary_review_match(
         status_code=302,
     )
 
+
+@app.post("/match-reviews/batch-review")
+def batch_review_match_reviews(
+    request: Request,
+    review_ids: list[int] = Form([]),
+    stage: str = Form(...),
+    result: str = Form(...),
+    comment: str = Form(""),
+    status_filter: str = Form("全部"),
+    partner_id: str = Form(""),
+    customer_name: str = Form(""),
+    page: int = Form(1),
+    page_size: int = Form(20),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    redirect_url = (
+        "/match-reviews"
+        f"?status_filter={quote(str(status_filter))}"
+        f"&partner_id={quote(str(partner_id))}"
+        f"&customer_name={quote(str(customer_name))}"
+        f"&page={page}"
+        f"&page_size={page_size}"
+    )
+
+    if stage not in {"primary", "secondary"}:
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=303,
+        )
+
+    if result not in {
+        REVIEW_RESULT_APPROVED,
+        REVIEW_RESULT_REJECTED,
+    }:
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=303,
+        )
+
+    selected_review_ids = list(dict.fromkeys(review_ids))
+
+    if not selected_review_ids:
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=303,
+        )
+
+    db = SessionLocal()
+
+    try:
+        reviews = (
+            db.query(MatchReview)
+            .filter(MatchReview.id.in_(selected_review_ids))
+            .order_by(MatchReview.id.asc())
+            .all()
+        )
+
+        applied_count = 0
+
+        for review in reviews:
+            if stage == "primary":
+                applied = apply_primary_review_decision(
+                    review=review,
+                    reviewer=user,
+                    result=result,
+                    comment=comment,
+                )
+            else:
+                applied = apply_secondary_review_decision(
+                    review=review,
+                    reviewer=user,
+                    result=result,
+                    comment=comment,
+                )
+
+            if applied:
+                applied_count += 1
+
+        if applied_count > 0:
+            stage_text = "初审" if stage == "primary" else "复核"
+            result_text = (
+                "通过"
+                if result == REVIEW_RESULT_APPROVED
+                else "驳回"
+            )
+            action_result = (
+                "approve"
+                if result == REVIEW_RESULT_APPROVED
+                else "reject"
+            )
+
+            create_admin_action_log(
+                db=db,
+                admin_id=user.id,
+                action_type=(
+                    f"batch_{stage}_{action_result}_match"
+                ),
+                target_type="match_review_batch",
+                target_id=None,
+                description=(
+                    f"管理员批量{stage_text}{result_text}"
+                    f"{applied_count}条匹配结果"
+                ),
+            )
+
+    finally:
+        db.close()
+
+    return RedirectResponse(
+        url=redirect_url,
+        status_code=303,
+    )
 
 
 @app.get("/upload-batches", response_class=HTMLResponse)
