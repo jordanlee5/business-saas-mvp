@@ -119,6 +119,123 @@
 
         </div>
 
+        {% if total_logs > 0 %}
+
+        <div class="admin-log-pagination">
+
+            <div class="admin-log-pagination-summary">
+                共 {{ total_logs }} 条操作记录，
+                当前第 {{ page }} / {{ total_pages }} 页，
+                本页 {{ logs | length }} 条
+            </div>
+
+            <div class="admin-log-pagination-actions">
+
+                <form
+                    method="get"
+                    action="/admin-action-logs"
+                    class="admin-log-page-size-form"
+                >
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="1"
+                    >
+
+                    <label for="admin-log-page-size">
+                        每页显示
+                    </label>
+
+                    <select
+                        id="admin-log-page-size"
+                        name="page_size"
+                        onchange="this.form.submit()"
+                    >
+                        {% for size in [10, 20, 50] %}
+                            <option
+                                value="{{ size }}"
+                                {% if page_size == size %}selected{% endif %}
+                            >
+                                {{ size }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <span>条</span>
+                </form>
+
+                <div class="page-links">
+
+                    {% if page > 1 %}
+                        <a
+                            class="page-link"
+                            href="/admin-action-logs?page={{ page - 1 }}&page_size={{ page_size }}"
+                        >
+                            上一页
+                        </a >
+                    {% else %}
+                        <span class="page-link disabled">
+                            上一页
+                        </span>
+                    {% endif %}
+
+                    {% set left_page = page - 2 %}
+                    {% set right_page = page + 2 %}
+
+                    {% for p in range(1, total_pages + 1) %}
+
+                        {% if (
+                            p == 1
+                            or p == total_pages
+                            or (
+                                p >= left_page
+                                and p <= right_page
+                            )
+                        ) %}
+                            <a
+                                class="page-link {% if p == page %}active{% endif %}"
+                                href="/admin-action-logs?page={{ p }}&page_size={{ page_size }}"
+                            >
+                                {{ p }}
+                            </a >
+
+                        {% elif p == 2 and left_page > 3 %}
+                            <span class="page-ellipsis">
+                                ...
+                            </span>
+
+                        {% elif (
+                            p == total_pages - 1
+                            and right_page < total_pages - 2
+                        ) %}
+                            <span class="page-ellipsis">
+                                ...
+                            </span>
+                        {% endif %}
+
+                    {% endfor %}
+
+                    {% if page < total_pages %}
+                        <a
+                            class="page-link"
+                            href="/admin-action-logs?page={{ page + 1 }}&page_size={{ page_size }}"
+                        >
+                            下一页
+                        </a >
+                    {% else %}
+                        <span class="page-link disabled">
+                            下一页
+                        </span>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
     </div>
 
 

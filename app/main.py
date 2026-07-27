@@ -468,7 +468,11 @@ def administrators_page(
 
 
 @app.get("/admin-action-logs", response_class=HTMLResponse)
-def admin_action_logs_page(request: Request):
+def admin_action_logs_page(
+    request: Request,
+    page: int = Query(1),
+    page_size: int = Query(10),
+):
     user = get_current_user(request)
 
     if not user:
@@ -483,9 +487,31 @@ def admin_action_logs_page(request: Request):
             status_code=302,
         )
 
+    allowed_page_sizes = [10, 20, 50]
+
+    if page < 1:
+        page = 1
+
+    if page_size not in allowed_page_sizes:
+        page_size = 10
+
     db = SessionLocal()
 
     try:
+        total_logs = db.query(AdminActionLog).count()
+
+        total_pages = (
+            total_logs + page_size - 1
+        ) // page_size
+
+        if total_pages == 0:
+            total_pages = 1
+
+        if page > total_pages:
+            page = total_pages
+
+        offset = (page - 1) * page_size
+
         logs = (
             db.query(
                 AdminActionLog,
@@ -499,7 +525,8 @@ def admin_action_logs_page(request: Request):
                 AdminActionLog.created_at.desc(),
                 AdminActionLog.id.desc(),
             )
-            .limit(100)
+            .offset(offset)
+            .limit(page_size)
             .all()
         )
 
@@ -509,6 +536,10 @@ def admin_action_logs_page(request: Request):
                 "request": request,
                 "active_page": "admin_action_logs",
                 "logs": logs,
+                "total_logs": total_logs,
+                "total_pages": total_pages,
+                "page": page,
+                "page_size": page_size,
             },
         )
 
