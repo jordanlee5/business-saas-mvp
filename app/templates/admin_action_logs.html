@@ -19,79 +19,105 @@
 
     <div class="ui-card">
 
-        <table class="ui-table">
+        <div class="admin-log-table-wrap">
 
-            <thead>
-                <tr>
-                    <th>时间</th>
-                    <th>管理员</th>
-                    <th>操作类型</th>
-                    <th>目标类型</th>
-                    <th>目标ID</th>
-                    <th>说明</th>
-                </tr>
-            </thead>
+            <table class="admin-log-table">
 
+                <thead>
+                    <tr>
+                        <th class="admin-log-col-time">时间</th>
+                        <th class="admin-log-col-admin">管理员</th>
+                        <th class="admin-log-col-action">操作类型</th>
+                        <th class="admin-log-col-target">目标类型</th>
+                        <th class="admin-log-col-id">目标ID</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
 
-            <tbody>
+                <tbody>
 
-            {% if logs %}
+                {% if logs %}
 
-                {% for log, admin_username in logs %}
+                    {% for log, admin_username in logs %}
 
-                <tr>
+                    <tr>
 
-                    <td>
-                        {{ log.created_at }}
-                    </td>
+                        <td class="admin-log-col-time">
+                            <div class="admin-log-time">
+                                {% if log.created_at %}
+                                    <span>
+                                        {{ log.created_at.strftime("%Y-%m-%d") }}
+                                    </span>
+                                    <small>
+                                        {{ log.created_at.strftime("%H:%M:%S") }}
+                                    </small>
+                                {% else %}
+                                    <span>-</span>
+                                {% endif %}
+                            </div>
+                        </td>
 
+                        <td class="admin-log-col-admin">
+                            <div class="admin-log-user">
+                                {% if admin_username %}
+                                    <strong>{{ admin_username }}</strong>
+                                    <small>ID: {{ log.admin_id }}</small>
+                                {% else %}
+                                    <strong>已删除管理员</strong>
+                                    <small>ID: {{ log.admin_id }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
 
-                    <td>
-                        {% if admin_username %}
-                            {{ admin_username }}（ID: {{ log.admin_id }}）
-                        {% else %}
-                            已删除管理员（ID: {{ log.admin_id }}）
-                        {% endif %}
-                    </td>
+                        <td class="admin-log-col-action">
+                            <span class="admin-log-badge admin-log-badge-action">
+                                {{ log.action_type }}
+                            </span>
+                        </td>
 
+                        <td class="admin-log-col-target">
+                            {% if log.target_type %}
+                                <span class="admin-log-badge admin-log-badge-target">
+                                    {{ log.target_type }}
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
 
-                    <td>
-                        {{ log.action_type }}
-                    </td>
+                        <td class="admin-log-col-id">
+                            {% if log.target_id is not none %}
+                                <span class="admin-log-id">
+                                    {{ log.target_id }}
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
 
+                        <td class="admin-log-description">
+                            {{ log.description or "-" }}
+                        </td>
 
-                    <td>
-                        {{ log.target_type or "-" }}
-                    </td>
+                    </tr>
 
+                    {% endfor %}
 
-                    <td>
-                        {{ log.target_id or "-" }}
-                    </td>
+                {% else %}
 
+                    <tr>
+                        <td class="admin-log-empty" colspan="6">
+                            暂无管理员操作记录
+                        </td>
+                    </tr>
 
-                    <td>
-                        {{ log.description or "-" }}
-                    </td>
+                {% endif %}
 
-                </tr>
+                </tbody>
 
-                {% endfor %}
+            </table>
 
-            {% else %}
-
-                <tr>
-                    <td colspan="6">
-                        暂无管理员操作记录
-                    </td>
-                </tr>
-
-            {% endif %}
-
-            </tbody>
-
-
-        </table>
+        </div>
 
     </div>
 

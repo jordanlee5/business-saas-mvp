@@ -290,3 +290,151 @@
     transform: none;
     box-shadow: none;
 }
+
+/* =========================
+   管理员操作日志表格
+   ========================= */
+
+.admin-log-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+}
+
+.admin-log-table {
+    width: 100%;
+    min-width: 1050px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    background: #ffffff;
+}
+
+.admin-log-table th,
+.admin-log-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.admin-log-table th {
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.admin-log-table td {
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+.admin-log-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.admin-log-table tbody tr:hover {
+    background: #eff6ff;
+}
+
+.admin-log-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-log-col-time {
+    width: 130px;
+}
+
+.admin-log-col-admin {
+    width: 135px;
+}
+
+.admin-log-col-action {
+    width: 180px;
+}
+
+.admin-log-col-target {
+    width: 170px;
+}
+
+.admin-log-col-id {
+    width: 80px;
+    text-align: center !important;
+}
+
+.admin-log-time span {
+    display: block;
+    color: #1e293b;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-log-time small {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-log-user strong {
+    display: block;
+    color: #0f172a;
+    font-weight: 800;
+    word-break: break-word;
+}
+
+.admin-log-user small {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.admin-log-badge {
+    display: inline-block;
+    max-width: 100%;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.admin-log-badge-action {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.admin-log-badge-target {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.admin-log-id {
+    display: inline-flex;
+    min-width: 30px;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-log-description {
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.admin-log-empty {
+    padding: 32px !important;
+    color: var(--text-muted) !important;
+    text-align: center !important;
+}
