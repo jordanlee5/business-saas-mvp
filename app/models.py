@@ -186,6 +186,29 @@ class MatchReview(Base):
     amount_match = Column(String)
     score = Column(Integer)
     review_status = Column(String, default="待审核")
+    primary_reviewer_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    primary_review_result = Column(String, nullable=True)
+    primary_review_comment = Column(String, nullable=True)
+    primary_reviewed_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    secondary_reviewer_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    secondary_review_result = Column(String, nullable=True)
+    secondary_review_comment = Column(String, nullable=True)
+    secondary_reviewed_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
