@@ -8,6 +8,7 @@ from app.admin_permissions import (
     SUPER_ADMIN,
     can_export_stats,
     can_manage_administrators,
+    can_edit_administrator_account,
     can_manage_partners,
     can_operate,
     can_primary_review,
@@ -27,8 +28,10 @@ from app.admin_permissions import (
 def make_user(
     role: str,
     admin_level: str | None = None,
+    user_id: int = 1,
 ) -> SimpleNamespace:
     return SimpleNamespace(
+        id=user_id,
         role=role,
         admin_level=admin_level,
     )
@@ -200,6 +203,107 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_manage_business_batches(None))
         self.assertFalse(can_export_business_records(None))
 
+
+    def test_super_admin_can_edit_other_non_super_admin(self):
+        current_user = make_user(
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            user_id=1,
+        )
+
+        target_user = make_user(
+            role="admin",
+            admin_level=OPERATOR,
+            user_id=2,
+        )
+
+        self.assertTrue(
+            can_edit_administrator_account(
+                current_user,
+                target_user,
+            )
+        )
+
+    def test_super_admin_cannot_edit_current_account(self):
+        current_user = make_user(
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            user_id=1,
+        )
+
+        self.assertFalse(
+            can_edit_administrator_account(
+                current_user,
+                current_user,
+            )
+        )
+
+    def test_super_admin_cannot_edit_another_super_admin(self):
+        current_user = make_user(
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            user_id=1,
+        )
+
+        target_user = make_user(
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            user_id=2,
+        )
+
+        self.assertFalse(
+            can_edit_administrator_account(
+                current_user,
+                target_user,
+            )
+        )
+
+    def test_non_super_admin_cannot_edit_administrator(self):
+        current_user = make_user(
+            role="admin",
+            admin_level=PRIMARY_REVIEWER,
+            user_id=1,
+        )
+
+        target_user = make_user(
+            role="admin",
+            admin_level=OPERATOR,
+            user_id=2,
+        )
+
+        self.assertFalse(
+            can_edit_administrator_account(
+                current_user,
+                target_user,
+            )
+        )
+
+    def test_administrator_edit_rejects_invalid_target(self):
+        current_user = make_user(
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            user_id=1,
+        )
+
+        partner = make_user(
+            role="partner",
+            admin_level=None,
+            user_id=2,
+        )
+
+        self.assertFalse(
+            can_edit_administrator_account(
+                current_user,
+                partner,
+            )
+        )
+
+        self.assertFalse(
+            can_edit_administrator_account(
+                current_user,
+                None,
+            )
+        )
 
 if __name__ == "__main__":
     unittest.main()

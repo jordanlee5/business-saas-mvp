@@ -185,6 +185,56 @@ def can_manage_administrators(user: object | None) -> bool:
     )
 
 
+def can_edit_administrator_account(
+    current_user: object | None,
+    target_user: object | None,
+) -> bool:
+    """
+    当前管理员是否可以编辑目标管理员账号。
+
+    安全规则：
+    1. 当前用户必须拥有管理员账号管理权限；
+    2. 目标必须是管理员账号；
+    3. 禁止编辑当前登录账号；
+    4. 禁止通过普通编辑流程修改超级管理员；
+    5. 缺少有效用户 ID 时默认拒绝。
+    """
+    if not can_manage_administrators(current_user):
+        return False
+
+    if target_user is None:
+        return False
+
+    if getattr(target_user, "role", None) != "admin":
+        return False
+
+    current_user_id = getattr(
+        current_user,
+        "id",
+        None,
+    )
+
+    target_user_id = getattr(
+        target_user,
+        "id",
+        None,
+    )
+
+    if (
+        current_user_id is None
+        or target_user_id is None
+    ):
+        return False
+
+    if current_user_id == target_user_id:
+        return False
+
+    if is_super_admin(target_user):
+        return False
+
+    return True
+
+
 def can_primary_review(user: object | None) -> bool:
     """是否可以执行匹配结果初审。"""
     return has_admin_level(
