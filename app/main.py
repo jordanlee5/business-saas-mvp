@@ -467,35 +467,51 @@ def administrators_page(
         db.close()
 
 
-@app.get("/admin-action-logs")
-def admin_action_logs_page(
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
+@app.get("/admin-action-logs", response_class=HTMLResponse)
+def admin_action_logs_page(request: Request):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
     if not can_manage_administrators(user):
         return RedirectResponse(
             url="/dashboard",
             status_code=302,
         )
 
-    logs = (
-        db.query(AdminActionLog)
-        .order_by(
-            AdminActionLog.created_at.desc()
-        )
-        .limit(100)
-        .all()
-    )
+    db = SessionLocal()
 
-    return templates.TemplateResponse(
-        "admin_action_logs.html",
-        {
-            "request": request,
-            "user": user,
-            "logs": logs,
-        },
-    )
+    try:
+        logs = (
+            db.query(AdminActionLog)
+            .order_by(
+                AdminActionLog.created_at.desc(),
+                AdminActionLog.id.desc(),
+            )
+            .limit(100)
+            .all()
+        )
+
+        context = add_base_context(
+            request,
+            {
+                "request": request,
+                "active_page": "admin_action_logs",
+                "logs": logs,
+            },
+        )
+
+        return templates.TemplateResponse(
+            "admin_action_logs.html",
+            context,
+        )
+
+    finally:
+        db.close()
 
 
 @app.post("/administrators", response_class=HTMLResponse)
