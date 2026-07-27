@@ -37,7 +37,7 @@
 
             {% if logs %}
 
-                {% for log in logs %}
+                {% for log, admin_username in logs %}
 
                 <tr>
 
@@ -47,7 +47,11 @@
 
 
                     <td>
-                        {{ log.admin_id }}
+                        {% if admin_username %}
+                            {{ admin_username }}（ID: {{ log.admin_id }}）
+                        {% else %}
+                            已删除管理员（ID: {{ log.admin_id }}）
+                        {% endif %}
                     </td>
 
 

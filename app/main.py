@@ -487,7 +487,14 @@ def admin_action_logs_page(request: Request):
 
     try:
         logs = (
-            db.query(AdminActionLog)
+            db.query(
+                AdminActionLog,
+                User.username.label("admin_username"),
+            )
+            .outerjoin(
+                User,
+                User.id == AdminActionLog.admin_id,
+            )
             .order_by(
                 AdminActionLog.created_at.desc(),
                 AdminActionLog.id.desc(),
