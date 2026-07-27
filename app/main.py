@@ -50,6 +50,12 @@ from .admin_permissions import (
     can_view_business_records,
 )
 
+from .match_review_workflow import (
+    REVIEW_RESULT_APPROVED,
+    apply_primary_review_decision,
+    apply_secondary_review_decision,
+)
+
 app = FastAPI(title="业务数据管理SaaS MVP")
 
 def create_admin_action_log(
@@ -4317,6 +4323,163 @@ def match_reviews_page(
             "allowed_page_sizes": allowed_page_sizes,
         },
     )
+
+
+@app.post("/match-reviews/{review_id}/primary-review")
+def primary_review_match(
+    review_id: int,
+    request: Request,
+    result: str = Form(...),
+    comment: str = Form(""),
+    status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        review = (
+            db.query(MatchReview)
+            .filter(MatchReview.id == review_id)
+            .first()
+        )
+
+        applied = apply_primary_review_decision(
+            user=user,
+            review=review,
+            result=result,
+            comment=comment,
+        )
+
+        if applied:
+            action_text = (
+                "初审通过"
+                if result == REVIEW_RESULT_APPROVED
+                else "初审驳回"
+            )
+
+            create_admin_action_log(
+                db=db,
+                admin_id=user.id,
+                action_type=(
+                    "primary_approve_match"
+                    if result == REVIEW_RESULT_APPROVED
+                    else "primary_reject_match"
+                ),
+                target_type="match_review",
+                target_id=review.id,
+                description=(
+                    f"管理员{action_text}匹配结果 "
+                    f"#{review.id}"
+                ),
+            )
+
+    finally:
+        db.close()
+
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
+    )
+
+    return RedirectResponse(
+        url=redirect_url,
+        status_code=302,
+    )
+
+
+@app.post("/match-reviews/{review_id}/secondary-review")
+def secondary_review_match(
+    review_id: int,
+    request: Request,
+    result: str = Form(...),
+    comment: str = Form(""),
+    status_filter: str = Form("全部"),
+    partner_id: int = Form(0),
+    page: int = Form(1),
+    page_size: int = Form(1),
+    customer_name: str = Form(""),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        review = (
+            db.query(MatchReview)
+            .filter(MatchReview.id == review_id)
+            .first()
+        )
+
+        applied = apply_secondary_review_decision(
+            user=user,
+            review=review,
+            result=result,
+            comment=comment,
+        )
+
+        if applied:
+            action_text = (
+                "复核通过"
+                if result == REVIEW_RESULT_APPROVED
+                else "复核驳回"
+            )
+
+            create_admin_action_log(
+                db=db,
+                admin_id=user.id,
+                action_type=(
+                    "secondary_approve_match"
+                    if result == REVIEW_RESULT_APPROVED
+                    else "secondary_reject_match"
+                ),
+                target_type="match_review",
+                target_id=review.id,
+                description=(
+                    f"管理员{action_text}匹配结果 "
+                    f"#{review.id}"
+                ),
+            )
+
+    finally:
+        db.close()
+
+    redirect_url = "/match-reviews?" + urlencode(
+        {
+            "status_filter": status_filter,
+            "partner_id": partner_id,
+            "page": page,
+            "page_size": page_size,
+            "customer_name": customer_name,
+        }
+    )
+
+    return RedirectResponse(
+        url=redirect_url,
+        status_code=302,
+    )
+
 
 @app.post("/match-reviews/{review_id}/approve")
 def approve_match_review(
