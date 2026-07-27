@@ -40,6 +40,7 @@ from .admin_permissions import (
     SUPER_ADMIN,
     can_export_stats,
     can_manage_administrators,
+    can_edit_administrator_account,
     can_manage_partners,
     can_view_partners,
     can_view_stats,
@@ -440,6 +441,10 @@ def administrators_page(
                 "admin_level": administrator.admin_level,
                 "is_active": bool(administrator.is_active),
                 "created_at": administrator.created_at,
+                "can_edit": can_edit_administrator_account(
+                    user,
+                    administrator,
+                ),
             }
             for administrator in administrator_records
         ]
@@ -664,6 +669,150 @@ def create_administrator(
 
     return redirect_to_administrators(
         message=f"管理员账号 {normalized_username} 创建成功",
+    )
+
+
+@app.post(
+    "/administrators/{administrator_id}/level",
+    response_class=HTMLResponse,
+)
+def update_administrator_level(
+    request: Request,
+    administrator_id: int,
+    admin_level: str = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_administrators(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    def redirect_to_administrators(
+        *,
+        message: str = "",
+        error: str = "",
+    ) -> RedirectResponse:
+        redirect_url = request.url_for(
+            "administrators_page"
+        )
+
+        if message:
+            redirect_url = (
+                redirect_url.include_query_params(
+                    message=message,
+                )
+            )
+
+        if error:
+            redirect_url = (
+                redirect_url.include_query_params(
+                    error=error,
+                )
+            )
+
+        return RedirectResponse(
+            url=str(redirect_url),
+            status_code=303,
+        )
+
+    allowed_admin_levels = {
+        PRIMARY_REVIEWER,
+        SECONDARY_REVIEWER,
+        OPERATOR,
+    }
+
+    if admin_level not in allowed_admin_levels:
+        return redirect_to_administrators(
+            error="管理员级别无效",
+        )
+
+    admin_level_labels = {
+        SUPER_ADMIN: "超级管理员",
+        PRIMARY_REVIEWER: "初审管理员",
+        SECONDARY_REVIEWER: "复核管理员",
+        OPERATOR: "运营管理员",
+    }
+
+    db = SessionLocal()
+
+    try:
+        administrator = (
+            db.query(User)
+            .filter(User.id == administrator_id)
+            .filter(User.role == "admin")
+            .first()
+        )
+
+        if not administrator:
+            return redirect_to_administrators(
+                error="管理员账号不存在",
+            )
+
+        if not can_edit_administrator_account(
+            user,
+            administrator,
+        ):
+            return redirect_to_administrators(
+                error="该管理员账号不允许编辑",
+            )
+
+        old_admin_level = administrator.admin_level
+        administrator_username = administrator.username
+
+        if old_admin_level == admin_level:
+            return redirect_to_administrators(
+                message="管理员级别未发生变化",
+            )
+
+        old_level_label = admin_level_labels.get(
+            old_admin_level,
+            old_admin_level or "未配置",
+        )
+
+        new_level_label = admin_level_labels[
+            admin_level
+        ]
+
+        administrator.admin_level = admin_level
+
+        # 日志函数会提交当前数据库会话，
+        # 因此级别修改和审计日志在同一次提交中保存。
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type="update_administrator_level",
+            target_type="administrator",
+            target_id=administrator.id,
+            description=(
+                f"管理员 {administrator_username} "
+                f"的级别由{old_level_label}"
+                f"调整为{new_level_label}"
+            ),
+        )
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_administrators(
+            error="管理员级别修改失败，请重试",
+        )
+
+    finally:
+        db.close()
+
+    return redirect_to_administrators(
+        message=(
+            f"管理员 {administrator_username} "
+            f"已调整为{new_level_label}"
+        ),
     )
 
 

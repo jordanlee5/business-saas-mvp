@@ -34,7 +34,7 @@
 
     .administrator-table {
         width: 100%;
-        min-width: 860px;
+        min-width: 1050px;
         border-collapse: collapse;
         table-layout: fixed;
     }
@@ -71,27 +71,27 @@
 
     .administrator-table th:nth-child(2),
     .administrator-table td:nth-child(2) {
-        width: 18%;
+        width: 16%;
     }
 
     .administrator-table th:nth-child(3),
     .administrator-table td:nth-child(3) {
-        width: 18%;
+        width: 28%;
     }
 
     .administrator-table th:nth-child(4),
     .administrator-table td:nth-child(4) {
-        width: 14%;
+        width: 13%;
     }
 
     .administrator-table th:nth-child(5),
     .administrator-table td:nth-child(5) {
-        width: 25%;
+        width: 22%;
     }
 
     .administrator-table th:nth-child(6),
     .administrator-table td:nth-child(6) {
-        width: 18%;
+        width: 14%;
     }
 
     .current-account {
@@ -199,6 +199,44 @@
         border-top: 1px solid #e2e8f0;
     }
 
+    .administrator-level-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .administrator-level-form select {
+        flex: 1;
+        min-width: 145px;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0f172a;
+        font-size: 13px;
+    }
+
+    .administrator-level-form select:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .administrator-level-form .ui-button-primary {
+        height: 36px;
+        padding: 0 12px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .protected-account {
+        color: #b45309;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
     @media (max-width: 900px) {
         .administrator-create-form {
             grid-template-columns: 1fr;
@@ -217,8 +255,8 @@
         <h1>管理员账号管理</h1>
 
         <div class="ui-hint">
-            这里用于查看系统中的管理员账号、管理员级别和启用状态。
-            当前版本暂时只提供查看功能。
+            超级管理员可以创建管理员账号，并调整其他非超级管理员的级别。
+            当前登录账号和超级管理员账号受保护，不能通过此页面修改。
         </div>
 
         {% if message %}
@@ -341,6 +379,42 @@
                         <td>{{ administrator.username }}</td>
 
                         <td>
+                            {% if administrator.can_edit %}
+
+                            <form
+                                method="post"
+                                action="/administrators/{{ administrator.id }}/level"
+                                class="administrator-level-form"
+                                onsubmit="return confirm('确定修改该管理员的级别吗？');"
+                            >
+                                <select
+                                    name="admin_level"
+                                    aria-label="管理员级别"
+                                    required
+                                >
+                                    {% for admin_level in creatable_admin_levels %}
+                                        <option
+                                            value="{{ admin_level.value }}"
+                                            {% if (
+                                                administrator.admin_level
+                                                == admin_level.value
+                                            ) %}selected{% endif %}
+                                        >
+                                            {{ admin_level.label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                                <button
+                                    type="submit"
+                                    class="ui-button-primary"
+                                >
+                                    保存
+                                </button>
+                            </form>
+
+                            {% else %}
+
                             <span class="badge">
                                 {{
                                     admin_level_labels.get(
@@ -350,6 +424,8 @@
                                     )
                                 }}
                             </span>
+
+                            {% endif %}
                         </td>
 
                         <td>
@@ -378,9 +454,21 @@
 
                         <td>
                             {% if administrator.id == current_user_id %}
-                            <span class="current-account">当前账号</span>
+
+                            <span class="current-account">
+                                当前账号
+                            </span>
+
+                            {% elif administrator.admin_level == "super_admin" %}
+
+                            <span class="protected-account">
+                                受保护账号
+                            </span>
+
                             {% else %}
+
                             -
+
                             {% endif %}
                         </td>
                     </tr>
