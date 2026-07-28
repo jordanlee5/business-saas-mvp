@@ -26,6 +26,112 @@ PRIMARY_PENDING_REVIEW_STATUSES = frozenset(
 )
 
 
+_VOUCHER_ASSIGNMENT_RESERVED_REVIEW_STATUSES = frozenset(
+    {
+        PENDING_SECONDARY_REVIEW_STATUS,
+        APPROVED_REVIEW_STATUS,
+    }
+)
+
+LOW_CONFIDENCE_CONFLICT_SCORE = 1
+
+
+def get_hidden_low_confidence_conflict_review_ids(
+    reviews,
+) -> frozenset[int]:
+    """
+    返回应从待初审池隐藏的低可信冲突候选 ID。
+
+    同一凭证已由其他业务的待复核或已通过记录预占时，
+    隐藏自身为 1 分且仍处于待初审状态的其他业务候选。
+    数据库记录不会被删除或改状态。
+    """
+    review_list = list(reviews or ())
+    reviews_by_voucher_id = {}
+
+    for review in review_list:
+        voucher_id = getattr(
+            review,
+            "voucher_id",
+            None,
+        )
+
+        if voucher_id is None:
+            continue
+
+        reviews_by_voucher_id.setdefault(
+            voucher_id,
+            [],
+        ).append(review)
+
+    hidden_review_ids = set()
+
+    for review in review_list:
+        review_id = getattr(review, "id", None)
+        voucher_id = getattr(
+            review,
+            "voucher_id",
+            None,
+        )
+        business_record_id = getattr(
+            review,
+            "business_record_id",
+            None,
+        )
+
+        if (
+            review_id is None
+            or voucher_id is None
+            or business_record_id is None
+            or getattr(
+                review,
+                "review_status",
+                None,
+            )
+            not in PRIMARY_PENDING_REVIEW_STATUSES
+            or getattr(review, "score", None)
+            != LOW_CONFIDENCE_CONFLICT_SCORE
+        ):
+            continue
+
+        related_reviews = (
+            reviews_by_voucher_id.get(
+                voucher_id,
+                (),
+            )
+        )
+
+
+        has_other_business_reservation = any(
+            getattr(
+                related_review,
+                "id",
+                None,
+            )
+            != review_id
+            and getattr(
+                related_review,
+                "business_record_id",
+                None,
+            )
+            != business_record_id
+            and getattr(
+                related_review,
+                "review_status",
+                None,
+            )
+            in (
+                _VOUCHER_ASSIGNMENT_RESERVED_REVIEW_STATUSES
+            )
+            for related_review in related_reviews
+        )
+
+        if has_other_business_reservation:
+            hidden_review_ids.add(review_id)
+
+    return frozenset(hidden_review_ids)
+
+
 def can_primary_review_match(
     user: object | None,
     review: object | None,

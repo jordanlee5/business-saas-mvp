@@ -18,6 +18,7 @@ from app.match_review_workflow import (
     apply_secondary_review_decision,
     can_primary_review_match,
     can_secondary_review_match,
+    get_hidden_low_confidence_conflict_review_ids,
 )
 
 
@@ -35,15 +36,184 @@ def make_admin(
 def make_review(
     review_status: str,
     primary_reviewer_id: int | None = None,
+    review_id: int = 100,
+    voucher_id: int = 10,
+    business_record_id: int = 20,
+    score: int = 1,
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        id=100,
+        id=review_id,
+        voucher_id=voucher_id,
+        business_record_id=business_record_id,
+        score=score,
         review_status=review_status,
         primary_reviewer_id=primary_reviewer_id,
     )
 
 
 class MatchReviewWorkflowTests(unittest.TestCase):
+    def test_hides_one_point_candidate_reserved_by_other_business(self):
+        candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        reserved_review = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    candidate,
+                    reserved_review,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset({1}),
+        )
+
+    def test_hides_legacy_pending_candidate_for_approved_owner(self):
+        candidate = make_review(
+            "待审核",
+            review_id=1,
+            business_record_id=100,
+        )
+        approved_review = make_review(
+            APPROVED_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    candidate,
+                    approved_review,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset({1}),
+        )
+
+    def test_keeps_reserved_review_visible(self):
+        candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        reserved_review = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    candidate,
+                    reserved_review,
+                ]
+            )
+        )
+
+        self.assertNotIn(2, hidden_ids)
+
+    def test_keeps_candidate_when_same_business_owns_voucher(self):
+        candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        reserved_review = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=100,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    candidate,
+                    reserved_review,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset(),
+        )
+
+    def test_hides_one_point_candidate_when_owner_has_higher_score(self):
+        low_confidence_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+            score=1,
+        )
+        reserved_owner = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+            score=4,
+        )
+        stronger_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=3,
+            business_record_id=300,
+            score=4,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    low_confidence_candidate,
+                    reserved_owner,
+                    stronger_candidate,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset({1}),
+        )
+
+    def test_rejected_owner_releases_hidden_candidate(self):
+        candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        rejected_review = make_review(
+            REJECTED_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+
+        hidden_ids = (
+            get_hidden_low_confidence_conflict_review_ids(
+                [
+                    candidate,
+                    rejected_review,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset(),
+        )
+
     def test_primary_reviewer_can_review_legacy_pending_record(self):
         user = make_admin(1, PRIMARY_REVIEWER)
         review = make_review("待审核")

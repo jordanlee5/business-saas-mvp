@@ -62,6 +62,7 @@ from .match_review_workflow import (
     apply_secondary_review_decision,
     can_primary_review_match,
     can_secondary_review_match,
+    get_hidden_low_confidence_conflict_review_ids,
 )
 
 from .voucher_allocation import (
@@ -4232,10 +4233,33 @@ def match_reviews_page(
     else:
         reviews = db.query(MatchReview).order_by(MatchReview.id.desc()).all()
 
+
+    visibility_reviews = reviews
+
+    if review_id > 0 and reviews:
+        visibility_reviews = (
+            db.query(MatchReview)
+            .filter(
+                MatchReview.voucher_id
+                == reviews[0].voucher_id
+            )
+            .all()
+        )
+
+    hidden_review_ids = (
+        get_hidden_low_confidence_conflict_review_ids(
+            visibility_reviews
+        )
+    )
+
     # 匹配结果审核页的展示单位应该是“审核记录 MatchReview”，不是“业务数据 BusinessRecord”。
     # 同一条业务可能关联多张凭证，其中既可能有已通过，也可能有已驳回、待审核、无需审核。
     # 如果按 business_record_id 去重，只保留最新一条，就会把较早的“已通过”历史审核记录隐藏掉。
-    latest_reviews = reviews
+    latest_reviews = [
+        review
+        for review in reviews
+        if review.id not in hidden_review_ids
+    ]
 
     if status_filter in ["待审核", "待初审"]:
         latest_reviews = [
