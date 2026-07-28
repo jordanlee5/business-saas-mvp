@@ -8,7 +8,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 import os
 import hashlib
@@ -53,6 +53,7 @@ from .admin_permissions import (
 )
 
 from .match_review_workflow import (
+    APPROVED_REVIEW_STATUS,
     PRIMARY_PENDING_REVIEW_STATUSES,
     PENDING_SECONDARY_REVIEW_STATUS,
     REVIEW_RESULT_APPROVED,
@@ -61,6 +62,12 @@ from .match_review_workflow import (
     apply_secondary_review_decision,
     can_primary_review_match,
     can_secondary_review_match,
+)
+
+from .voucher_allocation import (
+    calculate_reserved_allocation_limits,
+    get_review_block_reason,
+    validate_allocation_amount,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -4100,6 +4107,99 @@ def upload_voucher_submit(
         },
     )
 
+
+ALLOCATION_RESERVED_REVIEW_STATUSES = (
+    PENDING_SECONDARY_REVIEW_STATUS,
+    APPROVED_REVIEW_STATUS,
+)
+
+
+def build_primary_review_allocation_limits(
+    db,
+    review,
+):
+    """
+    读取单条初审所需的业务、凭证和预占金额。
+
+    预占口径：除当前记录外，所有待复核和已通过记录。
+    """
+    if review is None:
+        raise ValueError("审核记录不存在")
+
+    record = (
+        db.query(BusinessRecord)
+        .filter(
+            BusinessRecord.id
+            == review.business_record_id
+        )
+        .first()
+    )
+    voucher = (
+        db.query(VoucherRecord)
+        .filter(
+            VoucherRecord.id == review.voucher_id
+        )
+        .first()
+    )
+
+    if record is None:
+        raise ValueError("审核记录关联的业务不存在")
+
+    if voucher is None:
+        raise ValueError("审核记录关联的凭证不存在")
+
+    business_reserved_reviews = (
+        db.query(MatchReview)
+        .filter(
+            MatchReview.business_record_id
+            == record.id
+        )
+        .filter(MatchReview.id != review.id)
+        .filter(
+            MatchReview.review_status.in_(
+                ALLOCATION_RESERVED_REVIEW_STATUSES
+            )
+        )
+        .all()
+    )
+    voucher_reserved_reviews = (
+        db.query(MatchReview)
+        .filter(
+            MatchReview.voucher_id == voucher.id
+        )
+        .filter(MatchReview.id != review.id)
+        .filter(
+            MatchReview.review_status.in_(
+                ALLOCATION_RESERVED_REVIEW_STATUSES
+            )
+        )
+        .all()
+    )
+
+    limits = calculate_reserved_allocation_limits(
+        current_business_record_id=record.id,
+        assigned_business_record_ids=[
+            reserved_review.business_record_id
+            for reserved_review
+            in voucher_reserved_reviews
+        ],
+        business_amount=record.points_amount,
+        business_reserved_allocation_amounts=[
+            reserved_review.allocation_amount
+            for reserved_review
+            in business_reserved_reviews
+        ],
+        voucher_amount=voucher.voucher_amount,
+        voucher_reserved_allocation_amounts=[
+            reserved_review.allocation_amount
+            for reserved_review
+            in voucher_reserved_reviews
+        ],
+    )
+
+    return record, voucher, limits
+
+
 @app.get("/match-reviews", response_class=HTMLResponse)
 def match_reviews_page(
     request: Request,
@@ -4109,6 +4209,7 @@ def match_reviews_page(
     page_size: int = Query(1),
     customer_name: str = Query(""),
     review_id: int = Query(0),
+    review_error: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -4296,8 +4397,71 @@ def match_reviews_page(
             business_amount = record.points_amount or 0
             remaining_amount = business_amount - approved_voucher_amount
 
+            approved_voucher_amount = Decimal("0.00")
+
+            for approved_review in (
+                approved_reviews_for_record
+            ):
+                if (
+                    approved_review.allocation_amount
+                    is not None
+                ):
+                    approved_voucher_amount += Decimal(
+                        str(
+                            approved_review.allocation_amount
+                        )
+                    )
+
+            business_amount = Decimal(
+                str(record.points_amount or 0)
+            )
+            remaining_amount = (
+                business_amount
+                - approved_voucher_amount
+            )
+
             if remaining_amount < 0:
-                remaining_amount = 0
+                remaining_amount = Decimal("0.00")
+
+            can_primary_review_item = (
+                can_primary_review_match(
+                    user,
+                    review,
+                )
+            )
+            allocation_limits = None
+            allocation_block_message = ""
+
+            if can_primary_review_item:
+                try:
+                    (
+                        _,
+                        _,
+                        allocation_limits,
+                    ) = (
+                        build_primary_review_allocation_limits(
+                            db,
+                            review,
+                        )
+                    )
+                    block_reason = (
+                        get_review_block_reason(
+                            allocation_limits
+                        )
+                    )
+
+                    if block_reason is not None:
+                        allocation_block_message = (
+                            block_reason.message
+                        )
+
+                except ValueError as exc:
+                    allocation_block_message = str(exc)
+
+            can_primary_review_item = bool(
+                can_primary_review_item
+                and not allocation_block_message
+            )
 
             review_items.append(
                 {
@@ -4312,13 +4476,22 @@ def match_reviews_page(
                     "payable_cost": float(payable_cost),
                     "gross_profit": float(gross_profit),
                     "voucher_amount": voucher.voucher_amount or 0,
-                    "approved_voucher_amount": round(approved_voucher_amount, 2),
-                    "remaining_amount": round(remaining_amount, 2),
+                    "approved_voucher_amount": float(
+                        approved_voucher_amount
+                    ),
+                    "remaining_amount": float(
+                        remaining_amount
+                    ),
+                    "allocation_maximum": (
+                        f"{allocation_limits.maximum_allocation:.2f}"
+                        if allocation_limits is not None
+                        else "0.00"
+                    ),
+                    "allocation_block_message": (
+                        allocation_block_message
+                    ),
                     "can_primary_review": (
-                        can_primary_review_match(
-                            user,
-                            review,
-                        )
+                        can_primary_review_item
                     ),
                     "can_secondary_review": (
                         can_secondary_review_match(
@@ -4351,6 +4524,7 @@ def match_reviews_page(
             "page_size": page_size,
             "customer_name": customer_name,
             "review_id": review_id,
+            "review_error": review_error,
             "total_reviews": total_reviews,
             "total_pages": total_pages,
             "allowed_page_sizes": allowed_page_sizes,
@@ -4363,6 +4537,7 @@ def primary_review_match(
     review_id: int,
     request: Request,
     result: str = Form(...),
+    allocation_amount: str = Form(""),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
     partner_id: int = Form(0),
@@ -4379,13 +4554,39 @@ def primary_review_match(
         )
 
     db = SessionLocal()
+    review_error = ""
 
     try:
+        if result == REVIEW_RESULT_APPROVED:
+            # SQLite 使用写锁串行化“读取余额 -> 预占金额”。
+            # 避免两名初审员同时读取到相同余额并双重占用。
+            db.connection().exec_driver_sql(
+                "BEGIN IMMEDIATE"
+            )
+
         review = (
             db.query(MatchReview)
             .filter(MatchReview.id == review_id)
             .first()
         )
+
+        allocation_result = None
+
+        if result == REVIEW_RESULT_APPROVED:
+            (
+                _,
+                _,
+                allocation_limits,
+            ) = build_primary_review_allocation_limits(
+                db,
+                review,
+            )
+            allocation_result = (
+                validate_allocation_amount(
+                    allocation_amount,
+                    allocation_limits,
+                )
+            )
 
         applied = apply_primary_review_decision(
             user=user,
@@ -4395,6 +4596,11 @@ def primary_review_match(
         )
 
         if applied:
+            if allocation_result is not None:
+                review.allocation_amount = (
+                    allocation_result.allocation_amount
+                )
+
             action_text = (
                 "初审通过"
                 if result == REVIEW_RESULT_APPROVED
@@ -4414,8 +4620,34 @@ def primary_review_match(
                 description=(
                     f"管理员{action_text}匹配结果 "
                     f"#{review.id}"
+                    + (
+                        "，本次核销金额"
+                        f"{allocation_result.allocation_amount:.2f}"
+                        if allocation_result is not None
+                        else ""
+                    )
                 ),
             )
+        else:
+            review_error = (
+                "当前记录状态、审核权限或审核内容"
+                "不符合初审要求"
+            )
+
+    except ValueError as exc:
+        db.rollback()
+        review_error = str(exc)
+
+    except OperationalError as exc:
+        db.rollback()
+
+        if "database is locked" not in str(exc).lower():
+            raise
+
+        review_error = (
+            "另一名管理员正在处理核销，"
+            "请稍后刷新页面再试"
+        )
 
     finally:
         db.close()
@@ -4427,6 +4659,14 @@ def primary_review_match(
             "page": page,
             "page_size": page_size,
             "customer_name": customer_name,
+            **(
+                {
+                    "review_error": review_error,
+                    "review_id": review_id,
+                }
+                if review_error
+                else {}
+            ),
         }
     )
 
@@ -4567,6 +4807,29 @@ def batch_review_match_reviews(
     if not selected_review_ids:
         return RedirectResponse(
             url=redirect_url,
+            status_code=303,
+        )
+
+    if (
+        stage == "primary"
+        and result == REVIEW_RESULT_APPROVED
+    ):
+        blocked_query = urlencode(
+            {
+                "status_filter": status_filter,
+                "partner_id": partner_id,
+                "customer_name": customer_name,
+                "page": page,
+                "page_size": page_size,
+                "review_error": (
+                    "批量初审通过暂未接入逐条核销金额，"
+                    "请先使用单条初审"
+                ),
+            }
+        )
+
+        return RedirectResponse(
+            url=f"/match-reviews?{blocked_query}",
             status_code=303,
         )
 

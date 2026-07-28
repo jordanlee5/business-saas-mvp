@@ -8,6 +8,7 @@ from app.voucher_allocation import (
     VOUCHER_FULLY_ALLOCATED,
     VOUCHER_OVERALLOCATED,
     calculate_allocation_limits,
+    calculate_reserved_allocation_limits,
     get_review_block_reason,
     get_voucher_business_block_reason,
     validate_allocation_amount,
@@ -344,6 +345,109 @@ class VoucherAllocationTests(
                 current_business_record_id=100,
                 assigned_business_record_ids=[
                     True,
+                ],
+            )
+
+
+    def test_pending_secondary_amount_reserves_both_limits(self):
+        limits = calculate_reserved_allocation_limits(
+            current_business_record_id=100,
+            assigned_business_record_ids=[100],
+            business_amount="1000",
+            business_reserved_allocation_amounts=[
+                "300",
+            ],
+            voucher_amount="800",
+            voucher_reserved_allocation_amounts=[
+                "300",
+            ],
+        )
+
+        self.assertEqual(
+            limits.business_remaining,
+            Decimal("700.00"),
+        )
+        self.assertEqual(
+            limits.voucher_remaining,
+            Decimal("500.00"),
+        )
+        self.assertEqual(
+            limits.maximum_allocation,
+            Decimal("500.00"),
+        )
+
+    def test_reserved_limits_allow_same_business(self):
+        limits = calculate_reserved_allocation_limits(
+            current_business_record_id=100,
+            assigned_business_record_ids=[
+                100,
+                100,
+            ],
+            business_amount="1000",
+            business_reserved_allocation_amounts=[
+                "100",
+                "200",
+            ],
+            voucher_amount="900",
+            voucher_reserved_allocation_amounts=[
+                "200",
+            ],
+        )
+
+        self.assertEqual(
+            limits.maximum_allocation,
+            Decimal("700.00"),
+        )
+
+    def test_reserved_limits_reject_other_business(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "一张凭证只能归属一个业务",
+        ):
+            calculate_reserved_allocation_limits(
+                current_business_record_id=100,
+                assigned_business_record_ids=[200],
+                business_amount="1000",
+                business_reserved_allocation_amounts=[],
+                voucher_amount="800",
+                voucher_reserved_allocation_amounts=[
+                    "100",
+                ],
+            )
+
+    def test_missing_business_reservation_blocks_new_allocation(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "缺少核销金额",
+        ):
+            calculate_reserved_allocation_limits(
+                current_business_record_id=100,
+                assigned_business_record_ids=[100],
+                business_amount="1000",
+                business_reserved_allocation_amounts=[
+                    None,
+                ],
+                voucher_amount="800",
+                voucher_reserved_allocation_amounts=[
+                    "100",
+                ],
+            )
+
+    def test_missing_voucher_reservation_blocks_new_allocation(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "缺少核销金额",
+        ):
+            calculate_reserved_allocation_limits(
+                current_business_record_id=100,
+                assigned_business_record_ids=[100],
+                business_amount="1000",
+                business_reserved_allocation_amounts=[
+                    "100",
+                ],
+                voucher_amount="800",
+                voucher_reserved_allocation_amounts=[
+                    None,
                 ],
             )
 

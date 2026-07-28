@@ -311,6 +311,98 @@ def get_voucher_business_block_reason(
     return None
 
 
+def _sum_reserved_allocation_amounts(
+    allocation_amounts,
+    field_name: str,
+) -> Decimal:
+    """
+    汇总待复核和已通过记录已经占用的金额。
+
+    预占记录缺少核销金额时不能按 0 处理，否则可能继续放行
+    新核销并造成超额。
+    """
+    total = ZERO
+
+    for allocation_amount in (
+        allocation_amounts or ()
+    ):
+        if allocation_amount is None:
+            raise ValueError(
+                f"{field_name}存在缺少核销金额的"
+                "待复核或已通过记录，必须先处理"
+            )
+
+        normalized_amount = _to_money(
+            allocation_amount,
+            field_name,
+        )
+        _require_non_negative(
+            normalized_amount,
+            field_name,
+        )
+        total += normalized_amount
+
+    return total.quantize(
+        MONEY_QUANTUM,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def calculate_reserved_allocation_limits(
+    current_business_record_id: int,
+    assigned_business_record_ids,
+    business_amount,
+    business_reserved_allocation_amounts,
+    voucher_amount,
+    voucher_reserved_allocation_amounts,
+) -> AllocationLimits:
+    """
+    使用“待复核 + 已通过”预占金额计算单条初审上限。
+
+    调用方必须排除当前 MatchReview，避免当前记录重复占用
+    自己的额度。
+    """
+    assignment_reason = (
+        get_voucher_business_block_reason(
+            current_business_record_id=(
+                current_business_record_id
+            ),
+            assigned_business_record_ids=(
+                assigned_business_record_ids
+            ),
+        )
+    )
+
+    if assignment_reason is not None:
+        raise ValueError(
+            assignment_reason.message
+        )
+
+    business_reserved_amount = (
+        _sum_reserved_allocation_amounts(
+            business_reserved_allocation_amounts,
+            "业务预占核销金额",
+        )
+    )
+    voucher_reserved_amount = (
+        _sum_reserved_allocation_amounts(
+            voucher_reserved_allocation_amounts,
+            "凭证预占分配金额",
+        )
+    )
+
+    return calculate_allocation_limits(
+        business_amount=business_amount,
+        approved_business_amount=(
+            business_reserved_amount
+        ),
+        voucher_amount=voucher_amount,
+        approved_voucher_amount=(
+            voucher_reserved_amount
+        ),
+    )
+
+
 def validate_allocation_amount(
     allocation_amount,
     limits: AllocationLimits,

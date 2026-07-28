@@ -713,6 +713,15 @@
 
         </div>
 
+            {% if review_error %}
+                <div
+                    class="ui-hint"
+                    style="margin-bottom:14px; border-color:#fecaca; background:#fef2f2; color:#b91c1c;"
+                >
+                    {{ review_error }}
+                </div>
+            {% endif %}
+
             {% if primary_batch_mode or secondary_batch_mode %}
                 <form
                     id="batch-review-form"
@@ -786,14 +795,23 @@
                             style="min-width:260px; flex:1 1 300px; resize:vertical; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px;"
                         ></textarea>
 
-                        <button
-                            type="submit"
-                            name="result"
-                            value="通过"
-                            class="btn-approve"
-                        >
-                            批量{{ batch_stage_label }}通过
-                        </button>
+                        {% if batch_stage == "secondary" %}
+                            <button
+                                type="submit"
+                                name="result"
+                                value="通过"
+                                class="btn-approve"
+                            >
+                                批量{{ batch_stage_label }}通过
+                            </button>
+                        {% else %}
+                            <span
+                                class="ui-hint"
+                                style="margin:0;"
+                            >
+                                批量初审通过将在接入逐条核销金额后恢复
+                            </span>
+                        {% endif %}
 
                         <button
                             type="submit"
@@ -909,7 +927,7 @@
                                         </div>
 
                                         <div class="amount-item">
-                                            <div class="info-label">已通过凭证金额</div>
+                                            <div class="info-label">已通过核销金额</div>
                                             <div class="info-value">{{ item.approved_voucher_amount }}</div>
                                         </div>
 
@@ -1016,6 +1034,21 @@
                                         {% endif %}
                                     </div>
 
+                                    {% if item.review.allocation_amount is not none %}
+                                        <div
+                                            class="info-item"
+                                            style="margin:10px 0; border-color:#bbf7d0; background:#f0fdf4;"
+                                        >
+                                            <div class="info-label">本次核销金额</div>
+                                            <div
+                                                class="info-value"
+                                                style="color:#15803d;"
+                                            >
+                                                {{ item.review.allocation_amount }}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
                                     {% if
                                         (primary_batch_mode and item.can_primary_review)
                                         or
@@ -1075,6 +1108,34 @@
                                                 value="{{ customer_name }}"
                                             >
 
+                                            {% if item.can_primary_review %}
+                                                <label
+                                                    for="allocation-amount-{{ item.review.id }}"
+                                                    style="display:block; margin:12px 0 6px; font-weight:600;"
+                                                >
+                                                    本次核销金额
+                                                </label>
+
+                                                <input
+                                                    id="allocation-amount-{{ item.review.id }}"
+                                                    type="number"
+                                                    name="allocation_amount"
+                                                    min="0.01"
+                                                    max="{{ item.allocation_maximum }}"
+                                                    step="0.01"
+                                                    inputmode="decimal"
+                                                    placeholder="最大可核销 {{ item.allocation_maximum }}"
+                                                    style="width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px;"
+                                                >
+
+                                                <div
+                                                    style="margin-top:6px; color:#64748b; font-size:12px; line-height:1.6;"
+                                                >
+                                                    待复核金额已计入预占；本条最大可核销
+                                                    {{ item.allocation_maximum }}
+                                                </div>
+                                            {% endif %}
+
                                             <label
                                                 for="review-comment-{{ item.review.id }}"
                                                 style="display:block; margin:12px 0 6px; font-weight:600;"
@@ -1096,7 +1157,15 @@
                                                     name="result"
                                                     value="通过"
                                                     class="btn-approve"
-                                                    onclick="return confirm('确定要{{ review_stage_label }}通过这条记录吗？')"
+                                                    onclick="
+                                                        {% if item.can_primary_review %}
+                                                            if (!this.form.elements['allocation_amount'].value.trim()) {
+                                                                alert('初审通过时必须填写本次核销金额');
+                                                                return false;
+                                                            }
+                                                        {% endif %}
+                                                        return confirm('确定要{{ review_stage_label }}通过这条记录吗？');
+                                                    "
                                                 >
                                                     {{ review_stage_label }}通过
                                                 </button>
@@ -1122,7 +1191,9 @@
                                     {% else %}
 
                                         <div class="handled-text">
-                                            {% if item.review.review_status in ["待审核", "待初审"] %}
+                                            {% if item.allocation_block_message %}
+                                                {{ item.allocation_block_message }}
+                                            {% elif item.review.review_status in ["待审核", "待初审"] %}
                                                 当前账号没有此条记录的初审权限
                                             {% elif item.review.review_status == "待复核" %}
                                                 等待另一名具有复核权限的管理员处理
