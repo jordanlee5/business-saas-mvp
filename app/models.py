@@ -5,6 +5,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     text,
 )
@@ -186,6 +187,10 @@ class MatchReview(Base):
     amount_match = Column(String)
     score = Column(Integer)
     review_status = Column(String, default="待审核")
+    allocation_amount = Column(
+        Numeric(12, 2),
+        nullable=True,
+    )
     primary_reviewer_id = Column(
         Integer,
         ForeignKey("users.id"),
