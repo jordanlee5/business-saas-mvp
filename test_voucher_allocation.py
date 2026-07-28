@@ -4,10 +4,12 @@ from decimal import Decimal
 from app.voucher_allocation import (
     BUSINESS_COMPLETED,
     BUSINESS_OVERPAID,
+    VOUCHER_ASSIGNED_TO_OTHER_BUSINESS,
     VOUCHER_FULLY_ALLOCATED,
     VOUCHER_OVERALLOCATED,
     calculate_allocation_limits,
     get_review_block_reason,
+    get_voucher_business_block_reason,
     validate_allocation_amount,
 )
 
@@ -277,6 +279,72 @@ class VoucherAllocationTests(
                 approved_business_amount="0",
                 voucher_amount="800",
                 approved_voucher_amount="0",
+            )
+
+
+    def test_voucher_without_owner_can_enter_review(self):
+        reason = get_voucher_business_block_reason(
+            current_business_record_id=100,
+            assigned_business_record_ids=[],
+        )
+
+        self.assertIsNone(reason)
+
+    def test_voucher_can_stay_with_same_business(self):
+        reason = get_voucher_business_block_reason(
+            current_business_record_id=100,
+            assigned_business_record_ids=[
+                100,
+                100,
+            ],
+        )
+
+        self.assertIsNone(reason)
+
+    def test_voucher_cannot_move_to_other_business(self):
+        reason = get_voucher_business_block_reason(
+            current_business_record_id=100,
+            assigned_business_record_ids=[200],
+        )
+
+        self.assertIsNotNone(reason)
+        self.assertEqual(
+            reason.code,
+            VOUCHER_ASSIGNED_TO_OTHER_BUSINESS,
+        )
+        self.assertIn(
+            "一张凭证只能归属一个业务",
+            reason.message,
+        )
+
+    def test_any_other_business_blocks_assignment(self):
+        reason = get_voucher_business_block_reason(
+            current_business_record_id=100,
+            assigned_business_record_ids=[
+                100,
+                200,
+            ],
+        )
+
+        self.assertIsNotNone(reason)
+        self.assertEqual(
+            reason.code,
+            VOUCHER_ASSIGNED_TO_OTHER_BUSINESS,
+        )
+
+    def test_voucher_assignment_requires_valid_ids(self):
+        with self.assertRaises(ValueError):
+            get_voucher_business_block_reason(
+                current_business_record_id=0,
+                assigned_business_record_ids=[],
+            )
+
+        with self.assertRaises(ValueError):
+            get_voucher_business_block_reason(
+                current_business_record_id=100,
+                assigned_business_record_ids=[
+                    True,
+                ],
             )
 
 

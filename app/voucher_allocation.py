@@ -9,6 +9,9 @@ BUSINESS_OVERPAID = "business_overpaid"
 VOUCHER_OVERALLOCATED = "voucher_overallocated"
 BUSINESS_COMPLETED = "business_completed"
 VOUCHER_FULLY_ALLOCATED = "voucher_fully_allocated"
+VOUCHER_ASSIGNED_TO_OTHER_BUSINESS = (
+    "voucher_assigned_to_other_business"
+)
 
 
 @dataclass(frozen=True)
@@ -242,6 +245,66 @@ def get_review_block_reason(
             message=(
                 "该凭证已全部分配，"
                 "不进入初审或复核"
+            ),
+        )
+
+    return None
+
+
+def get_voucher_business_block_reason(
+    current_business_record_id: int,
+    assigned_business_record_ids,
+) -> AllocationBlockReason | None:
+    """
+    校验一张凭证是否已经归属于其他业务。
+
+    一张凭证可以产生多条待初审候选匹配，但一旦其中一条
+    进入待复核或已通过，该凭证就只能归属于该业务。
+    调用方应传入除当前审核记录以外，所有待复核和已通过
+    记录对应的业务 ID。
+    """
+    if (
+        isinstance(current_business_record_id, bool)
+        or not isinstance(
+            current_business_record_id,
+            int,
+        )
+        or current_business_record_id <= 0
+    ):
+        raise ValueError(
+            "当前业务 ID 必须是正整数"
+        )
+
+    conflicting_business_ids = set()
+
+    for business_record_id in (
+        assigned_business_record_ids or ()
+    ):
+        if (
+            isinstance(business_record_id, bool)
+            or not isinstance(business_record_id, int)
+            or business_record_id <= 0
+        ):
+            raise ValueError(
+                "凭证已归属业务 ID 必须是正整数"
+            )
+
+        if (
+            business_record_id
+            != current_business_record_id
+        ):
+            conflicting_business_ids.add(
+                business_record_id
+            )
+
+    if conflicting_business_ids:
+        return AllocationBlockReason(
+            code=(
+                VOUCHER_ASSIGNED_TO_OTHER_BUSINESS
+            ),
+            message=(
+                "该凭证已归属于其他业务，"
+                "一张凭证只能归属一个业务"
             ),
         )
 
