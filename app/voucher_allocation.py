@@ -403,6 +403,65 @@ def get_business_allocation_status(
     return ALLOCATION_STATUS_COMPLETED
 
 
+def get_business_allocation_abnormal_message(
+    business_amount,
+    approved_allocation_amounts,
+    reserved_allocation_amounts,
+) -> str:
+    """
+    返回审核页使用的核销金额异常说明。
+
+    正常状态返回空字符串；金额缺失、非法或超额时返回可直接
+    展示给审核员的具体原因。
+    """
+    try:
+        normalized_business_amount = _to_money(
+            business_amount,
+            "业务金额",
+        )
+        _require_non_negative(
+            normalized_business_amount,
+            "业务金额",
+        )
+        approved_amount = (
+            _sum_reserved_allocation_amounts(
+                approved_allocation_amounts,
+                "业务已通过核销金额",
+            )
+        )
+        reserved_amount = (
+            _sum_reserved_allocation_amounts(
+                reserved_allocation_amounts,
+                "业务预占核销金额",
+            )
+        )
+    except ValueError as exc:
+        return str(exc)
+
+    if approved_amount > normalized_business_amount:
+        excess_amount = (
+            approved_amount
+            - normalized_business_amount
+        )
+        return (
+            "已通过核销金额超出业务金额 "
+            f"{excess_amount:.2f}"
+        )
+
+    if reserved_amount > normalized_business_amount:
+        excess_amount = (
+            reserved_amount
+            - normalized_business_amount
+        )
+        return (
+            "待复核与已通过预占核销金额"
+            "超出业务金额 "
+            f"{excess_amount:.2f}"
+        )
+
+    return ""
+
+
 def calculate_reserved_allocation_limits(
     current_business_record_id: int,
     assigned_business_record_ids,

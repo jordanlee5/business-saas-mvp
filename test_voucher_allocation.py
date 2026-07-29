@@ -12,6 +12,7 @@ from app.voucher_allocation import (
     ALLOCATION_STATUS_PARTIAL,
     ALLOCATION_STATUS_UNPAID,
     calculate_allocation_limits,
+    get_business_allocation_abnormal_message,
     get_business_allocation_status,
     calculate_reserved_allocation_limits,
     get_review_block_reason,
@@ -94,6 +95,58 @@ class VoucherAllocationTests(
             status,
             ALLOCATION_STATUS_ABNORMAL,
         )
+
+    def test_normal_allocation_has_no_abnormal_message(self):
+        message = get_business_allocation_abnormal_message(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300", "200"],
+        )
+
+        self.assertEqual(message, "")
+
+    def test_missing_reserved_amount_has_specific_message(self):
+        message = get_business_allocation_abnormal_message(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300", None],
+        )
+
+        self.assertEqual(
+            message,
+            (
+                "业务预占核销金额存在缺少核销金额的"
+                "待复核或已通过记录，必须先处理"
+            ),
+        )
+
+    def test_approved_overpayment_reports_excess_amount(self):
+        message = get_business_allocation_abnormal_message(
+            business_amount="1000",
+            approved_allocation_amounts=["1000.01"],
+            reserved_allocation_amounts=["1000.01"],
+        )
+
+        self.assertEqual(
+            message,
+            "已通过核销金额超出业务金额 0.01",
+        )
+
+    def test_reserved_overpayment_reports_excess_amount(self):
+        message = get_business_allocation_abnormal_message(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300", "800"],
+        )
+
+        self.assertEqual(
+            message,
+            (
+                "待复核与已通过预占核销金额"
+                "超出业务金额 100.00"
+            ),
+        )
+
     def test_calculates_both_remaining_limits(self):
         limits = calculate_allocation_limits(
             business_amount="1000",

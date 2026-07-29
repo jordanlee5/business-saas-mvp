@@ -222,6 +222,22 @@
             border-color: #fde68a;
         }
 
+        .amount-item.danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .allocation-abnormal-note {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
         .match-box {
             background: #f8fafc;
             border: 1px solid #e5e7eb;
@@ -357,15 +373,6 @@
             color: #991b1b;
         }
 
-        .business-note {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 8px 10px;
-            font-size: 13px;
-            color: #4b5563;
-            margin-top: 10px;
-        }
 
         .action-panel {
             border-left: 1px solid #e5e7eb;
@@ -480,7 +487,7 @@
         }
 
         .info-grid {
-            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            grid-template-columns: repeat(3, minmax(160px, 1fr));
             gap: 10px;
             margin-bottom: 10px;
         }
@@ -516,11 +523,6 @@
             margin-bottom: 8px;
         }
 
-        .business-note {
-            padding: 7px 9px;
-            margin-top: 8px;
-            font-size: 12px;
-        }
 
         .match-box {
             padding: 8px;
@@ -909,15 +911,7 @@
                                             <div class="info-value">{{ item.uploader_username }}</div>
                                         </div>
 
-                                        <div class="info-item">
-                                            <div class="info-label">下游费率</div>
-                                            <div class="info-value">{{ item.service_rate }}%</div>
-                                        </div>
 
-                                        <div class="info-item">
-                                            <div class="info-label">上游成本率</div>
-                                            <div class="info-value">{{ item.upstream_cost_rate }}%</div>
-                                        </div>
                                     </div>
 
                                     <div class="section-title">金额信息</div>
@@ -948,17 +942,29 @@
                                             <div class="info-value">{{ item.approved_voucher_amount }}</div>
                                         </div>
 
-                                        <div class="amount-item warning">
-                                            <div class="info-label">剩余金额</div>
-                                            <div class="info-value">{{ item.remaining_amount }}</div>
+                                        <div class="amount-item {% if item.allocation_status == '金额异常' %}danger{% else %}warning{% endif %}">
+                                            <div class="info-label">
+                                                {% if item.allocation_status == "金额异常" %}
+                                                    可用余额
+                                                {% else %}
+                                                    剩余金额
+                                                {% endif %}
+                                            </div>
+                                            <div class="info-value">
+                                                {% if item.allocation_status == "金额异常" %}
+                                                    暂无法确认
+                                                {% else %}
+                                                    {{ item.remaining_amount }}
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="business-note">
-                                        经营信息：应收服务费 {{ item.receivable_fee }}，
-                                        应付成本费 {{ item.payable_cost }}，
-                                        毛利 {{ item.gross_profit }}
-                                    </div>
+                                    {% if item.allocation_abnormal_message %}
+                                        <div class="allocation-abnormal-note">
+                                            异常原因：{{ item.allocation_abnormal_message }}
+                                        </div>
+                                    {% endif %}
 
                                     <div class="section-title">匹配结果</div>
 
@@ -1213,7 +1219,9 @@
                                     {% else %}
 
                                         <div class="handled-text">
-                                            {% if item.allocation_block_message %}
+                                            {% if item.allocation_abnormal_message %}
+                                                金额异常，暂不可审核
+                                            {% elif item.allocation_block_message %}
                                                 {{ item.allocation_block_message }}
                                             {% elif item.review.review_status in ["待审核", "待初审"] %}
                                                 当前账号没有此条记录的初审权限
