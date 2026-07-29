@@ -1,9 +1,10 @@
+from datetime import datetime
+
 from .admin_permissions import (
     can_primary_review,
     can_secondary_review,
 )
-
-from datetime import datetime, timezone
+from .time_utils import utc8_now
 
 
 # 兼容现有历史数据
@@ -244,7 +245,7 @@ def apply_primary_review_decision(
     review.primary_review_comment = normalized_comment
     review.primary_reviewed_at = (
         reviewed_at
-        or datetime.now(timezone.utc)
+        or utc8_now()
     )
 
     # 重新初审时清除可能残留的二级复核数据
@@ -302,7 +303,7 @@ def apply_secondary_review_decision(
     review.secondary_review_comment = normalized_comment
     review.secondary_reviewed_at = (
         reviewed_at
-        or datetime.now(timezone.utc)
+        or utc8_now()
     )
 
     if result == REVIEW_RESULT_APPROVED:

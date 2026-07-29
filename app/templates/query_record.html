@@ -148,7 +148,7 @@
                         <td>{{ r.receivable_fee }}</td>
                     {% endif %}
 
-                    <td>{{ r.created_at }}</td>
+                    <td>{{ r.created_at | format_utc8 }}</td>
                 </tr>
             {% endfor %}
             </tbody>

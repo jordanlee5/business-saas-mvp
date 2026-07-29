@@ -1236,13 +1236,13 @@
 
                                     <div class="meta">
                                         审核记录ID：{{ item.review.id }}<br>
-                                        生成时间：{{ item.review.created_at }}
+                                        生成时间：{{ item.review.created_at | format_utc8 }}
 
                                         {% if item.review.primary_review_result %}
                                             <br>
                                             初审结果：{{ item.review.primary_review_result }}<br>
                                             初审管理员ID：{{ item.review.primary_reviewer_id }}<br>
-                                            初审时间：{{ item.review.primary_reviewed_at }}<br>
+                                            初审时间：{{ item.review.primary_reviewed_at | format_utc8 }}<br>
                                             初审意见：{{ item.review.primary_review_comment or "-" }}
                                         {% endif %}
 
@@ -1250,7 +1250,7 @@
                                             <br>
                                             复核结果：{{ item.review.secondary_review_result }}<br>
                                             复核管理员ID：{{ item.review.secondary_reviewer_id }}<br>
-                                            复核时间：{{ item.review.secondary_reviewed_at }}<br>
+                                            复核时间：{{ item.review.secondary_reviewed_at | format_utc8 }}<br>
                                             复核意见：{{ item.review.secondary_review_comment or "-" }}
                                         {% endif %}
                                     </div>

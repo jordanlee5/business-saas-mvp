@@ -545,7 +545,7 @@
                             partner.upstream_cost_rate or 0
                         ) }}%
                     </td>
-                    <td>{{ partner.created_at }}</td>
+                    <td>{{ partner.created_at | format_utc8 }}</td>
                     <td>
                         {% if can_manage_partners %}
                             <div class="partner-row-actions">

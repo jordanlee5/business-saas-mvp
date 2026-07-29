@@ -541,11 +541,7 @@
 
                         <td>
                             {% if administrator.created_at %}
-                                {{
-                                    administrator.created_at.strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    )
-                                }}
+                                {{ administrator.created_at | format_utc8 }}
                             {% else %}
                                 -
                             {% endif %}

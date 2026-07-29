@@ -46,10 +46,10 @@
                             <div class="admin-log-time">
                                 {% if log.created_at %}
                                     <span>
-                                        {{ log.created_at.strftime("%Y-%m-%d") }}
+                                        {{ log.created_at | format_utc8("%Y-%m-%d") }}
                                     </span>
                                     <small>
-                                        {{ log.created_at.strftime("%H:%M:%S") }}
+                                        {{ log.created_at | format_utc8("%H:%M:%S") }}
                                     </small>
                                 {% else %}
                                     <span>-</span>

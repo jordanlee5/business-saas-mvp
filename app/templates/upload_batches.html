@@ -241,7 +241,7 @@
                     <td class="success">{{ item.success_rows }}</td>
                     <td class="error">{{ item.failed_rows }}</td>
                     <td>{{ item.acceptance_status }}</td>
-                    <td>{{ item.created_at }}</td>
+                    <td>{{ item.created_at | format_utc8 }}</td>
                 </tr>
             {% endfor %}
             </tbody>

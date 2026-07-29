@@ -9,8 +9,8 @@ from sqlalchemy import (
     String,
     text,
 )
-from sqlalchemy.sql import func
 from .database import Base
+from .time_utils import utc8_now
 
 # 用户表
 class User(Base):
@@ -64,7 +64,7 @@ class User(Base):
         server_default="external",
     )
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 # 业务数据表
 class BusinessRecord(Base):
@@ -112,7 +112,7 @@ class BusinessRecord(Base):
         server_default="external",
     )
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
     @property
     def display_business_no(self) -> str:
@@ -143,7 +143,7 @@ class UploadBatch(Base):
     success_rows = Column(Integer, default=0)
     failed_rows = Column(Integer, default=0)
     acceptance_status = Column(String, default="待承接")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 class VoucherRecord(Base):
     __tablename__ = "voucher_records"
@@ -156,7 +156,7 @@ class VoucherRecord(Base):
     file_hash = Column(String, index=True)
     voucher_amount = Column(Float, default=0.0)
     ocr_text = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 
 class VoucherUploadBatch(Base):
@@ -172,7 +172,7 @@ class VoucherUploadBatch(Base):
     failed_files = Column(Integer, default=0)
     total_created_reviews = Column(Integer, default=0)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 
 class MatchReview(Base):
@@ -214,7 +214,7 @@ class MatchReview(Base):
         DateTime(timezone=True),
         nullable=True,
     )
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 
 class AdminActionLog(Base):
@@ -232,4 +232,4 @@ class AdminActionLog(Base):
 
     description = Column(String, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=utc8_now)

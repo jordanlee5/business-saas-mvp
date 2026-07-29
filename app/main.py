@@ -28,6 +28,7 @@ from .auth import verify_password, get_password_hash
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
+from .time_utils import format_utc8, utc8_now
 from .settlement_calculator import (
     EXTERNAL_MODE,
     INTERNAL_MODE,
@@ -198,6 +199,7 @@ templates = Jinja2Templates(
     directory="app/templates",
     context_processors=[admin_navigation_context],
 )
+templates.env.filters["format_utc8"] = format_utc8
 
 ACCEPTED_BATCH_STATUS = "已承接"
 
@@ -2453,7 +2455,7 @@ def export_business_records(
 
     summary_rows = [
         {"项目": "报表名称", "内容": "业务数据管理导出"},
-        {"项目": "导出时间", "内容": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"项目": "导出时间", "内容": utc8_now().strftime("%Y-%m-%d %H:%M:%S")},
         {"项目": "上传方范围", "内容": partner_name},
         {"项目": "关键词", "内容": keyword or "全部"},
         {"项目": "开始日期", "内容": start_date or "不限"},
@@ -2470,7 +2472,7 @@ def export_business_records(
 
     os.makedirs("exports", exist_ok=True)
 
-    filename = f"business_records_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+    filename = f"business_records_{utc8_now().strftime('%Y%m%d%H%M%S')}.xlsx"
     file_path = os.path.join("exports", filename)
 
     with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
@@ -3490,7 +3492,7 @@ async def upload_excel_submit(
 
     os.makedirs("uploads/excel", exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
     safe_filename = f"{user.id}_{timestamp}_{file.filename}"
     file_path = os.path.join("uploads", "excel", safe_filename)
 
@@ -4004,7 +4006,7 @@ def upload_voucher_submit(
             safe_filename = file.filename.replace("\\", "_").replace("/", "_")
             saved_filename = (
                 f"{user.id}_"
-                f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_"
+                f"{utc8_now().strftime('%Y%m%d%H%M%S%f')}_"
                 f"{safe_filename}"
             )
             file_path = os.path.join("uploads", "vouchers", saved_filename)
@@ -5205,7 +5207,7 @@ def export_stats_dashboard(
 
     os.makedirs("exports", exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
     export_path = os.path.join("exports", f"settlement_summary_{timestamp}.xlsx")
 
     selected_partner_name = "全部上传方"
@@ -5216,7 +5218,7 @@ def export_stats_dashboard(
                 selected_partner_name = partner.username
                 break
 
-    export_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    export_time = utc8_now().strftime("%Y-%m-%d %H:%M:%S")
 
     summary_rows = [
         {"指标": "报表名称", "数值": "结算汇总报表"},
@@ -5380,10 +5382,10 @@ def export_my_settlement(
 
     os.makedirs("exports", exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
     export_path = os.path.join("exports", f"my_settlement_{user.id}_{timestamp}.xlsx")
 
-    export_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    export_time = utc8_now().strftime("%Y-%m-%d %H:%M:%S")
 
     summary_rows = [
         {"指标": "报表名称", "数值": "我的结算报表"},

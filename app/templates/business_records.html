@@ -524,7 +524,7 @@
                         <td class="amount-good">{{ batch.success_rows }}</td>
                         <td class="amount-warning">{{ batch.failed_rows }}</td>
                         <td>{{ batch.acceptance_status }}</td>
-                        <td>{{ batch.created_at }}</td>
+                        <td>{{ batch.created_at | format_utc8 }}</td>
                         <td>
                             {% if role == "admin" and batch.acceptance_status == "待承接" %}
                                 {% if can_manage_business_batches %}
@@ -645,7 +645,7 @@
                                         {{ item.remaining_amount }}
                                     {% endif %}                                    
                                 </td>
-                                <td>{{ item.created_at }}</td>
+                                <td>{{ item.created_at | format_utc8 }}</td>
                                 <td>
                                     <a
                                         class="small-link"

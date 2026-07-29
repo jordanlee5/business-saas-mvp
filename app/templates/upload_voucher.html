@@ -410,7 +410,7 @@
                                     <span class="partial-badge">待审 {{ batch.pending_review_count }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ batch.created_at }}</td>
+                            <td>{{ batch.created_at | format_utc8 }}</td>
                             <td>
                                 {% if batch.review_action_text == "无匹配记录" %}
                                     <span class="action-muted">无匹配记录</span>

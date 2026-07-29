@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 from app.admin_permissions import (
     PRIMARY_REVIEWER,
@@ -348,6 +349,39 @@ class MatchReviewWorkflowTests(unittest.TestCase):
             reviewed_at,
         )
 
+    def test_primary_decision_uses_utc8_now_by_default(self):
+        user = make_admin(1, PRIMARY_REVIEWER)
+        review = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS
+        )
+        expected_time = datetime(
+            2026,
+            7,
+            29,
+            16,
+            0,
+            0,
+        )
+
+        with patch(
+            "app.match_review_workflow.utc8_now",
+            return_value=expected_time,
+        ):
+            applied = apply_primary_review_decision(
+                user=user,
+                review=review,
+                result=REVIEW_RESULT_APPROVED,
+            )
+
+        self.assertTrue(applied)
+        self.assertEqual(
+            review.primary_reviewed_at,
+            expected_time,
+        )
+        self.assertIsNone(
+            review.primary_reviewed_at.tzinfo
+        )
+
     def test_primary_rejection_requires_comment(self):
         user = make_admin(1, PRIMARY_REVIEWER)
         review = make_review(
@@ -455,6 +489,40 @@ class MatchReviewWorkflowTests(unittest.TestCase):
         self.assertEqual(
             review.secondary_reviewed_at,
             reviewed_at,
+        )
+
+    def test_secondary_decision_uses_utc8_now_by_default(self):
+        user = make_admin(2, SECONDARY_REVIEWER)
+        review = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            primary_reviewer_id=1,
+        )
+        expected_time = datetime(
+            2026,
+            7,
+            29,
+            16,
+            30,
+            0,
+        )
+
+        with patch(
+            "app.match_review_workflow.utc8_now",
+            return_value=expected_time,
+        ):
+            applied = apply_secondary_review_decision(
+                user=user,
+                review=review,
+                result=REVIEW_RESULT_APPROVED,
+            )
+
+        self.assertTrue(applied)
+        self.assertEqual(
+            review.secondary_reviewed_at,
+            expected_time,
+        )
+        self.assertIsNone(
+            review.secondary_reviewed_at.tzinfo
         )
 
     def test_secondary_rejection_requires_comment(self):

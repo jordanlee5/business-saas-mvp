@@ -789,7 +789,7 @@
 
             <div class="detail-item">
                 <div class="detail-label">导入时间</div>
-                <div class="detail-value">{{ detail.created_at }}</div>
+                <div class="detail-value">{{ detail.created_at | format_utc8 }}</div>
             </div>
         </div>
     </div>
@@ -927,7 +927,7 @@
                                     </div>
                                 </td>
                                 <td class="col-score">{{ item.score }}</td>
-                                <td class="col-created-at">{{ item.created_at }}</td>
+                                <td class="col-created-at">{{ item.created_at | format_utc8 }}</td>
                                 <td class="col-voucher-link">
                                     {% if item.voucher_url %}
                                         {% if role == "admin" %}
