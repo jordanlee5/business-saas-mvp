@@ -12,6 +12,10 @@ VOUCHER_FULLY_ALLOCATED = "voucher_fully_allocated"
 VOUCHER_ASSIGNED_TO_OTHER_BUSINESS = (
     "voucher_assigned_to_other_business"
 )
+ALLOCATION_STATUS_UNPAID = "未付款"
+ALLOCATION_STATUS_PARTIAL = "部分付款"
+ALLOCATION_STATUS_COMPLETED = "已付清"
+ALLOCATION_STATUS_ABNORMAL = "金额异常"
 
 
 @dataclass(frozen=True)
@@ -346,6 +350,57 @@ def _sum_reserved_allocation_amounts(
         MONEY_QUANTUM,
         rounding=ROUND_HALF_UP,
     )
+
+
+def get_business_allocation_status(
+    business_amount,
+    approved_allocation_amounts,
+    reserved_allocation_amounts,
+) -> str:
+    """
+    返回业务在审核页使用的核销状态。
+
+    未付款、部分付款和已付清只按已复核通过金额判断；
+    待复核与已通过记录共同参与异常检查，避免缺失金额或
+    超额预占继续混入正常核销状态。
+    """
+    try:
+        normalized_business_amount = _to_money(
+            business_amount,
+            "业务金额",
+        )
+        _require_non_negative(
+            normalized_business_amount,
+            "业务金额",
+        )
+        approved_amount = (
+            _sum_reserved_allocation_amounts(
+                approved_allocation_amounts,
+                "业务已通过核销金额",
+            )
+        )
+        reserved_amount = (
+            _sum_reserved_allocation_amounts(
+                reserved_allocation_amounts,
+                "业务预占核销金额",
+            )
+        )
+    except ValueError:
+        return ALLOCATION_STATUS_ABNORMAL
+
+    if (
+        approved_amount > normalized_business_amount
+        or reserved_amount > normalized_business_amount
+    ):
+        return ALLOCATION_STATUS_ABNORMAL
+
+    if approved_amount == ZERO:
+        return ALLOCATION_STATUS_UNPAID
+
+    if approved_amount < normalized_business_amount:
+        return ALLOCATION_STATUS_PARTIAL
+
+    return ALLOCATION_STATUS_COMPLETED
 
 
 def calculate_reserved_allocation_limits(

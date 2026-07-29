@@ -7,7 +7,12 @@ from app.voucher_allocation import (
     VOUCHER_ASSIGNED_TO_OTHER_BUSINESS,
     VOUCHER_FULLY_ALLOCATED,
     VOUCHER_OVERALLOCATED,
+    ALLOCATION_STATUS_ABNORMAL,
+    ALLOCATION_STATUS_COMPLETED,
+    ALLOCATION_STATUS_PARTIAL,
+    ALLOCATION_STATUS_UNPAID,
     calculate_allocation_limits,
+    get_business_allocation_status,
     calculate_reserved_allocation_limits,
     get_review_block_reason,
     get_voucher_business_block_reason,
@@ -18,6 +23,77 @@ from app.voucher_allocation import (
 class VoucherAllocationTests(
     unittest.TestCase
 ):
+    def test_business_allocation_status_is_unpaid_without_approval(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=[],
+            reserved_allocation_amounts=["300"],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_UNPAID,
+        )
+
+    def test_business_allocation_status_is_partial(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300"],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_PARTIAL,
+        )
+
+    def test_business_allocation_status_is_completed(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=["400", "600"],
+            reserved_allocation_amounts=["400", "600"],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_COMPLETED,
+        )
+
+    def test_missing_reserved_amount_is_abnormal(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300", None],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_ABNORMAL,
+        )
+
+    def test_reserved_overpayment_is_abnormal(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=["300"],
+            reserved_allocation_amounts=["300", "800"],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_ABNORMAL,
+        )
+
+    def test_approved_overpayment_is_abnormal(self):
+        status = get_business_allocation_status(
+            business_amount="1000",
+            approved_allocation_amounts=["1000.01"],
+            reserved_allocation_amounts=["1000.01"],
+        )
+
+        self.assertEqual(
+            status,
+            ALLOCATION_STATUS_ABNORMAL,
+        )
     def test_calculates_both_remaining_limits(self):
         limits = calculate_allocation_limits(
             business_amount="1000",

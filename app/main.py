@@ -66,7 +66,12 @@ from .match_review_workflow import (
 )
 
 from .voucher_allocation import (
+    ALLOCATION_STATUS_ABNORMAL,
+    ALLOCATION_STATUS_COMPLETED,
+    ALLOCATION_STATUS_PARTIAL,
+    ALLOCATION_STATUS_UNPAID,
     calculate_reserved_allocation_limits,
+    get_business_allocation_status,
     get_review_block_reason,
     validate_allocation_amount,
 )
@@ -4205,6 +4210,7 @@ def build_primary_review_allocation_limits(
 def match_reviews_page(
     request: Request,
     status_filter: str = Query("全部"),
+    allocation_status: str = Query("全部"),
     partner_id: int = Query(0),
     page: int = Query(1),
     page_size: int = Query(1),
@@ -4261,6 +4267,17 @@ def match_reviews_page(
         if review.id not in hidden_review_ids
     ]
 
+    allowed_allocation_statuses = {
+        "全部",
+        ALLOCATION_STATUS_UNPAID,
+        ALLOCATION_STATUS_PARTIAL,
+        ALLOCATION_STATUS_COMPLETED,
+        ALLOCATION_STATUS_ABNORMAL,
+    }
+
+    if allocation_status not in allowed_allocation_statuses:
+        allocation_status = "全部"
+
     if status_filter in ["待审核", "待初审"]:
         latest_reviews = [
             review for review in latest_reviews
@@ -4306,6 +4323,98 @@ def match_reviews_page(
                 filtered_reviews.append(review)
 
         latest_reviews = filtered_reviews
+
+    business_record_ids = {
+        review.business_record_id
+        for review in latest_reviews
+    }
+    records_by_id = {}
+    reserved_reviews_by_record_id = {}
+
+    if business_record_ids:
+        records_by_id = {
+            record.id: record
+            for record in (
+                db.query(BusinessRecord)
+                .filter(
+                    BusinessRecord.id.in_(
+                        business_record_ids
+                    )
+                )
+                .all()
+            )
+        }
+        reserved_reviews = (
+            db.query(MatchReview)
+            .filter(
+                MatchReview.business_record_id.in_(
+                    business_record_ids
+                )
+            )
+            .filter(
+                MatchReview.review_status.in_(
+                    ALLOCATION_RESERVED_REVIEW_STATUSES
+                )
+            )
+            .all()
+        )
+
+        for reserved_review in reserved_reviews:
+            reserved_reviews_by_record_id.setdefault(
+                reserved_review.business_record_id,
+                [],
+            ).append(reserved_review)
+
+    allocation_status_by_record_id = {}
+
+    for business_record_id in business_record_ids:
+        record = records_by_id.get(
+            business_record_id
+        )
+
+        if record is None:
+            allocation_status_by_record_id[
+                business_record_id
+            ] = ALLOCATION_STATUS_ABNORMAL
+            continue
+
+        record_reserved_reviews = (
+            reserved_reviews_by_record_id.get(
+                business_record_id,
+                [],
+            )
+        )
+        allocation_status_by_record_id[
+            business_record_id
+        ] = get_business_allocation_status(
+            business_amount=record.points_amount,
+            approved_allocation_amounts=[
+                reserved_review.allocation_amount
+                for reserved_review
+                in record_reserved_reviews
+                if (
+                    reserved_review.review_status
+                    == APPROVED_REVIEW_STATUS
+                )
+            ],
+            reserved_allocation_amounts=[
+                reserved_review.allocation_amount
+                for reserved_review
+                in record_reserved_reviews
+            ],
+        )
+
+    if allocation_status != "全部":
+        latest_reviews = [
+            review
+            for review in latest_reviews
+            if (
+                allocation_status_by_record_id.get(
+                    review.business_record_id
+                )
+                == allocation_status
+            )
+        ]
 
     allowed_page_sizes = [1, 3, 5, 10, 20]
 
@@ -4506,6 +4615,12 @@ def match_reviews_page(
                     "remaining_amount": float(
                         remaining_amount
                     ),
+                    "allocation_status": (
+                        allocation_status_by_record_id.get(
+                            record.id,
+                            ALLOCATION_STATUS_ABNORMAL,
+                        )
+                    ),
                     "allocation_maximum": (
                         f"{allocation_limits.maximum_allocation:.2f}"
                         if allocation_limits is not None
@@ -4542,6 +4657,7 @@ def match_reviews_page(
             "can_secondary_review_user": can_secondary_review(user),
             "reviews": review_items,
             "status_filter": status_filter,
+            "allocation_status": allocation_status,
             "partners": partners,
             "partner_id": partner_id,
             "page": page,
@@ -4564,6 +4680,7 @@ def primary_review_match(
     allocation_amount: str = Form(""),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    allocation_status: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
     page_size: int = Form(1),
@@ -4679,6 +4796,7 @@ def primary_review_match(
     redirect_url = "/match-reviews?" + urlencode(
         {
             "status_filter": status_filter,
+            "allocation_status": allocation_status,
             "partner_id": partner_id,
             "page": page,
             "page_size": page_size,
@@ -4707,6 +4825,7 @@ def secondary_review_match(
     result: str = Form(...),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    allocation_status: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
     page_size: int = Form(1),
@@ -4765,6 +4884,7 @@ def secondary_review_match(
     redirect_url = "/match-reviews?" + urlencode(
         {
             "status_filter": status_filter,
+            "allocation_status": allocation_status,
             "partner_id": partner_id,
             "page": page,
             "page_size": page_size,
@@ -4786,6 +4906,7 @@ def batch_review_match_reviews(
     result: str = Form(...),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    allocation_status: str = Form("全部"),
     partner_id: str = Form(""),
     customer_name: str = Form(""),
     page: int = Form(1),
@@ -4802,6 +4923,7 @@ def batch_review_match_reviews(
     redirect_query = urlencode(
         {
             "status_filter": status_filter,
+            "allocation_status": allocation_status,
             "partner_id": partner_id,
             "customer_name": customer_name,
             "page": page,
@@ -4841,6 +4963,7 @@ def batch_review_match_reviews(
         blocked_query = urlencode(
             {
                 "status_filter": status_filter,
+                "allocation_status": allocation_status,
                 "partner_id": partner_id,
                 "customer_name": customer_name,
                 "page": page,
