@@ -1958,6 +1958,7 @@ def build_business_record_items(
     db,
     user,
     partner_id=0,
+    batch_id=0,
     keyword="",
     start_date="",
     end_date="",
@@ -1975,6 +1976,9 @@ def build_business_record_items(
     else:
         if partner_id != 0:
             query = query.filter(BusinessRecord.user_id == partner_id)
+
+    if batch_id != 0:
+        query = query.filter(BusinessRecord.batch_id == batch_id)
 
     keyword = keyword.strip()
 
@@ -2125,6 +2129,7 @@ def build_business_record_items(
 def business_records_page(
     request: Request,
     partner_id: int = Query(0),
+    batch_id: int = Query(0, ge=0),
     keyword: str = Query(""),
     start_date: str = Query(""),
     end_date: str = Query(""),
@@ -2248,6 +2253,7 @@ def business_records_page(
         db=db,
         user=user,
         partner_id=partner_id,
+        batch_id=batch_id,
         keyword=keyword,
         start_date=start_date,
         end_date=end_date,
@@ -2276,6 +2282,7 @@ def business_records_page(
             "allowed_batch_page_sizes": allowed_batch_page_sizes,
 
             "partner_id": partner_id,
+            "batch_id": batch_id,
             "keyword": keyword,
             "start_date": start_date,
             "end_date": end_date,
@@ -2384,6 +2391,7 @@ def reject_upload_batch(
 def export_business_records(
     request: Request,
     partner_id: int = Query(0),
+    batch_id: int = Query(0, ge=0),
     keyword: str = Query(""),
     start_date: str = Query(""),
     end_date: str = Query(""),
@@ -2410,6 +2418,7 @@ def export_business_records(
         db=db,
         user=user,
         partner_id=partner_id,
+        batch_id=batch_id,
         keyword=keyword,
         start_date=start_date,
         end_date=end_date,
@@ -2457,6 +2466,7 @@ def export_business_records(
         {"项目": "报表名称", "内容": "业务数据管理导出"},
         {"项目": "导出时间", "内容": utc8_now().strftime("%Y-%m-%d %H:%M:%S")},
         {"项目": "上传方范围", "内容": partner_name},
+        {"项目": "上传批次", "内容": f"#{batch_id}" if batch_id else "全部"},
         {"项目": "关键词", "内容": keyword or "全部"},
         {"项目": "开始日期", "内容": start_date or "不限"},
         {"项目": "结束日期", "内容": end_date or "不限"},

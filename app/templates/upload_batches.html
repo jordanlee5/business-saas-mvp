@@ -229,6 +229,7 @@
                     <th>失败行数</th>
                     <th>承接状态</th>
                     <th>上传时间</th>
+                    <th>业务查看</th>
                 </tr>
             </thead>
             <tbody>
@@ -242,6 +243,14 @@
                     <td class="error">{{ item.failed_rows }}</td>
                     <td>{{ item.acceptance_status }}</td>
                     <td>{{ item.created_at | format_utc8 }}</td>
+                    <td>
+                        <a
+                            class="small-link"
+                            href="/business-records?partner_id={{ partner_id }}&batch_id={{ item.id }}"
+                        >
+                            查看本批业务
+                        </a >
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
