@@ -2172,6 +2172,9 @@ def business_records_page(
         if partner_id != 0:
             batch_query = batch_query.filter(UploadBatch.user_id == partner_id)
 
+    if batch_id != 0:
+        batch_query = batch_query.filter(UploadBatch.id == batch_id)
+
     if start_date:
         start_dt = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), time.min)
         batch_query = batch_query.filter(UploadBatch.created_at >= start_dt)
