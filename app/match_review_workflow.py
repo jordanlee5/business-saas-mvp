@@ -133,6 +133,86 @@ def get_hidden_low_confidence_conflict_review_ids(
     return frozenset(hidden_review_ids)
 
 
+def get_unresolved_assignment_conflict_review_ids(
+    reviews,
+) -> frozenset[int]:
+    """
+    返回尚未确定凭证归属的待初审候选 ID。
+
+    同一凭证存在至少两个指向不同业务的待初审候选，
+    且尚未有候选进入待复核或已通过时，视为未决归属冲突。
+    """
+    review_list = list(reviews or ())
+    reviews_by_voucher_id = {}
+
+    for review in review_list:
+        voucher_id = getattr(
+            review,
+            "voucher_id",
+            None,
+        )
+
+        if voucher_id is None:
+            continue
+
+        reviews_by_voucher_id.setdefault(
+            voucher_id,
+            [],
+        ).append(review)
+
+    conflict_review_ids = set()
+
+    for related_reviews in reviews_by_voucher_id.values():
+        has_assignment_reservation = any(
+            getattr(
+                review,
+                "review_status",
+                None,
+            )
+            in _VOUCHER_ASSIGNMENT_RESERVED_REVIEW_STATUSES
+            for review in related_reviews
+        )
+
+        if has_assignment_reservation:
+            continue
+
+        pending_reviews = [
+            review
+            for review in related_reviews
+            if (
+                getattr(review, "id", None)
+                is not None
+                and getattr(
+                    review,
+                    "business_record_id",
+                    None,
+                )
+                is not None
+                and getattr(
+                    review,
+                    "review_status",
+                    None,
+                )
+                in PRIMARY_PENDING_REVIEW_STATUSES
+            )
+        ]
+
+        pending_business_ids = {
+            review.business_record_id
+            for review in pending_reviews
+        }
+
+        if len(pending_business_ids) <= 1:
+            continue
+
+        conflict_review_ids.update(
+            review.id
+            for review in pending_reviews
+        )
+
+    return frozenset(conflict_review_ids)
+
+
 def can_primary_review_match(
     user: object | None,
     review: object | None,

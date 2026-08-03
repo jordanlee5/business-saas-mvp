@@ -64,6 +64,7 @@ from .match_review_workflow import (
     can_primary_review_match,
     can_secondary_review_match,
     get_hidden_low_confidence_conflict_review_ids,
+    get_unresolved_assignment_conflict_review_ids,
 )
 
 from .voucher_allocation import (
@@ -4226,6 +4227,7 @@ def build_primary_review_allocation_limits(
 def match_reviews_page(
     request: Request,
     status_filter: str = Query("全部"),
+    assignment_pool: str = Query("普通待初审"),
     allocation_status: str = Query("全部"),
     partner_id: int = Query(0),
     page: int = Query(1),
@@ -4274,6 +4276,12 @@ def match_reviews_page(
         )
     )
 
+    unresolved_assignment_conflict_review_ids = (
+        get_unresolved_assignment_conflict_review_ids(
+            visibility_reviews
+        )
+    )
+
     # 匹配结果审核页的展示单位应该是“审核记录 MatchReview”，不是“业务数据 BusinessRecord”。
     # 同一条业务可能关联多张凭证，其中既可能有已通过，也可能有已驳回、待审核、无需审核。
     # 如果按 business_record_id 去重，只保留最新一条，就会把较早的“已通过”历史审核记录隐藏掉。
@@ -4294,14 +4302,42 @@ def match_reviews_page(
     if allocation_status not in allowed_allocation_statuses:
         allocation_status = "全部"
 
+    allowed_assignment_pools = {
+        "普通待初审",
+        "归属冲突",
+    }
+
+    if assignment_pool not in allowed_assignment_pools:
+        assignment_pool = "普通待初审"
+
     if status_filter in ["待审核", "待初审"]:
         latest_reviews = [
-            review for review in latest_reviews
+            review
+            for review in latest_reviews
             if (
                 review.review_status
                 in PRIMARY_PENDING_REVIEW_STATUSES
             )
         ]
+
+        if assignment_pool == "归属冲突":
+            latest_reviews = [
+                review
+                for review in latest_reviews
+                if (
+                    review.id
+                    in unresolved_assignment_conflict_review_ids
+                )
+            ]
+        else:
+            latest_reviews = [
+                review
+                for review in latest_reviews
+                if (
+                    review.id
+                    not in unresolved_assignment_conflict_review_ids
+                )
+            ]
     elif status_filter in [
         PENDING_SECONDARY_REVIEW_STATUS,
         "已通过",
@@ -4653,6 +4689,7 @@ def match_reviews_page(
             "can_secondary_review_user": can_secondary_review(user),
             "reviews": review_items,
             "status_filter": status_filter,
+            "assignment_pool": assignment_pool,
             "allocation_status": allocation_status,
             "partners": partners,
             "partner_id": partner_id,
@@ -4676,6 +4713,7 @@ def primary_review_match(
     allocation_amount: str = Form(""),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    assignment_pool: str = Form("普通待初审"),
     allocation_status: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
@@ -4792,6 +4830,7 @@ def primary_review_match(
     redirect_url = "/match-reviews?" + urlencode(
         {
             "status_filter": status_filter,
+            "assignment_pool": assignment_pool,
             "allocation_status": allocation_status,
             "partner_id": partner_id,
             "page": page,
@@ -4821,6 +4860,7 @@ def secondary_review_match(
     result: str = Form(...),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    assignment_pool: str = Form("普通待初审"),
     allocation_status: str = Form("全部"),
     partner_id: int = Form(0),
     page: int = Form(1),
@@ -4880,6 +4920,7 @@ def secondary_review_match(
     redirect_url = "/match-reviews?" + urlencode(
         {
             "status_filter": status_filter,
+            "assignment_pool": assignment_pool,
             "allocation_status": allocation_status,
             "partner_id": partner_id,
             "page": page,
@@ -4902,6 +4943,7 @@ def batch_review_match_reviews(
     result: str = Form(...),
     comment: str = Form(""),
     status_filter: str = Form("全部"),
+    assignment_pool: str = Form("普通待初审"),
     allocation_status: str = Form("全部"),
     partner_id: str = Form(""),
     customer_name: str = Form(""),
@@ -4919,6 +4961,7 @@ def batch_review_match_reviews(
     redirect_query = urlencode(
         {
             "status_filter": status_filter,
+            "assignment_pool": assignment_pool,
             "allocation_status": allocation_status,
             "partner_id": partner_id,
             "customer_name": customer_name,
@@ -4959,6 +5002,7 @@ def batch_review_match_reviews(
         blocked_query = urlencode(
             {
                 "status_filter": status_filter,
+                "assignment_pool": assignment_pool,
                 "allocation_status": allocation_status,
                 "partner_id": partner_id,
                 "customer_name": customer_name,

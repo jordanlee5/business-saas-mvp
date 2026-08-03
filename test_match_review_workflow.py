@@ -20,6 +20,7 @@ from app.match_review_workflow import (
     can_primary_review_match,
     can_secondary_review_match,
     get_hidden_low_confidence_conflict_review_ids,
+    get_unresolved_assignment_conflict_review_ids,
 )
 
 
@@ -53,6 +54,118 @@ def make_review(
 
 
 class MatchReviewWorkflowTests(unittest.TestCase):
+    def test_marks_unresolved_candidates_for_different_businesses(self):
+        first_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        second_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+
+        conflict_ids = (
+            get_unresolved_assignment_conflict_review_ids(
+                [
+                    first_candidate,
+                    second_candidate,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            conflict_ids,
+            frozenset({1, 2}),
+        )
+
+    def test_keeps_single_business_candidates_out_of_conflict_pool(self):
+        first_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        second_candidate = make_review(
+            "待审核",
+            review_id=2,
+            business_record_id=100,
+        )
+
+        conflict_ids = (
+            get_unresolved_assignment_conflict_review_ids(
+                [
+                    first_candidate,
+                    second_candidate,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            conflict_ids,
+            frozenset(),
+        )
+
+    def test_keeps_different_vouchers_out_of_conflict_pool(self):
+        first_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            voucher_id=10,
+            business_record_id=100,
+        )
+        second_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=2,
+            voucher_id=20,
+            business_record_id=200,
+        )
+
+        conflict_ids = (
+            get_unresolved_assignment_conflict_review_ids(
+                [
+                    first_candidate,
+                    second_candidate,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            conflict_ids,
+            frozenset(),
+        )
+
+    def test_assignment_reservation_resolves_unresolved_conflict(self):
+        first_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=1,
+            business_record_id=100,
+        )
+        second_candidate = make_review(
+            PENDING_PRIMARY_REVIEW_STATUS,
+            review_id=2,
+            business_record_id=200,
+        )
+        reserved_owner = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            review_id=3,
+            business_record_id=100,
+        )
+
+        conflict_ids = (
+            get_unresolved_assignment_conflict_review_ids(
+                [
+                    first_candidate,
+                    second_candidate,
+                    reserved_owner,
+                ]
+            )
+        )
+
+        self.assertEqual(
+            conflict_ids,
+            frozenset(),
+        )
+
     def test_hides_one_point_candidate_reserved_by_other_business(self):
         candidate = make_review(
             PENDING_PRIMARY_REVIEW_STATUS,
