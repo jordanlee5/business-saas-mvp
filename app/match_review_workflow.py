@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 
 from .admin_permissions import (
@@ -211,6 +212,174 @@ def get_unresolved_assignment_conflict_review_ids(
         )
 
     return frozenset(conflict_review_ids)
+
+
+@dataclass(frozen=True)
+class VoucherAssignmentConflictAuditGroup:
+    """同一凭证跨多个业务的只读审计分组。"""
+
+    voucher_id: int
+    review_ids: tuple[int, ...]
+    business_record_ids: tuple[int, ...]
+    unresolved_review_ids: tuple[int, ...]
+    pending_business_record_ids: tuple[int, ...]
+    reserved_business_record_ids: tuple[int, ...]
+    approved_business_record_ids: tuple[int, ...]
+    completed_business_record_ids: tuple[int, ...]
+    open_business_record_ids: tuple[int, ...]
+    has_multiple_approved_businesses: bool
+
+
+def build_voucher_assignment_conflict_audit_groups(
+    reviews,
+    completed_business_record_ids=(),
+) -> tuple[VoucherAssignmentConflictAuditGroup, ...]:
+    """
+    按凭证汇总跨业务候选，仅返回只读审计结果。
+
+    函数不会修改审核记录或数据库。调用方可额外传入已付清
+    业务 ID，用于区分已结清候选与仍可继续核对的候选。
+    """
+    completed_business_ids = frozenset(
+        completed_business_record_ids or ()
+    )
+    review_list = list(reviews or ())
+    unresolved_review_ids = (
+        get_unresolved_assignment_conflict_review_ids(
+            review_list
+        )
+    )
+    reviews_by_voucher_id = {}
+
+    for review in review_list:
+        review_id = getattr(review, "id", None)
+        voucher_id = getattr(
+            review,
+            "voucher_id",
+            None,
+        )
+        business_record_id = getattr(
+            review,
+            "business_record_id",
+            None,
+        )
+
+        if (
+            review_id is None
+            or voucher_id is None
+            or business_record_id is None
+        ):
+            continue
+
+        reviews_by_voucher_id.setdefault(
+            voucher_id,
+            [],
+        ).append(review)
+
+    audit_groups = []
+
+    for voucher_id in sorted(reviews_by_voucher_id):
+        related_reviews = sorted(
+            reviews_by_voucher_id[voucher_id],
+            key=lambda review: review.id,
+        )
+        business_record_ids = {
+            review.business_record_id
+            for review in related_reviews
+        }
+
+        if len(business_record_ids) <= 1:
+            continue
+
+        pending_reviews = [
+            review
+            for review in related_reviews
+            if (
+                getattr(
+                    review,
+                    "review_status",
+                    None,
+                )
+                in PRIMARY_PENDING_REVIEW_STATUSES
+            )
+        ]
+        pending_business_ids = {
+            review.business_record_id
+            for review in pending_reviews
+        }
+        reserved_business_ids = {
+            review.business_record_id
+            for review in related_reviews
+            if (
+                getattr(
+                    review,
+                    "review_status",
+                    None,
+                )
+                in _VOUCHER_ASSIGNMENT_RESERVED_REVIEW_STATUSES
+            )
+        }
+        approved_business_ids = {
+            review.business_record_id
+            for review in related_reviews
+            if (
+                getattr(
+                    review,
+                    "review_status",
+                    None,
+                )
+                == APPROVED_REVIEW_STATUS
+            )
+        }
+        group_completed_business_ids = (
+            business_record_ids
+            & completed_business_ids
+        )
+        open_business_ids = (
+            business_record_ids
+            - group_completed_business_ids
+        )
+
+        audit_groups.append(
+            VoucherAssignmentConflictAuditGroup(
+                voucher_id=voucher_id,
+                review_ids=tuple(
+                    review.id
+                    for review in related_reviews
+                ),
+                business_record_ids=tuple(
+                    sorted(business_record_ids)
+                ),
+                unresolved_review_ids=tuple(
+                    review.id
+                    for review in pending_reviews
+                    if (
+                        review.id
+                        in unresolved_review_ids
+                    )
+                ),
+                pending_business_record_ids=tuple(
+                    sorted(pending_business_ids)
+                ),
+                reserved_business_record_ids=tuple(
+                    sorted(reserved_business_ids)
+                ),
+                approved_business_record_ids=tuple(
+                    sorted(approved_business_ids)
+                ),
+                completed_business_record_ids=tuple(
+                    sorted(group_completed_business_ids)
+                ),
+                open_business_record_ids=tuple(
+                    sorted(open_business_ids)
+                ),
+                has_multiple_approved_businesses=(
+                    len(approved_business_ids) > 1
+                ),
+            )
+        )
+
+    return tuple(audit_groups)
 
 
 def can_primary_review_match(

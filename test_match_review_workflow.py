@@ -17,6 +17,7 @@ from app.match_review_workflow import (
     REVIEW_RESULT_REJECTED,
     apply_primary_review_decision,
     apply_secondary_review_decision,
+    build_voucher_assignment_conflict_audit_groups,
     can_primary_review_match,
     can_secondary_review_match,
     get_hidden_low_confidence_conflict_review_ids,
@@ -54,6 +55,163 @@ def make_review(
 
 
 class MatchReviewWorkflowTests(unittest.TestCase):
+    def test_groups_cross_business_reviews_by_voucher(self):
+        groups = build_voucher_assignment_conflict_audit_groups(
+            [
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=3,
+                    voucher_id=20,
+                    business_record_id=300,
+                ),
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=1,
+                    voucher_id=10,
+                    business_record_id=100,
+                ),
+                make_review(
+                    "待审核",
+                    review_id=2,
+                    voucher_id=10,
+                    business_record_id=200,
+                ),
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=4,
+                    voucher_id=20,
+                    business_record_id=400,
+                ),
+            ]
+        )
+
+        self.assertEqual(
+            [group.voucher_id for group in groups],
+            [10, 20],
+        )
+        self.assertEqual(groups[0].review_ids, (1, 2))
+        self.assertEqual(
+            groups[0].business_record_ids,
+            (100, 200),
+        )
+
+    def test_excludes_single_business_voucher_group(self):
+        groups = build_voucher_assignment_conflict_audit_groups(
+            [
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=1,
+                    business_record_id=100,
+                ),
+                make_review(
+                    "待审核",
+                    review_id=2,
+                    business_record_id=100,
+                ),
+            ]
+        )
+
+        self.assertEqual(groups, ())
+
+    def test_marks_unresolved_reviews_in_audit_group(self):
+        groups = build_voucher_assignment_conflict_audit_groups(
+            [
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=1,
+                    business_record_id=100,
+                ),
+                make_review(
+                    "待审核",
+                    review_id=2,
+                    business_record_id=200,
+                ),
+                make_review(
+                    REJECTED_REVIEW_STATUS,
+                    review_id=3,
+                    business_record_id=300,
+                ),
+            ]
+        )
+
+        self.assertEqual(
+            groups[0].unresolved_review_ids,
+            (1, 2),
+        )
+        self.assertEqual(
+            groups[0].pending_business_record_ids,
+            (100, 200),
+        )
+
+    def test_reservation_clears_unresolved_audit_reviews(self):
+        groups = build_voucher_assignment_conflict_audit_groups(
+            [
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=1,
+                    business_record_id=100,
+                ),
+                make_review(
+                    PENDING_PRIMARY_REVIEW_STATUS,
+                    review_id=2,
+                    business_record_id=200,
+                ),
+                make_review(
+                    PENDING_SECONDARY_REVIEW_STATUS,
+                    review_id=3,
+                    business_record_id=100,
+                ),
+            ]
+        )
+
+        self.assertEqual(
+            groups[0].unresolved_review_ids,
+            (),
+        )
+        self.assertEqual(
+            groups[0].reserved_business_record_ids,
+            (100,),
+        )
+
+    def test_audits_completed_open_and_multi_approved_businesses(self):
+        groups = build_voucher_assignment_conflict_audit_groups(
+            [
+                make_review(
+                    APPROVED_REVIEW_STATUS,
+                    review_id=1,
+                    business_record_id=100,
+                ),
+                make_review(
+                    APPROVED_REVIEW_STATUS,
+                    review_id=2,
+                    business_record_id=200,
+                ),
+                make_review(
+                    REJECTED_REVIEW_STATUS,
+                    review_id=3,
+                    business_record_id=300,
+                ),
+            ],
+            completed_business_record_ids={100, 300},
+        )
+
+        group = groups[0]
+        self.assertEqual(
+            group.approved_business_record_ids,
+            (100, 200),
+        )
+        self.assertEqual(
+            group.completed_business_record_ids,
+            (100, 300),
+        )
+        self.assertEqual(
+            group.open_business_record_ids,
+            (200,),
+        )
+        self.assertTrue(
+            group.has_multiple_approved_businesses
+        )
+
     def test_marks_unresolved_candidates_for_different_businesses(self):
         first_candidate = make_review(
             PENDING_PRIMARY_REVIEW_STATUS,
