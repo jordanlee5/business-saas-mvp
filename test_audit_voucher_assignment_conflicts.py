@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from audit_voucher_assignment_conflicts import (
     HISTORICAL_DUPLICATE_ACTION,
     MANUAL_DISPOSITION_COLUMNS,
+    ManualDispositionCsvValidationError,
     MULTIPLE_SAFE_CANDIDATE_ACTION,
     NO_SAFE_CANDIDATE_ACTION,
     UNIQUE_SAFE_CANDIDATE_ACTION,
@@ -23,6 +24,7 @@ from audit_voucher_assignment_conflicts import (
     export_manual_disposition_csv,
     group_category,
     remaining_amount,
+    validate_manual_disposition_csv,
     unresolved_group_action,
 )
 
@@ -942,6 +944,170 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
                 )
 
             self.assertFalse(output_path.exists())
+
+
+    def test_csv_validation_accepts_manual_fields_without_mutation(
+        self,
+    ):
+        expected_row = make_manual_disposition_csv_row()
+        filled_row = dict(expected_row)
+        filled_row.update(
+            {
+                "人工决定": "等待人工确认",
+                "确认人": "管理员A",
+                "确认时间": "2026-08-05 16:30:00",
+                "备注": "仅用于校验测试",
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            export_manual_disposition_csv(
+                (filled_row,),
+                output_path,
+            )
+            before_validation = output_path.read_bytes()
+
+            result = validate_manual_disposition_csv(
+                (expected_row,),
+                output_path,
+            )
+
+            after_validation = output_path.read_bytes()
+
+        self.assertEqual(result.row_count, 1)
+        self.assertEqual(
+            result.manual_filled_row_count,
+            1,
+        )
+        self.assertEqual(
+            before_validation,
+            after_validation,
+        )
+
+    def test_csv_validation_ignores_row_order(self):
+        first_row = make_manual_disposition_csv_row()
+        second_row = dict(first_row)
+        second_row.update(
+            {
+                "案例编号": "D2",
+                "凭证ID": 7,
+                "凭证文件名": "voucher-007.png",
+                "业务ID": 9,
+                "公开业务单号": "PUBLIC-0009",
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            export_manual_disposition_csv(
+                (second_row, first_row),
+                output_path,
+            )
+
+            result = validate_manual_disposition_csv(
+                (first_row, second_row),
+                output_path,
+            )
+
+        self.assertEqual(result.row_count, 2)
+
+    def test_csv_validation_rejects_modified_evidence(self):
+        expected_row = make_manual_disposition_csv_row()
+        modified_row = dict(expected_row)
+        modified_row["公开业务单号"] = (
+            "PUBLIC-TAMPERED"
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            export_manual_disposition_csv(
+                (modified_row,),
+                output_path,
+            )
+
+            with self.assertRaisesRegex(
+                ManualDispositionCsvValidationError,
+                "缺失 1 行.*变更 1 行",
+            ):
+                validate_manual_disposition_csv(
+                    (expected_row,),
+                    output_path,
+                )
+
+    def test_csv_validation_rejects_missing_or_duplicate_rows(
+        self,
+    ):
+        first_row = make_manual_disposition_csv_row()
+        second_row = dict(first_row)
+        second_row.update(
+            {
+                "案例编号": "D2",
+                "凭证ID": 7,
+                "凭证文件名": "voucher-007.png",
+                "业务ID": 9,
+                "公开业务单号": "PUBLIC-0009",
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            export_manual_disposition_csv(
+                (first_row, first_row),
+                output_path,
+            )
+
+            with self.assertRaisesRegex(
+                ManualDispositionCsvValidationError,
+                "缺失 1 行.*变更 1 行",
+            ):
+                validate_manual_disposition_csv(
+                    (first_row, second_row),
+                    output_path,
+                )
+
+    def test_csv_validation_rejects_wrong_header(self):
+        expected_row = make_manual_disposition_csv_row()
+        wrong_columns = MANUAL_DISPOSITION_COLUMNS[:-1]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+
+            with output_path.open(
+                "w",
+                encoding="utf-8-sig",
+                newline="",
+            ) as csv_file:
+                writer = csv.DictWriter(
+                    csv_file,
+                    fieldnames=wrong_columns,
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        column: expected_row[column]
+                        for column in wrong_columns
+                    }
+                )
+
+            with self.assertRaisesRegex(
+                ManualDispositionCsvValidationError,
+                "列名或顺序不一致",
+            ):
+                validate_manual_disposition_csv(
+                    (expected_row,),
+                    output_path,
+                )
 
 
 if __name__ == "__main__":

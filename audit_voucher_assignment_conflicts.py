@@ -121,6 +121,24 @@ MANUAL_DISPOSITION_COLUMNS = (
 )
 
 
+MANUAL_DISPOSITION_EDITABLE_COLUMNS = (
+    "人工决定",
+    "确认人",
+    "确认时间",
+    "备注",
+)
+
+MANUAL_DISPOSITION_EVIDENCE_COLUMNS = tuple(
+    column
+    for column in MANUAL_DISPOSITION_COLUMNS
+    if column not in MANUAL_DISPOSITION_EDITABLE_COLUMNS
+)
+
+
+class ManualDispositionCsvValidationError(ValueError):
+    pass
+
+
 CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
@@ -174,6 +192,120 @@ def export_manual_disposition_csv(rows, output_path):
             )
 
     return output_path
+
+
+def manual_disposition_csv_text(value):
+    return str(manual_disposition_csv_cell(value))
+
+
+def manual_disposition_evidence_counter(rows):
+    return Counter(
+        tuple(
+            manual_disposition_csv_text(row[column])
+            for column in MANUAL_DISPOSITION_EVIDENCE_COLUMNS
+        )
+        for row in rows
+    )
+
+
+def validate_manual_disposition_csv(
+    expected_rows,
+    input_path,
+):
+    expected_rows = tuple(expected_rows)
+
+    for row in expected_rows:
+        if tuple(row) != MANUAL_DISPOSITION_COLUMNS:
+            raise ManualDispositionCsvValidationError(
+                "当前审计结果字段不完整或顺序不一致"
+            )
+
+    input_path = Path(input_path)
+
+    with input_path.open(
+        "r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as input_file:
+        reader = csv.DictReader(input_file)
+
+        if tuple(reader.fieldnames or ()) != (
+            MANUAL_DISPOSITION_COLUMNS
+        ):
+            raise ManualDispositionCsvValidationError(
+                "CSV 列名或顺序不一致"
+            )
+
+        csv_rows = []
+
+        for line_number, row in enumerate(
+            reader,
+            start=2,
+        ):
+            if (
+                None in row
+                or any(
+                    row[column] is None
+                    for column in MANUAL_DISPOSITION_COLUMNS
+                )
+            ):
+                raise ManualDispositionCsvValidationError(
+                    f"CSV 第 {line_number} 行字段数量不一致"
+                )
+
+            csv_rows.append(row)
+
+    expected_evidence = (
+        manual_disposition_evidence_counter(
+            expected_rows
+        )
+    )
+    actual_evidence = Counter(
+        tuple(
+            row[column]
+            for column in MANUAL_DISPOSITION_EVIDENCE_COLUMNS
+        )
+        for row in csv_rows
+    )
+
+    if actual_evidence != expected_evidence:
+        missing_count = sum(
+            (
+                expected_evidence
+                - actual_evidence
+            ).values()
+        )
+        unexpected_count = sum(
+            (
+                actual_evidence
+                - expected_evidence
+            ).values()
+        )
+
+        raise ManualDispositionCsvValidationError(
+            "CSV 证据数据与当前只读审计结果不一致："
+            f"缺失 {missing_count} 行，"
+            "新增、重复或变更 "
+            f"{unexpected_count} 行"
+        )
+
+    manual_filled_row_count = sum(
+        any(
+            row[column].strip()
+            for column in (
+                MANUAL_DISPOSITION_EDITABLE_COLUMNS
+            )
+        )
+        for row in csv_rows
+    )
+
+    return SimpleNamespace(
+        input_path=input_path,
+        row_count=len(csv_rows),
+        manual_filled_row_count=(
+            manual_filled_row_count
+        ),
+    )
 
 
 def normalized_money(value):
@@ -662,7 +794,10 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="凭证归属冲突只读审计"
     )
-    parser.add_argument(
+    action_group = (
+        parser.add_mutually_exclusive_group()
+    )
+    action_group.add_argument(
         "--export-csv",
         type=Path,
         help=(
@@ -670,11 +805,22 @@ def parse_args():
             "已存在文件不会覆盖"
         ),
     )
+    action_group.add_argument(
+        "--validate-csv",
+        type=Path,
+        help=(
+            "只读校验人工处置 CSV 的不可变证据字段；"
+            "不会修改 CSV 或数据库"
+        ),
+    )
 
     return parser.parse_args()
 
 
-def main(export_csv_path=None):
+def main(
+    export_csv_path=None,
+    validate_csv_path=None,
+):
     connection = open_read_only_database()
 
     try:
@@ -1086,6 +1232,29 @@ def main(export_csv_path=None):
                 "导出文件："
                 f"{exported_path.resolve()}"
             )
+        if validate_csv_path is not None:
+            validation = (
+                validate_manual_disposition_csv(
+                    manual_disposition_rows,
+                    validate_csv_path,
+                )
+            )
+            print()
+            print("H. 人工处置清单只读校验")
+            print(
+                "清单数据行数："
+                f"{validation.row_count}"
+            )
+            print(
+                "不可变证据字段："
+                "与当前只读审计结果完全一致"
+            )
+            print(
+                "已填写人工字段行数："
+                f"{validation.manual_filled_row_count}"
+            )
+            print("清单文件写入次数：0")
+            print("校验完成：未修改 CSV 或数据库")
     finally:
         connection.close()
 
@@ -1094,9 +1263,16 @@ if __name__ == "__main__":
     args = parse_args()
 
     try:
-        main(export_csv_path=args.export_csv)
+        main(
+            export_csv_path=args.export_csv,
+            validate_csv_path=args.validate_csv,
+        )
     except FileExistsError as exc:
         raise SystemExit(
             "导出失败：目标文件已存在，不会覆盖："
             f"{exc.filename}"
+        ) from exc
+    except ManualDispositionCsvValidationError as exc:
+        raise SystemExit(
+            f"校验失败：{exc}"
         ) from exc
