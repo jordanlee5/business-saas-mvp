@@ -10,6 +10,10 @@ from audit_voucher_assignment_conflicts import (
     continuable_business_ids,
     group_category,
     remaining_amount,
+    MULTIPLE_SAFE_CANDIDATE_ACTION,
+    NO_SAFE_CANDIDATE_ACTION,
+    UNIQUE_SAFE_CANDIDATE_ACTION,
+    unresolved_group_action,
 )
 
 
@@ -229,6 +233,54 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
                     ),
                     "无金额安全候选",
                 )
+
+
+    def test_no_safe_candidate_is_blocked(self):
+        group = make_group(1)
+        businesses = {
+            1: make_business(100, 40),
+        }
+
+        self.assertEqual(
+            unresolved_group_action(
+                group,
+                businesses,
+                60.01,
+            ),
+            NO_SAFE_CANDIDATE_ACTION,
+        )
+
+    def test_unique_safe_candidate_still_requires_review(self):
+        group = make_group(1, 2)
+        businesses = {
+            1: make_business(100, 40),
+            2: make_business(100, 0),
+        }
+
+        self.assertEqual(
+            unresolved_group_action(
+                group,
+                businesses,
+                80,
+            ),
+            UNIQUE_SAFE_CANDIDATE_ACTION,
+        )
+
+    def test_multiple_safe_candidates_require_manual_assignment(self):
+        group = make_group(1, 2)
+        businesses = {
+            1: make_business(100, 40),
+            2: make_business(100, 0),
+        }
+
+        self.assertEqual(
+            unresolved_group_action(
+                group,
+                businesses,
+                50,
+            ),
+            MULTIPLE_SAFE_CANDIDATE_ACTION,
+        )
 
 
 if __name__ == "__main__":

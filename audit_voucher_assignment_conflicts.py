@@ -68,6 +68,17 @@ MONEY_QUANTUM = Decimal("0.01")
 ZERO_MONEY = Decimal("0.00")
 
 
+NO_SAFE_CANDIDATE_ACTION = (
+    "禁止审核通过，保持冻结并核对凭证或业务数据"
+)
+UNIQUE_SAFE_CANDIDATE_ACTION = (
+    "仅有一个金额安全候选，仍须人工核对匹配要素"
+)
+MULTIPLE_SAFE_CANDIDATE_ACTION = (
+    "存在多个金额安全候选，必须人工确定唯一归属"
+)
+
+
 def normalized_money(value):
     if value is None or isinstance(value, bool):
         return None
@@ -228,6 +239,26 @@ def amount_safe_group_category(
     return "多个金额安全候选"
 
 
+def unresolved_group_action(
+    group,
+    businesses,
+    voucher_amount,
+):
+    safe_ids = amount_safe_business_ids(
+        group,
+        businesses,
+        voucher_amount,
+    )
+
+    if not safe_ids:
+        return NO_SAFE_CANDIDATE_ACTION
+
+    if len(safe_ids) == 1:
+        return UNIQUE_SAFE_CANDIDATE_ACTION
+
+    return MULTIPLE_SAFE_CANDIDATE_ACTION
+
+
 def main():
     connection = open_read_only_database()
 
@@ -240,7 +271,19 @@ def main():
                 voucher_id,
                 business_record_id,
                 review_status,
-                allocation_amount
+                allocation_amount,
+                match_status,
+                name_match,
+                bank_match,
+                amount_match,
+                score,
+                primary_reviewer_id,
+                primary_review_result,
+                primary_reviewed_at,
+                secondary_reviewer_id,
+                secondary_review_result,
+                secondary_reviewed_at,
+                created_at
             FROM match_reviews
             ORDER BY id
             """
@@ -430,6 +473,10 @@ def main():
                 "  金额安全分类："
                 f"{amount_safe_group_category(group, businesses, voucher_amount)}"
             )
+            print(
+                "  处置建议："
+                f"{unresolved_group_action(group, businesses, voucher_amount)}"
+            )
             safe_business_ids = set(
                 amount_safe_business_ids(
                     group,
@@ -441,6 +488,19 @@ def main():
                 "  未决审核 ID："
                 f"{','.join(map(str, group.unresolved_review_ids))}"
             )
+
+            unresolved_reviews_by_business_id = {}
+
+            for review_id in group.unresolved_review_ids:
+                review = reviews_by_id.get(review_id)
+
+                if review is None:
+                    continue
+
+                unresolved_reviews_by_business_id.setdefault(
+                    review.business_record_id,
+                    review,
+                )
 
             for business_id in group.pending_business_record_ids:
                 business = businesses.get(business_id)
@@ -472,7 +532,27 @@ def main():
                         else "非金额安全候选"
                     )
                 )
+                review = unresolved_reviews_by_business_id.get(
+                    business_id
+                )
 
+                if review is None:
+                    print("      证据：对应未决审核记录缺失")
+                    continue
+
+                score_text = (
+                    review.score
+                    if review.score is not None
+                    else "-"
+                )
+                print(
+                    f"      证据：MR#{review.id} / "
+                    f"分数 {score_text} / "
+                    f"匹配状态 {review.match_status or '-'} / "
+                    f"姓名 {review.name_match or '-'} / "
+                    f"银行卡 {review.bank_match or '-'} / "
+                    f"金额 {review.amount_match or '-'}"
+                )
         print()
         print("E. 同一凭证多业务已通过明细")
 
@@ -483,8 +563,27 @@ def main():
             high_risk_groups,
             start=1,
         ):
+            voucher = vouchers.get(group.voucher_id)
+            filename = (
+                voucher["filename"]
+                if voucher is not None
+                else "凭证记录缺失"
+            )
+            voucher_amount = (
+                voucher["voucher_amount"]
+                if voucher is not None
+                else None
+            )
+
             print()
-            print(f"[E{index}] 凭证#{group.voucher_id}")
+            print(
+                f"[E{index}] 凭证#{group.voucher_id} / "
+                f"{filename} / 金额 {money(voucher_amount)}"
+            )
+            print(
+                "  处置建议：暂不在页面操作；"
+                "人工确认唯一有效归属后再设计修复"
+            )
 
             for review_id in group.review_ids:
                 review = reviews_by_id.get(review_id)
@@ -504,10 +603,28 @@ def main():
                     if business is not None
                     else f"缺失业务#{review.business_record_id}"
                 )
+
                 print(
                     f"    - MR#{review.id} / "
                     f"{business_no} / "
-                    f"核销 {money(review.allocation_amount)}"
+                    f"核销 {money(review.allocation_amount)} / "
+                    f"分数 "
+                    f"{review.score if review.score is not None else '-'}"
+                )
+                print(
+                    f"      匹配：{review.match_status or '-'} / "
+                    f"姓名 {review.name_match or '-'} / "
+                    f"银行卡 {review.bank_match or '-'} / "
+                    f"金额 {review.amount_match or '-'}"
+                )
+                print(
+                    "      审核链："
+                    f"初审人 {review.primary_reviewer_id or '-'} / "
+                    f"结果 {review.primary_review_result or '-'} / "
+                    f"时间 {review.primary_reviewed_at or '-'}；"
+                    f"复核人 {review.secondary_reviewer_id or '-'} / "
+                    f"结果 {review.secondary_review_result or '-'} / "
+                    f"时间 {review.secondary_reviewed_at or '-'}"
                 )
 
         quick_check = connection.execute(
