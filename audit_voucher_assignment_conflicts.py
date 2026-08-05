@@ -77,6 +77,45 @@ UNIQUE_SAFE_CANDIDATE_ACTION = (
 MULTIPLE_SAFE_CANDIDATE_ACTION = (
     "存在多个金额安全候选，必须人工确定唯一归属"
 )
+HISTORICAL_DUPLICATE_ACTION = (
+    "暂不在页面操作；人工确认唯一有效归属后再设计修复"
+)
+
+
+MANUAL_DISPOSITION_COLUMNS = (
+    "案例编号",
+    "案例类型",
+    "凭证ID",
+    "凭证文件名",
+    "凭证金额",
+    "审核记录ID",
+    "审核状态",
+    "本次核销金额",
+    "审核记录创建时间",
+    "业务ID",
+    "公开业务单号",
+    "业务金额",
+    "已核销金额",
+    "剩余金额",
+    "业务核销状态",
+    "金额安全性",
+    "匹配分数",
+    "匹配状态",
+    "姓名匹配证据",
+    "银行卡匹配证据",
+    "金额匹配证据",
+    "初审人ID",
+    "初审结果",
+    "初审时间",
+    "复核人ID",
+    "复核结果",
+    "复核时间",
+    "处置建议",
+    "人工决定",
+    "确认人",
+    "确认时间",
+    "备注",
+)
 
 
 def normalized_money(value):
@@ -257,6 +296,181 @@ def unresolved_group_action(
         return UNIQUE_SAFE_CANDIDATE_ACTION
 
     return MULTIPLE_SAFE_CANDIDATE_ACTION
+
+
+def checklist_remaining_amount(business):
+    if business is None:
+        return None
+
+    business_amount = normalized_money(
+        business["business_amount"]
+    )
+    approved_amount = normalized_money(
+        business["approved_amount"]
+    )
+
+    if (
+        business_amount is None
+        or approved_amount is None
+        or business["missing_amount_count"] > 0
+    ):
+        return None
+
+    return business_amount - approved_amount
+
+
+def amount_safety_label(voucher_amount, business):
+    normalized_voucher_amount = normalized_money(
+        voucher_amount
+    )
+    remaining = remaining_amount(business)
+
+    if (
+        normalized_voucher_amount is not None
+        and normalized_voucher_amount > ZERO_MONEY
+        and remaining is not None
+        and normalized_voucher_amount <= remaining
+    ):
+        return "金额安全候选"
+
+    return "非金额安全候选"
+
+
+def build_manual_disposition_row(
+    *,
+    case_no,
+    case_type,
+    voucher_id,
+    voucher,
+    review,
+    business,
+    action,
+):
+    voucher_amount = (
+        voucher["voucher_amount"]
+        if voucher is not None
+        else None
+    )
+    business_id = getattr(
+        review,
+        "business_record_id",
+        None,
+    )
+
+    if business_id is None and business is not None:
+        business_id = business["business_id"]
+
+    business_amount = (
+        normalized_money(business["business_amount"])
+        if business is not None
+        else None
+    )
+    approved_amount = (
+        normalized_money(business["approved_amount"])
+        if business is not None
+        else None
+    )
+    business_no = (
+        business["business_no"]
+        if business is not None
+        else None
+    )
+
+    return {
+        "案例编号": case_no,
+        "案例类型": case_type,
+        "凭证ID": voucher_id,
+        "凭证文件名": (
+            voucher["filename"]
+            if voucher is not None
+            else None
+        ),
+        "凭证金额": normalized_money(voucher_amount),
+        "审核记录ID": getattr(review, "id", None),
+        "审核状态": getattr(
+            review,
+            "review_status",
+            None,
+        ),
+        "本次核销金额": normalized_money(
+            getattr(review, "allocation_amount", None)
+        ),
+        "审核记录创建时间": getattr(
+            review,
+            "created_at",
+            None,
+        ),
+        "业务ID": business_id,
+        "公开业务单号": business_no,
+        "业务金额": business_amount,
+        "已核销金额": approved_amount,
+        "剩余金额": checklist_remaining_amount(
+            business
+        ),
+        "业务核销状态": candidate_allocation_state(
+            business
+        ),
+        "金额安全性": amount_safety_label(
+            voucher_amount,
+            business,
+        ),
+        "匹配分数": getattr(review, "score", None),
+        "匹配状态": getattr(
+            review,
+            "match_status",
+            None,
+        ),
+        "姓名匹配证据": getattr(
+            review,
+            "name_match",
+            None,
+        ),
+        "银行卡匹配证据": getattr(
+            review,
+            "bank_match",
+            None,
+        ),
+        "金额匹配证据": getattr(
+            review,
+            "amount_match",
+            None,
+        ),
+        "初审人ID": getattr(
+            review,
+            "primary_reviewer_id",
+            None,
+        ),
+        "初审结果": getattr(
+            review,
+            "primary_review_result",
+            None,
+        ),
+        "初审时间": getattr(
+            review,
+            "primary_reviewed_at",
+            None,
+        ),
+        "复核人ID": getattr(
+            review,
+            "secondary_reviewer_id",
+            None,
+        ),
+        "复核结果": getattr(
+            review,
+            "secondary_review_result",
+            None,
+        ),
+        "复核时间": getattr(
+            review,
+            "secondary_reviewed_at",
+            None,
+        ),
+        "处置建议": action,
+        "人工决定": "",
+        "确认人": "",
+        "确认时间": "",
+        "备注": "",
+    }
 
 
 def main():
