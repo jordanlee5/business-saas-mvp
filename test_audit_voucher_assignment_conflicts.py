@@ -11,7 +11,10 @@ from audit_voucher_assignment_conflicts import (
     allocation_state,
     amount_safe_business_ids,
     amount_safe_group_category,
+    build_historical_manual_disposition_rows,
     build_manual_disposition_row,
+    build_manual_disposition_rows,
+    build_unresolved_manual_disposition_rows,
     candidate_allocation_state,
     continuable_business_ids,
     group_category,
@@ -80,6 +83,25 @@ def make_review(
 def make_group(*business_ids):
     return SimpleNamespace(
         pending_business_record_ids=tuple(business_ids),
+    )
+
+
+def make_audit_group(
+    voucher_id,
+    *,
+    review_ids=(),
+    unresolved_review_ids=(),
+    pending_business_record_ids=(),
+):
+    return SimpleNamespace(
+        voucher_id=voucher_id,
+        review_ids=tuple(review_ids),
+        unresolved_review_ids=tuple(
+            unresolved_review_ids
+        ),
+        pending_business_record_ids=tuple(
+            pending_business_record_ids
+        ),
     )
 
 
@@ -484,6 +506,285 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
             ("", "", "", ""),
         )
         self.assertNotIn("建议归属业务ID", row)
+
+
+    def test_unresolved_groups_expand_every_candidate_business(self):
+        groups = (
+            make_audit_group(
+                6,
+                unresolved_review_ids=(31, 32),
+                pending_business_record_ids=(8, 9),
+            ),
+            make_audit_group(
+                7,
+                unresolved_review_ids=(33,),
+                pending_business_record_ids=(10, 11),
+            ),
+        )
+        vouchers = {
+            6: {
+                "filename": "voucher-006.png",
+                "voucher_amount": 60,
+            },
+            7: {
+                "filename": "voucher-007.png",
+                "voucher_amount": 200,
+            },
+        }
+        businesses = {
+            8: make_business(
+                100,
+                40,
+                business_id=8,
+                business_no="PUBLIC-0008",
+            ),
+            9: make_business(
+                80,
+                0,
+                business_id=9,
+                business_no="PUBLIC-0009",
+            ),
+            10: make_business(
+                100,
+                0,
+                business_id=10,
+                business_no="PUBLIC-0010",
+            ),
+            11: make_business(
+                100,
+                0,
+                business_id=11,
+                business_no="PUBLIC-0011",
+            ),
+        }
+        reviews_by_id = {
+            31: make_review(
+                review_id=31,
+                voucher_id=6,
+                business_record_id=8,
+                review_status="待初审",
+                allocation_amount=60,
+                match_status="候选匹配",
+                name_match="匹配",
+                bank_match="未匹配",
+                amount_match="匹配",
+                score=3,
+                created_at="2026-08-05 10:00:00",
+            ),
+            32: make_review(
+                review_id=32,
+                voucher_id=6,
+                business_record_id=9,
+                review_status="待初审",
+                allocation_amount=60,
+                match_status="候选匹配",
+                name_match="匹配",
+                bank_match="未匹配",
+                amount_match="匹配",
+                score=3,
+                created_at="2026-08-05 10:01:00",
+            ),
+            33: make_review(
+                review_id=33,
+                voucher_id=7,
+                business_record_id=10,
+                review_status="待初审",
+                allocation_amount=200,
+                match_status="候选匹配",
+                name_match="匹配",
+                bank_match="未匹配",
+                amount_match="未匹配",
+                score=2,
+                created_at="2026-08-05 10:02:00",
+            ),
+        }
+
+        rows = build_unresolved_manual_disposition_rows(
+            groups,
+            vouchers,
+            reviews_by_id,
+            businesses,
+        )
+
+        self.assertEqual(
+            [row["案例编号"] for row in rows],
+            ["D1", "D1", "D2", "D2"],
+        )
+        self.assertEqual(
+            [row["业务ID"] for row in rows],
+            [8, 9, 10, 11],
+        )
+        self.assertEqual(
+            [row["审核记录ID"] for row in rows],
+            [31, 32, 33, None],
+        )
+        self.assertEqual(
+            [row["处置建议"] for row in rows],
+            [
+                MULTIPLE_SAFE_CANDIDATE_ACTION,
+                MULTIPLE_SAFE_CANDIDATE_ACTION,
+                NO_SAFE_CANDIDATE_ACTION,
+                NO_SAFE_CANDIDATE_ACTION,
+            ],
+        )
+        self.assertTrue(
+            all(
+                tuple(row) == MANUAL_DISPOSITION_COLUMNS
+                for row in rows
+            )
+        )
+        self.assertNotIn("建议归属业务ID", rows[0])
+
+    def test_historical_groups_include_only_approved_relations(self):
+        group = make_audit_group(
+            45,
+            review_ids=(90, 91, 92),
+        )
+        vouchers = {
+            45: {
+                "filename": "voucher-045.png",
+                "voucher_amount": 60,
+            }
+        }
+        businesses = {
+            business_id: make_business(
+                100,
+                60,
+                business_id=business_id,
+                business_no=f"PUBLIC-{business_id:04d}",
+            )
+            for business_id in (9, 10, 11)
+        }
+        reviews_by_id = {
+            review_id: make_review(
+                review_id=review_id,
+                voucher_id=45,
+                business_record_id=business_id,
+                review_status=review_status,
+                allocation_amount=60,
+                match_status="高可信匹配",
+                name_match="匹配",
+                bank_match="匹配",
+                amount_match="匹配",
+                score=5,
+                created_at="2026-08-01 09:00:00",
+                primary_reviewer_id=2,
+                primary_review_result="通过",
+                primary_reviewed_at=(
+                    "2026-08-01 09:10:00"
+                ),
+                secondary_reviewer_id=3,
+                secondary_review_result="通过",
+                secondary_reviewed_at=(
+                    "2026-08-01 09:20:00"
+                ),
+            )
+            for review_id, business_id, review_status in (
+                (90, 9, "已通过"),
+                (91, 10, "已通过"),
+                (92, 11, "待初审"),
+            )
+        }
+
+        rows = build_historical_manual_disposition_rows(
+            (group,),
+            vouchers,
+            reviews_by_id,
+            businesses,
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            [row["案例编号"] for row in rows],
+            ["E1", "E1"],
+        )
+        self.assertEqual(
+            [row["审核记录ID"] for row in rows],
+            [90, 91],
+        )
+        self.assertEqual(
+            {row["处置建议"] for row in rows},
+            {HISTORICAL_DUPLICATE_ACTION},
+        )
+        self.assertTrue(
+            all(row["初审人ID"] == 2 for row in rows)
+        )
+        self.assertTrue(
+            all(row["复核人ID"] == 3 for row in rows)
+        )
+
+    def test_combined_rows_keep_d_and_e_case_series_separate(self):
+        unresolved_group = make_audit_group(
+            6,
+            unresolved_review_ids=(31, 32),
+            pending_business_record_ids=(8, 9),
+        )
+        historical_group = make_audit_group(
+            45,
+            review_ids=(90, 91),
+        )
+        vouchers = {
+            6: {
+                "filename": "voucher-006.png",
+                "voucher_amount": 60,
+            },
+            45: {
+                "filename": "voucher-045.png",
+                "voucher_amount": 60,
+            },
+        }
+        businesses = {
+            business_id: make_business(
+                100,
+                0,
+                business_id=business_id,
+                business_no=f"PUBLIC-{business_id:04d}",
+            )
+            for business_id in (8, 9, 10, 11)
+        }
+        reviews_by_id = {}
+
+        for review_id, voucher_id, business_id, status in (
+            (31, 6, 8, "待初审"),
+            (32, 6, 9, "待初审"),
+            (90, 45, 10, "已通过"),
+            (91, 45, 11, "已通过"),
+        ):
+            reviews_by_id[review_id] = make_review(
+                review_id=review_id,
+                voucher_id=voucher_id,
+                business_record_id=business_id,
+                review_status=status,
+                allocation_amount=60,
+                match_status="候选匹配",
+                name_match="匹配",
+                bank_match="匹配",
+                amount_match="匹配",
+                score=3,
+                created_at="2026-08-05 10:00:00",
+            )
+
+        rows = build_manual_disposition_rows(
+            (unresolved_group,),
+            (historical_group,),
+            vouchers,
+            reviews_by_id,
+            businesses,
+        )
+
+        self.assertEqual(
+            [row["案例编号"] for row in rows],
+            ["D1", "D1", "E1", "E1"],
+        )
+        self.assertEqual(
+            [row["案例类型"] for row in rows],
+            [
+                "未决冲突",
+                "未决冲突",
+                "历史重复通过",
+                "历史重复通过",
+            ],
+        )
 
 
 if __name__ == "__main__":

@@ -345,17 +345,21 @@ def build_manual_disposition_row(
     review,
     business,
     action,
+    candidate_business_id=None,
 ):
     voucher_amount = (
         voucher["voucher_amount"]
         if voucher is not None
         else None
     )
-    business_id = getattr(
-        review,
-        "business_record_id",
-        None,
-    )
+    business_id = candidate_business_id
+
+    if business_id is None:
+        business_id = getattr(
+            review,
+            "business_record_id",
+            None,
+        )
 
     if business_id is None and business is not None:
         business_id = business["business_id"]
@@ -473,6 +477,129 @@ def build_manual_disposition_row(
     }
 
 
+def build_unresolved_manual_disposition_rows(
+    unresolved_groups,
+    vouchers,
+    reviews_by_id,
+    businesses,
+):
+    rows = []
+
+    for index, group in enumerate(
+        unresolved_groups,
+        start=1,
+    ):
+        voucher = vouchers.get(group.voucher_id)
+        voucher_amount = (
+            voucher["voucher_amount"]
+            if voucher is not None
+            else None
+        )
+        action = unresolved_group_action(
+            group,
+            businesses,
+            voucher_amount,
+        )
+        reviews_by_business_id = {}
+
+        for review_id in group.unresolved_review_ids:
+            review = reviews_by_id.get(review_id)
+
+            if review is None:
+                continue
+
+            reviews_by_business_id.setdefault(
+                review.business_record_id,
+                review,
+            )
+
+        for business_id in group.pending_business_record_ids:
+            rows.append(
+                build_manual_disposition_row(
+                    case_no=f"D{index}",
+                    case_type="未决冲突",
+                    voucher_id=group.voucher_id,
+                    voucher=voucher,
+                    review=reviews_by_business_id.get(
+                        business_id
+                    ),
+                    business=businesses.get(business_id),
+                    action=action,
+                    candidate_business_id=business_id,
+                )
+            )
+
+    return tuple(rows)
+
+
+def build_historical_manual_disposition_rows(
+    high_risk_groups,
+    vouchers,
+    reviews_by_id,
+    businesses,
+):
+    rows = []
+
+    for index, group in enumerate(
+        high_risk_groups,
+        start=1,
+    ):
+        voucher = vouchers.get(group.voucher_id)
+
+        for review_id in group.review_ids:
+            review = reviews_by_id.get(review_id)
+
+            if (
+                review is None
+                or review.review_status
+                != APPROVED_REVIEW_STATUS
+            ):
+                continue
+
+            business_id = review.business_record_id
+            rows.append(
+                build_manual_disposition_row(
+                    case_no=f"E{index}",
+                    case_type="历史重复通过",
+                    voucher_id=group.voucher_id,
+                    voucher=voucher,
+                    review=review,
+                    business=businesses.get(business_id),
+                    action=HISTORICAL_DUPLICATE_ACTION,
+                    candidate_business_id=business_id,
+                )
+            )
+
+    return tuple(rows)
+
+
+def build_manual_disposition_rows(
+    unresolved_groups,
+    high_risk_groups,
+    vouchers,
+    reviews_by_id,
+    businesses,
+):
+    unresolved_rows = (
+        build_unresolved_manual_disposition_rows(
+            unresolved_groups,
+            vouchers,
+            reviews_by_id,
+            businesses,
+        )
+    )
+    historical_rows = (
+        build_historical_manual_disposition_rows(
+            high_risk_groups,
+            vouchers,
+            reviews_by_id,
+            businesses,
+        )
+    )
+
+    return unresolved_rows + historical_rows
+
+
 def main():
     connection = open_read_only_database()
 
@@ -548,6 +675,15 @@ def main():
             group
             for group in all_groups
             if group.has_multiple_approved_businesses
+        )
+        manual_disposition_rows = (
+            build_manual_disposition_rows(
+                unresolved_groups,
+                high_risk_groups,
+                vouchers,
+                reviews_by_id,
+                businesses,
+            )
         )
         categories = Counter(
             group_category(group, businesses)
