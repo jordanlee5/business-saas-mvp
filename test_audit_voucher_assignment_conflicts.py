@@ -1,5 +1,8 @@
+import csv
+import tempfile
 import unittest
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 
 from audit_voucher_assignment_conflicts import (
@@ -17,6 +20,7 @@ from audit_voucher_assignment_conflicts import (
     build_unresolved_manual_disposition_rows,
     candidate_allocation_state,
     continuable_business_ids,
+    export_manual_disposition_csv,
     group_category,
     remaining_amount,
     unresolved_group_action,
@@ -103,6 +107,30 @@ def make_audit_group(
             pending_business_record_ids
         ),
     )
+
+
+def make_manual_disposition_csv_row():
+    row = dict.fromkeys(
+        MANUAL_DISPOSITION_COLUMNS,
+        "",
+    )
+    row.update(
+        {
+            "案例编号": "D1",
+            "案例类型": "未决冲突",
+            "凭证ID": 6,
+            "凭证文件名": "voucher-006.png",
+            "凭证金额": Decimal("60.00"),
+            "审核记录ID": None,
+            "业务ID": 8,
+            "公开业务单号": "PUBLIC-0008",
+            "业务金额": Decimal("100.00"),
+            "已核销金额": Decimal("120.00"),
+            "剩余金额": Decimal("-20.00"),
+        }
+    )
+
+    return row
 
 
 class VoucherAssignmentConflictAuditTests(unittest.TestCase):
@@ -785,6 +813,135 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
                 "历史重复通过",
             ],
         )
+
+
+    def test_csv_export_uses_utf8_bom_and_exact_columns(self):
+        row = make_manual_disposition_csv_row()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            exported_path = export_manual_disposition_csv(
+                (row,),
+                output_path,
+            )
+            raw = output_path.read_bytes()
+
+            with output_path.open(
+                encoding="utf-8-sig",
+                newline="",
+            ) as csv_file:
+                reader = csv.DictReader(csv_file)
+                exported_rows = list(reader)
+
+        self.assertEqual(exported_path, output_path)
+        self.assertTrue(raw.startswith(b"\xef\xbb\xbf"))
+        self.assertEqual(
+            reader.fieldnames,
+            list(MANUAL_DISPOSITION_COLUMNS),
+        )
+        self.assertEqual(len(exported_rows), 1)
+        self.assertEqual(
+            exported_rows[0]["凭证金额"],
+            "60.00",
+        )
+        self.assertEqual(
+            exported_rows[0]["审核记录ID"],
+            "",
+        )
+        self.assertEqual(
+            exported_rows[0]["剩余金额"],
+            "-20.00",
+        )
+        self.assertEqual(
+            (
+                exported_rows[0]["人工决定"],
+                exported_rows[0]["确认人"],
+                exported_rows[0]["确认时间"],
+                exported_rows[0]["备注"],
+            ),
+            ("", "", "", ""),
+        )
+
+    def test_csv_export_escapes_formula_like_text_only(self):
+        row = make_manual_disposition_csv_row()
+        row["凭证文件名"] = "=dangerous-formula"
+        row["公开业务单号"] = "+dangerous-formula"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            export_manual_disposition_csv(
+                (row,),
+                output_path,
+            )
+
+            with output_path.open(
+                encoding="utf-8-sig",
+                newline="",
+            ) as csv_file:
+                exported_row = next(
+                    csv.DictReader(csv_file)
+                )
+
+        self.assertEqual(
+            exported_row["凭证文件名"],
+            "'=dangerous-formula",
+        )
+        self.assertEqual(
+            exported_row["公开业务单号"],
+            "'+dangerous-formula",
+        )
+        self.assertEqual(
+            exported_row["剩余金额"],
+            "-20.00",
+        )
+
+    def test_csv_export_refuses_to_overwrite_existing_file(self):
+        row = make_manual_disposition_csv_row()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+            original_content = "人工已填写内容"
+            output_path.write_text(
+                original_content,
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(FileExistsError):
+                export_manual_disposition_csv(
+                    (row,),
+                    output_path,
+                )
+
+            self.assertEqual(
+                output_path.read_text(encoding="utf-8"),
+                original_content,
+            )
+
+    def test_csv_export_rejects_wrong_columns_before_creation(self):
+        row = make_manual_disposition_csv_row()
+        row["额外字段"] = "unexpected"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = (
+                Path(temp_dir) / "manual-disposition.csv"
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "字段不完整或顺序不一致",
+            ):
+                export_manual_disposition_csv(
+                    (row,),
+                    output_path,
+                )
+
+            self.assertFalse(output_path.exists())
 
 
 if __name__ == "__main__":

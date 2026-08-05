@@ -1,5 +1,8 @@
+import argparse
+import csv
 from collections import Counter
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from pathlib import Path
 from types import SimpleNamespace
 
 from app.match_review_workflow import (
@@ -116,6 +119,61 @@ MANUAL_DISPOSITION_COLUMNS = (
     "确认时间",
     "备注",
 )
+
+
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def manual_disposition_csv_cell(value):
+    if value is None:
+        return ""
+
+    if isinstance(value, Decimal):
+        return f"{value:.2f}"
+
+    if (
+        isinstance(value, str)
+        and value.startswith(CSV_FORMULA_PREFIXES)
+    ):
+        return f"'{value}"
+
+    return value
+
+
+def export_manual_disposition_csv(rows, output_path):
+    rows = tuple(rows)
+
+    for row in rows:
+        if tuple(row) != MANUAL_DISPOSITION_COLUMNS:
+            raise ValueError(
+                "人工处置清单字段不完整或顺序不一致"
+            )
+
+    output_path = Path(output_path)
+
+    with output_path.open(
+        "x",
+        encoding="utf-8-sig",
+        newline="",
+    ) as output_file:
+        writer = csv.DictWriter(
+            output_file,
+            fieldnames=MANUAL_DISPOSITION_COLUMNS,
+            extrasaction="raise",
+        )
+        writer.writeheader()
+
+        for row in rows:
+            writer.writerow(
+                {
+                    column: manual_disposition_csv_cell(
+                        row[column]
+                    )
+                    for column in MANUAL_DISPOSITION_COLUMNS
+                }
+            )
+
+    return output_path
 
 
 def normalized_money(value):
@@ -600,7 +658,23 @@ def build_manual_disposition_rows(
     return unresolved_rows + historical_rows
 
 
-def main():
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="凭证归属冲突只读审计"
+    )
+    parser.add_argument(
+        "--export-csv",
+        type=Path,
+        help=(
+            "将人工处置清单导出到新的 UTF-8 CSV 文件；"
+            "已存在文件不会覆盖"
+        ),
+    )
+
+    return parser.parse_args()
+
+
+def main(export_csv_path=None):
     connection = open_read_only_database()
 
     try:
@@ -996,9 +1070,33 @@ def main():
         print("PRAGMA quick_check：ok")
         print("数据库写入次数：0")
         print("审计完成：未修改任何数据库记录")
+
+        if export_csv_path is not None:
+            exported_path = export_manual_disposition_csv(
+                manual_disposition_rows,
+                export_csv_path,
+            )
+            print()
+            print("G. 人工处置清单导出")
+            print(
+                "清单数据行数："
+                f"{len(manual_disposition_rows)}"
+            )
+            print(
+                "导出文件："
+                f"{exported_path.resolve()}"
+            )
     finally:
         connection.close()
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+
+    try:
+        main(export_csv_path=args.export_csv)
+    except FileExistsError as exc:
+        raise SystemExit(
+            "导出失败：目标文件已存在，不会覆盖："
+            f"{exc.filename}"
+        ) from exc
