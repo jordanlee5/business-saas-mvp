@@ -12,6 +12,12 @@ from audit_voucher_assignment_conflicts import (
     MULTIPLE_SAFE_CANDIDATE_ACTION,
     NO_SAFE_CANDIDATE_ACTION,
     UNIQUE_SAFE_CANDIDATE_ACTION,
+    HISTORICAL_CASE_TYPE,
+    HISTORICAL_KEEP_DECISION,
+    HISTORICAL_REVOKE_DECISION,
+    UNRESOLVED_CASE_TYPE,
+    UNRESOLVED_CONFIRM_DECISION,
+    UNRESOLVED_EXCLUDE_DECISION,
     allocation_state,
     amount_safe_business_ids,
     amount_safe_group_category,
@@ -25,6 +31,7 @@ from audit_voucher_assignment_conflicts import (
     group_category,
     remaining_amount,
     validate_manual_disposition_csv,
+    validate_manual_disposition_groups,
     unresolved_group_action,
 )
 
@@ -129,6 +136,46 @@ def make_manual_disposition_csv_row():
             "业务金额": Decimal("100.00"),
             "已核销金额": Decimal("120.00"),
             "剩余金额": Decimal("-20.00"),
+        }
+    )
+
+    return row
+
+
+def make_semantic_disposition_row(
+    *,
+    case_no="D1",
+    case_type=UNRESOLVED_CASE_TYPE,
+    voucher_id=6,
+    review_id=31,
+    business_id=8,
+    amount_safety="金额安全候选",
+    decision="",
+    confirmed_by="",
+    confirmed_at="",
+):
+    row = make_manual_disposition_csv_row()
+    row.update(
+        {
+            "案例编号": case_no,
+            "案例类型": case_type,
+            "凭证ID": voucher_id,
+            "凭证文件名": (
+                f"voucher-{voucher_id:03d}.png"
+            ),
+            "审核记录ID": review_id,
+            "业务ID": business_id,
+            "公开业务单号": (
+                f"PUBLIC-{business_id:04d}"
+            ),
+            "业务金额": Decimal("100.00"),
+            "已核销金额": Decimal("40.00"),
+            "剩余金额": Decimal("60.00"),
+            "业务核销状态": "部分付款",
+            "金额安全性": amount_safety,
+            "人工决定": decision,
+            "确认人": confirmed_by,
+            "确认时间": confirmed_at,
         }
     )
 
@@ -949,13 +996,15 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
     def test_csv_validation_accepts_manual_fields_without_mutation(
         self,
     ):
-        expected_row = make_manual_disposition_csv_row()
+        expected_row = make_semantic_disposition_row()
         filled_row = dict(expected_row)
         filled_row.update(
             {
-                "人工决定": "等待人工确认",
+                "人工决定": (
+                    UNRESOLVED_CONFIRM_DECISION
+                ),
                 "确认人": "管理员A",
-                "确认时间": "2026-08-05 16:30:00",
+                "确认时间": "2026-08-06 16:30:00",
                 "备注": "仅用于校验测试",
             }
         )
@@ -981,6 +1030,14 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
         self.assertEqual(
             result.manual_filled_row_count,
             1,
+        )
+        self.assertEqual(
+            result.completed_group_count,
+            1,
+        )
+        self.assertEqual(
+            result.pending_group_count,
+            0,
         )
         self.assertEqual(
             before_validation,
@@ -1015,6 +1072,14 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
             )
 
         self.assertEqual(result.row_count, 2)
+        self.assertEqual(
+            result.completed_group_count,
+            0,
+        )
+        self.assertEqual(
+            result.pending_group_count,
+            2,
+        )
 
     def test_csv_validation_rejects_modified_evidence(self):
         expected_row = make_manual_disposition_csv_row()
@@ -1108,6 +1173,285 @@ class VoucherAssignmentConflictAuditTests(unittest.TestCase):
                     (expected_row,),
                     output_path,
                 )
+
+
+    def test_manual_group_accepts_complete_unresolved_decision(
+        self,
+    ):
+        rows = (
+            make_semantic_disposition_row(
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+            make_semantic_disposition_row(
+                review_id=32,
+                business_id=9,
+                amount_safety="非金额安全候选",
+                decision=UNRESOLVED_EXCLUDE_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+        )
+
+        result = validate_manual_disposition_groups(
+            rows
+        )
+
+        self.assertEqual(
+            result.completed_group_count,
+            1,
+        )
+        self.assertEqual(
+            result.pending_group_count,
+            0,
+        )
+
+    def test_manual_group_accepts_complete_historical_decision(
+        self,
+    ):
+        rows = (
+            make_semantic_disposition_row(
+                case_no="E1",
+                case_type=HISTORICAL_CASE_TYPE,
+                voucher_id=45,
+                review_id=90,
+                business_id=10,
+                decision=HISTORICAL_KEEP_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:40:00",
+            ),
+            make_semantic_disposition_row(
+                case_no="E1",
+                case_type=HISTORICAL_CASE_TYPE,
+                voucher_id=45,
+                review_id=91,
+                business_id=11,
+                decision=HISTORICAL_REVOKE_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:40:00",
+            ),
+        )
+
+        result = validate_manual_disposition_groups(
+            rows
+        )
+
+        self.assertEqual(
+            result.completed_group_count,
+            1,
+        )
+        self.assertEqual(
+            result.pending_group_count,
+            0,
+        )
+
+    def test_manual_group_rejects_unsupported_decision(
+        self,
+    ):
+        row = make_semantic_disposition_row(
+            decision="等待人工确认",
+            confirmed_by="管理员A",
+            confirmed_at="2026-08-06 16:30:00",
+        )
+
+        with self.assertRaisesRegex(
+            ManualDispositionCsvValidationError,
+            "不允许的人工决定",
+        ):
+            validate_manual_disposition_groups(
+                (row,)
+            )
+
+    def test_manual_group_rejects_partial_decisions(
+        self,
+    ):
+        rows = (
+            make_semantic_disposition_row(
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+            make_semantic_disposition_row(
+                review_id=32,
+                business_id=9,
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            ManualDispositionCsvValidationError,
+            "人工决定未完整填写",
+        ):
+            validate_manual_disposition_groups(
+                rows
+            )
+
+    def test_unresolved_group_requires_exactly_one_target(
+        self,
+    ):
+        rows = (
+            make_semantic_disposition_row(
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+            make_semantic_disposition_row(
+                review_id=32,
+                business_id=9,
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            ManualDispositionCsvValidationError,
+            "必须且只能确认 1 行",
+        ):
+            validate_manual_disposition_groups(
+                rows
+            )
+
+    def test_unresolved_target_requires_safety_and_review(
+        self,
+    ):
+        cases = (
+            (
+                {
+                    "金额安全性": "非金额安全候选",
+                },
+                "必须是金额安全候选",
+            ),
+            (
+                {
+                    "审核记录ID": None,
+                },
+                "缺少审核记录ID",
+            ),
+        )
+
+        for target_updates, expected_message in cases:
+            with self.subTest(
+                expected_message=expected_message
+            ):
+                target = make_semantic_disposition_row(
+                    decision=(
+                        UNRESOLVED_CONFIRM_DECISION
+                    ),
+                    confirmed_by="管理员A",
+                    confirmed_at=(
+                        "2026-08-06 16:30:00"
+                    ),
+                )
+                target.update(target_updates)
+                excluded = make_semantic_disposition_row(
+                    review_id=32,
+                    business_id=9,
+                    decision=(
+                        UNRESOLVED_EXCLUDE_DECISION
+                    ),
+                    confirmed_by="管理员A",
+                    confirmed_at=(
+                        "2026-08-06 16:30:00"
+                    ),
+                )
+
+                with self.assertRaisesRegex(
+                    ManualDispositionCsvValidationError,
+                    expected_message,
+                ):
+                    validate_manual_disposition_groups(
+                        (target, excluded)
+                    )
+
+    def test_historical_group_requires_exactly_one_kept_row(
+        self,
+    ):
+        rows = (
+            make_semantic_disposition_row(
+                case_no="E1",
+                case_type=HISTORICAL_CASE_TYPE,
+                voucher_id=45,
+                review_id=90,
+                business_id=10,
+                decision=HISTORICAL_KEEP_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:40:00",
+            ),
+            make_semantic_disposition_row(
+                case_no="E1",
+                case_type=HISTORICAL_CASE_TYPE,
+                voucher_id=45,
+                review_id=91,
+                business_id=11,
+                decision=HISTORICAL_KEEP_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:40:00",
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            ManualDispositionCsvValidationError,
+            "必须且只能保留 1 行",
+        ):
+            validate_manual_disposition_groups(
+                rows
+            )
+
+    def test_manual_group_validates_confirmation_metadata(
+        self,
+    ):
+        inconsistent_rows = (
+            make_semantic_disposition_row(
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+            make_semantic_disposition_row(
+                review_id=32,
+                business_id=9,
+                decision=UNRESOLVED_EXCLUDE_DECISION,
+                confirmed_by="管理员B",
+                confirmed_at="2026-08-06 16:30:00",
+            ),
+        )
+        invalid_time_rows = (
+            make_semantic_disposition_row(
+                decision=UNRESOLVED_CONFIRM_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026/08/06 16:30",
+            ),
+            make_semantic_disposition_row(
+                review_id=32,
+                business_id=9,
+                decision=UNRESOLVED_EXCLUDE_DECISION,
+                confirmed_by="管理员A",
+                confirmed_at="2026/08/06 16:30",
+            ),
+        )
+
+        cases = (
+            (
+                inconsistent_rows,
+                "必须在组内保持一致",
+            ),
+            (
+                invalid_time_rows,
+                "YYYY-MM-DD HH:MM:SS",
+            ),
+        )
+
+        for rows, expected_message in cases:
+            with self.subTest(
+                expected_message=expected_message
+            ):
+                with self.assertRaisesRegex(
+                    ManualDispositionCsvValidationError,
+                    expected_message,
+                ):
+                    validate_manual_disposition_groups(
+                        rows
+                    )
 
 
 if __name__ == "__main__":

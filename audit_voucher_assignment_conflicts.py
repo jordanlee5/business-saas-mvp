@@ -1,6 +1,7 @@
 import argparse
 import csv
 from collections import Counter
+from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from types import SimpleNamespace
@@ -135,6 +136,32 @@ MANUAL_DISPOSITION_EVIDENCE_COLUMNS = tuple(
 )
 
 
+UNRESOLVED_CASE_TYPE = "未决冲突"
+HISTORICAL_CASE_TYPE = "历史重复通过"
+
+UNRESOLVED_CONFIRM_DECISION = "确认唯一归属"
+UNRESOLVED_EXCLUDE_DECISION = "排除候选"
+HISTORICAL_KEEP_DECISION = "保留有效归属"
+HISTORICAL_REVOKE_DECISION = "撤销重复通过"
+
+ALLOWED_MANUAL_DECISIONS = {
+    UNRESOLVED_CASE_TYPE: frozenset(
+        {
+            UNRESOLVED_CONFIRM_DECISION,
+            UNRESOLVED_EXCLUDE_DECISION,
+        }
+    ),
+    HISTORICAL_CASE_TYPE: frozenset(
+        {
+            HISTORICAL_KEEP_DECISION,
+            HISTORICAL_REVOKE_DECISION,
+        }
+    ),
+}
+
+MANUAL_CONFIRMATION_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
 class ManualDispositionCsvValidationError(ValueError):
     pass
 
@@ -205,6 +232,188 @@ def manual_disposition_evidence_counter(rows):
             for column in MANUAL_DISPOSITION_EVIDENCE_COLUMNS
         )
         for row in rows
+    )
+
+
+def manual_disposition_text(row, column):
+    value = row.get(column)
+
+    if value is None:
+        return ""
+
+    return str(value).strip()
+
+
+def validate_manual_disposition_groups(rows):
+    groups = {}
+
+    for row in rows:
+        group_key = (
+            manual_disposition_text(row, "案例类型"),
+            manual_disposition_text(row, "案例编号"),
+            manual_disposition_text(row, "凭证ID"),
+        )
+        groups.setdefault(group_key, []).append(row)
+
+    completed_group_count = 0
+    pending_group_count = 0
+
+    for group_key, group_rows in groups.items():
+        case_type, case_no, voucher_id = group_key
+        group_label = (
+            f"{case_no}（凭证ID {voucher_id}）"
+        )
+        allowed_decisions = (
+            ALLOWED_MANUAL_DECISIONS.get(case_type)
+        )
+
+        if allowed_decisions is None:
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 的案例类型不支持人工处置："
+                f"{case_type or '空值'}"
+            )
+
+        manual_values = [
+            manual_disposition_text(row, column)
+            for row in group_rows
+            for column in MANUAL_DISPOSITION_EDITABLE_COLUMNS
+        ]
+
+        if not any(manual_values):
+            pending_group_count += 1
+            continue
+
+        decisions = [
+            manual_disposition_text(
+                row,
+                "人工决定",
+            )
+            for row in group_rows
+        ]
+
+        if any(not decision for decision in decisions):
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 的人工决定未完整填写"
+            )
+
+        invalid_decisions = sorted(
+            set(decisions) - allowed_decisions
+        )
+
+        if invalid_decisions:
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 存在不允许的人工决定："
+                f"{'、'.join(invalid_decisions)}"
+            )
+
+        confirmation_people = {
+            manual_disposition_text(row, "确认人")
+            for row in group_rows
+        }
+        confirmation_times = {
+            manual_disposition_text(row, "确认时间")
+            for row in group_rows
+        }
+
+        if (
+            "" in confirmation_people
+            or "" in confirmation_times
+        ):
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 必须完整填写确认人和确认时间"
+            )
+
+        if (
+            len(confirmation_people) != 1
+            or len(confirmation_times) != 1
+        ):
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 的确认人和确认时间"
+                "必须在组内保持一致"
+            )
+
+        confirmation_time = next(
+            iter(confirmation_times)
+        )
+
+        try:
+            parsed_confirmation_time = datetime.strptime(
+                confirmation_time,
+                MANUAL_CONFIRMATION_TIME_FORMAT,
+            )
+        except ValueError as exc:
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 的确认时间格式错误，"
+                "应为 YYYY-MM-DD HH:MM:SS"
+            ) from exc
+
+        if parsed_confirmation_time.strftime(
+            MANUAL_CONFIRMATION_TIME_FORMAT
+        ) != confirmation_time:
+            raise ManualDispositionCsvValidationError(
+                f"{group_label} 的确认时间格式错误，"
+                "应为 YYYY-MM-DD HH:MM:SS"
+            )
+
+        if case_type == UNRESOLVED_CASE_TYPE:
+            confirmed_rows = [
+                row
+                for row, decision in zip(
+                    group_rows,
+                    decisions,
+                )
+                if decision
+                == UNRESOLVED_CONFIRM_DECISION
+            ]
+
+            if len(confirmed_rows) != 1:
+                raise ManualDispositionCsvValidationError(
+                    f"{group_label} 必须且只能确认"
+                    " 1 行为唯一归属"
+                )
+
+            confirmed_row = confirmed_rows[0]
+
+            if manual_disposition_text(
+                confirmed_row,
+                "金额安全性",
+            ) != "金额安全候选":
+                raise ManualDispositionCsvValidationError(
+                    f"{group_label} 确认的唯一归属"
+                    "必须是金额安全候选"
+                )
+
+            if not manual_disposition_text(
+                confirmed_row,
+                "审核记录ID",
+            ):
+                raise ManualDispositionCsvValidationError(
+                    f"{group_label} 确认的唯一归属"
+                    "缺少审核记录ID"
+                )
+
+        if case_type == HISTORICAL_CASE_TYPE:
+            kept_rows = [
+                row
+                for row, decision in zip(
+                    group_rows,
+                    decisions,
+                )
+                if decision
+                == HISTORICAL_KEEP_DECISION
+            ]
+
+            if len(kept_rows) != 1:
+                raise ManualDispositionCsvValidationError(
+                    f"{group_label} 必须且只能保留"
+                    " 1 行有效归属"
+                )
+
+        completed_group_count += 1
+
+    return SimpleNamespace(
+        completed_group_count=completed_group_count,
+        pending_group_count=pending_group_count,
     )
 
 
@@ -289,6 +498,12 @@ def validate_manual_disposition_csv(
             f"{unexpected_count} 行"
         )
 
+    group_validation = (
+        validate_manual_disposition_groups(
+            csv_rows
+        )
+    )
+
     manual_filled_row_count = sum(
         any(
             row[column].strip()
@@ -304,6 +519,12 @@ def validate_manual_disposition_csv(
         row_count=len(csv_rows),
         manual_filled_row_count=(
             manual_filled_row_count
+        ),
+        completed_group_count=(
+            group_validation.completed_group_count
+        ),
+        pending_group_count=(
+            group_validation.pending_group_count
         ),
     )
 
@@ -1252,6 +1473,17 @@ def main(
             print(
                 "已填写人工字段行数："
                 f"{validation.manual_filled_row_count}"
+            )
+            print(
+                "已完成人工决定组数："
+                f"{validation.completed_group_count}"
+            )
+            print(
+                "待完成人工决定组数："
+                f"{validation.pending_group_count}"
+            )
+            print(
+                "人工决定与组内完整性：校验通过"
             )
             print("清单文件写入次数：0")
             print("校验完成：未修改 CSV 或数据库")
