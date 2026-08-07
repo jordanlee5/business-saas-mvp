@@ -717,6 +717,32 @@ class MatchReviewWorkflowTests(unittest.TestCase):
             PENDING_PRIMARY_REVIEW_STATUS,
         )
 
+    def test_secondary_approval_requires_allocation_validation(self):
+        user = make_admin(2, SECONDARY_REVIEWER)
+        review = make_review(
+            PENDING_SECONDARY_REVIEW_STATUS,
+            primary_reviewer_id=1,
+        )
+
+        applied = apply_secondary_review_decision(
+            user=user,
+            review=review,
+            result=REVIEW_RESULT_APPROVED,
+        )
+
+        self.assertFalse(applied)
+        self.assertEqual(
+            review.review_status,
+            PENDING_SECONDARY_REVIEW_STATUS,
+        )
+        self.assertIsNone(
+            getattr(
+                review,
+                "secondary_reviewer_id",
+                None,
+            )
+        )
+
     def test_secondary_approval_records_final_decision(self):
         user = make_admin(2, SECONDARY_REVIEWER)
         review = make_review(
@@ -738,6 +764,7 @@ class MatchReviewWorkflowTests(unittest.TestCase):
             result=REVIEW_RESULT_APPROVED,
             comment="复核无误",
             reviewed_at=reviewed_at,
+            allocation_validated=True,
         )
 
         self.assertTrue(applied)
@@ -785,6 +812,7 @@ class MatchReviewWorkflowTests(unittest.TestCase):
                 user=user,
                 review=review,
                 result=REVIEW_RESULT_APPROVED,
+                allocation_validated=True,
             )
 
         self.assertTrue(applied)
@@ -855,6 +883,7 @@ class MatchReviewWorkflowTests(unittest.TestCase):
             user=user,
             review=review,
             result=REVIEW_RESULT_APPROVED,
+            allocation_validated=True,
         )
 
         self.assertFalse(applied)

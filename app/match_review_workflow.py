@@ -519,6 +519,7 @@ def apply_secondary_review_decision(
     result: str,
     comment: str | None = None,
     reviewed_at: datetime | None = None,
+    allocation_validated: bool = False,
 ) -> bool:
     """
     写入二级复核决定。
@@ -529,6 +530,12 @@ def apply_secondary_review_decision(
         return False
 
     if result not in VALID_REVIEW_RESULTS:
+        return False
+
+    if (
+        result == REVIEW_RESULT_APPROVED
+        and not allocation_validated
+    ):
         return False
 
     reviewer_id = getattr(user, "id", None)

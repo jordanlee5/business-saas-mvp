@@ -4137,7 +4137,7 @@ ALLOCATION_RESERVED_REVIEW_STATUSES = (
 )
 
 
-def build_primary_review_allocation_limits(
+def build_review_allocation_limits(
     db,
     review,
 ):
@@ -4606,7 +4606,7 @@ def match_reviews_page(
                         _,
                         allocation_limits,
                     ) = (
-                        build_primary_review_allocation_limits(
+                        build_review_allocation_limits(
                             db,
                             review,
                         )
@@ -4752,7 +4752,7 @@ def primary_review_match(
                 _,
                 _,
                 allocation_limits,
-            ) = build_primary_review_allocation_limits(
+            ) = build_review_allocation_limits(
                 db,
                 review,
             )
@@ -4876,19 +4876,53 @@ def secondary_review_match(
         )
 
     db = SessionLocal()
+    review_error = ""
 
     try:
+        if result == REVIEW_RESULT_APPROVED:
+            # 最终复核也使用写锁串行化安全校验与状态切换。
+            db.connection().exec_driver_sql(
+                "BEGIN IMMEDIATE"
+            )
+
         review = (
             db.query(MatchReview)
             .filter(MatchReview.id == review_id)
             .first()
         )
 
+        allocation_validated = False
+
+        if (
+            result == REVIEW_RESULT_APPROVED
+            and can_secondary_review_match(
+                user,
+                review,
+            )
+        ):
+            (
+                _,
+                _,
+                allocation_limits,
+            ) = build_review_allocation_limits(
+                db,
+                review,
+            )
+
+            validate_allocation_amount(
+                review.allocation_amount,
+                allocation_limits,
+            )
+            allocation_validated = True
+
         applied = apply_secondary_review_decision(
             user=user,
             review=review,
             result=result,
             comment=comment,
+            allocation_validated=(
+                allocation_validated
+            ),
         )
 
         if applied:
@@ -4913,6 +4947,26 @@ def secondary_review_match(
                     f"#{review.id}"
                 ),
             )
+        else:
+            review_error = (
+                "当前记录状态、审核权限、审核内容"
+                "或核销安全校验不符合复核要求"
+            )
+
+    except ValueError as exc:
+        db.rollback()
+        review_error = str(exc)
+
+    except OperationalError as exc:
+        db.rollback()
+
+        if "database is locked" not in str(exc).lower():
+            raise
+
+        review_error = (
+            "另一名管理员正在处理核销，"
+            "请稍后刷新页面再试"
+        )
 
     finally:
         db.close()
@@ -4926,6 +4980,14 @@ def secondary_review_match(
             "page": page,
             "page_size": page_size,
             "customer_name": customer_name,
+            **(
+                {
+                    "review_error": review_error,
+                    "review_id": review_id,
+                }
+                if review_error
+                else {}
+            ),
         }
     )
 
@@ -4987,7 +5049,9 @@ def batch_review_match_reviews(
             status_code=303,
         )
 
-    selected_review_ids = list(dict.fromkeys(review_ids))
+    selected_review_ids = list(
+        dict.fromkeys(review_ids)
+    )
 
     if not selected_review_ids:
         return RedirectResponse(
@@ -5021,14 +5085,62 @@ def batch_review_match_reviews(
         )
 
     db = SessionLocal()
+    review_error = ""
 
     try:
+        if (
+            stage == "secondary"
+            and result == REVIEW_RESULT_APPROVED
+        ):
+            # 批量复核通过必须在同一个写事务中完成
+            # 全部安全校验和状态切换。
+            db.connection().exec_driver_sql(
+                "BEGIN IMMEDIATE"
+            )
+
         reviews = (
             db.query(MatchReview)
-            .filter(MatchReview.id.in_(selected_review_ids))
+            .filter(
+                MatchReview.id.in_(
+                    selected_review_ids
+                )
+            )
             .order_by(MatchReview.id.asc())
             .all()
         )
+
+        allocation_validated_review_ids = set()
+
+        if (
+            stage == "secondary"
+            and result == REVIEW_RESULT_APPROVED
+        ):
+            # 先完整校验，再修改任何审核状态。
+            # 任意一条不安全时整批停止。
+            for review in reviews:
+                if not can_secondary_review_match(
+                    user,
+                    review,
+                ):
+                    continue
+
+                (
+                    _,
+                    _,
+                    allocation_limits,
+                ) = build_review_allocation_limits(
+                    db,
+                    review,
+                )
+
+                validate_allocation_amount(
+                    review.allocation_amount,
+                    allocation_limits,
+                )
+
+                allocation_validated_review_ids.add(
+                    review.id
+                )
 
         applied_count = 0
 
@@ -5046,13 +5158,21 @@ def batch_review_match_reviews(
                     review=review,
                     result=result,
                     comment=comment,
+                    allocation_validated=(
+                        review.id
+                        in allocation_validated_review_ids
+                    ),
                 )
 
             if applied:
                 applied_count += 1
 
         if applied_count > 0:
-            stage_text = "初审" if stage == "primary" else "复核"
+            stage_text = (
+                "初审"
+                if stage == "primary"
+                else "复核"
+            )
             result_text = (
                 "通过"
                 if result == REVIEW_RESULT_APPROVED
@@ -5078,8 +5198,40 @@ def batch_review_match_reviews(
                 ),
             )
 
+    except ValueError as exc:
+        db.rollback()
+        review_error = str(exc)
+
+    except OperationalError as exc:
+        db.rollback()
+
+        if "database is locked" not in str(exc).lower():
+            raise
+
+        review_error = (
+            "另一名管理员正在处理核销，"
+            "请稍后刷新页面再试"
+        )
+
     finally:
         db.close()
+
+    if review_error:
+        error_query = urlencode(
+            {
+                "status_filter": status_filter,
+                "assignment_pool": assignment_pool,
+                "allocation_status": allocation_status,
+                "partner_id": partner_id,
+                "customer_name": customer_name,
+                "page": page,
+                "page_size": page_size,
+                "review_error": review_error,
+            }
+        )
+        redirect_url = (
+            f"/match-reviews?{error_query}"
+        )
 
     return RedirectResponse(
         url=redirect_url,
