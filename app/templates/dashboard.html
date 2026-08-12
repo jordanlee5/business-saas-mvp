@@ -830,10 +830,167 @@
         cursor: not-allowed;
         opacity: 0.62;
     }
+
+    /* 上传方新业务悬浮通知 */
+    .dashboard-upload-notification-stack {
+        position: fixed;
+        top: 70px;
+        right: 28px;
+        z-index: 1200;
+        width: min(360px, calc(100vw - 40px));
+    }
+
+    .dashboard-upload-notification-stack:hover,
+    .dashboard-upload-notification-stack:focus-within {
+        max-height: calc(100vh - 90px);
+        padding-right: 4px;
+        overflow-y: auto;
+    }
+
+    .dashboard-upload-notification-card {
+        position: relative;
+        z-index: var(--notification-layer);
+        min-height: 112px;
+        margin-top: -82px;
+        padding: 14px 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 16px;
+        background:
+            linear-gradient(
+                135deg,
+                #ffffff 0%,
+                #eff6ff 100%
+            );
+        box-shadow:
+            0 14px 34px
+            rgba(15, 23, 42, 0.16);
+        transition:
+            margin-top 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .dashboard-upload-notification-card:first-child {
+        margin-top: 0;
+    }
+
+    .dashboard-upload-notification-stack:hover
+    .dashboard-upload-notification-card,
+    .dashboard-upload-notification-stack:focus-within
+    .dashboard-upload-notification-card {
+        margin-top: 10px;
+        transform: translateY(0);
+    }
+
+    .dashboard-upload-notification-stack:hover
+    .dashboard-upload-notification-card:first-child,
+    .dashboard-upload-notification-stack:focus-within
+    .dashboard-upload-notification-card:first-child {
+        margin-top: 0;
+    }
+
+    .dashboard-upload-notification-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #0f172a;
+        font-size: 15px;
+    }
+
+    .dashboard-upload-notification-message {
+        margin: 9px 0 12px;
+        color: #334155;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .dashboard-upload-notification-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .dashboard-upload-notification-time {
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .dashboard-upload-notification-form {
+        margin: 0;
+    }
+
+    .dashboard-upload-notification-button {
+        border: none;
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #2563eb;
+        color: #ffffff;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .dashboard-upload-notification-button:hover {
+        background: #1d4ed8;
+    }
+
+    @media (max-width: 760px) {
+        .dashboard-upload-notification-stack {
+            top: 62px;
+            right: 10px;
+            width: calc(100vw - 20px);
+        }
+    }
 </style>
 
 <div class="dashboard-page dashboard-grid">
     {% if role == "admin" %}
+    {% if unread_batch_notifications %}
+        <div
+            class="dashboard-upload-notification-stack"
+            aria-label="待承接的新业务通知"
+        >
+            {% for notification in unread_batch_notifications %}
+                <article
+                    class="dashboard-upload-notification-card"
+                    style="--notification-layer: {{ loop.revindex }};"
+                >
+                    <div class="dashboard-upload-notification-head">
+                        <span>🔔</span>
+                        <strong>
+                            {{ notification.title }}
+                        </strong>
+                    </div>
+
+                    <p class="dashboard-upload-notification-message">
+                        {{ notification.message }}
+                    </p >
+
+                    <div class="dashboard-upload-notification-footer">
+                        <span class="dashboard-upload-notification-time">
+                            {% if notification.created_at %}
+                                {{ notification.created_at | format_utc8("%m-%d %H:%M") }}
+                            {% endif %}
+                        </span>
+
+                        <form
+                            method="post"
+                            action="/notifications/{{ notification.id }}/open"
+                            class="dashboard-upload-notification-form"
+                        >
+                            <button
+                                type="submit"
+                                class="dashboard-upload-notification-button"
+                            >
+                                查看本批业务
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+        {% endif %}
         <div class="dashboard-topbar">
                 <h1>运营工作台</h1>
                 <p>按业务流程顺序处理上传方、业务清单、凭证识别与匹配审核。</p>

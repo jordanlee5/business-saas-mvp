@@ -29,6 +29,11 @@ from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
 from .time_utils import format_utc8, utc8_now
+from .notification_service import (
+    create_business_batch_uploaded_notifications,
+    get_unread_business_batch_notifications,
+    mark_notification_as_read,
+)
 from .settlement_calculator import (
     EXTERNAL_MODE,
     INTERNAL_MODE,
@@ -165,34 +170,52 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-def admin_navigation_context(request: Request) -> dict:
+def admin_navigation_context(
+    request: Request,
+) -> dict:
     """
     为所有模板统一提供管理员导航和页面操作权限。
-    无论当前访问哪个功能页面，
-    base.html 都能稳定获得对应的权限状态。
     """
     user = get_current_user(request)
 
     return {
-        "can_manage_administrators": can_manage_administrators(user),
-        "can_view_partners": can_view_partners(user),
-        "can_manage_partners": can_manage_partners(user),
-        "can_upload_vouchers": can_upload_vouchers(user),
-        "can_view_stats": can_view_stats(user),
-        "can_export_stats": can_export_stats(user),
+        "can_manage_administrators": (
+            can_manage_administrators(user)
+        ),
+        "can_view_partners": (
+            can_view_partners(user)
+        ),
+        "can_manage_partners": (
+            can_manage_partners(user)
+        ),
+        "can_upload_vouchers": (
+            can_upload_vouchers(user)
+        ),
+        "can_view_stats": (
+            can_view_stats(user)
+        ),
+        "can_export_stats": (
+            can_export_stats(user)
+        ),
         "can_view_business_records": bool(
             user
             and (
                 user.role == "partner"
-                or can_view_business_records(user)
+                or can_view_business_records(
+                    user
+                )
             )
         ),
-        "can_manage_business_batches": can_manage_business_batches(user),
+        "can_manage_business_batches": (
+            can_manage_business_batches(user)
+        ),
         "can_export_business_records": bool(
             user
             and (
                 user.role == "partner"
-                or can_export_business_records(user)
+                or can_export_business_records(
+                    user
+                )
             )
         ),
     }
@@ -583,6 +606,67 @@ def admin_action_logs_page(
         return templates.TemplateResponse(
             "admin_action_logs.html",
             context,
+        )
+
+    finally:
+        db.close()
+
+
+
+@app.post(
+    "/notifications/{notification_id}/open",
+)
+def open_notification(
+    request: Request,
+    notification_id: int,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if user.role != "admin":
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        notification = (
+            mark_notification_as_read(
+                db,
+                notification_id=notification_id,
+                recipient_id=user.id,
+            )
+        )
+
+        if notification is None:
+            return RedirectResponse(
+                url="/dashboard",
+                status_code=303,
+            )
+
+        target_url = (
+            notification.target_url
+            or "/dashboard"
+        )
+
+        if (
+            not target_url.startswith("/")
+            or target_url.startswith("//")
+        ):
+            target_url = "/dashboard"
+
+        db.commit()
+
+        return RedirectResponse(
+            url=target_url,
+            status_code=303,
         )
 
     finally:
@@ -2811,6 +2895,7 @@ def dashboard(request: Request):
     pending_voucher_batches = 0
     pending_review_records = 0
     today_finished_reviews = 0
+    unread_batch_notifications = []
 
 
     pending_accept_batches = (
@@ -2858,6 +2943,14 @@ def dashboard(request: Request):
 
     pending_voucher_batches = len(pending_voucher_batch_ids)
 
+    if user.role == "admin":
+        unread_batch_notifications = (
+            get_unread_business_batch_notifications(
+                db,
+                user.id,
+            )
+        )
+
     context = {
         "request": request,
         "username": user.username,
@@ -2868,6 +2961,9 @@ def dashboard(request: Request):
         "pending_voucher_batches": pending_voucher_batches,
         "pending_review_records": pending_review_records,
         "today_finished_reviews": today_finished_reviews,
+        "unread_batch_notifications": (
+            unread_batch_notifications
+        ),
     }
 
     db.close()
@@ -3571,6 +3667,12 @@ async def upload_excel_submit(
             ),
         )
         db.add(business_record)
+
+    create_business_batch_uploaded_notifications(
+        db,
+        batch=batch,
+        uploader=user,
+    )
 
     db.commit()
     db.close()

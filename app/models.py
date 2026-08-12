@@ -145,6 +145,73 @@ class UploadBatch(Base):
     acceptance_status = Column(String, default="待承接")
     created_at = Column(DateTime(timezone=True), default=utc8_now)
 
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    # 接收通知的管理员账号
+    recipient_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # 通知类型，例如：
+    # business_batch_uploaded = 上传方提交了新业务清单
+    notification_type = Column(
+        String(50),
+        nullable=False,
+        index=True,
+    )
+
+    title = Column(
+        String(120),
+        nullable=False,
+    )
+
+    message = Column(
+        String(500),
+        nullable=False,
+    )
+
+    # 点击通知后跳转的系统内地址
+    target_url = Column(
+        String(500),
+        nullable=True,
+    )
+
+    # 当前通知关联的业务上传批次
+    related_batch_id = Column(
+        Integer,
+        ForeignKey("upload_batches.id"),
+        nullable=True,
+        index=True,
+    )
+
+    is_read = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+        index=True,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc8_now,
+    )
+
+    read_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
 class VoucherRecord(Base):
     __tablename__ = "voucher_records"
 
