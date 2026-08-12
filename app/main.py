@@ -65,6 +65,7 @@ from .match_review_workflow import (
     can_secondary_review_match,
     get_hidden_low_confidence_conflict_review_ids,
     get_unresolved_assignment_conflict_review_ids,
+    get_hidden_completed_business_review_ids,
 )
 
 from .voucher_allocation import (
@@ -77,6 +78,7 @@ from .voucher_allocation import (
     get_business_allocation_status,
     get_review_block_reason,
     validate_allocation_amount,
+    has_remaining_business_allocation_capacity,
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
@@ -3615,36 +3617,106 @@ def build_accepted_business_batch_options(db, partner_id: int):
 
     return options
 
-def build_voucher_matching_records(db, partner_id: int, selected_business_batch_id: int):
+def build_voucher_matching_records(
+    db,
+    partner_id: int,
+    selected_business_batch_id: int,
+):
     # OCR 匹配源只使用已承接批次下的业务数据
-    records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
+    records_query = apply_accepted_batch_filter(
+        db.query(BusinessRecord)
+    )
 
     if partner_id != 0:
-        records_query = records_query.filter(BusinessRecord.user_id == partner_id)
+        records_query = records_query.filter(
+            BusinessRecord.user_id == partner_id
+        )
 
-    # 如果管理员选择了某一份已承接业务清单，则只在该清单对应的业务数据里匹配
+    # 如果管理员选择了某一份已承接业务清单，
+    # 则只在该清单对应的业务数据里匹配。
     if selected_business_batch_id != 0:
         selected_batch_query = (
             db.query(UploadBatch)
-            .filter(UploadBatch.id == selected_business_batch_id)
-            .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+            .filter(
+                UploadBatch.id
+                == selected_business_batch_id
+            )
+            .filter(
+                UploadBatch.acceptance_status
+                == ACCEPTED_BATCH_STATUS
+            )
         )
 
         if partner_id != 0:
-            selected_batch_query = selected_batch_query.filter(
-                UploadBatch.user_id == partner_id
+            selected_batch_query = (
+                selected_batch_query.filter(
+                    UploadBatch.user_id
+                    == partner_id
+                )
             )
 
-        selected_batch = selected_batch_query.first()
+        selected_batch = (
+            selected_batch_query.first()
+        )
 
         if selected_batch:
             records_query = records_query.filter(
-                BusinessRecord.batch_id == selected_business_batch_id
+                BusinessRecord.batch_id
+                == selected_business_batch_id
             )
         else:
-            records_query = records_query.filter(BusinessRecord.id == -1)
+            records_query = records_query.filter(
+                BusinessRecord.id == -1
+            )
 
-    return records_query.all()
+    records = records_query.all()
+
+    if not records:
+        return []
+
+    record_ids = [
+        record.id
+        for record in records
+    ]
+
+    reserved_reviews = (
+        db.query(MatchReview)
+        .filter(
+            MatchReview.business_record_id.in_(
+                record_ids
+            )
+        )
+        .filter(
+            MatchReview.review_status.in_(
+                ALLOCATION_RESERVED_REVIEW_STATUSES
+            )
+        )
+        .all()
+    )
+
+    reserved_amounts_by_record_id = {}
+
+    for reserved_review in reserved_reviews:
+        reserved_amounts_by_record_id.setdefault(
+            reserved_review.business_record_id,
+            [],
+        ).append(
+            reserved_review.allocation_amount
+        )
+
+    return [
+        record
+        for record in records
+        if has_remaining_business_allocation_capacity(
+            business_amount=record.points_amount,
+            reserved_allocation_amounts=(
+                reserved_amounts_by_record_id.get(
+                    record.id,
+                    [],
+                )
+            ),
+        )
+    ]
 
 
 def create_match_reviews_for_voucher(db, voucher_record, records):
@@ -4455,6 +4527,37 @@ def match_reviews_page(
                 in record_reserved_reviews
             ],
         )
+
+    # 已结清业务的待初审、历史待审核和待复核候选
+    # 不再进入正常审核池，但不删除数据库审核历史。
+    if review_id == 0:
+        completed_business_record_ids = {
+            business_record_id
+            for (
+                business_record_id,
+                current_allocation_status,
+            ) in allocation_status_by_record_id.items()
+            if (
+                current_allocation_status
+                == ALLOCATION_STATUS_COMPLETED
+            )
+        }
+
+        hidden_completed_review_ids = (
+            get_hidden_completed_business_review_ids(
+                latest_reviews,
+                completed_business_record_ids,
+            )
+        )
+
+        latest_reviews = [
+            review
+            for review in latest_reviews
+            if (
+                review.id
+                not in hidden_completed_review_ids
+            )
+        ]
 
     if allocation_status != "全部":
         latest_reviews = [

@@ -22,6 +22,7 @@ from app.match_review_workflow import (
     can_secondary_review_match,
     get_hidden_low_confidence_conflict_review_ids,
     get_unresolved_assignment_conflict_review_ids,
+    get_hidden_completed_business_review_ids,
 )
 
 
@@ -55,6 +56,84 @@ def make_review(
 
 
 class MatchReviewWorkflowTests(unittest.TestCase):
+    def test_hides_primary_reviews_for_completed_businesses(self):
+        hidden_ids = (
+            get_hidden_completed_business_review_ids(
+                [
+                    make_review(
+                        PENDING_PRIMARY_REVIEW_STATUS,
+                        review_id=1,
+                        business_record_id=100,
+                    ),
+                    make_review(
+                        "待审核",
+                        review_id=2,
+                        business_record_id=100,
+                    ),
+                ],
+                completed_business_record_ids={
+                    100,
+                },
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset({1, 2}),
+        )
+
+    def test_hides_secondary_reviews_for_completed_businesses(self):
+        hidden_ids = (
+            get_hidden_completed_business_review_ids(
+                [
+                    make_review(
+                        PENDING_SECONDARY_REVIEW_STATUS,
+                        review_id=3,
+                        business_record_id=100,
+                    ),
+                ],
+                completed_business_record_ids={
+                    100,
+                },
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset({3}),
+        )
+
+    def test_keeps_finalized_and_open_business_reviews_visible(self):
+        hidden_ids = (
+            get_hidden_completed_business_review_ids(
+                [
+                    make_review(
+                        APPROVED_REVIEW_STATUS,
+                        review_id=1,
+                        business_record_id=100,
+                    ),
+                    make_review(
+                        REJECTED_REVIEW_STATUS,
+                        review_id=2,
+                        business_record_id=100,
+                    ),
+                    make_review(
+                        PENDING_PRIMARY_REVIEW_STATUS,
+                        review_id=3,
+                        business_record_id=200,
+                    ),
+                ],
+                completed_business_record_ids={
+                    100,
+                },
+            )
+        )
+
+        self.assertEqual(
+            hidden_ids,
+            frozenset(),
+        )
+
     def test_groups_cross_business_reviews_by_voucher(self):
         groups = build_voucher_assignment_conflict_audit_groups(
             [

@@ -18,12 +18,83 @@ from app.voucher_allocation import (
     get_review_block_reason,
     get_voucher_business_block_reason,
     validate_allocation_amount,
+    has_remaining_business_allocation_capacity,
 )
 
 
 class VoucherAllocationTests(
     unittest.TestCase
 ):
+    def test_business_capacity_is_available_without_reservation(self):
+        available = (
+            has_remaining_business_allocation_capacity(
+                business_amount="1000",
+                reserved_allocation_amounts=[],
+            )
+        )
+
+        self.assertTrue(available)
+
+    def test_business_capacity_is_available_after_partial_reservation(self):
+        available = (
+            has_remaining_business_allocation_capacity(
+                business_amount="1000",
+                reserved_allocation_amounts=[
+                    "300",
+                ],
+            )
+        )
+
+        self.assertTrue(available)
+
+    def test_business_capacity_closes_when_fully_reserved(self):
+        available = (
+            has_remaining_business_allocation_capacity(
+                business_amount="1000",
+                reserved_allocation_amounts=[
+                    "400",
+                    "600",
+                ],
+            )
+        )
+
+        self.assertFalse(available)
+
+    def test_business_capacity_closes_when_overreserved(self):
+        available = (
+            has_remaining_business_allocation_capacity(
+                business_amount="1000",
+                reserved_allocation_amounts=[
+                    "1000.01",
+                ],
+            )
+        )
+
+        self.assertFalse(available)
+
+    def test_business_capacity_fails_closed_for_invalid_amounts(self):
+        invalid_cases = [
+            (None, []),
+            ("-1", []),
+            ("1000", [None]),
+            ("1000", ["-1"]),
+        ]
+
+        for (
+            business_amount,
+            reserved_amounts,
+        ) in invalid_cases:
+            with self.subTest(
+                business_amount=business_amount,
+                reserved_amounts=reserved_amounts,
+            ):
+                self.assertFalse(
+                    has_remaining_business_allocation_capacity(
+                        business_amount,
+                        reserved_amounts,
+                    )
+                )
+
     def test_business_allocation_status_is_unpaid_without_approval(self):
         status = get_business_allocation_status(
             business_amount="1000",

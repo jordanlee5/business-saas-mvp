@@ -352,6 +352,41 @@ def _sum_reserved_allocation_amounts(
     )
 
 
+def has_remaining_business_allocation_capacity(
+    business_amount,
+    reserved_allocation_amounts,
+) -> bool:
+    """
+    判断业务是否仍可生成新的匹配候选。
+
+    预占金额包括待复核和已通过的核销金额。
+    金额缺失、非法、超额或已全部占满时统一返回 False，
+    防止异常业务继续产生新候选。
+    """
+    try:
+        normalized_business_amount = _to_money(
+            business_amount,
+            "业务金额",
+        )
+        _require_non_negative(
+            normalized_business_amount,
+            "业务金额",
+        )
+        reserved_amount = (
+            _sum_reserved_allocation_amounts(
+                reserved_allocation_amounts,
+                "业务预占核销金额",
+            )
+        )
+    except ValueError:
+        return False
+
+    return (
+        reserved_amount
+        < normalized_business_amount
+    )
+
+
 def get_business_allocation_status(
     business_amount,
     approved_allocation_amounts,

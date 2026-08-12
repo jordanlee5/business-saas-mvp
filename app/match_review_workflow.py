@@ -38,6 +38,56 @@ _VOUCHER_ASSIGNMENT_RESERVED_REVIEW_STATUSES = frozenset(
 LOW_CONFIDENCE_CONFLICT_SCORE = 1
 
 
+def get_hidden_completed_business_review_ids(
+    reviews,
+    completed_business_record_ids=(),
+) -> frozenset[int]:
+    """
+    返回因业务已结清而应从正常审核池隐藏的候选 ID。
+
+    只隐藏待初审、历史待审核和待复核记录；
+    已通过、已驳回记录继续保留，确保审核历史可追溯。
+    """
+    completed_business_ids = frozenset(
+        completed_business_record_ids or ()
+    )
+    hidden_review_ids = set()
+
+    for review in reviews or ():
+        review_id = getattr(
+            review,
+            "id",
+            None,
+        )
+        business_record_id = getattr(
+            review,
+            "business_record_id",
+            None,
+        )
+        review_status = getattr(
+            review,
+            "review_status",
+            None,
+        )
+
+        is_pending_review = (
+            review_status
+            in PRIMARY_PENDING_REVIEW_STATUSES
+            or review_status
+            == PENDING_SECONDARY_REVIEW_STATUS
+        )
+
+        if (
+            review_id is not None
+            and business_record_id
+            in completed_business_ids
+            and is_pending_review
+        ):
+            hidden_review_ids.add(review_id)
+
+    return frozenset(hidden_review_ids)
+
+
 def get_hidden_low_confidence_conflict_review_ids(
     reviews,
 ) -> frozenset[int]:
