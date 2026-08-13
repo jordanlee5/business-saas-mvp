@@ -25,6 +25,9 @@ from .database import engine, Base, SessionLocal
 from . import models
 from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUploadBatch, MatchReview, AdminActionLog
 from .auth import verify_password, get_password_hash
+from .password_service import (
+    validate_first_login_password_change,
+)
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
@@ -116,16 +119,24 @@ async def enforce_active_user_session(
 ):
     path = request.url.path
 
-    # 登录、退出、健康检查和静态资源不做会话拦截。
+    # 登录、退出、健康检查和静态资源
+    # 不做登录会话拦截。
     if (
-        path in {"/login", "/logout", "/health"}
+        path in {
+            "/login",
+            "/logout",
+            "/health",
+        }
         or path.startswith("/static/")
     ):
         return await call_next(request)
 
-    user_id = request.cookies.get("user_id")
+    user_id = request.cookies.get(
+        "user_id"
+    )
 
-    # 没有登录 Cookie 时，继续交给原有路由处理。
+    # 没有登录 Cookie 时，
+    # 继续交给原有路由处理。
     if not user_id:
         return await call_next(request)
 
@@ -142,7 +153,10 @@ async def enforce_active_user_session(
         if user_id_value is not None:
             user = (
                 db.query(User)
-                .filter(User.id == user_id_value)
+                .filter(
+                    User.id
+                    == user_id_value
+                )
                 .first()
             )
 
@@ -153,8 +167,21 @@ async def enforce_active_user_session(
                 url="/login",
                 status_code=302,
             )
-            response.delete_cookie("user_id")
+            response.delete_cookie(
+                "user_id"
+            )
             return response
+
+        # 首次登录尚未修改初始密码时，
+        # 不允许进入任何业务页面。
+        if (
+            user.must_change_password
+            and path != "/change-password"
+        ):
+            return RedirectResponse(
+                url="/change-password",
+                status_code=302,
+            )
 
     finally:
         db.close()
@@ -756,6 +783,7 @@ def create_administrator(
         new_administrator = User(
             username=normalized_username,
             password_hash=get_password_hash(password),
+            must_change_password=True,
             role="admin",
             admin_level=admin_level,
             is_active=True,
@@ -2829,7 +2857,10 @@ def login_page(request: Request):
     )
 
 
-@app.post("/login", response_class=HTMLResponse)
+@app.post(
+    "/login",
+    response_class=HTMLResponse,
+)
 def login_submit(
     request: Request,
     username: str = Form(...),
@@ -2840,7 +2871,9 @@ def login_submit(
     try:
         user = (
             db.query(User)
-            .filter(User.username == username)
+            .filter(
+                User.username == username
+            )
             .first()
         )
 
@@ -2852,7 +2885,9 @@ def login_submit(
                 "login.html",
                 {
                     "request": request,
-                    "error": "用户名或密码错误",
+                    "error": (
+                        "用户名或密码错误"
+                    ),
                 },
             )
 
@@ -2861,17 +2896,27 @@ def login_submit(
                 "login.html",
                 {
                     "request": request,
-                    "error": "该账号已停用，请联系管理员",
+                    "error": (
+                        "该账号已停用，"
+                        "请联系管理员"
+                    ),
                 },
             )
 
         user_id = user.id
+        must_change_password = bool(
+            user.must_change_password
+        )
 
     finally:
         db.close()
 
     response = RedirectResponse(
-        url="/dashboard",
+        url=(
+            "/change-password"
+            if must_change_password
+            else "/dashboard"
+        ),
         status_code=302,
     )
     response.set_cookie(
@@ -2881,6 +2926,128 @@ def login_submit(
         max_age=60 * 60 * 8,
     )
     return response
+
+
+@app.get(
+    "/change-password",
+    response_class=HTMLResponse,
+)
+def change_password_page(
+    request: Request,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not user.must_change_password:
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    return templates.TemplateResponse(
+        "change_password.html",
+        {
+            "request": request,
+            "username": user.username,
+            "error": None,
+        },
+    )
+
+
+@app.post(
+    "/change-password",
+    response_class=HTMLResponse,
+)
+def change_password_submit(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        account = (
+            db.query(User)
+            .filter(
+                User.id == user.id,
+                User.is_active.is_(True),
+            )
+            .first()
+        )
+
+        if not account:
+            response = RedirectResponse(
+                url="/login",
+                status_code=302,
+            )
+            response.delete_cookie(
+                "user_id"
+            )
+            return response
+
+        if not account.must_change_password:
+            return RedirectResponse(
+                url="/dashboard",
+                status_code=302,
+            )
+
+        error = (
+            validate_first_login_password_change(
+                current_password=(
+                    current_password
+                ),
+                new_password=new_password,
+                confirm_password=(
+                    confirm_password
+                ),
+                current_password_hash=(
+                    account.password_hash
+                ),
+            )
+        )
+
+        if error:
+            return templates.TemplateResponse(
+                "change_password.html",
+                {
+                    "request": request,
+                    "username": (
+                        account.username
+                    ),
+                    "error": error,
+                },
+            )
+
+        account.password_hash = (
+            get_password_hash(
+                new_password
+            )
+        )
+        account.must_change_password = False
+
+        db.commit()
+
+    finally:
+        db.close()
+
+    return RedirectResponse(
+        url="/dashboard",
+        status_code=303,
+    )
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -3146,6 +3313,21 @@ def create_partner(
             status_code=302,
         )
 
+    if (
+        len(password) < 8
+        or not password.strip()
+    ):
+        redirect_url = request.url_for(
+            "partners_page"
+        ).include_query_params(
+            error="初始密码至少需要 8 个字符"
+        )
+
+        return RedirectResponse(
+            url=str(redirect_url),
+            status_code=303,
+        )
+
     db = SessionLocal()
 
     existing_user = db.query(User).filter(User.username == username).first()
@@ -3212,6 +3394,7 @@ def create_partner(
     new_partner = User(
         username=username,
         password_hash=get_password_hash(password),
+        must_change_password=True,
         role="partner",
         service_rate=service_rate,
         service_rate_mode=service_rate_mode,

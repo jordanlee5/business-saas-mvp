@@ -41,6 +41,17 @@ class User(Base):
         default=True,
         server_default=text("1"),
     )
+
+    # 是否必须在首次登录后修改初始密码：
+    # 历史账号默认 False；
+    # 新创建的管理员和上传方显式设为 True。
+    must_change_password = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+    )
+
     service_rate = Column(Float, default=0.0)
     upstream_cost_rate = Column(Float, default=0.0)
 

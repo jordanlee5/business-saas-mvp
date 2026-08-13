@@ -256,11 +256,16 @@
                 </div>
 
                 <div>
-                    <label>初始密码</label>
-                    <input 
-                        type="password" 
-                        name="password" 
-                        placeholder="{% if edit_partner %}编辑模式下不修改密码{% else %}例如：123456{% endif %}" 
+                    <label>
+                        初始密码（首次登录后需修改）
+                    </label>
+
+                    <input
+                        type="password"
+                        name="password"
+                        minlength="8"
+                        placeholder="{% if edit_partner %}编辑模式下不修改密码{% else %}至少 8 个字符{% endif %}"
+                        autocomplete="new-password"
                         {% if edit_partner %}disabled{% endif %}
                         {% if not edit_partner %}required{% endif %}
                     >

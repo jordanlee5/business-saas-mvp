@@ -22,7 +22,8 @@ def init_admin():
             password_hash=get_password_hash("admin123"),  # 初始密码
             role="admin",
             admin_level="super_admin",
-            service_rate=0.0
+            service_rate=0.0,
+            must_change_password=True,
         )
         db.add(admin)
         db.commit()
