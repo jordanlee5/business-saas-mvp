@@ -7,6 +7,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     text,
 )
 from .database import Base
@@ -222,6 +223,94 @@ class Notification(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class PromotionPage(Base):
+    __tablename__ = "promotion_pages"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    # 公开访问地址：
+    # /promo/{slug}
+    slug = Column(
+        String(80),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    company_name = Column(
+        String(120),
+        nullable=False,
+    )
+
+    page_title = Column(
+        String(200),
+        nullable=False,
+    )
+
+    subtitle = Column(
+        String(300),
+        nullable=True,
+    )
+
+    body_text = Column(
+        Text,
+        nullable=True,
+    )
+
+    cta_text = Column(
+        String(80),
+        nullable=True,
+    )
+
+    cta_url = Column(
+        String(500),
+        nullable=True,
+    )
+
+    primary_color = Column(
+        String(20),
+        nullable=False,
+        default="#2563EB",
+        server_default="#2563EB",
+    )
+
+    is_published = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+        index=True,
+    )
+
+    created_by_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    updated_by_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc8_now,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
 
 class VoucherRecord(Base):
     __tablename__ = "voucher_records"

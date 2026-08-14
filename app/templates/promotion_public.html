@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>
+        {{ promotion_page.page_title }}
+    </title>
+
+    <style>
+        :root {
+            --primary-color:
+                {{ promotion_page.primary_color }};
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family:
+                "Microsoft YaHei",
+                Arial,
+                sans-serif;
+            background:
+                linear-gradient(
+                    145deg,
+                    #f8fafc 0%,
+                    #eef4ff 100%
+                );
+            color: #0f172a;
+        }
+
+        .preview-banner {
+            padding: 10px 18px;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 14px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .promotion-shell {
+            width: min(1080px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 70px 0;
+        }
+
+        .promotion-card {
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            border-radius: 28px;
+            background: #ffffff;
+            box-shadow:
+                0 24px 70px
+                rgba(15, 23, 42, 0.12);
+        }
+
+        .promotion-hero {
+            padding: 64px;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--primary-color) 0%,
+                    #0f172a 135%
+                );
+            color: #ffffff;
+        }
+
+        .promotion-company {
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: 800;
+            opacity: 0.86;
+        }
+
+        h1 {
+            max-width: 760px;
+            margin: 0;
+            font-size: clamp(38px, 6vw, 68px);
+            line-height: 1.15;
+        }
+
+        .promotion-subtitle {
+            max-width: 720px;
+            margin: 24px 0 0;
+            font-size: 20px;
+            line-height: 1.7;
+            opacity: 0.9;
+        }
+
+        .promotion-content {
+            padding: 54px 64px 64px;
+        }
+
+        .promotion-body {
+            max-width: 780px;
+            color: #334155;
+            font-size: 18px;
+            line-height: 1.9;
+            white-space: pre-line;
+        }
+
+        .promotion-action {
+            display: inline-flex;
+            margin-top: 32px;
+            padding: 14px 24px;
+            border-radius: 999px;
+            background: var(--primary-color);
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .promotion-footer {
+            margin-top: 28px;
+            color: #94a3b8;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        @media (max-width: 700px) {
+            .promotion-shell {
+                padding: 20px 0;
+            }
+
+            .promotion-hero,
+            .promotion-content {
+                padding: 34px 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% if is_preview %}
+        <div class="preview-banner">
+            当前为管理员预览，
+            草稿尚未对外公开。
+        </div>
+    {% endif %}
+
+    <main class="promotion-shell">
+        <article class="promotion-card">
+            <section class="promotion-hero">
+                <div class="promotion-company">
+                    {{ promotion_page.company_name }}
+                </div>
+
+                <h1>
+                    {{ promotion_page.page_title }}
+                </h1>
+
+                {% if promotion_page.subtitle %}
+                    <p class="promotion-subtitle">
+                        {{ promotion_page.subtitle }}
+                    </p >
+                {% endif %}
+            </section>
+
+            <section class="promotion-content">
+                {% if promotion_page.body_text %}
+                    <div class="promotion-body">
+                        {{ promotion_page.body_text }}
+                    </div>
+                {% endif %}
+
+                {% if (
+                    promotion_page.cta_text
+                    and promotion_page.cta_url
+                ) %}
+                    <a
+                        href="{{ promotion_page.cta_url }}"
+                        class="promotion-action"
+                    >
+                        {{ promotion_page.cta_text }}
+                    </a >
+                {% endif %}
+            </section>
+        </article>
+
+        <div class="promotion-footer">
+            本页面由业务数据管理平台提供技术支持
+        </div>
+    </main>
+</body>
+</html>

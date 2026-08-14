@@ -23,10 +23,24 @@ from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
 from . import models
-from .models import User, BusinessRecord, UploadBatch, VoucherRecord, VoucherUploadBatch, MatchReview, AdminActionLog
+from .models import (
+    AdminActionLog,
+    BusinessRecord,
+    MatchReview,
+    PromotionPage,
+    UploadBatch,
+    User,
+    VoucherRecord,
+    VoucherUploadBatch,
+)
 from .auth import verify_password, get_password_hash
 from .password_service import (
     validate_first_login_password_change,
+)
+from .promotion_page_service import (
+    normalize_primary_color,
+    normalize_promotion_slug,
+    validate_promotion_page_input,
 )
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
@@ -59,6 +73,7 @@ from .admin_permissions import (
     can_export_business_records,
     can_manage_business_batches,
     can_view_business_records,
+    can_manage_promotion_pages,
 )
 
 from .match_review_workflow import (
@@ -128,6 +143,7 @@ async def enforce_active_user_session(
             "/health",
         }
         or path.startswith("/static/")
+        or path.startswith("/promo/")
     ):
         return await call_next(request)
 
@@ -223,6 +239,9 @@ def admin_navigation_context(
         ),
         "can_export_stats": (
             can_export_stats(user)
+        ),
+        "can_manage_promotion_pages": (
+            can_manage_promotion_pages(user)
         ),
         "can_view_business_records": bool(
             user
@@ -432,6 +451,9 @@ def add_base_context(request: Request, context: dict):
         context["can_upload_vouchers"] = can_upload_vouchers(user)
         context["can_view_stats"] = can_view_stats(user)
         context["can_export_stats"] = can_export_stats(user)
+        context["can_manage_promotion_pages"] = (
+            can_manage_promotion_pages(user)
+        )
         context["can_view_business_records"] = (
             user.role == "partner"
             or can_view_business_records(user)
@@ -455,6 +477,7 @@ def add_base_context(request: Request, context: dict):
         context["can_upload_vouchers"] = False
         context["can_view_stats"] = False
         context["can_export_stats"] = False
+        context["can_manage_promotion_pages"] = False
         context["can_view_business_records"] = False
         context["can_manage_business_batches"] = False
         context["can_export_business_records"] = False
@@ -638,6 +661,605 @@ def admin_action_logs_page(
     finally:
         db.close()
 
+
+def redirect_to_promotion_pages(
+    request: Request,
+    *,
+    message: str = "",
+    error: str = "",
+    edit_id: int = 0,
+) -> RedirectResponse:
+    redirect_url = request.url_for(
+        "promotion_pages_page"
+    )
+
+    query_params = {}
+
+    if message:
+        query_params["message"] = message
+
+    if error:
+        query_params["error"] = error
+
+    if edit_id:
+        query_params["edit_id"] = edit_id
+
+    if query_params:
+        redirect_url = (
+            redirect_url.include_query_params(
+                **query_params
+            )
+        )
+
+    return RedirectResponse(
+        url=str(redirect_url),
+        status_code=303,
+    )
+
+
+def prepare_promotion_page_form_data(
+    *,
+    slug: str,
+    company_name: str,
+    page_title: str,
+    subtitle: str,
+    body_text: str,
+    cta_text: str,
+    cta_url: str,
+    primary_color: str,
+) -> tuple[dict, str | None]:
+    normalized_slug = (
+        normalize_promotion_slug(slug)
+    )
+    normalized_color = (
+        normalize_primary_color(
+            primary_color
+        )
+    )
+
+    error = validate_promotion_page_input(
+        slug=normalized_slug,
+        company_name=company_name,
+        page_title=page_title,
+        primary_color=normalized_color,
+        cta_text=cta_text,
+        cta_url=cta_url,
+    )
+
+    form_data = {
+        "slug": normalized_slug,
+        "company_name": (
+            company_name.strip()
+        ),
+        "page_title": (
+            page_title.strip()
+        ),
+        "subtitle": (
+            subtitle.strip()
+            or None
+        ),
+        "body_text": (
+            body_text.strip()
+            or None
+        ),
+        "cta_text": (
+            cta_text.strip()
+            or None
+        ),
+        "cta_url": (
+            cta_url.strip()
+            or None
+        ),
+        "primary_color": normalized_color,
+    }
+
+    return form_data, error
+
+
+@app.get(
+    "/promotion-pages",
+    response_class=HTMLResponse,
+)
+def promotion_pages_page(
+    request: Request,
+    edit_id: int = Query(0),
+    message: str = Query(""),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        promotion_pages = (
+            db.query(PromotionPage)
+            .order_by(
+                PromotionPage.updated_at.desc(),
+                PromotionPage.id.desc(),
+            )
+            .all()
+        )
+
+        edit_page = None
+
+        if edit_id:
+            edit_page = (
+                db.query(PromotionPage)
+                .filter(
+                    PromotionPage.id
+                    == edit_id
+                )
+                .first()
+            )
+
+            if edit_page is None and not error:
+                error = "宣传页不存在"
+
+        context = add_base_context(
+            request,
+            {
+                "request": request,
+                "active_page": "promotion_pages",
+                "promotion_pages": promotion_pages,
+                "edit_page": edit_page,
+                "message": message or None,
+                "error": error or None,
+            },
+        )
+
+        return templates.TemplateResponse(
+            "promotion_pages.html",
+            context,
+        )
+
+    finally:
+        db.close()
+
+
+@app.post(
+    "/promotion-pages",
+    response_class=HTMLResponse,
+)
+def create_promotion_page(
+    request: Request,
+    slug: str = Form(...),
+    company_name: str = Form(...),
+    page_title: str = Form(...),
+    subtitle: str = Form(""),
+    body_text: str = Form(""),
+    cta_text: str = Form(""),
+    cta_url: str = Form(""),
+    primary_color: str = Form(
+        "#2563EB"
+    ),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    form_data, error = (
+        prepare_promotion_page_form_data(
+            slug=slug,
+            company_name=company_name,
+            page_title=page_title,
+            subtitle=subtitle,
+            body_text=body_text,
+            cta_text=cta_text,
+            cta_url=cta_url,
+            primary_color=primary_color,
+        )
+    )
+
+    if error:
+        return redirect_to_promotion_pages(
+            request,
+            error=error,
+        )
+
+    db = SessionLocal()
+
+    try:
+        existing_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.slug
+                == form_data["slug"]
+            )
+            .first()
+        )
+
+        if existing_page:
+            return redirect_to_promotion_pages(
+                request,
+                error="该页面短链接已存在",
+            )
+
+        promotion_page = PromotionPage(
+            **form_data,
+            is_published=False,
+            created_by_id=user.id,
+            updated_by_id=user.id,
+        )
+
+        db.add(promotion_page)
+        db.commit()
+
+    except IntegrityError:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="该页面短链接已存在",
+        )
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页创建失败，请重试",
+        )
+
+    finally:
+        db.close()
+
+    return redirect_to_promotion_pages(
+        request,
+        message="宣传页草稿创建成功",
+    )
+
+
+@app.post(
+    "/promotion-pages/{promotion_page_id}/edit",
+    response_class=HTMLResponse,
+)
+def update_promotion_page(
+    request: Request,
+    promotion_page_id: int,
+    slug: str = Form(...),
+    company_name: str = Form(...),
+    page_title: str = Form(...),
+    subtitle: str = Form(""),
+    body_text: str = Form(""),
+    cta_text: str = Form(""),
+    cta_url: str = Form(""),
+    primary_color: str = Form(
+        "#2563EB"
+    ),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    form_data, error = (
+        prepare_promotion_page_form_data(
+            slug=slug,
+            company_name=company_name,
+            page_title=page_title,
+            subtitle=subtitle,
+            body_text=body_text,
+            cta_text=cta_text,
+            cta_url=cta_url,
+            primary_color=primary_color,
+        )
+    )
+
+    if error:
+        return redirect_to_promotion_pages(
+            request,
+            error=error,
+            edit_id=promotion_page_id,
+        )
+
+    db = SessionLocal()
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.id
+                == promotion_page_id
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页不存在",
+            )
+
+        duplicate_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.slug
+                == form_data["slug"],
+                PromotionPage.id
+                != promotion_page_id,
+            )
+            .first()
+        )
+
+        if duplicate_page:
+            return redirect_to_promotion_pages(
+                request,
+                error="该页面短链接已存在",
+                edit_id=promotion_page_id,
+            )
+
+        for field_name, field_value in (
+            form_data.items()
+        ):
+            setattr(
+                promotion_page,
+                field_name,
+                field_value,
+            )
+
+        promotion_page.updated_by_id = (
+            user.id
+        )
+        promotion_page.updated_at = (
+            utc8_now()
+        )
+
+        db.commit()
+
+    except IntegrityError:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="该页面短链接已存在",
+            edit_id=promotion_page_id,
+        )
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页修改失败，请重试",
+            edit_id=promotion_page_id,
+        )
+
+    finally:
+        db.close()
+
+    return redirect_to_promotion_pages(
+        request,
+        message="宣传页修改成功",
+    )
+
+
+@app.post(
+    "/promotion-pages/{promotion_page_id}/publication",
+)
+def update_promotion_page_publication(
+    request: Request,
+    promotion_page_id: int,
+    publication_action: str = Form(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    if publication_action not in {
+        "publish",
+        "unpublish",
+    }:
+        return redirect_to_promotion_pages(
+            request,
+            error="发布操作无效",
+        )
+
+    db = SessionLocal()
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.id
+                == promotion_page_id
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页不存在",
+            )
+
+        should_publish = (
+            publication_action
+            == "publish"
+        )
+
+        promotion_page.is_published = (
+            should_publish
+        )
+        promotion_page.updated_by_id = user.id
+        promotion_page.updated_at = utc8_now()
+
+        company_name = (
+            promotion_page.company_name
+        )
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页发布状态修改失败",
+        )
+
+    finally:
+        db.close()
+
+    action_label = (
+        "发布"
+        if should_publish
+        else "取消发布"
+    )
+
+    return redirect_to_promotion_pages(
+        request,
+        message=(
+            f"{company_name}宣传页"
+            f"已{action_label}"
+        ),
+    )
+
+
+@app.get(
+    "/promotion-pages/{promotion_page_id}/preview",
+    response_class=HTMLResponse,
+)
+def preview_promotion_page(
+    request: Request,
+    promotion_page_id: int,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.id
+                == promotion_page_id
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页不存在",
+            )
+
+        return templates.TemplateResponse(
+            "promotion_public.html",
+            {
+                "request": request,
+                "promotion_page": (
+                    promotion_page
+                ),
+                "is_preview": True,
+            },
+        )
+
+    finally:
+        db.close()
+
+
+@app.get(
+    "/promo/{slug}",
+    response_class=HTMLResponse,
+)
+def public_promotion_page(
+    request: Request,
+    slug: str,
+):
+    normalized_slug = (
+        normalize_promotion_slug(slug)
+    )
+
+    db = SessionLocal()
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.slug
+                == normalized_slug,
+                PromotionPage.is_published.is_(
+                    True
+                ),
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return templates.TemplateResponse(
+                "promotion_not_found.html",
+                {
+                    "request": request,
+                },
+                status_code=404,
+            )
+
+        return templates.TemplateResponse(
+            "promotion_public.html",
+            {
+                "request": request,
+                "promotion_page": (
+                    promotion_page
+                ),
+                "is_preview": False,
+            },
+        )
+
+    finally:
+        db.close()
 
 
 @app.post(

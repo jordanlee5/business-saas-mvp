@@ -133,6 +133,15 @@ STATS_EXPORT_LEVELS = frozenset(
 )
 
 
+# 可以创建、编辑和发布保险公司宣传页
+PROMOTION_PAGE_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 def get_admin_level(user: object | None) -> str | None:
     """
     返回有效的管理员级别。
@@ -320,4 +329,14 @@ def can_export_stats(user: object | None) -> bool:
     return has_admin_level(
         user,
         STATS_EXPORT_LEVELS,
+    )
+
+
+def can_manage_promotion_pages(
+    user: object | None,
+) -> bool:
+    """是否可以创建、编辑和发布宣传页。"""
+    return has_admin_level(
+        user,
+        PROMOTION_PAGE_MANAGEMENT_LEVELS,
     )

@@ -283,6 +283,26 @@
                 </a >
             </div>
 
+            {% if can_manage_promotion_pages | default(false) %}
+            <div class="side-section">
+                <div class="side-title">
+                    内容管理
+                </div>
+
+                <a
+                    class="side-link {% if active_page == 'promotion_pages' %}active{% endif %}"
+                    href="/promotion-pages"
+                >
+                    <span class="side-icon">
+                        📣
+                    </span>
+                    <span>
+                        宣传页配置
+                    </span>
+                </a >
+            </div>
+            {% endif %}
+
             {% if can_manage_administrators | default(false) %}
             <div class="side-section">
                 <div class="side-title">系统管理</div>

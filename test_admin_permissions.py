@@ -19,6 +19,7 @@ from app.admin_permissions import (
     can_export_business_records,
     can_manage_business_batches,
     can_view_business_records,
+    can_manage_promotion_pages,
     get_admin_level,
     is_admin_user,
     is_super_admin,
@@ -202,6 +203,71 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_view_business_records(None))
         self.assertFalse(can_manage_business_batches(None))
         self.assertFalse(can_export_business_records(None))
+
+
+    def test_promotion_page_management_permission(
+        self,
+    ):
+        cases = [
+            (
+                make_user(
+                    role="admin",
+                    admin_level=SUPER_ADMIN,
+                ),
+                True,
+            ),
+            (
+                make_user(
+                    role="admin",
+                    admin_level=OPERATOR,
+                ),
+                True,
+            ),
+            (
+                make_user(
+                    role="admin",
+                    admin_level=PRIMARY_REVIEWER,
+                ),
+                False,
+            ),
+            (
+                make_user(
+                    role="admin",
+                    admin_level=SECONDARY_REVIEWER,
+                ),
+                False,
+            ),
+            (
+                make_user(
+                    role="partner",
+                    admin_level=None,
+                ),
+                False,
+            ),
+            (
+                make_user(
+                    role="admin",
+                    admin_level="unknown_level",
+                ),
+                False,
+            ),
+            (
+                None,
+                False,
+            ),
+        ]
+
+        for user, expected in cases:
+            with self.subTest(
+                user=user,
+                expected=expected,
+            ):
+                self.assertEqual(
+                    can_manage_promotion_pages(
+                        user
+                    ),
+                    expected,
+                )
 
 
     def test_super_admin_can_edit_other_non_super_admin(self):

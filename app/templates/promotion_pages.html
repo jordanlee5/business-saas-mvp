@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .promotion-layout {
+        display: grid;
+        grid-template-columns:
+            minmax(320px, 0.9fr)
+            minmax(520px, 1.5fr);
+        gap: 20px;
+        align-items: start;
+    }
+
+    .promotion-form-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .promotion-form-grid label {
+        display: block;
+        margin-bottom: 6px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .promotion-form-grid input,
+    .promotion-form-grid textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        font: inherit;
+    }
+
+    .promotion-form-grid textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .promotion-form-actions,
+    .promotion-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .promotion-inline-form {
+        display: inline;
+        margin: 0;
+    }
+
+    .promotion-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 7px 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .promotion-button-primary {
+        background: #2563eb;
+        color: #ffffff;
+    }
+
+    .promotion-button-secondary {
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .promotion-button-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .promotion-button-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .promotion-status {
+        display: inline-flex;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .promotion-status-published {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .promotion-status-draft {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .promotion-url {
+        color: #2563eb;
+        font-size: 12px;
+        word-break: break-all;
+    }
+
+    .promotion-empty {
+        padding: 28px;
+        color: #64748b;
+        text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+        .promotion-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                宣传页配置
+            </h1>
+            <p class="ui-hint">
+                为不同保险公司创建独立宣传页，
+                草稿确认无误后再公开发布。
+            </p >
+        </div>
+    </div>
+
+    {% if message %}
+        <div class="ui-hint ui-hint-success">
+            {{ message }}
+        </div>
+    {% endif %}
+
+    {% if error %}
+        <div class="ui-hint ui-hint-danger">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <div class="promotion-layout">
+        <section class="ui-card">
+            <h2>
+                {% if edit_page %}
+                    编辑宣传页
+                {% else %}
+                    新建宣传页草稿
+                {% endif %}
+            </h2>
+
+            <form
+                method="post"
+                action="{% if edit_page %}/promotion-pages/{{ edit_page.id }}/edit{% else %}/promotion-pages{% endif %}"
+                class="promotion-form-grid"
+            >
+                <div>
+                    <label for="company_name">
+                        保险公司名称
+                    </label>
+                    <input
+                        id="company_name"
+                        name="company_name"
+                        value="{{ edit_page.company_name if edit_page else '' }}"
+                        maxlength="120"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="slug">
+                        页面短链接
+                    </label>
+                    <input
+                        id="slug"
+                        name="slug"
+                        value="{{ edit_page.slug if edit_page else '' }}"
+                        minlength="3"
+                        maxlength="80"
+                        pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                        placeholder="例如：sample-insurance"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="page_title">
+                        宣传页主标题
+                    </label>
+                    <input
+                        id="page_title"
+                        name="page_title"
+                        value="{{ edit_page.page_title if edit_page else '' }}"
+                        maxlength="200"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="subtitle">
+                        副标题
+                    </label>
+                    <input
+                        id="subtitle"
+                        name="subtitle"
+                        value="{{ edit_page.subtitle if edit_page and edit_page.subtitle else '' }}"
+                        maxlength="300"
+                    >
+                </div>
+
+                <div>
+                    <label for="body_text">
+                        宣传内容
+                    </label>
+                    <textarea
+                        id="body_text"
+                        name="body_text"
+                    >{{ edit_page.body_text if edit_page and edit_page.body_text else '' }}</textarea>
+                </div>
+
+                <div>
+                    <label for="cta_text">
+                        按钮文字
+                    </label>
+                    <input
+                        id="cta_text"
+                        name="cta_text"
+                        value="{{ edit_page.cta_text if edit_page and edit_page.cta_text else '' }}"
+                        maxlength="80"
+                        placeholder="例如：立即了解"
+                    >
+                </div>
+
+                <div>
+                    <label for="cta_url">
+                        按钮链接
+                    </label>
+                    <input
+                        id="cta_url"
+                        name="cta_url"
+                        value="{{ edit_page.cta_url if edit_page and edit_page.cta_url else '' }}"
+                        maxlength="500"
+                        placeholder="/login 或 https://..."
+                    >
+                </div>
+
+                <div>
+                    <label for="primary_color">
+                        页面主题色
+                    </label>
+                    <input
+                        id="primary_color"
+                        type="color"
+                        name="primary_color"
+                        value="{{ edit_page.primary_color if edit_page else '#2563EB' }}"
+                    >
+                </div>
+
+                <div class="promotion-form-actions">
+                    <button
+                        type="submit"
+                        class="promotion-button promotion-button-primary"
+                    >
+                        {% if edit_page %}
+                            保存修改
+                        {% else %}
+                            创建草稿
+                        {% endif %}
+                    </button>
+
+                    {% if edit_page %}
+                        <a
+                            href="/promotion-pages"
+                            class="promotion-button promotion-button-secondary"
+                        >
+                            取消编辑
+                        </a >
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <section class="ui-card">
+            <h2>已有宣传页</h2>
+
+            {% if promotion_pages %}
+                <div class="ui-table-wrap">
+                    <table class="ui-table">
+                        <thead>
+                            <tr>
+                                <th>保险公司</th>
+                                <th>公开地址</th>
+                                <th>状态</th>
+                                <th>更新时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for page in promotion_pages %}
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            {{ page.company_name }}
+                                        </strong>
+                                        <div>
+                                            {{ page.page_title }}
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <span class="promotion-url">
+                                            /promo/{{ page.slug }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if page.is_published %}
+                                            <span class="promotion-status promotion-status-published">
+                                                已发布
+                                            </span>
+                                        {% else %}
+                                            <span class="promotion-status promotion-status-draft">
+                                                草稿
+                                            </span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if page.updated_at %}
+                                            {{ page.updated_at | format_utc8 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        <div class="promotion-row-actions">
+                                            <a
+                                                href="/promotion-pages?edit_id={{ page.id }}"
+                                                class="promotion-button promotion-button-secondary"
+                                            >
+                                                编辑
+                                            </a >
+
+                                            <a
+                                                href="/promotion-pages/{{ page.id }}/preview"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="promotion-button promotion-button-secondary"
+                                            >
+                                                预览
+                                            </a >
+
+                                            {% if page.is_published %}
+                                                <a
+                                                    href="/promo/{{ page.slug }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="promotion-button promotion-button-success"
+                                                >
+                                                    打开
+                                                </a >
+
+                                                <form
+                                                    method="post"
+                                                    action="/promotion-pages/{{ page.id }}/publication"
+                                                    class="promotion-inline-form"
+                                                >
+                                                    <input
+                                                        type="hidden"
+                                                        name="publication_action"
+                                                        value="unpublish"
+                                                    >
+                                                    <button
+                                                        type="submit"
+                                                        class="promotion-button promotion-button-warning"
+                                                    >
+                                                        取消发布
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <form
+                                                    method="post"
+                                                    action="/promotion-pages/{{ page.id }}/publication"
+                                                    class="promotion-inline-form"
+                                                >
+                                                    <input
+                                                        type="hidden"
+                                                        name="publication_action"
+                                                        value="publish"
+                                                    >
+                                                    <button
+                                                        type="submit"
+                                                        class="promotion-button promotion-button-success"
+                                                    >
+                                                        发布
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="promotion-empty">
+                    暂无宣传页，请先创建第一份草稿。
+                </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+{% endblock %}
