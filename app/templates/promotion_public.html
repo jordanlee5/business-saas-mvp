@@ -71,11 +71,79 @@
             color: #ffffff;
         }
 
+        .promotion-hero-inner {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1.2fr)
+                minmax(300px, 0.8fr);
+            gap: 44px;
+            align-items: center;
+        }
+
+        .promotion-hero-inner-single {
+            grid-template-columns: 1fr;
+        }
+
+        .promotion-brand-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .promotion-logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 92px;
+            min-height: 48px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow:
+                0 12px 30px
+                rgba(15, 23, 42, 0.16);
+        }
+
+        .promotion-logo {
+            display: block;
+            max-width: 180px;
+            max-height: 58px;
+            object-fit: contain;
+        }
+
         .promotion-company {
-            margin-bottom: 20px;
             font-size: 16px;
             font-weight: 800;
             opacity: 0.86;
+        }
+
+        .promotion-hero-media {
+            overflow: hidden;
+            margin: 0;
+            border: 1px solid
+                rgba(255, 255, 255, 0.28);
+            border-radius: 20px;
+            background:
+                rgba(255, 255, 255, 0.12);
+            box-shadow:
+                0 24px 60px
+                rgba(15, 23, 42, 0.25);
+        }
+
+        .promotion-hero-image {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+        }
+
+        .promotion-hero-caption {
+            padding: 10px 14px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            line-height: 1.5;
         }
 
         h1 {
@@ -103,6 +171,36 @@
             font-size: 18px;
             line-height: 1.9;
             white-space: pre-line;
+        }
+
+        .promotion-gallery {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-top: 34px;
+        }
+
+        .promotion-gallery-item {
+            overflow: hidden;
+            margin: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: #f8fafc;
+        }
+
+        .promotion-gallery-image {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+        }
+
+        .promotion-gallery-caption {
+            padding: 11px 14px;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
         }
 
         .promotion-action {
@@ -133,6 +231,20 @@
             .promotion-content {
                 padding: 34px 26px;
             }
+
+            .promotion-hero-inner,
+            .promotion-gallery {
+                grid-template-columns: 1fr;
+            }
+
+            .promotion-hero-inner {
+                gap: 28px;
+            }
+
+            .promotion-logo {
+                max-width: 145px;
+                max-height: 48px;
+            }
         }
     </style>
 </head>
@@ -148,25 +260,78 @@
     <main class="promotion-shell">
         <article class="promotion-card">
             <section class="promotion-hero">
-                <div class="promotion-company">
-                    {{ promotion_page.company_name }}
+                <div class="promotion-hero-inner{% if not hero_image %} promotion-hero-inner-single{% endif %}">
+                    <div>
+                        <div class="promotion-brand-row">
+                            {% if logo_image %}
+                                <span class="promotion-logo-wrap">
+                                    <img
+                                        src="{{ logo_image.image_path }}"
+                                        alt="{{ logo_image.alt_text or promotion_page.company_name }}"
+                                        class="promotion-logo"
+                                    >
+                                </span>
+                            {% endif %}
+
+                            <div class="promotion-company">
+                                {{ promotion_page.company_name }}
+                            </div>
+                        </div>
+
+                        <h1>
+                            {{ promotion_page.page_title }}
+                        </h1>
+
+                        {% if promotion_page.subtitle %}
+                            <p class="promotion-subtitle">
+                                {{ promotion_page.subtitle }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    {% if hero_image %}
+                        <figure class="promotion-hero-media">
+                            <img
+                                src="{{ hero_image.image_path }}"
+                                alt="{{ hero_image.alt_text or promotion_page.page_title }}"
+                                class="promotion-hero-image"
+                            >
+
+                            {% if hero_image.caption %}
+                                <figcaption class="promotion-hero-caption">
+                                    {{ hero_image.caption }}
+                                </figcaption>
+                            {% endif %}
+                        </figure>
+                    {% endif %}
                 </div>
-
-                <h1>
-                    {{ promotion_page.page_title }}
-                </h1>
-
-                {% if promotion_page.subtitle %}
-                    <p class="promotion-subtitle">
-                        {{ promotion_page.subtitle }}
-                    </p >
-                {% endif %}
             </section>
 
             <section class="promotion-content">
                 {% if promotion_page.body_text %}
                     <div class="promotion-body">
                         {{ promotion_page.body_text }}
+                    </div>
+                {% endif %}
+
+                {% if content_images %}
+                    <div class="promotion-gallery">
+                        {% for image in content_images %}
+                            <figure class="promotion-gallery-item">
+                                <img
+                                    src="{{ image.image_path }}"
+                                    alt="{{ image.alt_text or promotion_page.page_title }}"
+                                    class="promotion-gallery-image"
+                                    loading="lazy"
+                                >
+
+                                {% if image.caption %}
+                                    <figcaption class="promotion-gallery-caption">
+                                        {{ image.caption }}
+                                    </figcaption>
+                                {% endif %}
+                            </figure>
+                        {% endfor %}
                     </div>
                 {% endif %}
 
@@ -179,7 +344,7 @@
                         class="promotion-action"
                     >
                         {{ promotion_page.cta_text }}
-                    </a >
+                    </a>
                 {% endif %}
             </section>
         </article>

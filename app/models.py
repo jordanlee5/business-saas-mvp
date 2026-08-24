@@ -312,6 +312,65 @@ class PromotionPage(Base):
     )
 
 
+class PromotionPageImage(Base):
+    __tablename__ = "promotion_page_images"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    promotion_page_id = Column(
+        Integer,
+        ForeignKey("promotion_pages.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # logo：机构 Logo
+    # hero：宣传页头图
+    # content：正文配图
+    image_role = Column(
+        String(30),
+        nullable=False,
+        index=True,
+    )
+
+    image_path = Column(
+        String(500),
+        nullable=False,
+    )
+
+    alt_text = Column(
+        String(200),
+        nullable=True,
+    )
+
+    caption = Column(
+        String(300),
+        nullable=True,
+    )
+
+    display_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    uploaded_by_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc8_now,
+    )
+
+
 class VoucherRecord(Base):
     __tablename__ = "voucher_records"
 

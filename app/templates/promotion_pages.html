@@ -6,10 +6,120 @@
     .promotion-layout {
         display: grid;
         grid-template-columns:
-            minmax(320px, 0.9fr)
-            minmax(520px, 1.5fr);
+            minmax(340px, 0.9fr)
+            minmax(480px, 1.25fr);
         gap: 20px;
         align-items: start;
+    }
+
+    .promotion-list-card {
+        margin-top: 20px;
+    }
+
+    .promotion-list-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .promotion-list-header h2 {
+        margin: 0;
+    }
+
+    .promotion-page-count {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .promotion-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+    }
+
+    .promotion-pages-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        background: #ffffff;
+    }
+
+    .promotion-pages-table th,
+    .promotion-pages-table td {
+        padding: 13px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .promotion-pages-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .promotion-pages-table td {
+        color: #334155;
+        font-size: 13px;
+    }
+
+    .promotion-pages-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .promotion-pages-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .promotion-col-company {
+        width: 25%;
+    }
+
+    .promotion-col-url {
+        width: 22%;
+    }
+
+    .promotion-col-status {
+        width: 10%;
+    }
+
+    .promotion-col-time {
+        width: 18%;
+    }
+
+    .promotion-col-actions {
+        width: 25%;
+    }
+
+    .promotion-company-cell strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #0f172a;
+        font-size: 14px;
+    }
+
+    .promotion-page-title-text {
+        overflow-wrap: anywhere;
+        color: #64748b;
+        line-height: 1.5;
+    }
+
+    .promotion-date-cell {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
     }
 
     .promotion-form-grid {
@@ -87,6 +197,140 @@
         color: #92400e;
     }
 
+    .promotion-button-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .promotion-media-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .promotion-media-header h2,
+    .promotion-image-slot h3 {
+        margin-top: 0;
+    }
+
+    .promotion-media-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .promotion-image-slot {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .promotion-image-slot-content {
+        grid-column: 1 / -1;
+    }
+
+    .promotion-image-preview,
+    .promotion-image-placeholder {
+        width: 100%;
+        height: 180px;
+        margin-bottom: 12px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .promotion-image-preview {
+        display: block;
+        object-fit: contain;
+    }
+
+    .promotion-image-preview-hero {
+        object-fit: cover;
+    }
+
+    .promotion-image-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: #94a3b8;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .promotion-image-form {
+        display: grid;
+        gap: 9px;
+    }
+
+    .promotion-image-form label {
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .promotion-image-form input[type="file"],
+    .promotion-image-form input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        font: inherit;
+    }
+
+    .promotion-image-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .promotion-content-images {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .promotion-content-image-card {
+        min-width: 0;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .promotion-content-image-card img {
+        display: block;
+        width: 100%;
+        height: 120px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+
+    .promotion-image-caption {
+        min-height: 32px;
+        margin: 8px 0;
+        overflow-wrap: anywhere;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .promotion-image-guide {
+        padding: 24px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #64748b;
+        line-height: 1.8;
+    }
+
     .promotion-status {
         display: inline-flex;
         padding: 4px 9px;
@@ -122,6 +366,17 @@
             grid-template-columns: 1fr;
         }
     }
+
+    @media (max-width: 760px) {
+        .promotion-media-grid,
+        .promotion-content-images {
+            grid-template-columns: 1fr;
+        }
+
+        .promotion-image-slot-content {
+            grid-column: auto;
+        }
+    }
 </style>
 
 <div class="page-container">
@@ -133,7 +388,7 @@
             <p class="ui-hint">
                 为不同保险公司创建独立宣传页，
                 草稿确认无误后再公开发布。
-            </p >
+            </p>
         </div>
     </div>
 
@@ -284,18 +539,325 @@
                             class="promotion-button promotion-button-secondary"
                         >
                             取消编辑
-                        </a >
+                        </a>
                     {% endif %}
                 </div>
             </form>
         </section>
 
         <section class="ui-card">
-            <h2>已有宣传页</h2>
+            <div class="promotion-media-header">
+                <div>
+                    <h2>图片与视觉素材</h2>
+                    <p class="ui-hint">
+                        支持 JPG、PNG、WebP，单张不超过 5 MB。
+                    </p>
+                </div>
+            </div>
+
+            {% if edit_page %}
+                <div class="promotion-media-grid">
+                    <article class="promotion-image-slot">
+                        <h3>机构 Logo</h3>
+
+                        {% if logo_image %}
+                            <img
+                                src="{{ logo_image.image_path }}"
+                                alt="{{ logo_image.alt_text or '机构 Logo' }}"
+                                class="promotion-image-preview"
+                            >
+                        {% else %}
+                            <div class="promotion-image-placeholder">
+                                尚未上传 Logo
+                            </div>
+                        {% endif %}
+
+                        <form
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="/promotion-pages/{{ edit_page.id }}/images"
+                            class="promotion-image-form"
+                        >
+                            <input
+                                type="hidden"
+                                name="image_role"
+                                value="logo"
+                            >
+
+                            <label for="logo_image_file">
+                                {% if logo_image %}
+                                    选择新图片替换
+                                {% else %}
+                                    选择 Logo 图片
+                                {% endif %}
+                            </label>
+                            <input
+                                id="logo_image_file"
+                                type="file"
+                                name="image_file"
+                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                required
+                            >
+
+                            <label for="logo_alt_text">
+                                图片替代文字
+                            </label>
+                            <input
+                                id="logo_alt_text"
+                                type="text"
+                                name="alt_text"
+                                value="{{ logo_image.alt_text if logo_image and logo_image.alt_text else '' }}"
+                                maxlength="200"
+                                placeholder="例如：某某保险 Logo"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="caption"
+                                value=""
+                            >
+
+                            <button
+                                type="submit"
+                                class="promotion-button promotion-button-primary"
+                            >
+                                {% if logo_image %}
+                                    替换 Logo
+                                {% else %}
+                                    上传 Logo
+                                {% endif %}
+                            </button>
+                        </form>
+
+                        {% if logo_image %}
+                            <div class="promotion-image-actions">
+                                <form
+                                    method="post"
+                                    action="/promotion-pages/{{ edit_page.id }}/images/{{ logo_image.id }}/delete"
+                                    class="promotion-inline-form"
+                                    onsubmit="return confirm('确认删除当前 Logo 吗？')"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="promotion-button promotion-button-danger"
+                                    >
+                                        删除 Logo
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="promotion-image-slot">
+                        <h3>宣传页头图</h3>
+
+                        {% if hero_image %}
+                            <img
+                                src="{{ hero_image.image_path }}"
+                                alt="{{ hero_image.alt_text or '宣传页头图' }}"
+                                class="promotion-image-preview promotion-image-preview-hero"
+                            >
+                        {% else %}
+                            <div class="promotion-image-placeholder">
+                                尚未上传头图
+                            </div>
+                        {% endif %}
+
+                        <form
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="/promotion-pages/{{ edit_page.id }}/images"
+                            class="promotion-image-form"
+                        >
+                            <input
+                                type="hidden"
+                                name="image_role"
+                                value="hero"
+                            >
+
+                            <label for="hero_image_file">
+                                {% if hero_image %}
+                                    选择新图片替换
+                                {% else %}
+                                    选择横幅头图
+                                {% endif %}
+                            </label>
+                            <input
+                                id="hero_image_file"
+                                type="file"
+                                name="image_file"
+                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                required
+                            >
+
+                            <label for="hero_alt_text">
+                                图片替代文字
+                            </label>
+                            <input
+                                id="hero_alt_text"
+                                type="text"
+                                name="alt_text"
+                                value="{{ hero_image.alt_text if hero_image and hero_image.alt_text else '' }}"
+                                maxlength="200"
+                                placeholder="例如：品牌宣传主视觉"
+                            >
+
+                            <label for="hero_caption">
+                                图片说明（可选）
+                            </label>
+                            <input
+                                id="hero_caption"
+                                type="text"
+                                name="caption"
+                                value="{{ hero_image.caption if hero_image and hero_image.caption else '' }}"
+                                maxlength="300"
+                            >
+
+                            <button
+                                type="submit"
+                                class="promotion-button promotion-button-primary"
+                            >
+                                {% if hero_image %}
+                                    替换头图
+                                {% else %}
+                                    上传头图
+                                {% endif %}
+                            </button>
+                        </form>
+
+                        {% if hero_image %}
+                            <div class="promotion-image-actions">
+                                <form
+                                    method="post"
+                                    action="/promotion-pages/{{ edit_page.id }}/images/{{ hero_image.id }}/delete"
+                                    class="promotion-inline-form"
+                                    onsubmit="return confirm('确认删除当前头图吗？')"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="promotion-button promotion-button-danger"
+                                    >
+                                        删除头图
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="promotion-image-slot promotion-image-slot-content">
+                        <h3>正文配图</h3>
+                        <p class="ui-hint">
+                            可连续上传多张，公开页面将按照上传顺序展示。
+                        </p>
+
+                        <form
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="/promotion-pages/{{ edit_page.id }}/images"
+                            class="promotion-image-form"
+                        >
+                            <input
+                                type="hidden"
+                                name="image_role"
+                                value="content"
+                            >
+
+                            <label for="content_image_file">
+                                选择正文图片
+                            </label>
+                            <input
+                                id="content_image_file"
+                                type="file"
+                                name="image_file"
+                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                required
+                            >
+
+                            <label for="content_alt_text">
+                                图片替代文字
+                            </label>
+                            <input
+                                id="content_alt_text"
+                                type="text"
+                                name="alt_text"
+                                maxlength="200"
+                                placeholder="简要描述图片内容"
+                            >
+
+                            <label for="content_caption">
+                                图片说明（可选）
+                            </label>
+                            <input
+                                id="content_caption"
+                                type="text"
+                                name="caption"
+                                maxlength="300"
+                            >
+
+                            <button
+                                type="submit"
+                                class="promotion-button promotion-button-primary"
+                            >
+                                添加正文配图
+                            </button>
+                        </form>
+
+                        {% if content_images %}
+                            <div class="promotion-content-images">
+                                {% for image in content_images %}
+                                    <div class="promotion-content-image-card">
+                                        <img
+                                            src="{{ image.image_path }}"
+                                            alt="{{ image.alt_text or '正文配图' }}"
+                                        >
+                                        <div class="promotion-image-caption">
+                                            {{ image.caption or image.alt_text or '暂无图片说明' }}
+                                        </div>
+                                        <form
+                                            method="post"
+                                            action="/promotion-pages/{{ edit_page.id }}/images/{{ image.id }}/delete"
+                                            onsubmit="return confirm('确认删除这张正文配图吗？')"
+                                        >
+                                            <button
+                                                type="submit"
+                                                class="promotion-button promotion-button-danger"
+                                            >
+                                                删除
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </article>
+                </div>
+            {% else %}
+                <div class="promotion-image-guide">
+                    请先创建宣传页草稿，再从下方列表点击“编辑”，
+                    即可上传机构 Logo、宣传页头图和多张正文配图。
+                </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="ui-card promotion-list-card">
+            <div class="promotion-list-header">
+                <h2>已有宣传页</h2>
+                <span class="promotion-page-count">
+                    共 {{ promotion_pages | length }} 个
+                </span>
+            </div>
 
             {% if promotion_pages %}
-                <div class="ui-table-wrap">
-                    <table class="ui-table">
+                <div class="promotion-table-wrap">
+                    <table class="promotion-pages-table">
+                        <colgroup>
+                            <col class="promotion-col-company">
+                            <col class="promotion-col-url">
+                            <col class="promotion-col-status">
+                            <col class="promotion-col-time">
+                            <col class="promotion-col-actions">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>保险公司</th>
@@ -309,11 +871,11 @@
                         <tbody>
                             {% for page in promotion_pages %}
                                 <tr>
-                                    <td>
+                                    <td class="promotion-company-cell">
                                         <strong>
                                             {{ page.company_name }}
                                         </strong>
-                                        <div>
+                                        <div class="promotion-page-title-text">
                                             {{ page.page_title }}
                                         </div>
                                     </td>
@@ -336,7 +898,7 @@
                                         {% endif %}
                                     </td>
 
-                                    <td>
+                                    <td class="promotion-date-cell">
                                         {% if page.updated_at %}
                                             {{ page.updated_at | format_utc8 }}
                                         {% else %}
@@ -351,7 +913,7 @@
                                                 class="promotion-button promotion-button-secondary"
                                             >
                                                 编辑
-                                            </a >
+                                            </a>
 
                                             <a
                                                 href="/promotion-pages/{{ page.id }}/preview"
@@ -360,7 +922,7 @@
                                                 class="promotion-button promotion-button-secondary"
                                             >
                                                 预览
-                                            </a >
+                                            </a>
 
                                             {% if page.is_published %}
                                                 <a
@@ -370,7 +932,7 @@
                                                     class="promotion-button promotion-button-success"
                                                 >
                                                     打开
-                                                </a >
+                                                </a>
 
                                                 <form
                                                     method="post"
@@ -420,8 +982,7 @@
                     暂无宣传页，请先创建第一份草稿。
                 </div>
             {% endif %}
-        </section>
-    </div>
+    </section>
 </div>
 
 {% endblock %}

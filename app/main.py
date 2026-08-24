@@ -28,6 +28,7 @@ from .models import (
     BusinessRecord,
     MatchReview,
     PromotionPage,
+    PromotionPageImage,
     UploadBatch,
     User,
     VoucherRecord,
@@ -41,6 +42,12 @@ from .promotion_page_service import (
     normalize_primary_color,
     normalize_promotion_slug,
     validate_promotion_page_input,
+)
+from .promotion_media_service import (
+    ALLOWED_PROMOTION_IMAGE_ROLES,
+    MAX_PROMOTION_IMAGE_BYTES,
+    delete_promotion_image,
+    save_promotion_image,
 )
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
@@ -756,6 +763,50 @@ def prepare_promotion_page_form_data(
     return form_data, error
 
 
+def build_promotion_page_image_context(
+    db,
+    promotion_page_id: int,
+) -> dict:
+    promotion_images = (
+        db.query(PromotionPageImage)
+        .filter(
+            PromotionPageImage.promotion_page_id
+            == promotion_page_id
+        )
+        .order_by(
+            PromotionPageImage.image_role.asc(),
+            PromotionPageImage.display_order.asc(),
+            PromotionPageImage.id.asc(),
+        )
+        .all()
+    )
+
+    return {
+        "promotion_images": promotion_images,
+        "logo_image": next(
+            (
+                image
+                for image in promotion_images
+                if image.image_role == "logo"
+            ),
+            None,
+        ),
+        "hero_image": next(
+            (
+                image
+                for image in promotion_images
+                if image.image_role == "hero"
+            ),
+            None,
+        ),
+        "content_images": [
+            image
+            for image in promotion_images
+            if image.image_role == "content"
+        ],
+    }
+
+
 @app.get(
     "/promotion-pages",
     response_class=HTMLResponse,
@@ -807,6 +858,21 @@ def promotion_pages_page(
             if edit_page is None and not error:
                 error = "宣传页不存在"
 
+        image_context = {
+            "promotion_images": [],
+            "logo_image": None,
+            "hero_image": None,
+            "content_images": [],
+        }
+
+        if edit_page is not None:
+            image_context = (
+                build_promotion_page_image_context(
+                    db,
+                    edit_page.id,
+                )
+            )
+
         context = add_base_context(
             request,
             {
@@ -816,6 +882,7 @@ def promotion_pages_page(
                 "edit_page": edit_page,
                 "message": message or None,
                 "error": error or None,
+                **image_context,
             },
         )
 
@@ -1065,6 +1132,329 @@ def update_promotion_page(
 
 
 @app.post(
+    "/promotion-pages/{promotion_page_id}/images",
+)
+async def upload_promotion_page_image(
+    request: Request,
+    promotion_page_id: int,
+    image_role: str = Form(...),
+    alt_text: str = Form(""),
+    caption: str = Form(""),
+    image_file: UploadFile = File(...),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    normalized_role = image_role.strip().lower()
+    normalized_alt_text = (
+        alt_text.strip() or None
+    )
+    normalized_caption = (
+        caption.strip() or None
+    )
+
+    if (
+        normalized_role
+        not in ALLOWED_PROMOTION_IMAGE_ROLES
+    ):
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页图片类型无效",
+            edit_id=promotion_page_id,
+        )
+
+    if (
+        normalized_alt_text
+        and len(normalized_alt_text) > 200
+    ):
+        return redirect_to_promotion_pages(
+            request,
+            error="图片替代文字不能超过 200 个字符",
+            edit_id=promotion_page_id,
+        )
+
+    if (
+        normalized_caption
+        and len(normalized_caption) > 300
+    ):
+        return redirect_to_promotion_pages(
+            request,
+            error="图片说明不能超过 300 个字符",
+            edit_id=promotion_page_id,
+        )
+
+    original_filename = image_file.filename or ""
+
+    try:
+        image_content = await image_file.read(
+            MAX_PROMOTION_IMAGE_BYTES + 1
+        )
+    except Exception:
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页图片读取失败，请重试",
+            edit_id=promotion_page_id,
+        )
+    finally:
+        await image_file.close()
+
+    db = SessionLocal()
+    saved_image_url = None
+    replaced_image_url = None
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.id
+                == promotion_page_id
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页不存在",
+            )
+
+        try:
+            saved_image_url = save_promotion_image(
+                content=image_content,
+                original_filename=(
+                    original_filename
+                ),
+                promotion_page_id=promotion_page_id,
+                image_role=normalized_role,
+            )
+        except ValueError as exc:
+            return redirect_to_promotion_pages(
+                request,
+                error=str(exc),
+                edit_id=promotion_page_id,
+            )
+
+        existing_image = None
+
+        if normalized_role in {"logo", "hero"}:
+            existing_image = (
+                db.query(PromotionPageImage)
+                .filter(
+                    PromotionPageImage.promotion_page_id
+                    == promotion_page_id,
+                    PromotionPageImage.image_role
+                    == normalized_role,
+                )
+                .order_by(
+                    PromotionPageImage.id.desc()
+                )
+                .first()
+            )
+
+        if existing_image is not None:
+            replaced_image_url = (
+                existing_image.image_path
+            )
+            existing_image.image_path = (
+                saved_image_url
+            )
+            existing_image.alt_text = (
+                normalized_alt_text
+            )
+            existing_image.caption = (
+                normalized_caption
+            )
+            existing_image.uploaded_by_id = user.id
+            existing_image.created_at = utc8_now()
+        else:
+            display_order = 0
+
+            if normalized_role == "content":
+                last_content_image = (
+                    db.query(PromotionPageImage)
+                    .filter(
+                        PromotionPageImage.promotion_page_id
+                        == promotion_page_id,
+                        PromotionPageImage.image_role
+                        == "content",
+                    )
+                    .order_by(
+                        PromotionPageImage.display_order.desc(),
+                        PromotionPageImage.id.desc(),
+                    )
+                    .first()
+                )
+
+                if last_content_image is not None:
+                    display_order = (
+                        last_content_image.display_order
+                        or 0
+                    ) + 1
+
+            db.add(
+                PromotionPageImage(
+                    promotion_page_id=(
+                        promotion_page_id
+                    ),
+                    image_role=normalized_role,
+                    image_path=saved_image_url,
+                    alt_text=normalized_alt_text,
+                    caption=normalized_caption,
+                    display_order=display_order,
+                    uploaded_by_id=user.id,
+                )
+            )
+
+        promotion_page.updated_by_id = user.id
+        promotion_page.updated_at = utc8_now()
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        if saved_image_url:
+            try:
+                delete_promotion_image(
+                    saved_image_url
+                )
+            except OSError:
+                pass
+
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页图片保存失败，请重试",
+            edit_id=promotion_page_id,
+        )
+
+    finally:
+        db.close()
+
+    if replaced_image_url:
+        try:
+            delete_promotion_image(
+                replaced_image_url
+            )
+        except OSError:
+            pass
+
+    action_label = (
+        "替换"
+        if replaced_image_url
+        else "上传"
+    )
+
+    return redirect_to_promotion_pages(
+        request,
+        message=f"宣传页图片{action_label}成功",
+        edit_id=promotion_page_id,
+    )
+
+
+@app.post(
+    "/promotion-pages/{promotion_page_id}/images/"
+    "{image_id}/delete",
+)
+def remove_promotion_page_image(
+    request: Request,
+    promotion_page_id: int,
+    image_id: int,
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_promotion_pages(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+    image_url = None
+
+    try:
+        promotion_page = (
+            db.query(PromotionPage)
+            .filter(
+                PromotionPage.id
+                == promotion_page_id
+            )
+            .first()
+        )
+
+        if promotion_page is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页不存在",
+            )
+
+        promotion_image = (
+            db.query(PromotionPageImage)
+            .filter(
+                PromotionPageImage.id == image_id,
+                PromotionPageImage.promotion_page_id
+                == promotion_page_id,
+            )
+            .first()
+        )
+
+        if promotion_image is None:
+            return redirect_to_promotion_pages(
+                request,
+                error="宣传页图片不存在",
+                edit_id=promotion_page_id,
+            )
+
+        image_url = promotion_image.image_path
+        db.delete(promotion_image)
+
+        promotion_page.updated_by_id = user.id
+        promotion_page.updated_at = utc8_now()
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        return redirect_to_promotion_pages(
+            request,
+            error="宣传页图片删除失败，请重试",
+            edit_id=promotion_page_id,
+        )
+
+    finally:
+        db.close()
+
+    if image_url:
+        try:
+            delete_promotion_image(image_url)
+        except OSError:
+            pass
+
+    return redirect_to_promotion_pages(
+        request,
+        message="宣传页图片删除成功",
+        edit_id=promotion_page_id,
+    )
+
+
+@app.post(
     "/promotion-pages/{promotion_page_id}/publication",
 )
 def update_promotion_page_publication(
@@ -1196,6 +1586,13 @@ def preview_promotion_page(
                 error="宣传页不存在",
             )
 
+        image_context = (
+            build_promotion_page_image_context(
+                db,
+                promotion_page.id,
+            )
+        )
+
         return templates.TemplateResponse(
             "promotion_public.html",
             {
@@ -1204,6 +1601,7 @@ def preview_promotion_page(
                     promotion_page
                 ),
                 "is_preview": True,
+                **image_context,
             },
         )
 
@@ -1247,6 +1645,13 @@ def public_promotion_page(
                 status_code=404,
             )
 
+        image_context = (
+            build_promotion_page_image_context(
+                db,
+                promotion_page.id,
+            )
+        )
+
         return templates.TemplateResponse(
             "promotion_public.html",
             {
@@ -1255,6 +1660,7 @@ def public_promotion_page(
                     promotion_page
                 ),
                 "is_preview": False,
+                **image_context,
             },
         )
 
