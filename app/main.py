@@ -58,6 +58,10 @@ from .notification_service import (
     get_unread_business_batch_notifications,
     mark_notification_as_read,
 )
+from .review_metrics_service import (
+    build_review_metrics,
+    get_business_review_allocation_status,
+)
 from .settlement_calculator import (
     EXTERNAL_MODE,
     INTERNAL_MODE,
@@ -2475,36 +2479,34 @@ def download_my_settlement_vouchers(
         ) as zip_file:
 
             for business_record in business_records:
-                # 与结算页当前口径一致：
-                # 最新审核结果为“已通过”才属于已通过结算业务。
-                latest_review = (
+                business_reviews = (
                     db.query(MatchReview)
                     .filter(
                         MatchReview.business_record_id
                         == business_record.id
-                    )
-                    .order_by(MatchReview.id.desc())
-                    .first()
-                )
-
-                if (
-                    not latest_review
-                    or latest_review.review_status != "已通过"
-                ):
-                    continue
-
-                approved_reviews = (
-                    db.query(MatchReview)
-                    .filter(
-                        MatchReview.business_record_id
-                        == business_record.id
-                    )
-                    .filter(
-                        MatchReview.review_status == "已通过"
                     )
                     .order_by(MatchReview.id.asc())
                     .all()
                 )
+
+                allocation_status = (
+                    get_business_review_allocation_status(
+                        business_record.points_amount,
+                        business_reviews,
+                    )
+                )
+
+                if allocation_status != (
+                    ALLOCATION_STATUS_COMPLETED
+                ):
+                    continue
+
+                approved_reviews = [
+                    review
+                    for review in business_reviews
+                    if review.review_status
+                    == APPROVED_REVIEW_STATUS
+                ]
 
                 if not approved_reviews:
                     continue
@@ -2753,16 +2755,31 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     else:
         reviews_query = reviews_query.filter(MatchReview.id == -1)
 
-    if start_datetime:
-        reviews_query = reviews_query.filter(MatchReview.created_at >= start_datetime)
+    # 日期筛选以业务导入时间为准。选中业务的审核记录
+    # 不再按审核创建时间二次过滤，避免后续完成的审核被漏计。
+    review_rows = (
+        reviews_query
+        .order_by(MatchReview.id.asc())
+        .all()
+    )
 
-    if end_datetime:
-        reviews_query = reviews_query.filter(MatchReview.created_at <= end_datetime)
+    review_metrics = build_review_metrics(
+        review_rows,
+        total_business_records=total_records,
+    )
 
+    reviews_by_record_id = {}
 
-    pending_reviews = reviews_query.filter(MatchReview.review_status == "待审核").count()
-    approved_reviews = reviews_query.filter(MatchReview.review_status == "已通过").count()
-    rejected_reviews = reviews_query.filter(MatchReview.review_status == "已驳回").count()
+    for review_row in review_rows:
+        reviews_by_record_id.setdefault(
+            review_row.business_record_id,
+            [],
+        ).append(review_row)
+
+    partners_by_id = {
+        partner.id: partner
+        for partner in partners
+    }
 
     total_points = 0
 
@@ -2786,7 +2803,9 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     rows = []
 
     for record in business_records:
-        uploader = db.query(User).filter(User.id == record.user_id).first()
+        uploader = partners_by_id.get(
+            record.user_id
+        )
 
         points_amount = record.points_amount or 0
         service_rate = record.record_service_rate if record.record_service_rate is not None else 0
@@ -2839,26 +2858,34 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         total_payable_cost += payable_cost
         total_gross_profit += gross_profit
 
-        latest_review = (
-            db.query(MatchReview)
-            .filter(MatchReview.business_record_id == record.id)
-            .order_by(MatchReview.id.desc())
-            .first()
+        record_reviews = (
+            reviews_by_record_id.get(
+                record.id,
+                [],
+            )
         )
 
-        if latest_review and latest_review.review_status == "已通过":
+        latest_review = (
+            record_reviews[-1]
+            if record_reviews
+            else None
+        )
+
+        allocation_status = (
+            get_business_review_allocation_status(
+                record.points_amount,
+                record_reviews,
+            )
+        )
+
+        if allocation_status == (
+            ALLOCATION_STATUS_COMPLETED
+        ):
             approved_settlement_count += 1
             approved_settlement_points += points_amount
             approved_settlement_receivable_fee += receivable_fee
             approved_settlement_payable_cost += payable_cost
             approved_settlement_gross_profit += gross_profit
-
-        review = (
-            db.query(MatchReview)
-            .filter(MatchReview.business_record_id == record.id)
-            .order_by(MatchReview.id.desc())
-            .first()
-        )
 
         review_status = latest_review.review_status if latest_review else "未匹配"
 
@@ -2877,6 +2904,7 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
                 "应付成本费": float(payable_cost),
                 "毛利": float(gross_profit),
                 "审核状态": review_status,
+                "结算状态": allocation_status,
                 "导入时间": record.created_at,
             }
         )
@@ -2891,9 +2919,33 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         "total_records": total_records,
         "total_batches": total_batches,
         "total_partners": total_partners,
-        "pending_reviews": pending_reviews,
-        "approved_reviews": approved_reviews,
-        "rejected_reviews": rejected_reviews,
+        "pending_primary_reviews": (
+            review_metrics.pending_primary_reviews
+        ),
+        "pending_secondary_reviews": (
+            review_metrics.pending_secondary_reviews
+        ),
+        "pending_reviews": (
+            review_metrics.pending_reviews
+        ),
+        "approved_reviews": (
+            review_metrics.approved_reviews
+        ),
+        "rejected_reviews": (
+            review_metrics.rejected_reviews
+        ),
+        "completed_reviews": (
+            review_metrics.completed_reviews
+        ),
+        "matched_business_count": (
+            review_metrics.matched_business_count
+        ),
+        "business_match_coverage_rate": (
+            review_metrics.business_match_coverage_rate
+        ),
+        "review_approval_rate": (
+            review_metrics.review_approval_rate
+        ),
         "total_points": round(total_points, 2),
         "total_receivable_fee": float(
             total_receivable_fee
@@ -6855,9 +6907,31 @@ def export_stats_dashboard(
         {"指标": "业务数据总条数", "数值": stats["total_records"]},
         {"指标": "上传批次数", "数值": stats["total_batches"]},
         {"指标": "上传方账号数", "数值": stats["total_partners"]},
-        {"指标": "待审核数量", "数值": stats["pending_reviews"]},
+        {"指标": "待初审数量", "数值": stats["pending_primary_reviews"]},
+        {"指标": "待复核数量", "数值": stats["pending_secondary_reviews"]},
+        {"指标": "待处理审核合计", "数值": stats["pending_reviews"]},
         {"指标": "已通过数量", "数值": stats["approved_reviews"]},
         {"指标": "已驳回数量", "数值": stats["rejected_reviews"]},
+        {"指标": "已完成审核数量", "数值": stats["completed_reviews"]},
+        {"指标": "已有匹配候选业务数", "数值": stats["matched_business_count"]},
+        {
+            "指标": "业务匹配覆盖率（%）",
+            "数值": (
+                stats["business_match_coverage_rate"]
+                if stats["business_match_coverage_rate"]
+                is not None
+                else "暂无数据"
+            ),
+        },
+        {
+            "指标": "审核记录通过率（%）",
+            "数值": (
+                stats["review_approval_rate"]
+                if stats["review_approval_rate"]
+                is not None
+                else "暂无数据"
+            ),
+        },
         {"指标": "总积分金额", "数值": stats["total_points"]},
         {"指标": "应收服务费合计", "数值": stats["total_receivable_fee"]},
         {"指标": "应付成本费合计", "数值": stats["total_payable_cost"]},
@@ -6910,12 +6984,15 @@ def export_stats_dashboard(
             total_payable_cost = group["应付成本费"].sum()
             total_gross_profit = group["毛利"].sum()
 
-            approved_group = group[group["审核状态"] == "已通过"]
+            settled_group = group[
+                group["结算状态"]
+                == ALLOCATION_STATUS_COMPLETED
+            ]
 
-            approved_points = approved_group["积分金额"].sum()
-            approved_receivable_fee = approved_group["应收服务费"].sum()
-            approved_payable_cost = approved_group["应付成本费"].sum()
-            approved_gross_profit = approved_group["毛利"].sum()
+            approved_points = settled_group["积分金额"].sum()
+            approved_receivable_fee = settled_group["应收服务费"].sum()
+            approved_payable_cost = settled_group["应付成本费"].sum()
+            approved_gross_profit = settled_group["毛利"].sum()
 
             partner_summary_rows.append(
                 {
@@ -6927,7 +7004,7 @@ def export_stats_dashboard(
                     "上游成本费率": upstream_cost_rate,
                     "应付成本费合计": round(total_payable_cost, 2),
                     "毛利合计": round(total_gross_profit, 2),
-                    "已通过结算条数": len(approved_group),
+                    "已通过结算条数": len(settled_group),
                     "已通过结算金额": round(approved_points, 2),
                     "已通过应收服务费": round(approved_receivable_fee, 2),
                     "已通过应付成本费": round(approved_payable_cost, 2),
