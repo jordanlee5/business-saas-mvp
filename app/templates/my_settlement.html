@@ -157,7 +157,7 @@
 
             <div class="card">
                 <div class="card-title">总积分金额</div>
-                <div class="card-value">{{ total_points }}</div>
+                <div class="card-value">{{ total_points | format_amount }}</div>
             </div>
 
             <div class="card settlement-card">
@@ -167,12 +167,12 @@
 
             <div class="card settlement-card">
                 <div class="card-title">已通过结算金额</div>
-                <div class="card-value">{{ approved_settlement_points }}</div>
+                <div class="card-value">{{ approved_settlement_points | format_amount }}</div>
             </div>
 
             <div class="card settlement-card">
                 <div class="card-title">结算服务费合计</div>
-                <div class="card-value">{{ settlement_service_fee }}</div>
+                <div class="card-value">{{ settlement_service_fee | format_amount }}</div>
             </div>
         </div>
     </div>

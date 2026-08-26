@@ -67,6 +67,11 @@ from .settlement_calculator import (
     INTERNAL_MODE,
     calculate_business_settlement,
 )
+from .stats_visualization_service import (
+    build_business_status_distribution,
+    build_business_trend,
+    format_amount,
+)
 from .admin_permissions import (
     OPERATOR,
     PRIMARY_REVIEWER,
@@ -283,6 +288,7 @@ templates = Jinja2Templates(
     context_processors=[admin_navigation_context],
 )
 templates.env.filters["format_utc8"] = format_utc8
+templates.env.filters["format_amount"] = format_amount
 
 ACCEPTED_BATCH_STATUS = "已承接"
 
@@ -2743,7 +2749,6 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
 
     total_records = len(business_records)
     total_batches = batches_query.count()
-    total_partners = db.query(User).filter(User.role == "partner").count()
 
     reviews_query = db.query(MatchReview)
 
@@ -2909,6 +2914,34 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
             }
         )
 
+    business_trend = build_business_trend(
+        business_records
+    )
+    business_status_distribution = (
+        build_business_status_distribution(
+            total_business_records=total_records,
+            matched_business_count=(
+                review_metrics.matched_business_count
+            ),
+            settled_business_count=(
+                approved_settlement_count
+            ),
+        )
+    )
+    unmatched_business_count = (
+        business_status_distribution[0].value
+    )
+    matched_unsettled_business_count = (
+        business_status_distribution[1].value
+    )
+    unsettled_business_count = (
+        unmatched_business_count
+        + matched_unsettled_business_count
+    )
+    settled_business_rate = (
+        business_status_distribution[2].percentage
+    )
+
     db.close()
 
     return {
@@ -2918,33 +2951,29 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         "selected_end_date": selected_end_date,
         "total_records": total_records,
         "total_batches": total_batches,
-        "total_partners": total_partners,
-        "pending_primary_reviews": (
-            review_metrics.pending_primary_reviews
+        "business_trend_points": (
+            business_trend.points
         ),
-        "pending_secondary_reviews": (
-            review_metrics.pending_secondary_reviews
+        "business_trend_total_date_count": (
+            business_trend.total_date_count
         ),
-        "pending_reviews": (
-            review_metrics.pending_reviews
+        "business_trend_hidden_date_count": (
+            business_trend.hidden_date_count
         ),
-        "approved_reviews": (
-            review_metrics.approved_reviews
+        "unmatched_business_count": (
+            unmatched_business_count
         ),
-        "rejected_reviews": (
-            review_metrics.rejected_reviews
+        "matched_unsettled_business_count": (
+            matched_unsettled_business_count
         ),
-        "completed_reviews": (
-            review_metrics.completed_reviews
+        "unsettled_business_count": (
+            unsettled_business_count
         ),
-        "matched_business_count": (
-            review_metrics.matched_business_count
+        "settled_business_rate": (
+            settled_business_rate
         ),
-        "business_match_coverage_rate": (
-            review_metrics.business_match_coverage_rate
-        ),
-        "review_approval_rate": (
-            review_metrics.review_approval_rate
+        "business_status_distribution": (
+            business_status_distribution
         ),
         "total_points": round(total_points, 2),
         "total_receivable_fee": float(
@@ -6904,30 +6933,20 @@ def export_stats_dashboard(
         {"指标": "开始日期", "数值": start_date if start_date else "全部"},
         {"指标": "结束日期", "数值": end_date if end_date else "全部"},
         {"指标": "", "数值": ""},
-        {"指标": "业务数据总条数", "数值": stats["total_records"]},
-        {"指标": "上传批次数", "数值": stats["total_batches"]},
-        {"指标": "上传方账号数", "数值": stats["total_partners"]},
-        {"指标": "待初审数量", "数值": stats["pending_primary_reviews"]},
-        {"指标": "待复核数量", "数值": stats["pending_secondary_reviews"]},
-        {"指标": "待处理审核合计", "数值": stats["pending_reviews"]},
-        {"指标": "已通过数量", "数值": stats["approved_reviews"]},
-        {"指标": "已驳回数量", "数值": stats["rejected_reviews"]},
-        {"指标": "已完成审核数量", "数值": stats["completed_reviews"]},
-        {"指标": "已有匹配候选业务数", "数值": stats["matched_business_count"]},
+        {"指标": "业务总量", "数值": stats["total_records"]},
+        {"指标": "已承接上传批次数", "数值": stats["total_batches"]},
+        {"指标": "无匹配记录业务数", "数值": stats["unmatched_business_count"]},
         {
-            "指标": "业务匹配覆盖率（%）",
-            "数值": (
-                stats["business_match_coverage_rate"]
-                if stats["business_match_coverage_rate"]
-                is not None
-                else "暂无数据"
-            ),
+            "指标": "有匹配记录未结清业务数",
+            "数值": stats["matched_unsettled_business_count"],
         },
+        {"指标": "未结清业务数", "数值": stats["unsettled_business_count"]},
+        {"指标": "已结清业务数", "数值": stats["approved_settlement_count"]},
         {
-            "指标": "审核记录通过率（%）",
+            "指标": "已结清率（%）",
             "数值": (
-                stats["review_approval_rate"]
-                if stats["review_approval_rate"]
+                stats["settled_business_rate"]
+                if stats["settled_business_rate"]
                 is not None
                 else "暂无数据"
             ),
@@ -6937,11 +6956,10 @@ def export_stats_dashboard(
         {"指标": "应付成本费合计", "数值": stats["total_payable_cost"]},
         {"指标": "毛利合计", "数值": stats["total_gross_profit"]},
         {"指标": "", "数值": ""},
-        {"指标": "已通过结算条数", "数值": stats["approved_settlement_count"]},
-        {"指标": "已通过结算金额", "数值": stats["approved_settlement_points"]},
-        {"指标": "已通过应收服务费", "数值": stats["approved_settlement_receivable_fee"]},
-        {"指标": "已通过应付成本费", "数值": stats["approved_settlement_payable_cost"]},
-        {"指标": "已通过毛利", "数值": stats["approved_settlement_gross_profit"]},       
+        {"指标": "已结清积分金额", "数值": stats["approved_settlement_points"]},
+        {"指标": "已结清应收服务费", "数值": stats["approved_settlement_receivable_fee"]},
+        {"指标": "已结清应付成本费", "数值": stats["approved_settlement_payable_cost"]},
+        {"指标": "已结清毛利", "数值": stats["approved_settlement_gross_profit"]},
     ]
 
     detail_df = pd.DataFrame(stats["rows"])
