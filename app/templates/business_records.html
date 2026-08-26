@@ -335,7 +335,7 @@
                 当前仅查看上传批次 #{{ batch_id }} 生成的业务数据。
                 <a
                     class="small-link"
-                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}"
+                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}"
                 >
                     取消批次筛选
                 </a >
@@ -403,7 +403,17 @@
                     <option value="已承接" {% if acceptance_status == "已承接" %}selected{% endif %}>已承接</option>
                     <option value="已拒绝" {% if acceptance_status == "已拒绝" %}selected{% endif %}>已拒绝</option>
                 </select>
-            </div>            
+            </div>
+
+            <div class="form-item">
+                <label>业务处理状态</label>
+                <select name="business_status">
+                    <option value="全部" {% if business_status == "全部" %}selected{% endif %}>全部</option>
+                    <option value="无匹配记录" {% if business_status == "无匹配记录" %}selected{% endif %}>无匹配记录</option>
+                    <option value="有匹配记录未结清" {% if business_status == "有匹配记录未结清" %}selected{% endif %}>有匹配记录未结清</option>
+                    <option value="已结清" {% if business_status == "已结清" %}selected{% endif %}>已结清</option>
+                </select>
+            </div>
 
 
             <div class="button-row">
@@ -412,7 +422,7 @@
                 {% if role == "partner" or can_export_business_records %}
                     <a
                         class="ui-button-secondary"
-                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}"
+                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}"
                     >
                         导出 Excel
                     </a >
@@ -444,6 +454,7 @@
                     <input type="hidden" name="end_date" value="{{ end_date }}">
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
+                    <input type="hidden" name="business_status" value="{{ business_status }}">
                     <input type="hidden" name="page" value="{{ page }}">
                     <input type="hidden" name="page_size" value="{{ page_size }}">
                     <input type="hidden" name="batch_page" value="1">
@@ -459,7 +470,7 @@
                 <div class="mini-page-links">
                     {% if batch_page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -472,7 +483,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -484,7 +495,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -498,7 +509,7 @@
 
                     {% if batch_page < batch_total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}
@@ -611,6 +622,7 @@
                             <th>银行卡号</th>
                             <th>最新审核状态</th>
                             <th>最新匹配状态</th>
+                            <th>业务处理状态</th>
                             <th>已通过凭证金额</th>
                             <th>剩余金额</th>
                             <th>导入时间</th>
@@ -643,6 +655,17 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ item.latest_match_status }}</td>
+                                <td>
+                                    {% if item.business_status == "已结清" %}
+                                        <span class="status-pill status-approved">已结清</span>
+                                    {% elif item.business_status == "有匹配记录未结清" %}
+                                        <span class="status-pill status-pending">有匹配记录未结清</span>
+                                    {% elif item.business_status == "无匹配记录" %}
+                                        <span class="status-pill status-none">无匹配记录</span>
+                                    {% else %}
+                                        <span class="status-pill status-none">不适用</span>
+                                    {% endif %}
+                                </td>
                                 <td class="amount-good">
                                     {% if item.acceptance_status != "已承接" %}
                                         -
@@ -674,7 +697,7 @@
                 <div class="empty">暂无符合条件的业务数据
                     <div class="empty-state-title">暂无符合当前筛选条件的业务数据</div>
                     <div class="empty-state-desc">
-                        可以调整关键词、上传方、日期、审核状态或承接状态后重新筛选。
+                        可以调整关键词、上传方、日期、审核状态、承接状态或业务处理状态后重新筛选。
                     </div>
                 </div>
             {% endif %}
@@ -695,6 +718,7 @@
                     <input type="hidden" name="end_date" value="{{ end_date }}">
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
+                    <input type="hidden" name="business_status" value="{{ business_status }}">
                     <input type="hidden" name="page" value="1">
                     <input type="hidden" name="batch_page" value="{{ batch_page }}">
                     <input type="hidden" name="batch_page_size" value="{{ batch_page_size }}">
@@ -710,7 +734,7 @@
                 <div class="page-links">
                     {% if page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -723,7 +747,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -735,7 +759,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -749,7 +773,7 @@
 
                     {% if page < total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}

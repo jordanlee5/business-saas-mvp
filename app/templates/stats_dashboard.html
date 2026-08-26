@@ -112,6 +112,16 @@
             line-height: 1.5;
         }
 
+        .status-drill-link {
+            color: #1d4ed8;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .status-drill-link:hover {
+            text-decoration: underline;
+        }
+
         .money {
             color: #047857;
         }
@@ -230,6 +240,20 @@
             display: grid;
             gap: 20px;
             margin-top: 24px;
+        }
+
+        .distribution-link {
+            display: block;
+            margin: -8px;
+            padding: 8px;
+            border-radius: 10px;
+            color: inherit;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .distribution-link:hover {
+            background: #f8fafc;
         }
 
         .distribution-heading {
@@ -357,8 +381,15 @@
                 <div class="stat-title">未结清业务</div>
                 <div class="stat-value warning">{{ unsettled_business_count }}</div>
                 <div class="stat-meta">
-                    无匹配 {{ unmatched_business_count }} ·
-                    有匹配未结清 {{ matched_unsettled_business_count }}
+                    <a
+                        class="status-drill-link"
+                        href="{{ business_status_links['无匹配记录'] }}"
+                    >无匹配 {{ unmatched_business_count }}</a>
+                    ·
+                    <a
+                        class="status-drill-link"
+                        href="{{ business_status_links['有匹配记录未结清'] }}"
+                    >有匹配未结清 {{ matched_unsettled_business_count }}</a>
                 </div>
             </div>
 
@@ -372,6 +403,11 @@
                     {% else %}
                         —
                     {% endif %}
+                    ·
+                    <a
+                        class="status-drill-link"
+                        href="{{ business_status_links['已结清'] }}"
+                    >查看清单</a>
                 </div>
             </div>
 
@@ -465,6 +501,11 @@
 
                 <div class="distribution-list">
                     {% for stage in business_status_distribution %}
+                        <a
+                            class="distribution-link"
+                            href="{{ business_status_links[stage.label] }}"
+                            title="查看{{ stage.label }}业务清单"
+                        >
                         <div class="distribution-item">
                             <div class="distribution-heading">
                                 <span class="distribution-label">{{ stage.label }}</span>
@@ -486,6 +527,7 @@
                                 ></div>
                             </div>
                         </div>
+                        </a>
                     {% endfor %}
                 </div>
             </section>

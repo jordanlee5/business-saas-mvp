@@ -52,6 +52,14 @@ from .promotion_media_service import (
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
+from .business_status_service import (
+    BUSINESS_STATUS_ALL,
+    BUSINESS_STATUS_MATCHED_UNSETTLED,
+    BUSINESS_STATUS_SETTLED,
+    BUSINESS_STATUS_UNMATCHED,
+    classify_business_status,
+    normalize_business_status_filter,
+)
 from .time_utils import format_utc8, utc8_now
 from .notification_service import (
     create_business_batch_uploaded_notifications,
@@ -2941,6 +2949,28 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     settled_business_rate = (
         business_status_distribution[2].percentage
     )
+    business_status_links = {}
+
+    for status_value in (
+        BUSINESS_STATUS_UNMATCHED,
+        BUSINESS_STATUS_MATCHED_UNSETTLED,
+        BUSINESS_STATUS_SETTLED,
+    ):
+        business_status_links[status_value] = (
+            "/business-records?"
+            + urlencode(
+                {
+                    "partner_id": selected_partner_id,
+                    "start_date": selected_start_date,
+                    "end_date": selected_end_date,
+                    "review_status": "全部",
+                    "acceptance_status": (
+                        ACCEPTED_BATCH_STATUS
+                    ),
+                    "business_status": status_value,
+                }
+            )
+        )
 
     db.close()
 
@@ -2974,6 +3004,9 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
         ),
         "business_status_distribution": (
             business_status_distribution
+        ),
+        "business_status_links": (
+            business_status_links
         ),
         "total_points": round(total_points, 2),
         "total_receivable_fee": float(
@@ -3188,6 +3221,7 @@ def build_business_record_items(
     end_date="",
     review_status="全部",
     acceptance_filter="全部",
+    business_status=BUSINESS_STATUS_ALL,
     page=1,
     page_size=10,
     use_pagination=True,
@@ -3239,11 +3273,16 @@ def build_business_record_items(
 
         acceptance_status = batch.acceptance_status if batch and batch.acceptance_status else "待承接"
 
-        latest_review = (
+        business_reviews = (
             db.query(MatchReview)
             .filter(MatchReview.business_record_id == record.id)
-            .order_by(MatchReview.id.desc())
-            .first()
+            .order_by(MatchReview.id.asc())
+            .all()
+        )
+        latest_review = (
+            business_reviews[-1]
+            if business_reviews
+            else None
         )
 
         if acceptance_status == "已拒绝":
@@ -3260,12 +3299,11 @@ def build_business_record_items(
                 latest_review_status = latest_review.review_status
                 latest_match_status = latest_review.match_status
 
-        approved_reviews = (
-            db.query(MatchReview)
-            .filter(MatchReview.business_record_id == record.id)
-            .filter(MatchReview.review_status == "已通过")
-            .all()
-        )
+        approved_reviews = [
+            review
+            for review in business_reviews
+            if review.review_status == "已通过"
+        ]
 
         approved_voucher_amount = 0
 
@@ -3285,6 +3323,22 @@ def build_business_record_items(
 
         if remaining_amount < 0:
             remaining_amount = 0.0
+
+        allocation_status = (
+            get_business_review_allocation_status(
+                record.points_amount,
+                business_reviews,
+            )
+        )
+        current_business_status = (
+            classify_business_status(
+                acceptance_status=acceptance_status,
+                has_matching_record=bool(
+                    business_reviews
+                ),
+                allocation_status=allocation_status,
+            )
+        )
 
         # 业务完成优先：
         # 如果已通过凭证金额已经覆盖业务金额，则业务列表的审核状态应展示为“已通过”，
@@ -3309,6 +3363,7 @@ def build_business_record_items(
             "bank_card": record.bank_card,
             "latest_review_status": latest_review_status,
             "latest_match_status": latest_match_status,
+            "business_status": current_business_status,
             "approved_voucher_amount": money2(approved_voucher_amount),
             "remaining_amount": money2(remaining_amount),
             "created_at": record.created_at,
@@ -3318,6 +3373,12 @@ def build_business_record_items(
             continue
         
         if acceptance_filter != "全部" and item["acceptance_status"] != acceptance_filter:
+            continue
+
+        if (
+            business_status != BUSINESS_STATUS_ALL
+            and item["business_status"] != business_status
+        ):
             continue
 
         all_record_items.append(item)
@@ -3359,6 +3420,9 @@ def business_records_page(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    business_status: str = Query(
+        BUSINESS_STATUS_ALL
+    ),
     page: int = Query(1),
     page_size: int = Query(3),
     batch_page: int = Query(1),
@@ -3384,6 +3448,12 @@ def business_records_page(
 
     if acceptance_status not in allowed_acceptance_statuses:
         acceptance_status = "全部"
+
+    business_status = (
+        normalize_business_status_filter(
+            business_status
+        )
+    )
 
     batch_query = db.query(UploadBatch)
 
@@ -3486,6 +3556,7 @@ def business_records_page(
         end_date=end_date,
         review_status=review_status,
         acceptance_filter=acceptance_status,
+        business_status=business_status,
         page=page,
         page_size=page_size,
         use_pagination=True,
@@ -3515,6 +3586,7 @@ def business_records_page(
             "end_date": end_date,
             "review_status": review_status,
             "acceptance_status": acceptance_status,
+            "business_status": business_status,
             "page": page,
             "page_size": page_size,
             "total_records": total_records,
@@ -3624,6 +3696,9 @@ def export_business_records(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    business_status: str = Query(
+        BUSINESS_STATUS_ALL
+    ),
 ):
     user = get_current_user(request)
 
@@ -3641,6 +3716,12 @@ def export_business_records(
 
     db = SessionLocal()
 
+    business_status = (
+        normalize_business_status_filter(
+            business_status
+        )
+    )
+
     record_items, total_records, total_pages, page = build_business_record_items(
         db=db,
         user=user,
@@ -3651,6 +3732,7 @@ def export_business_records(
         end_date=end_date,
         review_status=review_status,
         acceptance_filter=acceptance_status,
+        business_status=business_status,
         use_pagination=False,
     )
 
@@ -3668,6 +3750,10 @@ def export_business_records(
                 "银行卡号": item["bank_card"],
                 "最新审核状态": item["latest_review_status"],
                 "最新匹配状态": item["latest_match_status"],
+                "业务处理状态": (
+                    item["business_status"]
+                    or "不适用"
+                ),
                 "已通过凭证金额": item["approved_voucher_amount"],
                 "剩余金额": item["remaining_amount"],
                 "导入时间": item["created_at"],
@@ -3699,6 +3785,7 @@ def export_business_records(
         {"项目": "结束日期", "内容": end_date or "不限"},
         {"项目": "审核状态", "内容": review_status or "全部"},
         {"项目": "承接状态", "内容": acceptance_status or "全部"},
+        {"项目": "业务处理状态", "内容": business_status},
         {"项目": "导出数据条数", "内容": total_records},
         {"项目": "积分金额合计", "内容": money2(total_points_amount)},
         {"项目": "已通过凭证金额合计", "内容": money2(total_approved_voucher_amount)},
@@ -3745,11 +3832,11 @@ def export_business_records(
                 cell.number_format = "@"
 
         # 金额列保留两位小数
-        amount_columns = ["F", "J", "K"]
+        amount_columns = ["F", "K", "L"]
 
         for column_letter in amount_columns:
             for cell in detail_sheet[column_letter][1:]:
-                cell.number_format = "0.00"
+                cell.number_format = "#,##0.00"
 
         # 自动列宽
         for worksheet in [summary_sheet, detail_sheet]:

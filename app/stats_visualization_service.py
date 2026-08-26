@@ -2,6 +2,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from .business_status_service import (
+    BUSINESS_STATUS_MATCHED_UNSETTLED,
+    BUSINESS_STATUS_SETTLED,
+    BUSINESS_STATUS_UNMATCHED,
+)
+
 
 MONEY_QUANTUM = Decimal("0.01")
 DEFAULT_TREND_POINT_LIMIT = 14
@@ -272,13 +278,13 @@ def build_business_status_distribution(
 
     return (
         _progress_stage(
-            label="无匹配记录",
+            label=BUSINESS_STATUS_UNMATCHED,
             value=unmatched_business_count,
             total_business_records=normalized_total,
             tone="unmatched",
         ),
         _progress_stage(
-            label="有匹配记录未结清",
+            label=BUSINESS_STATUS_MATCHED_UNSETTLED,
             value=(
                 matched_unsettled_business_count
             ),
@@ -286,7 +292,7 @@ def build_business_status_distribution(
             tone="processing",
         ),
         _progress_stage(
-            label="已结清",
+            label=BUSINESS_STATUS_SETTLED,
             value=normalized_settled,
             total_business_records=normalized_total,
             tone="settled",

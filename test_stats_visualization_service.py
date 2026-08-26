@@ -2,6 +2,11 @@ import unittest
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+from app.business_status_service import (
+    BUSINESS_STATUS_MATCHED_UNSETTLED,
+    BUSINESS_STATUS_SETTLED,
+    BUSINESS_STATUS_UNMATCHED,
+)
 from app.stats_visualization_service import (
     build_business_status_distribution,
     build_business_trend,
@@ -254,6 +259,14 @@ class StatsVisualizationServiceTests(
         self.assertEqual(
             [stage.value for stage in stages],
             [13, 37, 15],
+        )
+        self.assertEqual(
+            [stage.label for stage in stages],
+            [
+                BUSINESS_STATUS_UNMATCHED,
+                BUSINESS_STATUS_MATCHED_UNSETTLED,
+                BUSINESS_STATUS_SETTLED,
+            ],
         )
         self.assertEqual(
             [stage.percentage for stage in stages],
