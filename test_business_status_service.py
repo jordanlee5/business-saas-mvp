@@ -1,11 +1,16 @@
 import unittest
 
 from app.business_status_service import (
+    ALLOCATION_AMOUNT_STATUS_ABNORMAL,
+    ALLOCATION_AMOUNT_STATUS_ALL,
     BUSINESS_STATUS_ALL,
     BUSINESS_STATUS_MATCHED_UNSETTLED,
     BUSINESS_STATUS_SETTLED,
     BUSINESS_STATUS_UNMATCHED,
     classify_business_status,
+    is_business_allocation_amount_abnormal,
+    matches_allocation_amount_status_filter,
+    normalize_allocation_amount_status_filter,
     normalize_business_status_filter,
 )
 from app.voucher_allocation import (
@@ -96,6 +101,73 @@ class BusinessStatusServiceTests(
                 "未知状态"
             ),
             BUSINESS_STATUS_ALL,
+        )
+
+    def test_allocation_amount_filter_normalization(self):
+        self.assertEqual(
+            normalize_allocation_amount_status_filter(
+                ALLOCATION_AMOUNT_STATUS_ABNORMAL
+            ),
+            ALLOCATION_AMOUNT_STATUS_ABNORMAL,
+        )
+        self.assertEqual(
+            normalize_allocation_amount_status_filter(
+                "未知状态"
+            ),
+            ALLOCATION_AMOUNT_STATUS_ALL,
+        )
+
+    def test_only_accepted_business_can_be_amount_abnormal(
+        self,
+    ):
+        self.assertTrue(
+            is_business_allocation_amount_abnormal(
+                acceptance_status="已承接",
+                abnormal_message="缺少核销金额",
+            )
+        )
+        self.assertFalse(
+            is_business_allocation_amount_abnormal(
+                acceptance_status="待承接",
+                abnormal_message="缺少核销金额",
+            )
+        )
+        self.assertFalse(
+            is_business_allocation_amount_abnormal(
+                acceptance_status="已承接",
+                abnormal_message="",
+            )
+        )
+
+    def test_abnormal_filter_matches_only_amount_errors(
+        self,
+    ):
+        self.assertTrue(
+            matches_allocation_amount_status_filter(
+                filter_value=(
+                    ALLOCATION_AMOUNT_STATUS_ABNORMAL
+                ),
+                acceptance_status="已承接",
+                abnormal_message="核销金额超出业务金额",
+            )
+        )
+        self.assertFalse(
+            matches_allocation_amount_status_filter(
+                filter_value=(
+                    ALLOCATION_AMOUNT_STATUS_ABNORMAL
+                ),
+                acceptance_status="已承接",
+                abnormal_message="",
+            )
+        )
+
+    def test_all_amount_filter_matches_normal_business(self):
+        self.assertTrue(
+            matches_allocation_amount_status_filter(
+                filter_value=ALLOCATION_AMOUNT_STATUS_ALL,
+                acceptance_status="已承接",
+                abnormal_message="",
+            )
         )
 
 

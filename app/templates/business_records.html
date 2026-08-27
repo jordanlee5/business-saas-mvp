@@ -319,7 +319,27 @@
 
         .business-records-page .ui-hint {
             margin-bottom: 18px;
-        }        
+        }
+
+        .allocation-amount-alert {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+            padding: 10px 12px;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .allocation-amount-alert a {
+            color: #b91c1c;
+            white-space: nowrap;
+        }
     </style>
 
 <div class="page-container business-records-page">
@@ -335,7 +355,7 @@
                 当前仅查看上传批次 #{{ batch_id }} 生成的业务数据。
                 <a
                     class="small-link"
-                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}"
+                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
                 >
                     取消批次筛选
                 </a >
@@ -348,6 +368,7 @@
             <input type="hidden" name="page_size" value="{{ page_size }}">
             <input type="hidden" name="batch_page" value="1">
             <input type="hidden" name="batch_page_size" value="{{ batch_page_size }}">
+            <input type="hidden" name="allocation_amount_status" value="{{ allocation_amount_status }}">
 
             {% if role == "admin" %}
             <div class="form-item">
@@ -422,7 +443,7 @@
                 {% if role == "partner" or can_export_business_records %}
                     <a
                         class="ui-button-secondary"
-                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}"
+                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
                     >
                         导出 Excel
                     </a >
@@ -439,6 +460,30 @@
                 {% endif %}
             </div>
         </form>
+
+        {% if allocation_amount_error_count > 0 %}
+            <div class="allocation-amount-alert">
+                <span>
+                    检测到 {{ allocation_amount_error_count }} 条已承接业务存在核销金额异常，请及时核查。
+                </span>
+                {% if allocation_amount_status == "异常" %}
+                    <a
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=全部"
+                    >退出异常筛选</a>
+                {% else %}
+                    <a
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=异常"
+                    >查看异常业务</a>
+                {% endif %}
+            </div>
+        {% elif allocation_amount_status == "异常" %}
+            <div class="allocation-amount-alert">
+                <span>当前筛选范围内未发现核销金额异常业务。</span>
+                <a
+                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=全部"
+                >退出异常筛选</a>
+            </div>
+        {% endif %}
     </div>
 
     <div class="table-card compact-card">
@@ -455,6 +500,7 @@
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
                     <input type="hidden" name="business_status" value="{{ business_status }}">
+                    <input type="hidden" name="allocation_amount_status" value="{{ allocation_amount_status }}">
                     <input type="hidden" name="page" value="{{ page }}">
                     <input type="hidden" name="page_size" value="{{ page_size }}">
                     <input type="hidden" name="batch_page" value="1">
@@ -470,7 +516,7 @@
                 <div class="mini-page-links">
                     {% if batch_page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -483,7 +529,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -495,7 +541,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -509,7 +555,7 @@
 
                     {% if batch_page < batch_total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}
@@ -729,6 +775,7 @@
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
                     <input type="hidden" name="business_status" value="{{ business_status }}">
+                    <input type="hidden" name="allocation_amount_status" value="{{ allocation_amount_status }}">
                     <input type="hidden" name="page" value="1">
                     <input type="hidden" name="batch_page" value="{{ batch_page }}">
                     <input type="hidden" name="batch_page_size" value="{{ batch_page_size }}">
@@ -744,7 +791,7 @@
                 <div class="page-links">
                     {% if page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -757,7 +804,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -769,7 +816,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -783,7 +830,7 @@
 
                     {% if page < total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}

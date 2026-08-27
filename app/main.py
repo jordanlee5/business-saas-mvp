@@ -53,11 +53,15 @@ from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
 from .business_no import generate_public_business_no
 from .business_status_service import (
+    ALLOCATION_AMOUNT_STATUS_ALL,
     BUSINESS_STATUS_ALL,
     BUSINESS_STATUS_MATCHED_UNSETTLED,
     BUSINESS_STATUS_SETTLED,
     BUSINESS_STATUS_UNMATCHED,
     classify_business_status,
+    is_business_allocation_amount_abnormal,
+    matches_allocation_amount_status_filter,
+    normalize_allocation_amount_status_filter,
     normalize_business_status_filter,
 )
 from .time_utils import format_utc8, utc8_now
@@ -3223,6 +3227,9 @@ def build_business_record_items(
     review_status="全部",
     acceptance_filter="全部",
     business_status=BUSINESS_STATUS_ALL,
+    allocation_amount_status=(
+        ALLOCATION_AMOUNT_STATUS_ALL
+    ),
     page=1,
     page_size=10,
     use_pagination=True,
@@ -3264,6 +3271,7 @@ def build_business_record_items(
     all_records = query.order_by(BusinessRecord.id.desc()).all()
 
     all_record_items = []
+    allocation_amount_error_count = 0
 
     for record in all_records:
         uploader = db.query(User).filter(User.id == record.user_id).first()
@@ -3379,12 +3387,31 @@ def build_business_record_items(
         ):
             continue
 
+        if is_business_allocation_amount_abnormal(
+            acceptance_status=item["acceptance_status"],
+            abnormal_message=item["allocation_amount_error"],
+        ):
+            allocation_amount_error_count += 1
+
+        if not matches_allocation_amount_status_filter(
+            filter_value=allocation_amount_status,
+            acceptance_status=item["acceptance_status"],
+            abnormal_message=item["allocation_amount_error"],
+        ):
+            continue
+
         all_record_items.append(item)
 
     total_records = len(all_record_items)
 
     if not use_pagination:
-        return all_record_items, total_records, 1, 1
+        return (
+            all_record_items,
+            total_records,
+            1,
+            1,
+            allocation_amount_error_count,
+        )
 
     if page < 1:
         page = 1
@@ -3405,7 +3432,13 @@ def build_business_record_items(
     offset = (page - 1) * page_size
     page_items = all_record_items[offset: offset + page_size]
 
-    return page_items, total_records, total_pages, page
+    return (
+        page_items,
+        total_records,
+        total_pages,
+        page,
+        allocation_amount_error_count,
+    )
 
 
 @app.get("/business-records", response_class=HTMLResponse)
@@ -3420,6 +3453,9 @@ def business_records_page(
     acceptance_status: str = Query("全部"),
     business_status: str = Query(
         BUSINESS_STATUS_ALL
+    ),
+    allocation_amount_status: str = Query(
+        ALLOCATION_AMOUNT_STATUS_ALL
     ),
     page: int = Query(1),
     page_size: int = Query(3),
@@ -3450,6 +3486,11 @@ def business_records_page(
     business_status = (
         normalize_business_status_filter(
             business_status
+        )
+    )
+    allocation_amount_status = (
+        normalize_allocation_amount_status_filter(
+            allocation_amount_status
         )
     )
 
@@ -3544,7 +3585,13 @@ def business_records_page(
         for partner in partners
     ]
 
-    record_items, total_records, total_pages, page = build_business_record_items(
+    (
+        record_items,
+        total_records,
+        total_pages,
+        page,
+        allocation_amount_error_count,
+    ) = build_business_record_items(
         db=db,
         user=user,
         partner_id=partner_id,
@@ -3555,6 +3602,9 @@ def business_records_page(
         review_status=review_status,
         acceptance_filter=acceptance_status,
         business_status=business_status,
+        allocation_amount_status=(
+            allocation_amount_status
+        ),
         page=page,
         page_size=page_size,
         use_pagination=True,
@@ -3585,6 +3635,12 @@ def business_records_page(
             "review_status": review_status,
             "acceptance_status": acceptance_status,
             "business_status": business_status,
+            "allocation_amount_status": (
+                allocation_amount_status
+            ),
+            "allocation_amount_error_count": (
+                allocation_amount_error_count
+            ),
             "page": page,
             "page_size": page_size,
             "total_records": total_records,
@@ -3697,6 +3753,9 @@ def export_business_records(
     business_status: str = Query(
         BUSINESS_STATUS_ALL
     ),
+    allocation_amount_status: str = Query(
+        ALLOCATION_AMOUNT_STATUS_ALL
+    ),
 ):
     user = get_current_user(request)
 
@@ -3719,8 +3778,19 @@ def export_business_records(
             business_status
         )
     )
+    allocation_amount_status = (
+        normalize_allocation_amount_status_filter(
+            allocation_amount_status
+        )
+    )
 
-    record_items, total_records, total_pages, page = build_business_record_items(
+    (
+        record_items,
+        total_records,
+        total_pages,
+        page,
+        _available_allocation_amount_error_count,
+    ) = build_business_record_items(
         db=db,
         user=user,
         partner_id=partner_id,
@@ -3731,6 +3801,9 @@ def export_business_records(
         review_status=review_status,
         acceptance_filter=acceptance_status,
         business_status=business_status,
+        allocation_amount_status=(
+            allocation_amount_status
+        ),
         use_pagination=False,
     )
 
@@ -3798,6 +3871,7 @@ def export_business_records(
         {"项目": "审核状态", "内容": review_status or "全部"},
         {"项目": "承接状态", "内容": acceptance_status or "全部"},
         {"项目": "业务处理状态", "内容": business_status},
+        {"项目": "核销金额校验", "内容": allocation_amount_status},
         {"项目": "导出数据条数", "内容": total_records},
         {"项目": "积分金额合计", "内容": money2(total_points_amount)},
         {"项目": "已核销金额合计", "内容": money2(total_approved_allocation_amount)},
