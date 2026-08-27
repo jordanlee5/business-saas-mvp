@@ -460,6 +460,11 @@
 
     .detail-table.voucher-records-table th:nth-child(13),
     .detail-table.voucher-records-table td:nth-child(13) {
+        min-width: 115px;
+    }
+
+    .detail-table.voucher-records-table th:nth-child(14),
+    .detail-table.voucher-records-table td:nth-child(14) {
         min-width: 380px;
     }
 
@@ -618,28 +623,28 @@
     /* 上传方表格在正常桌面宽度下尽量完整展示 */
     .detail-table.voucher-records-table.partner-voucher-table {
         width: 100%;
-        min-width: 860px;
+        min-width: 960px;
         table-layout: fixed;
     }
 
     /* 凭证金额 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(4),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(4) {
-        width: 11%;
+        width: 10%;
         min-width: 0;
     }
 
     /* 审核状态 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(6),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(6) {
-        width: 12%;
+        width: 11%;
         min-width: 0;
     }
 
     /* 金额匹配 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(9),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(9) {
-        width: 22%;
+        width: 20%;
         min-width: 0;
         white-space: normal;
     }
@@ -647,22 +652,29 @@
     /* 创建时间 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(11),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(11) {
-        width: 16%;
+        width: 15%;
         min-width: 0;
     }
 
     /* 凭证操作 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(12),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(12) {
-        width: 12%;
+        width: 11%;
         min-width: 0;
         text-align: center;
     }
 
-    /* OCR 摘要 */
+    /* 本次核销金额 */
     .detail-table.voucher-records-table.partner-voucher-table th:nth-child(13),
     .detail-table.voucher-records-table.partner-voucher-table td:nth-child(13) {
-        width: 27%;
+        width: 13%;
+        min-width: 0;
+    }
+
+    /* OCR 摘要 */
+    .detail-table.voucher-records-table.partner-voucher-table th:nth-child(14),
+    .detail-table.voucher-records-table.partner-voucher-table td:nth-child(14) {
+        width: 20%;
         min-width: 0;
         max-width: none;
         white-space: normal;
@@ -681,42 +693,54 @@
         </div>
 
         <div class="ui-hint">
-            当前页面展示该业务数据的基础信息、付款状态，以及关联的全部凭证审核记录。
+            当前页面展示该业务数据的基础信息、核销状态，以及关联的全部凭证审核记录。
         </div>
 
         <div class="summary-grid">
             <div class="summary-card">
                 <div class="summary-label">业务金额</div>
-                <div class="summary-value">{{ detail.points_amount }}</div>
+                <div class="summary-value">{{ detail.points_amount | format_amount }}</div>
             </div>
 
-            <div class="summary-card success">
-                <div class="summary-label">已通过凭证金额</div>
-                <div class="summary-value">{{ detail.approved_voucher_amount }}</div>
+            <div class="summary-card {% if detail.allocation_amount_error %}danger{% else %}success{% endif %}">
+                <div class="summary-label">已核销金额</div>
+                <div class="summary-value">
+                    {{ detail.approved_allocation_amount | format_amount if detail.approved_allocation_amount is not none else "金额异常" }}
+                </div>
             </div>
 
-            <div class="summary-card {% if detail.payment_status == '超额付款' %}danger{% elif detail.payment_status == '部分付款' %}warning{% else %}success{% endif %}">
-                <div class="summary-label">付款状态</div>
+            <div class="summary-card {% if detail.allocation_amount_error %}danger{% elif detail.payment_status == '部分付款' %}warning{% else %}success{% endif %}">
+                <div class="summary-label">核销状态</div>
                 <div class="summary-value">{{ detail.payment_status }}</div>
             </div>
 
-            <div class="summary-card {% if detail.overpaid_amount > 0 %}danger{% elif detail.remaining_amount > 0 %}warning{% else %}success{% endif %}">
+            <div class="summary-card {% if detail.allocation_amount_error %}danger{% elif detail.overpaid_amount > 0 %}danger{% elif detail.remaining_amount > 0 %}warning{% else %}success{% endif %}">
                 <div class="summary-label">
-                    {% if detail.overpaid_amount > 0 %}
+                    {% if detail.allocation_amount_error %}
+                        金额校验
+                    {% elif detail.overpaid_amount > 0 %}
                         超额金额
                     {% else %}
                         剩余金额
                     {% endif %}
                 </div>
                 <div class="summary-value">
-                    {% if detail.overpaid_amount > 0 %}
-                        {{ detail.overpaid_amount }}
+                    {% if detail.allocation_amount_error %}
+                        金额异常
+                    {% elif detail.overpaid_amount > 0 %}
+                        {{ detail.overpaid_amount | format_amount }}
                     {% else %}
-                        {{ detail.remaining_amount }}
+                        {{ detail.remaining_amount | format_amount }}
                     {% endif %}
                 </div>
             </div>
         </div>
+
+        {% if detail.allocation_amount_error %}
+            <div class="ui-hint" style="color: #b91c1c; border-color: #fecaca; background: #fef2f2;">
+                核销金额校验异常：{{ detail.allocation_amount_error }}
+            </div>
+        {% endif %}
 
         <div class="detail-grid">
             <div class="detail-item">
@@ -771,7 +795,7 @@
 
             <div class="detail-item">
                 <div class="detail-label">
-                    {% if role == "partner" and (detail.remaining_amount|float <= 0) %}
+                    {% if role == "partner" and detail.is_allocation_complete %}
                         已通过凭证数
                     {% else %}
                         关联凭证数
@@ -779,7 +803,7 @@
                 </div>
 
                 <div class="detail-value">
-                    {% if role == "partner" and (detail.remaining_amount|float <= 0) %}
+                    {% if role == "partner" and detail.is_allocation_complete %}
                         {{ voucher_items | selectattr("review_status", "equalto", "已通过") | list | length }}
                     {% else %}
                         {{ detail.voucher_count }}
@@ -838,17 +862,18 @@
                             <th class="col-score">匹配分数</th>
                             <th class="col-created-at">创建时间</th>
                             <th class="col-voucher-link">凭证</th>
+                            <th class="col-amount">本次核销金额</th>
                             <th class="ocr-summary-cell">OCR 摘要</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in voucher_items %}
 
-                        {% set hide_from_partner_when_completed = role == "partner" and (detail.remaining_amount|float <= 0) and item.review_status != "已通过" %}
+                        {% set hide_from_partner_when_completed = role == "partner" and detail.is_allocation_complete and item.review_status != "已通过" %}
 
                         {% if not hide_from_partner_when_completed %}
 
-                            {% set is_settled_pending = item.review_status == '待审核' and (detail.remaining_amount|float <= 0) %}
+                            {% set is_settled_pending = item.review_status == '待审核' and detail.is_allocation_complete %}
                             <tr class="{% if item.review_status == '已通过' %}review-row-approved{% elif is_settled_pending %}review-row-skipped{% elif item.review_status == '待审核' %}review-row-pending{% elif item.review_status == '已驳回' %}review-row-rejected{% endif %}">
                                 <td>{{ item.review_id }}</td>
                                 <td>{{ item.voucher_id }}</td>
@@ -862,7 +887,7 @@
                                         {% endif %}
                                     </span>
                                 </td>
-                                <td class="col-amount">{{ item.voucher_amount }}</td>
+                                <td class="col-amount">{{ item.voucher_amount | format_amount }}</td>
                                 <td>{{ item.match_status }}</td>
                                 
                                 <td class="col-status review-status-cell">
@@ -870,7 +895,7 @@
                                         <span class="status-pill status-approved">已通过</span>
 
                                     {% elif item.review_status == "待审核" %}
-                                        {% if detail.remaining_amount|float <= 0 %}
+                                        {% if detail.is_allocation_complete %}
                                             <span
                                                 class="status-pill status-skipped"
                                                 title="该业务已足额付款，当前凭证记录不再进入匹配审核处理"
@@ -958,6 +983,9 @@
                                     {% else %}
                                         -
                                     {% endif %}
+                                </td>
+                                <td class="col-amount">
+                                    {{ item.allocation_amount | format_amount if item.allocation_amount is not none else "-" }}
                                 </td>
                                 <td class="ocr-summary-cell">
                                     <div

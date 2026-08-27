@@ -329,7 +329,7 @@
         </div>
 
         <div class="ui-hint">
-            这里用于统一查看业务数据、上传方、最新审核状态、已通过凭证金额和剩余金额。
+            这里用于统一查看业务数据、上传方、最新审核状态、已核销金额和剩余金额。
             {% if batch_id != 0 %}
                 <br>
                 当前仅查看上传批次 #{{ batch_id }} 生成的业务数据。
@@ -623,7 +623,7 @@
                             <th>最新审核状态</th>
                             <th>最新匹配状态</th>
                             <th>业务处理状态</th>
-                            <th>已通过凭证金额</th>
+                            <th>已核销金额</th>
                             <th>剩余金额</th>
                             <th>导入时间</th>
                             <th>操作</th>
@@ -637,7 +637,7 @@
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.phone }}</td>
                                 <td>{{ item.plate_number }}</td>
-                                <td>{{ item.points_amount }}</td>
+                                <td>{{ item.points_amount | format_amount }}</td>
                                 <td>{{ item.bank_card }}</td>
                                 <td>
                                     {% if item.latest_review_status == "待承接" %}
@@ -669,15 +669,25 @@
                                 <td class="amount-good">
                                     {% if item.acceptance_status != "已承接" %}
                                         -
+                                    {% elif item.allocation_amount_error %}
+                                        <span
+                                            class="status-pill status-rejected"
+                                            title="{{ item.allocation_amount_error }}"
+                                        >金额异常</span>
                                     {% else %}
-                                        {{ item.approved_voucher_amount }}
+                                        {{ item.approved_allocation_amount | format_amount }}
                                     {% endif %}                                   
                                 </td>
                                 <td class="amount-warning">
                                     {% if item.acceptance_status != "已承接" %}
                                         -
+                                    {% elif item.allocation_amount_error %}
+                                        <span
+                                            class="status-pill status-rejected"
+                                            title="{{ item.allocation_amount_error }}"
+                                        >金额异常</span>
                                     {% else %}
-                                        {{ item.remaining_amount }}
+                                        {{ item.remaining_amount | format_amount }}
                                     {% endif %}                                    
                                 </td>
                                 <td>{{ item.created_at | format_utc8 }}</td>

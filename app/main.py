@@ -67,6 +67,7 @@ from .notification_service import (
     mark_notification_as_read,
 )
 from .review_metrics_service import (
+    build_business_review_allocation_summary,
     build_review_metrics,
     get_business_review_allocation_status,
 )
@@ -3299,30 +3300,23 @@ def build_business_record_items(
                 latest_review_status = latest_review.review_status
                 latest_match_status = latest_review.match_status
 
-        approved_reviews = [
-            review
-            for review in business_reviews
-            if review.review_status == "已通过"
-        ]
-
-        approved_voucher_amount = 0
-
-        for approved_review in approved_reviews:
-            voucher = (
-                db.query(VoucherRecord)
-                .filter(VoucherRecord.id == approved_review.voucher_id)
-                .first()
-            )
-
-            if voucher and voucher.voucher_amount:
-                approved_voucher_amount += voucher.voucher_amount
-
         business_amount = money2(record.points_amount)
-        approved_voucher_amount = money2(approved_voucher_amount)
-        remaining_amount = money2(business_amount - approved_voucher_amount)
-
-        if remaining_amount < 0:
-            remaining_amount = 0.0
+        allocation_summary = (
+            build_business_review_allocation_summary(
+                record.points_amount,
+                business_reviews,
+            )
+        )
+        approved_allocation_amount = (
+            money2(allocation_summary.approved_amount)
+            if allocation_summary.approved_amount is not None
+            else None
+        )
+        remaining_amount = (
+            money2(allocation_summary.remaining_amount)
+            if allocation_summary.remaining_amount is not None
+            else None
+        )
 
         allocation_status = (
             get_business_review_allocation_status(
@@ -3341,13 +3335,12 @@ def build_business_record_items(
         )
 
         # 业务完成优先：
-        # 如果已通过凭证金额已经覆盖业务金额，则业务列表的审核状态应展示为“已通过”，
+        # 如果已通过核销金额已经覆盖业务金额，则业务列表的审核状态应展示为“已通过”，
         # 不再被后续生成的“待审核 / 无需审核”等过程记录覆盖。
         if (
             acceptance_status == "已承接"
-            and business_amount > 0
-            and approved_voucher_amount > 0
-            and remaining_amount <= 0
+            and allocation_status
+            == ALLOCATION_STATUS_COMPLETED
         ):
             latest_review_status = "已通过"
 
@@ -3364,8 +3357,13 @@ def build_business_record_items(
             "latest_review_status": latest_review_status,
             "latest_match_status": latest_match_status,
             "business_status": current_business_status,
-            "approved_voucher_amount": money2(approved_voucher_amount),
-            "remaining_amount": money2(remaining_amount),
+            "approved_allocation_amount": (
+                approved_allocation_amount
+            ),
+            "remaining_amount": remaining_amount,
+            "allocation_amount_error": (
+                allocation_summary.abnormal_message
+            ),
             "created_at": record.created_at,
         }
 
@@ -3754,15 +3752,29 @@ def export_business_records(
                     item["business_status"]
                     or "不适用"
                 ),
-                "已通过凭证金额": item["approved_voucher_amount"],
+                "已核销金额": item["approved_allocation_amount"],
                 "剩余金额": item["remaining_amount"],
+                "核销金额异常说明": item["allocation_amount_error"],
                 "导入时间": item["created_at"],
             }
         )
 
     total_points_amount = money2(sum(item["points_amount"] or 0 for item in record_items))
-    total_approved_voucher_amount = money2(sum(item["approved_voucher_amount"] or 0 for item in record_items))
-    total_remaining_amount = money2(sum(item["remaining_amount"] or 0 for item in record_items))
+    total_approved_allocation_amount = money2(sum(
+        item["approved_allocation_amount"]
+        for item in record_items
+        if item["approved_allocation_amount"] is not None
+    ))
+    total_remaining_amount = money2(sum(
+        item["remaining_amount"]
+        for item in record_items
+        if item["remaining_amount"] is not None
+    ))
+    allocation_error_count = sum(
+        1
+        for item in record_items
+        if item["allocation_amount_error"]
+    )
 
     partner_name = "全部上传方"
 
@@ -3788,8 +3800,9 @@ def export_business_records(
         {"项目": "业务处理状态", "内容": business_status},
         {"项目": "导出数据条数", "内容": total_records},
         {"项目": "积分金额合计", "内容": money2(total_points_amount)},
-        {"项目": "已通过凭证金额合计", "内容": money2(total_approved_voucher_amount)},
+        {"项目": "已核销金额合计", "内容": money2(total_approved_allocation_amount)},
         {"项目": "剩余金额合计", "内容": money2(total_remaining_amount)},
+        {"项目": "核销金额异常业务数", "内容": allocation_error_count},
     ]
 
     summary_df = pd.DataFrame(summary_rows)
@@ -3816,6 +3829,20 @@ def export_business_records(
         for row in summary_sheet.iter_rows():
             for cell in row:
                 cell.alignment = Alignment(vertical="center")
+
+        # 汇总金额统一使用千分位并固定保留两位小数
+        summary_amount_labels = {
+            "积分金额合计",
+            "已核销金额合计",
+            "剩余金额合计",
+        }
+
+        for label_cell, value_cell in summary_sheet.iter_rows(
+            min_row=2,
+            max_col=2,
+        ):
+            if label_cell.value in summary_amount_labels:
+                value_cell.number_format = "#,##0.00"
 
         # 业务数据页表头美化
         for cell in detail_sheet[1]:
@@ -3928,8 +3955,19 @@ def business_record_detail_page(
         ),
     )
 
+    allocation_summary = (
+        build_business_review_allocation_summary(
+            record.points_amount,
+            reviews,
+        )
+    )
+    allocation_status = (
+        get_business_review_allocation_status(
+            record.points_amount,
+            reviews,
+        )
+    )
     voucher_items = []
-    approved_voucher_amount = 0.0
 
     for review in reviews:
         voucher = (
@@ -3958,9 +3996,6 @@ def business_record_detail_page(
 
         voucher_amount = money2(voucher.voucher_amount or 0)
 
-        if review.review_status == "已通过":
-            approved_voucher_amount += voucher_amount
-
         ocr_text = voucher.ocr_text or ""
         ocr_excerpt = ocr_text[:120] + "..." if len(ocr_text) > 120 else ocr_text
 
@@ -3970,6 +4005,11 @@ def business_record_detail_page(
                 "voucher_id": voucher.id,
                 "filename": voucher.filename,
                 "voucher_amount": voucher_amount,
+                "allocation_amount": (
+                    money2(review.allocation_amount)
+                    if review.allocation_amount is not None
+                    else None
+                ),
                 "match_status": review.match_status,
                 "review_status": review.review_status,
                 "score": review.score,
@@ -3983,25 +4023,21 @@ def business_record_detail_page(
         )
 
     business_amount = money2(record.points_amount or 0)
-    approved_voucher_amount = money2(approved_voucher_amount)
-    raw_remaining_amount = money2(business_amount - approved_voucher_amount)
-
-    remaining_amount = raw_remaining_amount
-    if remaining_amount < 0:
-        remaining_amount = 0.0
-
-    overpaid_amount = 0.0
-    if approved_voucher_amount > business_amount:
-        overpaid_amount = money2(approved_voucher_amount - business_amount)
-
-    if approved_voucher_amount <= 0:
-        payment_status = "未付款"
-    elif approved_voucher_amount < business_amount:
-        payment_status = "部分付款"
-    elif approved_voucher_amount == business_amount:
-        payment_status = "已足额付款"
-    else:
-        payment_status = "超额付款"
+    approved_allocation_amount = (
+        money2(allocation_summary.approved_amount)
+        if allocation_summary.approved_amount is not None
+        else None
+    )
+    remaining_amount = (
+        money2(allocation_summary.remaining_amount)
+        if allocation_summary.remaining_amount is not None
+        else None
+    )
+    overpaid_amount = (
+        money2(allocation_summary.overpaid_amount)
+        if allocation_summary.overpaid_amount is not None
+        else None
+    )
 
     detail = {
         "id": record.id,
@@ -4018,10 +4054,21 @@ def business_record_detail_page(
         "record_service_rate": record.record_service_rate or 0,
         "record_upstream_cost_rate": record.record_upstream_cost_rate or 0,
         "created_at": record.created_at,
-        "approved_voucher_amount": approved_voucher_amount,
-        "remaining_amount": money2(remaining_amount),
+        "approved_allocation_amount": (
+            approved_allocation_amount
+        ),
+        "remaining_amount": remaining_amount,
         "overpaid_amount": overpaid_amount,
-        "payment_status": payment_status,
+        "payment_status": (
+            allocation_summary.payment_status
+        ),
+        "allocation_amount_error": (
+            allocation_summary.abnormal_message
+        ),
+        "is_allocation_complete": (
+            allocation_status
+            == ALLOCATION_STATUS_COMPLETED
+        ),
         "voucher_count": len(voucher_items),
     }
 
@@ -6107,22 +6154,7 @@ def match_reviews_page(
                 .all()
             )
 
-            approved_voucher_amount = 0
-
-            for approved_review in approved_reviews_for_record:
-                approved_voucher = (
-                    db.query(VoucherRecord)
-                    .filter(VoucherRecord.id == approved_review.voucher_id)
-                    .first()
-                )
-
-                if approved_voucher and approved_voucher.voucher_amount:
-                    approved_voucher_amount += approved_voucher.voucher_amount
-
-            business_amount = record.points_amount or 0
-            remaining_amount = business_amount - approved_voucher_amount
-
-            approved_voucher_amount = Decimal("0.00")
+            approved_allocation_amount = Decimal("0.00")
 
             for approved_review in (
                 approved_reviews_for_record
@@ -6131,7 +6163,7 @@ def match_reviews_page(
                     approved_review.allocation_amount
                     is not None
                 ):
-                    approved_voucher_amount += Decimal(
+                    approved_allocation_amount += Decimal(
                         str(
                             approved_review.allocation_amount
                         )
@@ -6142,7 +6174,7 @@ def match_reviews_page(
             )
             remaining_amount = (
                 business_amount
-                - approved_voucher_amount
+                - approved_allocation_amount
             )
 
             if remaining_amount < 0:
@@ -6222,8 +6254,8 @@ def match_reviews_page(
                     "voucher_url": voucher_url,
                     "uploader_username": uploader.username if uploader else "未知上传方",
                     "voucher_amount": voucher.voucher_amount or 0,
-                    "approved_voucher_amount": float(
-                        approved_voucher_amount
+                    "approved_allocation_amount": float(
+                        approved_allocation_amount
                     ),
                     "remaining_amount": float(
                         remaining_amount

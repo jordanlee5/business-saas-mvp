@@ -1,7 +1,9 @@
 import unittest
+from decimal import Decimal
 from types import SimpleNamespace
 
 from app.review_metrics_service import (
+    build_business_review_allocation_summary,
     build_review_metrics,
     get_business_review_allocation_status,
 )
@@ -33,6 +35,38 @@ def make_review(
 class ReviewMetricsServiceTests(
     unittest.TestCase
 ):
+    def test_allocation_summary_counts_only_approved_reviews(
+        self,
+    ):
+        summary = (
+            build_business_review_allocation_summary(
+                100,
+                [
+                    make_review(
+                        review_status="已通过",
+                        allocation_amount="35.00",
+                    ),
+                    make_review(
+                        review_status="待复核",
+                        allocation_amount="20.00",
+                    ),
+                    make_review(
+                        review_status="已驳回",
+                        allocation_amount="45.00",
+                    ),
+                ],
+            )
+        )
+
+        self.assertEqual(
+            summary.approved_amount,
+            Decimal("35.00"),
+        )
+        self.assertEqual(
+            summary.remaining_amount,
+            Decimal("65.00"),
+        )
+
     def test_counts_two_stage_and_legacy_statuses(
         self,
     ):

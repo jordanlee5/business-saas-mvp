@@ -904,7 +904,7 @@
 
                                     <div class="info-item">
                                         <div class="info-label">凭证金额</div>
-                                        <div class="info-value">{{ item.voucher_amount }}</div>
+                                        <div class="info-value">{{ item.voucher_amount | format_amount }}</div>
                                     </div>
 
                                     <div class="filename">
@@ -964,17 +964,17 @@
                                     <div class="amount-row">
                                         <div class="amount-item">
                                             <div class="info-label">业务金额</div>
-                                            <div class="info-value">{{ item.record.points_amount }}</div>
+                                            <div class="info-value">{{ item.record.points_amount | format_amount }}</div>
                                         </div>
 
                                         <div class="amount-item">
                                             <div class="info-label">凭证金额</div>
-                                            <div class="info-value">{{ item.voucher_amount }}</div>
+                                            <div class="info-value">{{ item.voucher_amount | format_amount }}</div>
                                         </div>
 
                                         <div class="amount-item">
                                             <div class="info-label">已通过核销金额</div>
-                                            <div class="info-value">{{ item.approved_voucher_amount }}</div>
+                                            <div class="info-value">{{ item.approved_allocation_amount | format_amount }}</div>
                                         </div>
 
                                         <div class="amount-item {% if item.allocation_status == '金额异常' %}danger{% else %}warning{% endif %}">
@@ -989,7 +989,7 @@
                                                 {% if item.allocation_status == "金额异常" %}
                                                     暂无法确认
                                                 {% else %}
-                                                    {{ item.remaining_amount }}
+                                                    {{ item.remaining_amount | format_amount }}
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -1102,7 +1102,7 @@
                                                 class="info-value"
                                                 style="color:#15803d;"
                                             >
-                                                {{ item.review.allocation_amount }}
+                                                {{ item.review.allocation_amount | format_amount }}
                                             </div>
                                         </div>
                                     {% endif %}

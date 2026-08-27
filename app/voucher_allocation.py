@@ -46,6 +46,18 @@ class VoucherAllocationResult:
     voucher_remaining_after: Decimal
 
 
+@dataclass(frozen=True)
+class BusinessAllocationSummary:
+    """业务已经复核通过的核销金额汇总。"""
+
+    business_amount: Decimal | None
+    approved_amount: Decimal | None
+    remaining_amount: Decimal | None
+    overpaid_amount: Decimal | None
+    payment_status: str
+    abnormal_message: str
+
+
 def _to_money(
     value,
     field_name: str,
@@ -436,6 +448,82 @@ def get_business_allocation_status(
         return ALLOCATION_STATUS_PARTIAL
 
     return ALLOCATION_STATUS_COMPLETED
+
+
+def summarize_business_allocation(
+    business_amount,
+    approved_allocation_amounts,
+) -> BusinessAllocationSummary:
+    """
+    按已通过审核记录的实际核销金额汇总业务付款进度。
+
+    凭证原始金额不参与此汇总；缺少或非法的核销金额不会
+    被静默当作 0，而是返回“金额异常”，避免页面误报结清。
+    """
+    try:
+        normalized_business_amount = _to_money(
+            business_amount,
+            "业务金额",
+        )
+        _require_non_negative(
+            normalized_business_amount,
+            "业务金额",
+        )
+        approved_amount = (
+            _sum_reserved_allocation_amounts(
+                approved_allocation_amounts,
+                "业务已通过核销金额",
+            )
+        )
+    except ValueError as exc:
+        return BusinessAllocationSummary(
+            business_amount=None,
+            approved_amount=None,
+            remaining_amount=None,
+            overpaid_amount=None,
+            payment_status=(
+                ALLOCATION_STATUS_ABNORMAL
+            ),
+            abnormal_message=str(exc),
+        )
+
+    raw_remaining_amount = (
+        normalized_business_amount
+        - approved_amount
+    )
+    remaining_amount = max(
+        raw_remaining_amount,
+        ZERO,
+    )
+    overpaid_amount = max(
+        -raw_remaining_amount,
+        ZERO,
+    )
+
+    if overpaid_amount > ZERO:
+        payment_status = "超额付款"
+        abnormal_message = (
+            "已通过核销金额超出业务金额 "
+            f"{overpaid_amount:.2f}"
+        )
+    elif approved_amount == ZERO:
+        payment_status = ALLOCATION_STATUS_UNPAID
+        abnormal_message = ""
+    elif approved_amount < normalized_business_amount:
+        payment_status = ALLOCATION_STATUS_PARTIAL
+        abnormal_message = ""
+    else:
+        payment_status = "已足额付款"
+        abnormal_message = ""
+
+    return BusinessAllocationSummary(
+        business_amount=normalized_business_amount,
+        approved_amount=approved_amount,
+        remaining_amount=remaining_amount,
+        overpaid_amount=overpaid_amount,
+        payment_status=payment_status,
+        abnormal_message=abnormal_message,
+    )
 
 
 def get_business_allocation_abnormal_message(

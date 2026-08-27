@@ -17,6 +17,7 @@ from app.voucher_allocation import (
     calculate_reserved_allocation_limits,
     get_review_block_reason,
     get_voucher_business_block_reason,
+    summarize_business_allocation,
     validate_allocation_amount,
     has_remaining_business_allocation_capacity,
 )
@@ -25,6 +26,111 @@ from app.voucher_allocation import (
 class VoucherAllocationTests(
     unittest.TestCase
 ):
+    def test_summary_uses_actual_partial_allocation_amount(self):
+        summary = summarize_business_allocation(
+            business_amount="1000",
+            approved_allocation_amounts=[
+                "250.005",
+            ],
+        )
+
+        self.assertEqual(
+            summary.approved_amount,
+            Decimal("250.01"),
+        )
+        self.assertEqual(
+            summary.remaining_amount,
+            Decimal("749.99"),
+        )
+        self.assertEqual(
+            summary.overpaid_amount,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            summary.payment_status,
+            ALLOCATION_STATUS_PARTIAL,
+        )
+        self.assertEqual(
+            summary.abnormal_message,
+            "",
+        )
+
+    def test_summary_recognizes_exact_full_allocation(self):
+        summary = summarize_business_allocation(
+            business_amount="1000",
+            approved_allocation_amounts=[
+                "400",
+                "600",
+            ],
+        )
+
+        self.assertEqual(
+            summary.approved_amount,
+            Decimal("1000.00"),
+        )
+        self.assertEqual(
+            summary.remaining_amount,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            summary.overpaid_amount,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            summary.payment_status,
+            "已足额付款",
+        )
+
+    def test_summary_reports_overpayment(self):
+        summary = summarize_business_allocation(
+            business_amount="1000",
+            approved_allocation_amounts=[
+                "600",
+                "500",
+            ],
+        )
+
+        self.assertEqual(
+            summary.approved_amount,
+            Decimal("1100.00"),
+        )
+        self.assertEqual(
+            summary.remaining_amount,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            summary.overpaid_amount,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            summary.payment_status,
+            "超额付款",
+        )
+        self.assertIn(
+            "100.00",
+            summary.abnormal_message,
+        )
+
+    def test_summary_fails_closed_for_missing_allocation(self):
+        summary = summarize_business_allocation(
+            business_amount="1000",
+            approved_allocation_amounts=[
+                None,
+            ],
+        )
+
+        self.assertIsNone(summary.approved_amount)
+        self.assertIsNone(summary.remaining_amount)
+        self.assertIsNone(summary.overpaid_amount)
+        self.assertEqual(
+            summary.payment_status,
+            ALLOCATION_STATUS_ABNORMAL,
+        )
+        self.assertIn(
+            "缺少核销金额",
+            summary.abnormal_message,
+        )
+
     def test_business_capacity_is_available_without_reservation(self):
         available = (
             has_remaining_business_allocation_capacity(

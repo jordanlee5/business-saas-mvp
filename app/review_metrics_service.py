@@ -7,7 +7,9 @@ from .match_review_workflow import (
     REJECTED_REVIEW_STATUS,
 )
 from .voucher_allocation import (
+    BusinessAllocationSummary,
     get_business_allocation_status,
+    summarize_business_allocation,
 )
 
 
@@ -203,5 +205,35 @@ def get_business_review_allocation_status(
         ),
         reserved_allocation_amounts=(
             reserved_allocation_amounts
+        ),
+    )
+
+
+def build_business_review_allocation_summary(
+    business_amount,
+    reviews,
+) -> BusinessAllocationSummary:
+    """按已通过审核记录的实际核销金额汇总业务付款进度。"""
+    review_list = list(reviews or ())
+
+    approved_allocation_amounts = [
+        getattr(
+            review,
+            "allocation_amount",
+            None,
+        )
+        for review in review_list
+        if getattr(
+            review,
+            "review_status",
+            None,
+        )
+        == APPROVED_REVIEW_STATUS
+    ]
+
+    return summarize_business_allocation(
+        business_amount=business_amount,
+        approved_allocation_amounts=(
+            approved_allocation_amounts
         ),
     )
