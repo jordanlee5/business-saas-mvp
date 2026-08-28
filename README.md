@@ -8,8 +8,8 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`d75ab3764b9e64dc7eb100edd69104c1da6eaf476`
-- 基线提交：`d75ab37 feat: make database URL configurable`
+- 本轮修改前稳定代码基线：`ee34b97424737b05e50ba036c3934fc7d09b506c`
+- 基线提交：`ee34b97 chore: establish Alembic migration foundation`
 
 M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
 
@@ -118,7 +118,7 @@ uvicorn app.main:app --reload
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口和 Alembic 迁移环境，但当前尚无业务迁移版本，也未引入 PostgreSQL 驱动或 PostgreSQL 集成环境。首个迁移版本完成独立审阅前，不应对现有业务数据库执行 `upgrade`、`stamp` 或自动生成命令，更不能把启动时的 `create_all` 当作数据库迁移。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境和首个现有结构基线。`0001_current_schema_baseline` 只固化 `ee34b97` 已有的 10 张业务表，不新增商城字段，也未引入 PostgreSQL 驱动或 PostgreSQL 集成环境。启动时的 `create_all` 仍不能当作数据库迁移。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -126,9 +126,16 @@ M1 已建立数据库 URL 配置入口和 Alembic 迁移环境，但当前尚无
 python -m pip install -r requirements-dev.txt
 python -m alembic -c alembic.ini heads
 python -m unittest -v test_migration_environment.py
+python -m unittest -v test_initial_schema_migration.py
 ```
 
-`migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。当前 `heads` 没有业务 revision 属于预期状态；首个结构基线、历史数据库接入方式以及迁移前备份流程将在后续独立提交中完成。
+`migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。空数据库可执行 `upgrade head` 建立当前结构；已有业务数据库不得直接执行 `upgrade` 或 `stamp`，应先运行以下默认只读检查：
+
+```powershell
+python -m app.migration_baseline
+```
+
+检查通过后仍需先备份数据库与 `uploads/`，并审阅数据库来源和检查结果；只有明确需要接入基线时，才运行 `python -m app.migration_baseline --apply`。该命令再次校验结构，只写入 `0001_current_schema_baseline` 版本标记，不创建、删除或改写业务表。工具会在出现其他 revision 后自动拒绝运行，禁止绕过它直接执行 `alembic stamp`。`alembic downgrade base` 只允许用于无业务数据的临时测试库，严禁对现有业务数据库执行。
 
 ## 测试基线
 
@@ -140,7 +147,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 260 tests ... OK`；
+- 全量单元测试：`Ran 265 tests ... OK`；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -158,6 +165,7 @@ business-saas-mvp/
 │  ├─ settlement_calculator.py      # 统一费率及结算计算
 │  ├─ notification_service.py       # 工作台业务上传通知
 │  ├─ promotion_page_service.py     # 宣传页业务规则
+│  ├─ migration_baseline.py          # 已有数据库的只读检查与安全接入
 │  ├─ templates/                    # 服务端页面模板
 │  └─ static/                       # 样式、脚本与图片资源
 ├─ docs/

@@ -38,7 +38,7 @@ class MigrationEnvironmentTests(unittest.TestCase):
             config.get_main_option("sqlalchemy.url")
         )
 
-    def test_upgrade_head_is_repeatable_without_business_revisions(self):
+    def test_upgrade_head_builds_current_schema_and_is_repeatable(self):
         with TemporaryDirectory() as temporary_directory:
             database_path = (
                 Path(temporary_directory) / "migration.db"
@@ -60,10 +60,9 @@ class MigrationEnvironmentTests(unittest.TestCase):
             finally:
                 engine.dispose()
 
-            self.assertNotIn("users", table_names)
-            self.assertLessEqual(
-                table_names,
-                {"alembic_version"},
+            self.assertEqual(
+                table_names - {"alembic_version"},
+                set(Base.metadata.tables),
             )
 
     def test_autogenerate_sees_current_schema_as_unchanged(self):
@@ -83,6 +82,10 @@ class MigrationEnvironmentTests(unittest.TestCase):
                 {"DATABASE_URL": database_url},
             ):
                 with redirect_stdout(io.StringIO()):
+                    command.stamp(
+                        build_alembic_config(),
+                        "head",
+                    )
                     command.check(build_alembic_config())
 
 
