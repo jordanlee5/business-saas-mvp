@@ -8,8 +8,8 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`2e1593dc08e0920bc7e8ba764db25c80f15c59ee`
-- 基线提交：`2e1593d feat: establish mall domain rules foundation`
+- 本轮修改前稳定代码基线：`d75ab3764b9e64dc7eb100edd69104c1da6eaf476`
+- 基线提交：`d75ab37 feat: make database URL configurable`
 
 M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
 
@@ -118,19 +118,29 @@ uvicorn app.main:app --reload
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 当前只建立数据库 URL 配置入口，尚未引入 PostgreSQL 驱动、迁移框架或 PostgreSQL 集成环境。完成对应独立提交前，不应把生产 PostgreSQL 地址配置给现有应用，也不能把启动时的 `create_all` 当作数据库迁移。
+M1 已建立数据库 URL 配置入口和 Alembic 迁移环境，但当前尚无业务迁移版本，也未引入 PostgreSQL 驱动或 PostgreSQL 集成环境。首个迁移版本完成独立审阅前，不应对现有业务数据库执行 `upgrade`、`stamp` 或自动生成命令，更不能把启动时的 `create_all` 当作数据库迁移。
+
+迁移开发环境使用单独的依赖入口：
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m alembic -c alembic.ini heads
+python -m unittest -v test_migration_environment.py
+```
+
+`migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。当前 `heads` 没有业务 revision 属于预期状态；首个结构基线、历史数据库接入方式以及迁移前备份流程将在后续独立提交中完成。
 
 ## 测试基线
 
 在当前 M1 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
-python -m compileall app
+python -m compileall app migrations
 python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 257 tests ... OK`；
+- 全量单元测试：`Ran 260 tests ... OK`；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -152,10 +162,13 @@ business-saas-mvp/
 │  └─ static/                       # 样式、脚本与图片资源
 ├─ docs/
 │  └─ mall-business-rules-decisions.md
+├─ migrations/                     # Alembic 环境与后续迁移版本
+├─ alembic.ini                     # Alembic 项目配置
 ├─ add_*.py                         # 历史阶段数据库迁移脚本
 ├─ audit_*.py / repair_*.py         # 历史异常审计与受控修复工具
 ├─ test_*.py                        # 单元、迁移、审计和环境测试
 ├─ requirements.txt
+├─ requirements-dev.txt             # 迁移开发工具依赖
 ├─ CHANGELOG.md
 └─ README.md
 ```
