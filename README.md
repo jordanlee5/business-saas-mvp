@@ -8,8 +8,8 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`ee34b97424737b05e50ba036c3934fc7d09b506c`
-- 基线提交：`ee34b97 chore: establish Alembic migration foundation`
+- 本轮修改前稳定代码基线：`ccf860b3d719c4ac4dd5ef0dff947253e36585df`
+- 基线提交：`ccf860b chore: establish current schema migration baseline`
 
 M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
 
@@ -135,7 +135,15 @@ python -m unittest -v test_initial_schema_migration.py
 python -m app.migration_baseline
 ```
 
-检查通过后仍需先备份数据库与 `uploads/`，并审阅数据库来源和检查结果；只有明确需要接入基线时，才运行 `python -m app.migration_baseline --apply`。该命令再次校验结构，只写入 `0001_current_schema_baseline` 版本标记，不创建、删除或改写业务表。工具会在出现其他 revision 后自动拒绝运行，禁止绕过它直接执行 `alembic stamp`。`alembic downgrade base` 只允许用于无业务数据的临时测试库，严禁对现有业务数据库执行。
+检查通过后仍需先备份数据库与 `uploads/`，并审阅数据库来源和检查结果；只有明确需要接入基线时，才运行 `python -m app.migration_baseline --apply`。该命令再次校验结构，只写入 `0001_current_schema_baseline` 版本标记，不创建、删除或改写业务表。历史 SQLite 兼容范围只包含已经审计并固化的类型、默认值、索引和外键差异，同时会校验审核人引用、凭证上传批次引用、布尔值与费率模式；任何未知差异或异常数据都会拒绝写入版本标记。工具会在出现其他 revision 后自动拒绝运行，禁止绕过它直接执行 `alembic stamp`。`alembic downgrade base` 只允许用于无业务数据的临时测试库，严禁对现有业务数据库执行。
+
+在考虑对已有数据库写入版本标记前，必须先停止应用并运行副本演练：
+
+```powershell
+python -m app.migration_rehearsal
+```
+
+该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
 
 ## 测试基线
 
@@ -147,7 +155,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 265 tests ... OK`；
+- 全量单元测试：`Ran 275 tests ... OK`；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -166,6 +174,7 @@ business-saas-mvp/
 │  ├─ notification_service.py       # 工作台业务上传通知
 │  ├─ promotion_page_service.py     # 宣传页业务规则
 │  ├─ migration_baseline.py          # 已有数据库的只读检查与安全接入
+│  ├─ migration_rehearsal.py         # SQLite 副本基线接入演练
 │  ├─ templates/                    # 服务端页面模板
 │  └─ static/                       # 样式、脚本与图片资源
 ├─ docs/

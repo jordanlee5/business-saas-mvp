@@ -7,7 +7,8 @@ from unittest.mock import patch
 from alembic import command
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Boolean, Integer, create_engine, inspect, text
+from sqlalchemy.schema import DefaultClause
 
 from app import models as application_models  # noqa: F401
 from app.database import Base
@@ -15,6 +16,8 @@ from app.migration_baseline import (
     ALEMBIC_CONFIG_PATH,
     BASELINE_REVISION,
     BaselineAdoptionError,
+    is_compatible_legacy_schema_difference,
+    normalize_server_default,
     validate_and_adopt_baseline,
 )
 
@@ -47,6 +50,27 @@ def get_application_table_names(
     try:
         return set(inspect(engine).get_table_names()) - {
             "alembic_version"
+        }
+    finally:
+        engine.dispose()
+
+
+def get_foreign_key_targets(
+    database_url: str,
+    table_name: str,
+) -> set[tuple[tuple[str, ...], str, tuple[str, ...]]]:
+    engine = create_engine(database_url)
+    try:
+        foreign_keys = inspect(engine).get_foreign_keys(
+            table_name
+        )
+        return {
+            (
+                tuple(foreign_key["constrained_columns"]),
+                foreign_key["referred_table"],
+                tuple(foreign_key["referred_columns"]),
+            )
+            for foreign_key in foreign_keys
         }
     finally:
         engine.dispose()
@@ -118,6 +142,296 @@ class InitialSchemaMigrationTests(unittest.TestCase):
             self.assertEqual(
                 get_current_revision(database_url),
                 BASELINE_REVISION,
+            )
+
+    def test_voucher_batch_foreign_key_targets_voucher_batches(self):
+        model_targets = {
+            foreign_key.target_fullname
+            for foreign_key in (
+                application_models.VoucherRecord
+                .__table__
+                .c.batch_id
+                .foreign_keys
+            )
+        }
+        self.assertEqual(
+            model_targets,
+            {"voucher_upload_batches.id"},
+        )
+
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "foreign-key.db"
+            )
+            command.upgrade(
+                build_alembic_config(database_url),
+                "head",
+            )
+
+            targets = get_foreign_key_targets(
+                database_url,
+                "voucher_records",
+            )
+
+            self.assertIn(
+                (
+                    ("batch_id",),
+                    "voucher_upload_batches",
+                    ("id",),
+                ),
+                targets,
+            )
+            self.assertNotIn(
+                (
+                    ("batch_id",),
+                    "upload_batches",
+                    ("id",),
+                ),
+                targets,
+            )
+
+    def test_known_legacy_missing_indexes_are_compatible(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "legacy-indexes.db"
+            )
+            create_current_schema(database_url)
+            insert_marker_user(database_url)
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "DROP INDEX "
+                            "ix_business_records_business_no"
+                        )
+                    )
+                    connection.execute(
+                        text(
+                            "DROP INDEX "
+                            "ix_voucher_records_batch_id"
+                        )
+                    )
+                    connection.execute(
+                        text(
+                            "DROP INDEX "
+                            "ix_voucher_records_file_hash"
+                        )
+                    )
+            finally:
+                engine.dispose()
+
+            result = validate_and_adopt_baseline(database_url)
+
+            self.assertFalse(result.applied)
+            self.assertFalse(result.already_adopted)
+            self.assertIsNone(
+                get_current_revision(database_url)
+            )
+
+    def test_legacy_profile_requires_exact_type_and_default(self):
+        self.assertEqual(
+            normalize_server_default(
+                DefaultClause(text("(CURRENT_TIMESTAMP)"))
+            ),
+            "CURRENT_TIMESTAMP",
+        )
+        self.assertEqual(
+            normalize_server_default(
+                DefaultClause(text("((0.0))"))
+            ),
+            "0.0",
+        )
+        self.assertEqual(
+            normalize_server_default(
+                DefaultClause(text("(0) + (1)"))
+            ),
+            "(0) + (1)",
+        )
+        self.assertTrue(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_type",
+                    None,
+                    "users",
+                    "is_active",
+                    {},
+                    Integer(),
+                    Boolean(),
+                )
+            )
+        )
+        self.assertFalse(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_type",
+                    None,
+                    "users",
+                    "service_rate",
+                    {},
+                    Integer(),
+                    Boolean(),
+                )
+            )
+        )
+        self.assertTrue(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_default",
+                    None,
+                    "upload_batches",
+                    "acceptance_status",
+                    {},
+                    DefaultClause(text("'已承接'")),
+                    None,
+                )
+            )
+        )
+        self.assertFalse(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_default",
+                    None,
+                    "upload_batches",
+                    "acceptance_status",
+                    {},
+                    DefaultClause(text("'待承接'")),
+                    None,
+                )
+            )
+        )
+        self.assertTrue(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_default",
+                    None,
+                    "admin_action_logs",
+                    "created_at",
+                    {},
+                    DefaultClause(text("(CURRENT_TIMESTAMP)")),
+                    None,
+                )
+            )
+        )
+        self.assertTrue(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_default",
+                    None,
+                    "voucher_records",
+                    "voucher_amount",
+                    {},
+                    DefaultClause(text("((0.0))")),
+                    None,
+                )
+            )
+        )
+        self.assertFalse(
+            is_compatible_legacy_schema_difference(
+                (
+                    "modify_default",
+                    None,
+                    "voucher_records",
+                    "voucher_amount",
+                    {},
+                    DefaultClause(text("(1.0)")),
+                    None,
+                )
+            )
+        )
+
+        voucher_batch_constraint = next(
+            constraint
+            for constraint in (
+                application_models.VoucherRecord
+                .__table__
+                .foreign_key_constraints
+            )
+            if tuple(constraint.columns.keys()) == ("batch_id",)
+        )
+        self.assertTrue(
+            is_compatible_legacy_schema_difference(
+                ("add_fk", voucher_batch_constraint)
+            )
+        )
+
+    def test_unknown_missing_index_is_rejected(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "unknown-index.db"
+            )
+            create_current_schema(database_url)
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text("DROP INDEX ix_business_records_phone")
+                    )
+            finally:
+                engine.dispose()
+
+            with self.assertRaisesRegex(
+                BaselineAdoptionError,
+                "数据库结构与初始基线不一致",
+            ):
+                validate_and_adopt_baseline(database_url)
+
+            self.assertIsNone(
+                get_current_revision(database_url)
+            )
+
+    def test_business_batch_id_collision_cannot_mask_orphan(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "batch-collision.db"
+            )
+            create_current_schema(database_url)
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        application_models.User.__table__.insert().values(
+                            id=1,
+                            username="collision-marker",
+                            password_hash="test-only",
+                            role="admin",
+                        )
+                    )
+                    connection.execute(
+                        application_models.UploadBatch
+                        .__table__
+                        .insert()
+                        .values(
+                            id=36,
+                            user_id=1,
+                            filename="business.xlsx",
+                        )
+                    )
+                    connection.execute(
+                        application_models.VoucherRecord
+                        .__table__
+                        .insert()
+                        .values(
+                            id=65,
+                            uploader_id=1,
+                            batch_id=36,
+                            filename="voucher.png",
+                        )
+                    )
+            finally:
+                engine.dispose()
+
+            with self.assertRaisesRegex(
+                BaselineAdoptionError,
+                "voucher_batch_orphans=1",
+            ):
+                validate_and_adopt_baseline(
+                    database_url,
+                    apply=True,
+                )
+
+            self.assertIsNone(
+                get_current_revision(database_url)
             )
 
     def test_existing_schema_check_is_read_only(self):

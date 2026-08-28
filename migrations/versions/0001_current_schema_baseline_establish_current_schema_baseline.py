@@ -188,7 +188,7 @@ def upgrade() -> None:
     sa.Column('voucher_amount', sa.Float(), nullable=True),
     sa.Column('ocr_text', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['batch_id'], ['upload_batches.id'], ),
+    sa.ForeignKeyConstraint(['batch_id'], ['voucher_upload_batches.id'], ),
     sa.ForeignKeyConstraint(['uploader_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
