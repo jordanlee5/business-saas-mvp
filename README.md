@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.3.0 — 当前 MVP 正式收口**
-- 收口日期：2026-08-27
-- 收口前稳定代码基线：`883529789b4977dc04c86874ccfcded8df336f57`
-- 基线提交：`8835297 add allocation amount anomaly alerts and filtering`
+- 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
+- M0/v0.3.0 收口日期：2026-08-27
+- 本轮修改前稳定代码基线：`2e1593dc08e0920bc7e8ba764db25c80f15c59ee`
+- 基线提交：`2e1593d feat: establish mall domain rules foundation`
 
-v0.3.0 只收口现有版本、文档和后续商城规划，不新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。详细变化见 [CHANGELOG.md](CHANGELOG.md)。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
 
 ## 当前产品边界与术语
 
@@ -106,7 +106,8 @@ uvicorn app.main:app --reload
 
 ## 数据库、上传目录与迁移边界
 
-- 当前数据库为项目根目录下的本地 SQLite 文件 `saas_mvp.db`；
+- 应用从进程环境变量 `DATABASE_URL` 读取数据库连接地址；未设置或只包含空白时，仍使用项目根目录下的本地 SQLite 文件 `sqlite:///./saas_mvp.db`；
+- SQLite 连接继续使用现有的跨线程兼容参数；其他数据库方言不会接收 SQLite 专属参数；
 - 凭证及宣传页图片保存在本地 `uploads/` 目录；
 - `saas_mvp.db`、`uploads/` 和 `.env` 均不应提交到 Git；
 - 启动时 `create_all` 只能创建缺失表，不能替代已有数据库的字段迁移；
@@ -117,9 +118,11 @@ uvicorn app.main:app --reload
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
+M1 当前只建立数据库 URL 配置入口，尚未引入 PostgreSQL 驱动、迁移框架或 PostgreSQL 集成环境。完成对应独立提交前，不应把生产 PostgreSQL 地址配置给现有应用，也不能把启动时的 `create_all` 当作数据库迁移。
+
 ## 测试基线
 
-在稳定基线 `8835297` 上，完整依赖环境中的回归基线为：
+在当前 M1 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app
@@ -127,7 +130,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 234 tests ... OK`；
+- 全量单元测试：`Ran 257 tests ... OK`；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
