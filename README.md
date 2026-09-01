@@ -8,8 +8,8 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`ccf860b3d719c4ac4dd5ef0dff947253e36585df`
-- 基线提交：`ccf860b chore: establish current schema migration baseline`
+- 本轮修改前稳定代码基线：`74205e0278b8644155617d3290af84626220cc81`
+- 基线提交：`74205e0 chore: add safe SQLite baseline adoption workflow`
 
 M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
 
@@ -118,7 +118,7 @@ uvicorn app.main:app --reload
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境和首个现有结构基线。`0001_current_schema_baseline` 只固化 `ee34b97` 已有的 10 张业务表，不新增商城字段，也未引入 PostgreSQL 驱动或 PostgreSQL 集成环境。启动时的 `create_all` 仍不能当作数据库迁移。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境和首个现有结构基线。`0001_current_schema_baseline` 只固化现有的 10 张业务表，不新增商城字段。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。启动时的 `create_all` 仍不能当作数据库迁移。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -127,7 +127,20 @@ python -m pip install -r requirements-dev.txt
 python -m alembic -c alembic.ini heads
 python -m unittest -v test_migration_environment.py
 python -m unittest -v test_initial_schema_migration.py
+python -m unittest -v test_postgresql_migration.py
 ```
+
+`test_postgresql_migration.py` 默认只验证 PostgreSQL 配置安全规则和离线迁移 SQL，不连接外部数据库。需要执行真实 PostgreSQL 迁移往返测试时，必须使用独立的空测试库，并在当前 PowerShell 进程中显式授权：
+
+```powershell
+$env:POSTGRES_TEST_DATABASE_URL = "postgresql+psycopg://tester:replace_me@127.0.0.1:5432/business_saas_test"
+$env:POSTGRES_TEST_ALLOW_RESET = "1"
+python -m unittest -v test_postgresql_migration.PostgreSQLMigrationIntegrationTests
+Remove-Item Env:POSTGRES_TEST_DATABASE_URL
+Remove-Item Env:POSTGRES_TEST_ALLOW_RESET
+```
+
+测试入口会拒绝非 `postgresql+psycopg` 地址、名称不以 `_test` 结尾的数据库，以及与当前 `DATABASE_URL` 相同的数据库。它会在测试库中执行 `upgrade head`、结构一致性检查和 `downgrade base`，因此严禁填写开发共享库或生产库。
 
 `migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。空数据库可执行 `upgrade head` 建立当前结构；已有业务数据库不得直接执行 `upgrade` 或 `stamp`，应先运行以下默认只读检查：
 
@@ -155,7 +168,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 275 tests ... OK`；
+- 全量单元测试：`Ran 280 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

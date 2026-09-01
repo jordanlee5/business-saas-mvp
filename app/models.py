@@ -8,7 +8,8 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    text,
+    false,
+    true,
 )
 from .database import Base
 from .time_utils import utc8_now
@@ -40,7 +41,7 @@ class User(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("1"),
+        server_default=true(),
     )
 
     # 是否必须在首次登录后修改初始密码：
@@ -50,7 +51,7 @@ class User(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=text("0"),
+        server_default=false(),
     )
 
     service_rate = Column(Float, default=0.0)
@@ -210,7 +211,7 @@ class Notification(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=text("0"),
+        server_default=false(),
         index=True,
     )
 
@@ -284,7 +285,7 @@ class PromotionPage(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=text("0"),
+        server_default=false(),
         index=True,
     )
 
