@@ -23,6 +23,10 @@ from openpyxl.utils import get_column_letter
 
 from .database import engine, Base, SessionLocal
 from . import models
+from .api import (
+    MINIPROGRAM_API_PREFIX,
+    miniprogram_v1_router,
+)
 from .models import (
     AdminActionLog,
     BusinessRecord,
@@ -134,6 +138,7 @@ from .voucher_allocation import (
 )
 
 app = FastAPI(title="业务数据管理SaaS MVP")
+app.include_router(miniprogram_v1_router)
 
 def create_admin_action_log(
     db,
@@ -163,8 +168,9 @@ async def enforce_active_user_session(
 ):
     path = request.url.path
 
-    # 登录、退出、健康检查和静态资源
-    # 不做登录会话拦截。
+    # 登录、退出、健康检查、静态资源和小程序 API
+    # 不做旧版管理员 Cookie 会话拦截。小程序业务接口
+    # 必须在各自路由中使用独立的令牌认证。
     if (
         path in {
             "/login",
@@ -173,6 +179,9 @@ async def enforce_active_user_session(
         }
         or path.startswith("/static/")
         or path.startswith("/promo/")
+        or path.startswith(
+            f"{MINIPROGRAM_API_PREFIX}/"
+        )
     ):
         return await call_next(request)
 

@@ -8,10 +8,10 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`74205e0278b8644155617d3290af84626220cc81`
-- 基线提交：`74205e0 chore: add safe SQLite baseline adoption workflow`
+- 本轮修改前稳定代码基线：`f245579145360c7d16f456b2541d28b1e688ae06`
+- 基线提交：`f245579 chore: add PostgreSQL migration validation foundation`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则与数据库迁移前置能力，尚未新增商城数据库表、接口或页面，也不改变现有现金返现核销行为。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则、数据库迁移前置能力和小程序 API 路由骨架，尚未新增商城业务数据库表或页面，也不改变现有现金返现核销行为。
 
 ## 当前产品边界与术语
 
@@ -104,6 +104,16 @@ uvicorn app.main:app --reload
 
 初始化管理员前请先检查 `app/init_admin.py` 的本地配置，不要把真实密码写入仓库或提交记录。
 
+## 小程序 API 路由骨架
+
+M1 已建立独立于 `app/main.py` 页面路由的小程序 JSON API v1 入口。当前只开放不读取业务数据的版本状态端点：
+
+```text
+GET /api/miniprogram/v1/status
+```
+
+固定响应为 `status=ok`、`api_version=v1` 和 `service=mall-miniprogram-api`。该前缀不复用现有管理员 Cookie 会话；以后新增的激活、积分、商品或订单接口必须各自接入小程序短期令牌认证，不得因为位于该前缀下而默认公开。本轮没有增加任何商城业务接口、数据库表或页面。
+
 ## 数据库、上传目录与迁移边界
 
 - 应用从进程环境变量 `DATABASE_URL` 读取数据库连接地址；未设置或只包含空白时，仍使用项目根目录下的本地 SQLite 文件 `sqlite:///./saas_mvp.db`；
@@ -168,7 +178,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 280 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量单元测试：`Ran 285 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -179,6 +189,7 @@ python -m unittest discover -v
 business-saas-mvp/
 ├─ app/
 │  ├─ main.py                       # FastAPI 应用与现有页面路由
+│  ├─ api/                          # 版本化小程序 JSON API 路由
 │  ├─ models.py                     # SQLAlchemy 数据模型
 │  ├─ admin_permissions.py          # 管理员权限规则
 │  ├─ match_review_workflow.py      # 初审、复核与冲突控制
