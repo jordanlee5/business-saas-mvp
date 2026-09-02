@@ -8,10 +8,10 @@
 
 - 版本：**v0.4.0-M1 — 商城领域与迁移基础建设中**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`1a099a3185d8f3697b9577af09349b220ba1dfe4`
-- 基线提交：`1a099a3 feat: establish miniprogram API v1 router foundation`
+- 本轮修改前稳定代码基线：`0ecf7bc90c608db9560da243105167f4caf4d35b`
+- 基线提交：`0ecf7bc feat: establish mall permissions and audit foundation`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前只建立商城领域规则、数据库迁移前置能力、小程序 API 路由骨架以及商城权限与审计基础，尚未新增商城业务数据库表、业务 API 或页面，也不改变现有现金返现核销行为。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 当前已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构；尚未开放激活、积分、商品或订单业务 API 和页面，也不改变现有现金返现核销行为。
 
 ## 当前产品边界与术语
 
@@ -95,14 +95,15 @@ M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+python -m alembic -c alembic.ini upgrade head
 python -m app.init_admin
 uvicorn app.main:app --reload
 ```
 
 默认访问地址为 `http://127.0.0.1:8000`，健康检查地址为 `http://127.0.0.1:8000/health`。
 
-初始化管理员前请先检查 `app/init_admin.py` 的本地配置，不要把真实密码写入仓库或提交记录。
+以上 `upgrade head` 只适用于空数据库或已经按下文完成基线接入和副本演练的数据库；不得对来源不明的历史数据库直接运行。初始化管理员前请先检查 `app/init_admin.py` 的本地配置，不要把真实密码写入仓库或提交记录。应用启动与管理员初始化都会校验数据库必须处于当前 Alembic head，不再隐式建表。
 
 ## 小程序 API 路由骨架
 
@@ -112,7 +113,7 @@ M1 已建立独立于 `app/main.py` 页面路由的小程序 JSON API v1 入口�
 GET /api/miniprogram/v1/status
 ```
 
-固定响应为 `status=ok`、`api_version=v1` 和 `service=mall-miniprogram-api`。该前缀不复用现有管理员 Cookie 会话；以后新增的激活、积分、商品或订单接口必须各自接入小程序短期令牌认证，不得因为位于该前缀下而默认公开。本轮没有增加任何商城业务接口、数据库表或页面。
+固定响应为 `status=ok`、`api_version=v1` 和 `service=mall-miniprogram-api`。该前缀不复用现有管理员 Cookie 会话；以后新增的激活、积分、商品或订单接口必须各自接入小程序短期令牌认证，不得因为位于该前缀下而默认公开。本轮没有增加任何商城业务接口或页面。
 
 ## 商城后台权限与审计基础
 
@@ -124,7 +125,17 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - 商品上下架、SKU、库存调整、订单取消/发货/退款、积分调整、供应商维护和结算操作均使用已登记的审计动作类型；
 - 未知或尚未完成权限分级的审计动作失败关闭，不能默认继承传统运营权限。
 
-`OPEN-005` 已确认：同一会员可以持有多个积分批次，各批次独立记录余额与到期日，会员端汇总展示总余额并保留批次明细。当前只固化该规则，尚未新增会员或积分数据库表。
+`OPEN-005` 已确认：同一会员可以持有多个积分批次，各批次独立记录余额与到期日，会员端汇总展示总余额并保留批次明细。M1 已建立相应的会员、微信绑定、积分账户、积分批次和积分流水表；积分入账、预占、消费与退款服务仍在后续阶段实现。
+
+## 商城核心表结构
+
+`0002_mall_core_foundation` 在初始基线之后建立以下结构，不开放业务写入口：
+
+- `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
+- 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
+- 新增 `points_accounts`、`points_grants` 与 `points_ledger_entries`，积分统一为 `NUMERIC(18, 2)`，同一会员可以持有多个独立到期批次，同一来源业务只能生成一个积分批次；
+- 渠道、领取状态、非负余额、有效期、流水类型、非零流水及人工调整审计要求均由数据库约束失败关闭；
+- 商品、库存、订单、退款、供应商结算及激活安全表未提前纳入本轮，仍按对应业务参数确认和后续阶段独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -132,7 +143,7 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - SQLite 连接继续使用现有的跨线程兼容参数；其他数据库方言不会接收 SQLite 专属参数；
 - 凭证及宣传页图片保存在本地 `uploads/` 目录；
 - `saas_mvp.db`、`uploads/` 和 `.env` 均不应提交到 Git；
-- 启动时 `create_all` 只能创建缺失表，不能替代已有数据库的字段迁移；
+- 应用和管理员初始化不再调用 `create_all`；数据库不是当前 Alembic head 或版本标记与结构不一致时，启动会明确失败；
 - 仓库根目录的 `add_*.py` 是历史阶段迁移脚本，不是统一迁移框架；
 - 升级历史数据库前，必须同时备份 `saas_mvp.db` 与 `uploads/`，再按来源版本选择并验证所需迁移；
 - 审计和修复脚本必须先以只读预演方式核对，不能当作日常迁移脚本批量执行；
@@ -140,7 +151,7 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境和首个现有结构基线。`0001_current_schema_baseline` 只固化现有的 10 张业务表，不新增商城字段。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。启动时的 `create_all` 仍不能当作数据库迁移。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表；`0002_mall_core_foundation` 才新增商城渠道字段与会员积分核心表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -149,6 +160,9 @@ python -m pip install -r requirements-dev.txt
 python -m alembic -c alembic.ini heads
 python -m unittest -v test_migration_environment.py
 python -m unittest -v test_initial_schema_migration.py
+python -m unittest -v test_mall_core_migration.py
+python -m unittest -v test_migration_upgrade_rehearsal.py
+python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
 ```
 
@@ -164,13 +178,13 @@ Remove-Item Env:POSTGRES_TEST_ALLOW_RESET
 
 测试入口会拒绝非 `postgresql+psycopg` 地址、名称不以 `_test` 结尾的数据库，以及与当前 `DATABASE_URL` 相同的数据库。它会在测试库中执行 `upgrade head`、结构一致性检查和 `downgrade base`，因此严禁填写开发共享库或生产库。
 
-`migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。空数据库可执行 `upgrade head` 建立当前结构；已有业务数据库不得直接执行 `upgrade` 或 `stamp`，应先运行以下默认只读检查：
+`migrations/env.py` 复用 `DATABASE_URL` 并加载当前 SQLAlchemy metadata。空数据库可执行 `upgrade head` 建立当前结构；尚未接入 Alembic 的已有业务数据库不得直接执行 `upgrade` 或 `stamp`，应先运行以下默认只读检查：
 
 ```powershell
 python -m app.migration_baseline
 ```
 
-检查通过后仍需先备份数据库与 `uploads/`，并审阅数据库来源和检查结果；只有明确需要接入基线时，才运行 `python -m app.migration_baseline --apply`。该命令再次校验结构，只写入 `0001_current_schema_baseline` 版本标记，不创建、删除或改写业务表。历史 SQLite 兼容范围只包含已经审计并固化的类型、默认值、索引和外键差异，同时会校验审核人引用、凭证上传批次引用、布尔值与费率模式；任何未知差异或异常数据都会拒绝写入版本标记。工具会在出现其他 revision 后自动拒绝运行，禁止绕过它直接执行 `alembic stamp`。`alembic downgrade base` 只允许用于无业务数据的临时测试库，严禁对现有业务数据库执行。
+检查通过后仍需先备份数据库与 `uploads/`，并审阅数据库来源和检查结果；只有明确需要接入基线时，才运行 `python -m app.migration_baseline --apply`。该命令再次校验原始结构，只写入 `0001_current_schema_baseline` 版本标记，不创建、删除或改写业务表。历史 SQLite 兼容范围只包含已经审计并固化的类型、默认值、索引和外键差异，同时会校验审核人引用、凭证上传批次引用、布尔值与费率模式；任何未知差异或异常数据都会拒绝写入版本标记。工具只支持包含 0001 的单一线性迁移链，并只会接入初始基线，禁止绕过它直接执行 `alembic stamp`。`alembic downgrade base` 只允许用于无业务数据的临时测试库，严禁对现有业务数据库执行。
 
 在考虑对已有数据库写入版本标记前，必须先停止应用并运行副本演练：
 
@@ -179,6 +193,14 @@ python -m app.migration_rehearsal
 ```
 
 该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
+
+已经稳定停留在 `0001_current_schema_baseline` 的 SQLite 数据库，在升级商城核心结构前必须停止应用，并运行：
+
+```powershell
+python -m app.migration_upgrade_rehearsal
+```
+
+该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录 0001 的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0002_mall_core_foundation`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成页面验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
 
 ## 测试基线
 
@@ -190,7 +212,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 296 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量单元测试：`Ran 311 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -212,6 +234,8 @@ business-saas-mvp/
 │  ├─ promotion_page_service.py     # 宣传页业务规则
 │  ├─ migration_baseline.py          # 已有数据库的只读检查与安全接入
 │  ├─ migration_rehearsal.py         # SQLite 副本基线接入演练
+│  ├─ migration_upgrade_rehearsal.py # SQLite 副本 0001→head 升级演练
+│  ├─ schema_readiness.py            # 启动时数据库版本与结构校验
 │  ├─ templates/                    # 服务端页面模板
 │  └─ static/                       # 样式、脚本与图片资源
 ├─ docs/

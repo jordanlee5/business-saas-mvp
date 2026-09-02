@@ -17,6 +17,7 @@ from app.database import (
     resolve_database_url,
 )
 from app.migration_baseline import BASELINE_REVISION
+from app.schema_readiness import CURRENT_SCHEMA_REVISION
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -194,6 +195,16 @@ class PostgreSQLTestConfigurationTests(unittest.TestCase):
             migration_sql,
         )
         self.assertIn(BASELINE_REVISION, migration_sql)
+        self.assertIn(CURRENT_SCHEMA_REVISION, migration_sql)
+        self.assertIn(
+            "redemption_mode VARCHAR(30) DEFAULT "
+            "'CASH_REBATE' NOT NULL",
+            migration_sql,
+        )
+        self.assertIn(
+            "granted_points NUMERIC(18, 2) NOT NULL",
+            migration_sql,
+        )
 
 
 class PostgreSQLMigrationIntegrationTests(unittest.TestCase):
@@ -249,7 +260,7 @@ class PostgreSQLMigrationIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(
                 revision_after,
-                BASELINE_REVISION,
+                CURRENT_SCHEMA_REVISION,
             )
             self.assertEqual(
                 tables_after - {"alembic_version"},

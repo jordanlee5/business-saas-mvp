@@ -23,6 +23,43 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ALEMBIC_CONFIG_PATH = PROJECT_ROOT / "alembic.ini"
 BASELINE_REVISION = "0001_current_schema_baseline"
 
+# 初始基线之后由正式 Alembic revision 管理的结构。
+# 基线接入检查只忽略这里逐项登记的对象，其他差异仍失败关闭。
+POST_BASELINE_TABLES = frozenset(
+    {
+        "members",
+        "member_wechat_bindings",
+        "points_accounts",
+        "points_grants",
+        "points_ledger_entries",
+    }
+)
+
+POST_BASELINE_COLUMNS = frozenset(
+    {
+        ("upload_batches", "redemption_mode"),
+        ("upload_batches", "claim_deadline"),
+        ("business_records", "redemption_mode"),
+        ("business_records", "claim_status"),
+    }
+)
+
+POST_BASELINE_INDEXES = frozenset(
+    {
+        "ix_upload_batches_redemption_mode",
+        "ix_business_records_redemption_mode",
+        "ix_business_records_claim_status",
+    }
+)
+
+POST_BASELINE_CONSTRAINTS = frozenset(
+    {
+        "ck_upload_batches_redemption_mode",
+        "ck_business_records_redemption_mode",
+        "ck_business_records_claim_status",
+    }
+)
+
 LEGACY_SQLITE_DEFAULTS = {
     ("admin_action_logs", "created_at"): "CURRENT_TIMESTAMP",
     ("business_records", "record_service_rate"): "0",
@@ -165,14 +202,62 @@ def build_alembic_config() -> Config:
     return Config(str(ALEMBIC_CONFIG_PATH))
 
 
-def ensure_baseline_is_only_head(config: Config) -> None:
-    heads = tuple(
-        ScriptDirectory.from_config(config).get_heads()
-    )
-    if heads != (BASELINE_REVISION,):
+def ensure_baseline_precedes_single_head(config: Config) -> None:
+    """Require one linear migration chain containing the baseline."""
+    script = ScriptDirectory.from_config(config)
+    heads = tuple(script.get_heads())
+    if len(heads) != 1:
         raise BaselineAdoptionError(
-            "基线接入工具仅允许在初始基线是唯一 head 时运行"
+            "基线接入工具仅支持包含单一 head 的线性迁移链"
         )
+
+    revisions = {
+        revision.revision
+        for revision in script.walk_revisions(
+            base="base",
+            head=heads[0],
+        )
+    }
+    if BASELINE_REVISION not in revisions:
+        raise BaselineAdoptionError(
+            "当前迁移链不包含受支持的初始基线"
+        )
+
+
+def include_baseline_object(
+    object_: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object | None,
+) -> bool:
+    """Exclude only explicitly registered post-baseline objects."""
+    del reflected, compare_to
+
+    table = getattr(object_, "table", None)
+    table_name = getattr(table, "name", None)
+    if type_ == "table":
+        table_name = name
+
+    if table_name in POST_BASELINE_TABLES:
+        return False
+
+    if (
+        type_ == "column"
+        and (table_name, name) in POST_BASELINE_COLUMNS
+    ):
+        return False
+
+    if type_ == "index" and name in POST_BASELINE_INDEXES:
+        return False
+
+    if (
+        type_.endswith("constraint")
+        and name in POST_BASELINE_CONSTRAINTS
+    ):
+        return False
+
+    return True
 
 
 def get_database_revisions(
@@ -193,13 +278,19 @@ def get_database_revisions(
 
 def get_schema_differences(
     connection: Connection,
+    *,
+    include_post_baseline_objects: bool = False,
 ) -> tuple[object, ...]:
+    options: dict[str, object] = {
+        "compare_type": True,
+        "compare_server_default": True,
+    }
+    if not include_post_baseline_objects:
+        options["include_object"] = include_baseline_object
+
     migration_context = MigrationContext.configure(
         connection,
-        opts={
-            "compare_type": True,
-            "compare_server_default": True,
-        },
+        opts=options,
     )
     return tuple(
         compare_metadata(migration_context, Base.metadata)
@@ -405,7 +496,7 @@ def validate_and_adopt_baseline(
 ) -> BaselineAdoptionResult:
     """Validate an existing schema and optionally stamp the baseline."""
     config = build_alembic_config()
-    ensure_baseline_is_only_head(config)
+    ensure_baseline_precedes_single_head(config)
     engine = create_database_engine(database_url)
 
     try:

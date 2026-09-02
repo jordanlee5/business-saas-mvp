@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, Form, UploadFile, File, Query
 from fastapi.responses import (
     HTMLResponse,
@@ -21,12 +23,13 @@ import pandas as pd
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
-from .database import engine, Base, SessionLocal
+from .database import engine, SessionLocal
 from . import models
 from .api import (
     MINIPROGRAM_API_PREFIX,
     miniprogram_v1_router,
 )
+from .schema_readiness import assert_database_schema_ready
 from .models import (
     AdminActionLog,
     BusinessRecord,
@@ -137,7 +140,18 @@ from .voucher_allocation import (
     has_remaining_business_allocation_capacity,
 )
 
-app = FastAPI(title="业务数据管理SaaS MVP")
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Refuse to serve against an unversioned or outdated database."""
+    del application
+    assert_database_schema_ready(engine)
+    yield
+
+
+app = FastAPI(
+    title="业务数据管理SaaS MVP",
+    lifespan=lifespan,
+)
 app.include_router(miniprogram_v1_router)
 
 def create_admin_action_log(
@@ -241,9 +255,6 @@ async def enforce_active_user_session(
         db.close()
 
     return await call_next(request)
-
-# 创建数据库表
-Base.metadata.create_all(bind=engine)
 
 os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

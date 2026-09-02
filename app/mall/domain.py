@@ -16,9 +16,57 @@ class BusinessChannel(str, Enum):
     MALL_REDEMPTION = "MALL_REDEMPTION"
 
 
+class BusinessClaimStatus(str, Enum):
+    """商城渠道业务权益的领取状态。"""
+
+    PENDING_ACTIVATION = "PENDING_ACTIVATION"
+    ACTIVATED = "ACTIVATED"
+    EXPIRED = "EXPIRED"
+    FROZEN = "FROZEN"
+
+
+class PointsGrantStatus(str, Enum):
+    """一个会员积分批次的状态。"""
+
+    ACTIVE = "ACTIVE"
+    EXHAUSTED = "EXHAUSTED"
+    EXPIRED = "EXPIRED"
+    FROZEN = "FROZEN"
+
+
+class PointsLedgerEntryType(str, Enum):
+    """不可变积分流水支持的业务动作。"""
+
+    GRANT = "GRANT"
+    RESERVE = "RESERVE"
+    RELEASE = "RELEASE"
+    CONSUME = "CONSUME"
+    REFUND = "REFUND"
+    EXPIRE = "EXPIRE"
+    ADJUST = "ADJUST"
+
+
 VALID_BUSINESS_CHANNELS = frozenset(
     channel.value
     for channel in BusinessChannel
+)
+
+
+VALID_BUSINESS_CLAIM_STATUSES = frozenset(
+    status.value
+    for status in BusinessClaimStatus
+)
+
+
+VALID_POINTS_GRANT_STATUSES = frozenset(
+    status.value
+    for status in PointsGrantStatus
+)
+
+
+VALID_POINTS_LEDGER_ENTRY_TYPES = frozenset(
+    entry_type.value
+    for entry_type in PointsLedgerEntryType
 )
 
 

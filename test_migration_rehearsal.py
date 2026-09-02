@@ -1,13 +1,16 @@
 import sqlite3
 import unittest
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
+from alembic import command
+from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine
 
 from app import models as application_models
-from app.database import Base
 from app.migration_baseline import (
     BASELINE_REVISION,
     BaselineAdoptionError,
@@ -22,12 +25,22 @@ from app.migration_rehearsal import (
 
 
 def create_current_database(database_path: Path) -> None:
-    engine = create_engine(
-        build_sqlite_database_url(database_path)
+    database_url = build_sqlite_database_url(database_path)
+    config = Config(
+        str(Path(__file__).resolve().parent / "alembic.ini")
     )
+    with patch.dict(
+        os.environ,
+        {"DATABASE_URL": database_url},
+    ):
+        command.upgrade(config, BASELINE_REVISION)
+
+    engine = create_engine(database_url)
     try:
-        Base.metadata.create_all(bind=engine)
         with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "DROP TABLE alembic_version"
+            )
             connection.execute(
                 application_models.User.__table__.insert().values(
                     username="rehearsal-marker",

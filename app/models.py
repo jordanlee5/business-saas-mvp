@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -8,10 +9,15 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     false,
     true,
 )
 from .database import Base
+from .mall.domain import (
+    BusinessChannel,
+    PointsGrantStatus,
+)
 from .time_utils import utc8_now
 
 # 用户表
@@ -82,6 +88,23 @@ class User(Base):
 # 业务数据表
 class BusinessRecord(Base):
     __tablename__ = "business_records"
+    __table_args__ = (
+        CheckConstraint(
+            "redemption_mode IN "
+            "('CASH_REBATE', 'MALL_REDEMPTION')",
+            name="ck_business_records_redemption_mode",
+        ),
+        CheckConstraint(
+            "(redemption_mode = 'CASH_REBATE' "
+            "AND claim_status IS NULL) OR "
+            "(redemption_mode = 'MALL_REDEMPTION' "
+            "AND claim_status IS NOT NULL "
+            "AND claim_status IN "
+            "('PENDING_ACTIVATION', 'ACTIVATED', "
+            "'EXPIRED', 'FROZEN'))",
+            name="ck_business_records_claim_status",
+        ),
+    )
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     batch_id = Column(Integer, ForeignKey("upload_batches.id"))
@@ -101,6 +124,24 @@ class BusinessRecord(Base):
     plate_number = Column(String, index=True)
     points_amount = Column(Float)
     bank_card = Column(String, index=True)
+
+    # 一条业务只能进入现金返现或积分商城渠道。
+    # 历史数据及未显式选择的新数据继续默认现金返现。
+    redemption_mode = Column(
+        String(30),
+        nullable=False,
+        default=BusinessChannel.CASH_REBATE.value,
+        server_default=BusinessChannel.CASH_REBATE.value,
+        index=True,
+    )
+
+    # 仅商城渠道业务使用；现金返现业务必须保持为空。
+    claim_status = Column(
+        String(30),
+        nullable=True,
+        default=None,
+        index=True,
+    )
 
     record_service_rate = Column(Float, default=0.0)
     record_upstream_cost_rate = Column(Float, default=0.0)
@@ -148,6 +189,13 @@ class BusinessRecord(Base):
 
 class UploadBatch(Base):
     __tablename__ = "upload_batches"
+    __table_args__ = (
+        CheckConstraint(
+            "redemption_mode IN "
+            "('CASH_REBATE', 'MALL_REDEMPTION')",
+            name="ck_upload_batches_redemption_mode",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -156,6 +204,17 @@ class UploadBatch(Base):
     success_rows = Column(Integer, default=0)
     failed_rows = Column(Integer, default=0)
     acceptance_status = Column(String, default="待承接")
+    redemption_mode = Column(
+        String(30),
+        nullable=False,
+        default=BusinessChannel.CASH_REBATE.value,
+        server_default=BusinessChannel.CASH_REBATE.value,
+        index=True,
+    )
+    claim_deadline = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at = Column(DateTime(timezone=True), default=utc8_now)
 
 class Notification(Base):
@@ -464,3 +523,306 @@ class AdminActionLog(Base):
     description = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=utc8_now)
+
+
+class Member(Base):
+    """小程序会员主体；公开编号不能作为登录凭证。"""
+
+    __tablename__ = "members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    member_public_id = Column(
+        String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class MemberWechatBinding(Base):
+    """会员与微信小程序身份的服务端绑定。"""
+
+    __tablename__ = "member_wechat_bindings"
+    __table_args__ = (
+        UniqueConstraint(
+            "wechat_app_id",
+            "openid",
+            name=(
+                "uq_member_wechat_bindings_app_openid"
+            ),
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    member_id = Column(
+        Integer,
+        ForeignKey("members.id"),
+        nullable=False,
+        index=True,
+    )
+    wechat_app_id = Column(
+        String(64),
+        nullable=False,
+    )
+    openid = Column(
+        String(128),
+        nullable=False,
+    )
+    unionid = Column(
+        String(128),
+        nullable=True,
+        index=True,
+    )
+    bound_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    last_login_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+
+class PointsAccount(Base):
+    """会员积分汇总缓存；必须能够由不可变流水重算。"""
+
+    __tablename__ = "points_accounts"
+    __table_args__ = (
+        CheckConstraint(
+            "available_points >= 0",
+            name="ck_points_accounts_available_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_points >= 0",
+            name="ck_points_accounts_reserved_nonnegative",
+        ),
+        CheckConstraint(
+            "version >= 0",
+            name="ck_points_accounts_version_nonnegative",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    member_id = Column(
+        Integer,
+        ForeignKey("members.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    available_points = Column(
+        Numeric(18, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    reserved_points = Column(
+        Numeric(18, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    version = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class PointsGrant(Base):
+    """每条已激活商城业务形成的独立积分批次。"""
+
+    __tablename__ = "points_grants"
+    __table_args__ = (
+        CheckConstraint(
+            "granted_points > 0",
+            name="ck_points_grants_granted_positive",
+        ),
+        CheckConstraint(
+            "available_points >= 0",
+            name="ck_points_grants_available_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_points >= 0",
+            name="ck_points_grants_reserved_nonnegative",
+        ),
+        CheckConstraint(
+            "available_points + reserved_points <= granted_points",
+            name="ck_points_grants_balance_within_grant",
+        ),
+        CheckConstraint(
+            "expires_at > activated_at",
+            name="ck_points_grants_expiry_after_activation",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('ACTIVE', 'EXHAUSTED', 'EXPIRED', 'FROZEN')",
+            name="ck_points_grants_status",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(
+        Integer,
+        ForeignKey("points_accounts.id"),
+        nullable=False,
+        index=True,
+    )
+    business_record_id = Column(
+        Integer,
+        ForeignKey("business_records.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    granted_points = Column(
+        Numeric(18, 2),
+        nullable=False,
+    )
+    available_points = Column(
+        Numeric(18, 2),
+        nullable=False,
+    )
+    reserved_points = Column(
+        Numeric(18, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    activated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    expires_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    status = Column(
+        String(30),
+        nullable=False,
+        default=PointsGrantStatus.ACTIVE.value,
+        server_default=PointsGrantStatus.ACTIVE.value,
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class PointsLedgerEntry(Base):
+    """只能追加的积分流水；余额缓存不能替代此表。"""
+
+    __tablename__ = "points_ledger_entries"
+    __table_args__ = (
+        CheckConstraint(
+            "entry_type IN "
+            "('GRANT', 'RESERVE', 'RELEASE', 'CONSUME', "
+            "'REFUND', 'EXPIRE', 'ADJUST')",
+            name="ck_points_ledger_entries_type",
+        ),
+        CheckConstraint(
+            "available_points_delta <> 0 "
+            "OR reserved_points_delta <> 0",
+            name="ck_points_ledger_entries_nonzero_delta",
+        ),
+        CheckConstraint(
+            "entry_type <> 'ADJUST' OR "
+            "(actor_admin_id IS NOT NULL AND reason IS NOT NULL "
+            "AND length(trim(reason)) > 0)",
+            name="ck_points_ledger_entries_adjustment_audit",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    grant_id = Column(
+        Integer,
+        ForeignKey("points_grants.id"),
+        nullable=False,
+        index=True,
+    )
+    entry_type = Column(
+        String(30),
+        nullable=False,
+        index=True,
+    )
+    available_points_delta = Column(
+        Numeric(18, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    reserved_points_delta = Column(
+        Numeric(18, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    idempotency_key = Column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    reference_type = Column(
+        String(50),
+        nullable=True,
+    )
+    reference_id = Column(
+        String(64),
+        nullable=True,
+    )
+    actor_admin_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+    reason = Column(
+        String(500),
+        nullable=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )

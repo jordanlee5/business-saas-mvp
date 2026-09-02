@@ -22,6 +22,9 @@ from app.migration_baseline import (
 )
 
 
+MALL_CORE_REVISION = "0002_mall_core_foundation"
+
+
 def build_sqlite_url(database_path: Path) -> str:
     return f"sqlite:///{database_path.as_posix()}"
 
@@ -77,9 +80,14 @@ def get_foreign_key_targets(
 
 
 def create_current_schema(database_url: str) -> None:
+    config = build_alembic_config(database_url)
+    command.upgrade(config, BASELINE_REVISION)
     engine = create_engine(database_url)
     try:
-        Base.metadata.create_all(bind=engine)
+        with engine.begin() as connection:
+            connection.execute(
+                text("DROP TABLE alembic_version")
+            )
     finally:
         engine.dispose()
 
@@ -125,7 +133,7 @@ class InitialSchemaMigrationTests(unittest.TestCase):
             command.check(config)
             self.assertEqual(
                 get_current_revision(database_url),
-                BASELINE_REVISION,
+                MALL_CORE_REVISION,
             )
             self.assertEqual(
                 get_application_table_names(database_url),
@@ -141,7 +149,7 @@ class InitialSchemaMigrationTests(unittest.TestCase):
             command.upgrade(config, "head")
             self.assertEqual(
                 get_current_revision(database_url),
-                BASELINE_REVISION,
+                MALL_CORE_REVISION,
             )
 
     def test_voucher_batch_foreign_key_targets_voucher_batches(self):
@@ -398,13 +406,10 @@ class InitialSchemaMigrationTests(unittest.TestCase):
                         )
                     )
                     connection.execute(
-                        application_models.UploadBatch
-                        .__table__
-                        .insert()
-                        .values(
-                            id=36,
-                            user_id=1,
-                            filename="business.xlsx",
+                        text(
+                            "INSERT INTO upload_batches "
+                            "(id, user_id, filename) "
+                            "VALUES (36, 1, 'business.xlsx')"
                         )
                     )
                     connection.execute(
