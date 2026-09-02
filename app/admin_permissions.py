@@ -1,4 +1,10 @@
 from collections.abc import Collection
+from types import MappingProxyType
+
+from .mall.audit import (
+    MallAuditActionType,
+    normalize_mall_audit_action_type,
+)
 
 
 SUPER_ADMIN = "super_admin"
@@ -138,6 +144,97 @@ PROMOTION_PAGE_MANAGEMENT_LEVELS = frozenset(
     {
         SUPER_ADMIN,
         OPERATOR,
+    }
+)
+
+
+# 商城普通运营写操作：超级管理员与运营管理员。
+#
+# 各业务域保留独立集合，当前即使权限相同也不合并，
+# 便于后续在不影响其他商城模块的情况下按业务风险继续细分。
+MALL_CATALOG_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+MALL_INVENTORY_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+MALL_ORDER_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+MALL_SUPPLIER_MANAGEMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+# 高风险写操作只允许超级管理员。
+MALL_POINTS_ADJUSTMENT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+    }
+)
+
+
+MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS = (
+    frozenset(
+        {
+            SUPER_ADMIN,
+        }
+    )
+)
+
+
+# 每个审计动作都必须显式分级。新增枚举但未加入此映射时，
+# can_perform_mall_audit_action 会失败关闭，而不是默认放行。
+MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
+    {
+        MallAuditActionType.PRODUCT_CREATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_UPDATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_PUBLISH:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_UNPUBLISH:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.SKU_CREATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.SKU_UPDATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.INVENTORY_ADJUST:
+            MALL_INVENTORY_MANAGEMENT_LEVELS,
+        MallAuditActionType.ORDER_CANCEL:
+            MALL_ORDER_MANAGEMENT_LEVELS,
+        MallAuditActionType.ORDER_SHIP:
+            MALL_ORDER_MANAGEMENT_LEVELS,
+        MallAuditActionType.ORDER_REFUND:
+            MALL_ORDER_MANAGEMENT_LEVELS,
+        MallAuditActionType.POINTS_ADJUST:
+            MALL_POINTS_ADJUSTMENT_LEVELS,
+        MallAuditActionType.SUPPLIER_CREATE:
+            MALL_SUPPLIER_MANAGEMENT_LEVELS,
+        MallAuditActionType.SUPPLIER_UPDATE:
+            MALL_SUPPLIER_MANAGEMENT_LEVELS,
+        MallAuditActionType.SUPPLIER_SETTLEMENT_GENERATE:
+            MALL_SUPPLIER_MANAGEMENT_LEVELS,
+        MallAuditActionType.SUPPLIER_SETTLEMENT_CONFIRM:
+            MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS,
     }
 )
 
@@ -339,4 +436,96 @@ def can_manage_promotion_pages(
     return has_admin_level(
         user,
         PROMOTION_PAGE_MANAGEMENT_LEVELS,
+    )
+
+
+def can_manage_mall_catalog(
+    user: object | None,
+) -> bool:
+    """是否可以管理商城商品、SKU 与上下架状态。"""
+    return has_admin_level(
+        user,
+        MALL_CATALOG_MANAGEMENT_LEVELS,
+    )
+
+
+def can_manage_mall_inventory(
+    user: object | None,
+) -> bool:
+    """是否可以执行商城库存调整。"""
+    return has_admin_level(
+        user,
+        MALL_INVENTORY_MANAGEMENT_LEVELS,
+    )
+
+
+def can_manage_mall_orders(
+    user: object | None,
+) -> bool:
+    """是否可以执行商城订单取消、发货和退款操作。"""
+    return has_admin_level(
+        user,
+        MALL_ORDER_MANAGEMENT_LEVELS,
+    )
+
+
+def can_manage_mall_suppliers(
+    user: object | None,
+) -> bool:
+    """是否可以维护供应商并生成待确认结算。"""
+    return has_admin_level(
+        user,
+        MALL_SUPPLIER_MANAGEMENT_LEVELS,
+    )
+
+
+def can_adjust_mall_points(
+    user: object | None,
+) -> bool:
+    """是否可以人工调整会员积分。"""
+    return has_admin_level(
+        user,
+        MALL_POINTS_ADJUSTMENT_LEVELS,
+    )
+
+
+def can_confirm_mall_supplier_settlements(
+    user: object | None,
+) -> bool:
+    """是否可以确认供应商结算。"""
+    return has_admin_level(
+        user,
+        MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS,
+    )
+
+
+def can_perform_mall_audit_action(
+    user: object | None,
+    action_type: MallAuditActionType | str,
+) -> bool:
+    """
+    是否可以执行指定的商城审计动作。
+
+    未登记的动作或未分级的动作一律拒绝，供后续商城路由
+    和领域服务在写入前进行统一的失败关闭权限检查。
+    """
+    try:
+        normalized_action = (
+            normalize_mall_audit_action_type(
+                action_type
+            )
+        )
+    except ValueError:
+        return False
+
+    allowed_levels = MALL_AUDIT_ACTION_LEVELS.get(
+        normalized_action
+    )
+
+    if allowed_levels is None:
+        return False
+
+    return has_admin_level(
+        user,
+        allowed_levels,
     )
