@@ -514,15 +514,22 @@
 }
 
 .batch-action-stack {
-    width: 196px;
-    flex-direction: column;
-    align-items: flex-start;
+    width: max-content;
+    max-width: 100%;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
 }
 
 .batch-decision-row form,
 .batch-correction-form,
 .batch-revert-form {
     margin: 0;
+}
+
+.batch-decision-row,
+.batch-correction-form {
+    flex-wrap: nowrap;
 }
 
 .batch-action-button {
@@ -533,9 +540,14 @@
     color: #ffffff;
     font-size: 12px;
     font-weight: 700;
-    line-height: 1.15;
+    line-height: 1;
     cursor: pointer;
-    white-space: normal;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.batch-action-button:not(:disabled):hover {
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.16);
 }
 
 .batch-action-primary {
@@ -556,7 +568,7 @@
 }
 
 .batch-action-wide {
-    min-width: 68px;
+    min-width: auto;
 }
 
 .batch-action-button:disabled {
@@ -574,15 +586,28 @@
 }
 
 .batch-revert-details {
-    max-width: 196px;
+    max-width: 100%;
 }
 
 .batch-revert-details summary {
-    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    width: max-content;
+    box-sizing: border-box;
+    padding: 0 9px;
+    border-radius: 8px;
+    background: #fff7ed;
     color: #b45309;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+    white-space: nowrap;
+}
+
+.batch-revert-details[open] summary,
+.batch-revert-details summary:hover {
+    background: #ffedd5;
 }
 
 .batch-revert-form {
@@ -597,4 +622,11 @@
     padding: 0 8px;
     box-sizing: border-box;
     font-size: 12px;
+}
+
+@media (max-width: 900px) {
+    .batch-action-stack,
+    .batch-correction-form {
+        flex-wrap: wrap;
+    }
 }

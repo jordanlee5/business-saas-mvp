@@ -17,7 +17,7 @@
         }
 
         .upload-batches-page {
-            max-width: 1320px;
+            max-width: 1440px;
         }
 
         .upload-batches-page .ui-card {
@@ -29,7 +29,7 @@
         }        
         table {
             width: 100%;
-            min-width: 1080px;
+            min-width: 1200px;
             border-collapse: collapse;
             margin-top: 18px;
             table-layout: fixed;
@@ -73,8 +73,7 @@
             white-space: nowrap;
         }
 
-        .cell-stack,
-        .upload-batch-actions {
+        .cell-stack {
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -88,7 +87,11 @@
         }
 
         .upload-batch-actions {
-            align-items: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.35;
+            white-space: nowrap;
         }
 
         .small-link {
@@ -100,6 +103,47 @@
 
         .small-link:hover {
             text-decoration: underline;
+        }
+
+        .upload-batch-actions > .small-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            box-sizing: border-box;
+            padding: 0 9px;
+            border-radius: 8px;
+            background: #eff6ff;
+            text-decoration: none;
+        }
+
+        .upload-batch-actions > .small-link:hover {
+            background: #dbeafe;
+            text-decoration: none;
+        }
+
+        .upload-batch-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .upload-batch-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .upload-batch-status.accepted {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .upload-batch-status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .batch-feedback {
@@ -169,6 +213,11 @@
 
             .batch-filter-actions {
                 flex-wrap: wrap;
+            }
+
+            .upload-batch-actions {
+                align-items: flex-start;
+                flex-direction: column;
             }
         }
 
@@ -306,13 +355,13 @@
         <table>
             <colgroup>
                 <col style="width: 62px;">
-                <col style="width: 112px;">
-                <col style="width: 136px;">
-                <col style="width: 168px;">
-                <col style="width: 90px;">
-                <col style="width: 90px;">
-                <col style="width: 150px;">
-                <col style="width: 250px;">
+                <col style="width: 106px;">
+                <col style="width: 108px;">
+                <col style="width: 160px;">
+                <col style="width: 82px;">
+                <col style="width: 88px;">
+                <col style="width: 146px;">
+                <col style="width: 448px;">
             </colgroup>
             <thead>
                 <tr>
@@ -349,7 +398,15 @@
                         </div>
                     </td>
                     <td class="success">{{ item.success_rows }} 条</td>
-                    <td>{{ item.acceptance_status }}</td>
+                    <td>
+                        {% if item.acceptance_status == "待承接" %}
+                            <span class="upload-batch-status pending">待承接</span>
+                        {% elif item.acceptance_status == "已承接" %}
+                            <span class="upload-batch-status accepted">已承接</span>
+                        {% else %}
+                            <span class="upload-batch-status rejected">已拒绝</span>
+                        {% endif %}
+                    </td>
                     <td>{{ item.created_at | format_utc8 }}</td>
                     <td>
                         <div class="upload-batch-actions">
