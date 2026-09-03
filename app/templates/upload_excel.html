@@ -13,9 +13,28 @@
         }        
         .upload-form {
             display: grid;
-            grid-template-columns: 1fr 150px;
+            grid-template-columns: 210px 220px minmax(280px, 1fr) 150px;
             gap: 14px;
-            align-items: center;
+            align-items: end;
+        }
+
+        .upload-field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .upload-field select,
+        .upload-field input[type="date"] {
+            width: 100%;
+            height: 42px;
+            box-sizing: border-box;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-control);
+            background: white;
         }
 
         .upload-form input[type="file"] {
@@ -57,7 +76,13 @@
 
         ul {
             line-height: 1.5;
-        }        
+        }
+
+        @media (max-width: 1100px) {
+            .upload-form {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
 
 
@@ -67,6 +92,8 @@
 
         <div class="ui-hint">
             请上传固定模板 Excel 服务需求清单，需包含：姓名、手机号、车牌号、积分金额、银行卡号。
+            现金返现每行均须填写银行卡号；商城积分的银行卡号可以留空，但必须设置领取截止日。
+            任意一行校验失败时，整份清单都不会导入。
         </div>
 
         {% if message %}
@@ -85,10 +112,45 @@
         {% endif %}
 
         <form method="post" action="/upload-excel" enctype="multipart/form-data" class="upload-form">
-            <input type="file" name="file" accept=".xlsx,.xls" required>
+            <div class="upload-field">
+                <label for="redemption_mode">积分使用渠道</label>
+                <select id="redemption_mode" name="redemption_mode" required>
+                    {% for value, label in business_channel_labels.items() %}
+                        <option value="{{ value }}" {% if redemption_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="upload-field" id="claim_deadline_field">
+                <label for="claim_deadline">商城领取截止日</label>
+                <input id="claim_deadline" type="date" name="claim_deadline" value="{{ claim_deadline }}">
+            </div>
+            <div class="upload-field">
+                <label for="business_file">Excel 服务需求清单</label>
+                <input id="business_file" type="file" name="file" accept=".xlsx,.xls" required>
+            </div>
             <button type="submit" class="ui-button-primary">上传并提交</button>
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        const modeInput = document.getElementById("redemption_mode");
+        const deadlineField = document.getElementById("claim_deadline_field");
+        const deadlineInput = document.getElementById("claim_deadline");
+
+        function syncDeadlineRequirement() {
+            const isMall = modeInput.value === "MALL_REDEMPTION";
+            deadlineField.style.display = isMall ? "block" : "none";
+            deadlineInput.required = isMall;
+            if (!isMall) {
+                deadlineInput.value = "";
+            }
+        }
+
+        modeInput.addEventListener("change", syncDeadlineRequirement);
+        syncDeadlineRequirement();
+    }());
+</script>
 
 {% endblock %}

@@ -499,3 +499,102 @@
         justify-content: flex-start;
     }
 }
+
+/* =========================
+   上传批次紧凑操作区
+   ========================= */
+
+.batch-action-stack,
+.batch-decision-row,
+.batch-correction-form,
+.batch-revert-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.batch-action-stack {
+    width: 196px;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.batch-decision-row form,
+.batch-correction-form,
+.batch-revert-form {
+    margin: 0;
+}
+
+.batch-action-button {
+    min-height: 30px;
+    border: 0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+    cursor: pointer;
+    white-space: normal;
+}
+
+.batch-action-primary {
+    background: #2563eb;
+}
+
+.batch-action-danger {
+    background: #ef4444;
+}
+
+.batch-action-warning {
+    background: #d97706;
+}
+
+.batch-action-muted {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.batch-action-wide {
+    min-width: 68px;
+}
+
+.batch-action-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.batch-correction-form input[type="date"] {
+    width: 118px;
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 6px;
+    font-size: 12px;
+}
+
+.batch-revert-details {
+    max-width: 196px;
+}
+
+.batch-revert-details summary {
+    width: fit-content;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.batch-revert-form {
+    margin-top: 6px;
+}
+
+.batch-revert-form input[type="text"] {
+    width: 122px;
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    font-size: 12px;
+}

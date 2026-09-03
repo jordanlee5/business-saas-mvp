@@ -4,6 +4,8 @@ from PIL import Image
 from decimal import Decimal, ROUND_HALF_UP
 from rapidocr import RapidOCR
 
+from .mall.domain import BusinessChannel
+
 
 rapid_ocr_engine = RapidOCR()
 
@@ -277,6 +279,16 @@ def match_ocr_with_records(ocr_text: str, records, voucher_amount=None):
     results = []
 
     for record in records:
+        if (
+            getattr(
+                record,
+                "redemption_mode",
+                BusinessChannel.CASH_REBATE.value,
+            )
+            != BusinessChannel.CASH_REBATE.value
+        ):
+            continue
+
         name = record.name or ""
         amount = normalize_amount(record.points_amount)
         amount_2dp = normalize_amount_2dp(record.points_amount)

@@ -44,7 +44,7 @@ def clean_digit_cell(value):
 
 
 def round_money_2(value):
-    if value is None:
+    if value is None or pd.isna(value):
         return None
 
     try:
@@ -58,11 +58,18 @@ def round_money_2(value):
         return None
 
 
-def parse_business_excel(file_path: str):
+def parse_business_excel(
+    file_path: str,
+    *,
+    bank_card_required: bool = True,
+):
     """
     读取固定模板 Excel，并返回：
     - records: 合格数据列表
     - errors: 错误信息列表
+
+    现金返现继续要求银行卡号；商城积分沿用同一份模板，
+    但允许银行卡号单元格留空。
     """
 
     df = pd.read_excel(file_path)
@@ -98,7 +105,11 @@ def parse_business_excel(file_path: str):
             errors.append(f"第 {row_number} 行：手机号为空")
             continue
 
-        if not bank_card:
+        if not plate_number:
+            errors.append(f"第 {row_number} 行：车牌号为空")
+            continue
+
+        if bank_card_required and not bank_card:
             errors.append(f"第 {row_number} 行：银行卡号为空")
             continue
 
@@ -115,5 +126,8 @@ def parse_business_excel(file_path: str):
                 "bank_card": bank_card,
             }
         )
+
+    if not records and not errors:
+        errors.append("Excel 中没有可导入的数据行")
 
     return records, errors

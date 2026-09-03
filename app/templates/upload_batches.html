@@ -17,7 +17,7 @@
         }
 
         .upload-batches-page {
-            max-width: 1100px;
+            max-width: 1320px;
         }
 
         .upload-batches-page .ui-card {
@@ -29,8 +29,10 @@
         }        
         table {
             width: 100%;
+            min-width: 1080px;
             border-collapse: collapse;
             margin-top: 18px;
+            table-layout: fixed;
         }
         th, td {
             border-bottom: 1px solid #e2e8f0;
@@ -54,6 +56,71 @@
             color: #64748b;
             padding: 18px 0;
         }
+
+        .batch-table-wrap {
+            overflow-x: auto;
+        }
+
+        .compact-filename {
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            color: #2563eb;
+            font-weight: 700;
+            text-decoration: none;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .cell-stack,
+        .upload-batch-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            line-height: 1.35;
+            white-space: normal;
+        }
+
+        .cell-stack small {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .upload-batch-actions {
+            align-items: flex-start;
+        }
+
+        .small-link {
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .small-link:hover {
+            text-decoration: underline;
+        }
+
+        .batch-feedback {
+            margin: 12px 0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .batch-feedback.success {
+            border: 1px solid #86efac;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .batch-feedback.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
         .subpage-header {
             display: flex;
             align-items: center;
@@ -64,7 +131,7 @@
 
         .batch-filter-form {
             display: grid;
-            grid-template-columns: 1.2fr 1fr 1fr 1fr auto auto;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto;
             gap: 12px;
             align-items: end;
             margin: 16px 0 18px;
@@ -162,13 +229,20 @@
     <div class="ui-card">
         <div class="subpage-header">
             <h1>上传记录</h1>
-            <a href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}" class="ui-button-secondary">返回业务数据管理</a >
+            <a href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}" class="ui-button-secondary">返回业务数据管理</a >
         </div>
 
         <div class="ui-hint">
             管理员可以查看所有上传方的 Excel 上传记录。<br>
             上传方只能查看自己上传过的 Excel 记录。
         </div>
+
+        {% if batch_message %}
+            <div class="batch-feedback success">{{ batch_message }}</div>
+        {% endif %}
+        {% if batch_error %}
+            <div class="batch-feedback error">批次操作失败：{{ batch_error }}</div>
+        {% endif %}
 
         <form method="get" action="/upload-batches" class="batch-filter-form">
             <input type="hidden" name="batch_page" value="1">
@@ -211,6 +285,16 @@
                 </select>
             </div>
 
+            <div>
+                <label>积分使用渠道</label>
+                <select name="redemption_mode">
+                    <option value="{{ business_channel_all }}" {% if redemption_mode == business_channel_all %}selected{% endif %}>全部渠道</option>
+                    {% for value, label in business_channel_labels.items() %}
+                        <option value="{{ value }}" {% if redemption_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="batch-filter-actions">
                 <button type="submit" class="ui-button-primary">筛选</button>
                 <a href="/upload-batches" class="ui-button-secondary">重置</a >
@@ -218,18 +302,28 @@
         </form>
 
         {% if batches %}
+        <div class="batch-table-wrap">
         <table>
+            <colgroup>
+                <col style="width: 62px;">
+                <col style="width: 112px;">
+                <col style="width: 136px;">
+                <col style="width: 168px;">
+                <col style="width: 90px;">
+                <col style="width: 90px;">
+                <col style="width: 150px;">
+                <col style="width: 250px;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>上传方账号</th>
                     <th>文件名</th>
-                    <th>总行数</th>
-                    <th>成功行数</th>
-                    <th>失败行数</th>
+                    <th>渠道/领取信息</th>
+                    <th>有效业务</th>
                     <th>承接状态</th>
                     <th>上传时间</th>
-                    <th>业务查看</th>
+                    <th>查看/批次操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -237,24 +331,44 @@
                 <tr>
                     <td>{{ item.id }}</td>
                     <td>{{ item.username }}</td>
-                    <td>{{ item.filename }}</td>
-                    <td>{{ item.total_rows }}</td>
-                    <td class="success">{{ item.success_rows }}</td>
-                    <td class="error">{{ item.failed_rows }}</td>
+                    <td>
+                        <a
+                            class="compact-filename"
+                            href="/business-records?batch_id={{ item.id }}&redemption_mode={{ item.redemption_mode }}"
+                            title="{{ item.filename }}"
+                        >{{ item.filename | compact_filename }}</a>
+                    </td>
+                    <td>
+                        <div class="cell-stack">
+                            <strong>{{ item.redemption_mode_label }}</strong>
+                            {% if item.redemption_mode == "MALL_REDEMPTION" %}
+                                <small>截止 {{ item.claim_deadline | format_utc8 }}</small>
+                            {% else %}
+                                <small>进入凭证核销</small>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="success">{{ item.success_rows }} 条</td>
                     <td>{{ item.acceptance_status }}</td>
                     <td>{{ item.created_at | format_utc8 }}</td>
                     <td>
-                        <a
-                            class="small-link"
-                            href="/business-records?partner_id={{ partner_id }}&batch_id={{ item.id }}"
-                        >
-                            查看本批业务
-                        </a >
+                        <div class="upload-batch-actions">
+                            <a
+                                class="small-link"
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ item.id }}&redemption_mode={{ item.redemption_mode }}"
+                            >查看本批业务</a>
+                            {% if role == "admin" %}
+                                {% set batch = item %}
+                                {% set batch_return_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+                                {% include "_batch_actions.html" %}
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+        </div>
         <div class="batch-pagination">
             <div class="batch-page-text">
                 共 {{ batch_total }} 条上传记录，当前第 {{ batch_page }} / {{ batch_total_pages }} 页
@@ -268,6 +382,7 @@
                     <input type="hidden" name="end_date" value="{{ end_date }}">
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
+                    <input type="hidden" name="redemption_mode" value="{{ redemption_mode }}">
                     <input type="hidden" name="batch_page" value="1">
 
                     <label>每页</label>
@@ -281,14 +396,14 @@
                 </form>
 
                 <a class="batch-page-link {% if batch_page <= 1 %}disabled{% endif %}"
-                href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
+                href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
                     上一页
                 </a >
 
                 {% if batch_total_pages <= 7 %}
                     {% for p in range(1, batch_total_pages + 1) %}
                         <a class="batch-page-link {% if p == batch_page %}active{% endif %}"
-                        href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
+                        href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
                             {{ p }}
                         </a >
                     {% endfor %}
@@ -296,7 +411,7 @@
                     {% for p in range(1, batch_total_pages + 1) %}
                         {% if p == 1 or p == batch_total_pages or (p >= batch_page - 2 and p <= batch_page + 2) %}
                             <a class="batch-page-link {% if p == batch_page %}active{% endif %}"
-                            href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
+                            href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}">
                                 {{ p }}
                             </a >
                         {% elif p == 2 and batch_page > 4 %}
@@ -308,7 +423,7 @@
                 {% endif %}
 
                 <a class="batch-page-link {% if batch_page >= batch_total_pages %}disabled{% endif %}"
-                href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
+                href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
                     下一页
                 </a >
             </div>

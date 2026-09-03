@@ -1,0 +1,93 @@
+{% if role == "admin" and can_manage_business_batches %}
+    <div class="batch-action-stack">
+        {% if batch.acceptance_status == "待承接" %}
+            <div class="batch-decision-row">
+                <form method="post" action="/upload-batches/{{ batch.id }}/accept">
+                    <input type="hidden" name="return_url" value="{{ batch_return_url }}">
+                    <button
+                        type="submit"
+                        class="batch-action-button batch-action-primary"
+                        onclick="return confirm('确认承接批次 #{{ batch.id }}？')"
+                    >承接</button>
+                </form>
+
+                <form method="post" action="/upload-batches/{{ batch.id }}/reject">
+                    <input type="hidden" name="return_url" value="{{ batch_return_url }}">
+                    <button
+                        type="submit"
+                        class="batch-action-button batch-action-danger"
+                        onclick="return confirm('确认拒绝批次 #{{ batch.id }}？')"
+                    >拒绝</button>
+                </form>
+            </div>
+
+            <form
+                method="post"
+                action="/upload-batches/{{ batch.id }}/correct-channel"
+                class="batch-correction-form"
+                onsubmit="return confirm('确认纠正批次 #{{ batch.id }} 的积分使用渠道？')"
+            >
+                <input type="hidden" name="return_url" value="{{ batch_return_url }}">
+                {% if batch.redemption_mode == "CASH_REBATE" %}
+                    <input type="hidden" name="redemption_mode" value="MALL_REDEMPTION">
+                    <input
+                        type="date"
+                        name="claim_deadline"
+                        required
+                        aria-label="商城领取截止日"
+                        title="商城领取截止日"
+                    >
+                    <button type="submit" class="batch-action-button batch-action-muted">
+                        纠正为<br>商城积分
+                    </button>
+                {% else %}
+                    <input type="hidden" name="redemption_mode" value="CASH_REBATE">
+                    <input type="hidden" name="claim_deadline" value="">
+                    <button type="submit" class="batch-action-button batch-action-muted batch-action-wide">
+                        纠正为<br>现金返现
+                    </button>
+                {% endif %}
+            </form>
+        {% elif batch.acceptance_status in ("已承接", "已拒绝") %}
+            {% if batch.revert_block_reason %}
+                <button
+                    type="button"
+                    class="batch-action-button batch-action-muted batch-action-wide"
+                    disabled
+                    title="{{ batch.revert_block_reason }}"
+                >不可撤销</button>
+            {% else %}
+                <details class="batch-revert-details">
+                    <summary>
+                        {% if batch.acceptance_status == "已承接" %}
+                            撤销承接
+                        {% else %}
+                            撤销拒绝
+                        {% endif %}
+                    </summary>
+                    <form
+                        method="post"
+                        action="/upload-batches/{{ batch.id }}/revert"
+                        class="batch-revert-form"
+                        onsubmit="return confirm('确认撤销批次 #{{ batch.id }} 的处理结果并恢复为待承接？')"
+                    >
+                        <input type="hidden" name="return_url" value="{{ batch_return_url }}">
+                        <input
+                            type="text"
+                            name="reason"
+                            required
+                            maxlength="200"
+                            placeholder="填写撤销原因"
+                            aria-label="撤销原因"
+                        >
+                        <button type="submit" class="batch-action-button batch-action-warning">
+                            确认<br>撤销
+                        </button>
+                    </form>
+                </details>
+            {% endif %}
+        {% endif %}
+    </div>
+{% else %}
+    -
+{% endif %}

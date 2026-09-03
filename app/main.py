@@ -72,6 +72,22 @@ from .business_status_service import (
     normalize_business_status_filter,
 )
 from .time_utils import format_utc8, utc8_now
+from .mall import (
+    ACCEPTED_BATCH_STATUS,
+    BUSINESS_CHANNEL_ALL,
+    BUSINESS_CHANNEL_LABELS,
+    PENDING_BATCH_STATUS,
+    REJECTED_BATCH_STATUS,
+    BusinessChannel,
+    batch_revert_block_reason,
+    build_upload_channel_snapshot,
+    business_claim_status_label,
+    business_channel_label,
+    correct_pending_batch_channel,
+    decide_pending_batch,
+    normalize_business_channel_filter,
+    revert_batch_decision,
+)
 from .notification_service import (
     create_business_batch_uploaded_notifications,
     get_unread_business_batch_notifications,
@@ -316,14 +332,24 @@ def admin_navigation_context(
     }
 
 
+def compact_filename(value) -> str:
+    """Keep long uploaded filenames compact while the UI retains a tooltip."""
+    filename = os.path.basename(str(value or "").strip())
+    stem, _extension = os.path.splitext(filename)
+
+    if len(stem) <= 10:
+        return filename or "-"
+
+    return f"{stem[:2]}....{stem[-4:]}"
+
+
 templates = Jinja2Templates(
     directory="app/templates",
     context_processors=[admin_navigation_context],
 )
 templates.env.filters["format_utc8"] = format_utc8
 templates.env.filters["format_amount"] = format_amount
-
-ACCEPTED_BATCH_STATUS = "已承接"
+templates.env.filters["compact_filename"] = compact_filename
 
 
 def generate_unique_public_business_no(
@@ -368,6 +394,10 @@ def apply_accepted_batch_filter(query):
         query
         .join(UploadBatch, BusinessRecord.batch_id == UploadBatch.id)
         .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+        .filter(
+            BusinessRecord.redemption_mode
+            == BusinessChannel.CASH_REBATE.value
+        )
     )
 
 def clean_zip_filename_part(value, fallback):
@@ -2762,7 +2792,9 @@ def build_stats_data(partner_id: int = 0, start_date: str = "", end_date: str = 
     # 统计/核算口径：只统计已承接批次下的业务数据
     records_query = apply_accepted_batch_filter(db.query(BusinessRecord))
     batches_query = db.query(UploadBatch).filter(
-        UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS
+        UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS,
+        UploadBatch.redemption_mode
+        == BusinessChannel.CASH_REBATE.value,
     )
 
     if start_datetime:
@@ -3246,6 +3278,7 @@ def build_business_record_items(
     end_date="",
     review_status="全部",
     acceptance_filter="全部",
+    redemption_mode=BUSINESS_CHANNEL_ALL,
     business_status=BUSINESS_STATUS_ALL,
     allocation_amount_status=(
         ALLOCATION_AMOUNT_STATUS_ALL
@@ -3255,6 +3288,18 @@ def build_business_record_items(
     use_pagination=True,
 ):
     query = db.query(BusinessRecord)
+
+    redemption_mode = (
+        normalize_business_channel_filter(
+            redemption_mode
+        )
+    )
+
+    if redemption_mode != BUSINESS_CHANNEL_ALL:
+        query = query.filter(
+            BusinessRecord.redemption_mode
+            == redemption_mode
+        )
 
     # 权限隔离：管理员看全部；上传方只能看自己的
     if user.role == "partner":
@@ -3362,6 +3407,19 @@ def build_business_record_items(
             )
         )
 
+        is_cash_rebate = (
+            record.redemption_mode
+            == BusinessChannel.CASH_REBATE.value
+        )
+
+        if not is_cash_rebate:
+            latest_review_status = "不适用"
+            latest_match_status = "-"
+            current_business_status = None
+            approved_allocation_amount = None
+            remaining_amount = None
+            allocation_summary = None
+
         # 业务完成优先：
         # 如果已通过核销金额已经覆盖业务金额，则业务列表的审核状态应展示为“已通过”，
         # 不再被后续生成的“待审核 / 无需审核”等过程记录覆盖。
@@ -3377,6 +3435,23 @@ def build_business_record_items(
             "business_no": record.display_business_no,
             "uploader_username": uploader.username if uploader else "未知上传方",
             "acceptance_status": acceptance_status,
+            "redemption_mode": record.redemption_mode,
+            "redemption_mode_label": (
+                business_channel_label(
+                    record.redemption_mode
+                )
+            ),
+            "claim_status": record.claim_status,
+            "claim_status_label": (
+                business_claim_status_label(
+                    record.claim_status
+                )
+            ),
+            "claim_deadline": (
+                batch.claim_deadline
+                if batch
+                else None
+            ),
             "name": record.name,
             "phone": record.phone,
             "plate_number": record.plate_number,
@@ -3391,6 +3466,8 @@ def build_business_record_items(
             "remaining_amount": remaining_amount,
             "allocation_amount_error": (
                 allocation_summary.abnormal_message
+                if allocation_summary is not None
+                else None
             ),
             "created_at": record.created_at,
         }
@@ -3471,6 +3548,9 @@ def business_records_page(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    redemption_mode: str = Query(
+        BUSINESS_CHANNEL_ALL
+    ),
     business_status: str = Query(
         BUSINESS_STATUS_ALL
     ),
@@ -3481,6 +3561,10 @@ def business_records_page(
     page_size: int = Query(3),
     batch_page: int = Query(1),
     batch_page_size: int = Query(3),
+    channel_message: str = Query(""),
+    channel_error: str = Query(""),
+    batch_message: str = Query(""),
+    batch_error: str = Query(""),
 ):
     user = get_current_user(request)
 
@@ -3503,6 +3587,12 @@ def business_records_page(
     if acceptance_status not in allowed_acceptance_statuses:
         acceptance_status = "全部"
 
+    redemption_mode = (
+        normalize_business_channel_filter(
+            redemption_mode
+        )
+    )
+
     business_status = (
         normalize_business_status_filter(
             business_status
@@ -3514,7 +3604,15 @@ def business_records_page(
         )
     )
 
-    batch_query = db.query(UploadBatch)
+    batch_query = db.query(UploadBatch).filter(
+        UploadBatch.success_rows > 0
+    )
+
+    if redemption_mode != BUSINESS_CHANNEL_ALL:
+        batch_query = batch_query.filter(
+            UploadBatch.redemption_mode
+            == redemption_mode
+        )
 
     # 权限隔离：
     # 管理员可以看全部上传批；如果选择了上传方，则只看该上传方的上传批次
@@ -3581,7 +3679,26 @@ def business_records_page(
                 "success_rows": batch.success_rows or 0,
                 "failed_rows": batch.failed_rows or 0,
                 "acceptance_status": batch.acceptance_status or "待承接",
+                "redemption_mode": batch.redemption_mode,
+                "redemption_mode_label": (
+                    business_channel_label(
+                        batch.redemption_mode
+                    )
+                ),
+                "claim_deadline": batch.claim_deadline,
                 "created_at": batch.created_at,
+                "revert_block_reason": (
+                    batch_revert_block_reason(
+                        db,
+                        batch=batch,
+                    )
+                    if batch.acceptance_status
+                    in (
+                        ACCEPTED_BATCH_STATUS,
+                        REJECTED_BATCH_STATUS,
+                    )
+                    else None
+                ),
             }
         )    
 
@@ -3621,6 +3738,7 @@ def business_records_page(
         end_date=end_date,
         review_status=review_status,
         acceptance_filter=acceptance_status,
+        redemption_mode=redemption_mode,
         business_status=business_status,
         allocation_amount_status=(
             allocation_amount_status
@@ -3654,6 +3772,17 @@ def business_records_page(
             "end_date": end_date,
             "review_status": review_status,
             "acceptance_status": acceptance_status,
+            "redemption_mode": redemption_mode,
+            "business_channel_all": (
+                BUSINESS_CHANNEL_ALL
+            ),
+            "business_channel_labels": (
+                BUSINESS_CHANNEL_LABELS
+            ),
+            "channel_message": channel_message,
+            "channel_error": channel_error,
+            "batch_message": batch_message,
+            "batch_error": batch_error,
             "business_status": business_status,
             "allocation_amount_status": (
                 allocation_amount_status
@@ -3668,6 +3797,19 @@ def business_records_page(
             "allowed_page_sizes": allowed_page_sizes,
         }),
     )
+
+
+def build_batch_action_return_url(
+    return_url: str,
+    *,
+    key: str,
+    message: str,
+) -> str:
+    if not return_url.startswith("/") or return_url.startswith("//"):
+        return_url = "/business-records"
+
+    separator = "&" if "?" in return_url else "?"
+    return f"{return_url}{separator}{urlencode({key: message})}"
 
 
 @app.post("/upload-batches/{batch_id}/accept")
@@ -3695,7 +3837,22 @@ def accept_upload_batch(
         db.close()
         return RedirectResponse(url="/business-records", status_code=302)
 
-    batch.acceptance_status = "已承接"
+    try:
+        decide_pending_batch(
+            batch,
+            ACCEPTED_BATCH_STATUS,
+        )
+    except ValueError as exc:
+        db.rollback()
+        db.close()
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message=str(exc),
+            ),
+            status_code=303,
+        )
 
     create_admin_action_log(
         db=db,
@@ -3703,16 +3860,23 @@ def accept_upload_batch(
         action_type="accept_batch",
         target_type="upload_batch",
         target_id=batch.id,
-        description=f"管理员承接上传批次 #{batch.id}",
+        description=(
+            f"管理员承接上传批次 #{batch.id}，"
+            f"渠道：{business_channel_label(batch.redemption_mode)}"
+        ),
     )
 
     db.commit()
     db.close()
 
-    if not return_url.startswith("/") or return_url.startswith("//"):
-        return_url = "/business-records"
-
-    return RedirectResponse(url=return_url, status_code=302)
+    return RedirectResponse(
+        url=build_batch_action_return_url(
+            return_url,
+            key="batch_message",
+            message=f"批次 #{batch_id} 已承接。",
+        ),
+        status_code=303,
+    )
 
 
 @app.post("/upload-batches/{batch_id}/reject")
@@ -3740,7 +3904,22 @@ def reject_upload_batch(
         db.close()
         return RedirectResponse(url="/business-records", status_code=302)
 
-    batch.acceptance_status = "已拒绝"
+    try:
+        decide_pending_batch(
+            batch,
+            REJECTED_BATCH_STATUS,
+        )
+    except ValueError as exc:
+        db.rollback()
+        db.close()
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message=str(exc),
+            ),
+            status_code=303,
+        )
 
     create_admin_action_log(
         db=db,
@@ -3748,16 +3927,218 @@ def reject_upload_batch(
         action_type="reject_batch",
         target_type="upload_batch",
         target_id=batch.id,
-        description=f"管理员拒绝上传批次 #{batch.id}",
+        description=(
+            f"管理员拒绝上传批次 #{batch.id}，"
+            f"渠道：{business_channel_label(batch.redemption_mode)}"
+        ),
     )
 
     db.commit()
     db.close()
 
-    if not return_url.startswith("/") or return_url.startswith("//"):
-        return_url = "/business-records"
+    return RedirectResponse(
+        url=build_batch_action_return_url(
+            return_url,
+            key="batch_message",
+            message=f"批次 #{batch_id} 已拒绝。",
+        ),
+        status_code=303,
+    )
 
-    return RedirectResponse(url=return_url, status_code=302)
+
+@app.post("/upload-batches/{batch_id}/revert")
+def revert_upload_batch(
+    request: Request,
+    batch_id: int,
+    reason: str = Form(...),
+    return_url: str = Form("/business-records"),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if not can_manage_business_batches(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    clean_reason = str(reason or "").strip()
+    if not clean_reason:
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message="撤销批次处理必须填写原因",
+            ),
+            status_code=303,
+        )
+
+    db = SessionLocal()
+    batch = (
+        db.query(UploadBatch)
+        .filter(UploadBatch.id == batch_id)
+        .first()
+    )
+
+    if batch is None:
+        db.close()
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message="上传批次不存在",
+            ),
+            status_code=303,
+        )
+
+    try:
+        previous_status = revert_batch_decision(
+            db,
+            batch=batch,
+        )
+        action_text = (
+            "撤销承接"
+            if previous_status == ACCEPTED_BATCH_STATUS
+            else "撤销拒绝"
+        )
+        create_admin_action_log(
+            db=db,
+            admin_id=user.id,
+            action_type=(
+                "revert_accept_batch"
+                if previous_status == ACCEPTED_BATCH_STATUS
+                else "revert_reject_batch"
+            ),
+            target_type="upload_batch",
+            target_id=batch.id,
+            description=(
+                f"管理员{action_text}上传批次 #{batch.id}，"
+                f"渠道：{business_channel_label(batch.redemption_mode)}；"
+                f"原因：{clean_reason}；已恢复为待承接"
+            ),
+        )
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        db.close()
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message=str(exc),
+            ),
+            status_code=303,
+        )
+
+    db.close()
+    return RedirectResponse(
+        url=build_batch_action_return_url(
+            return_url,
+            key="batch_message",
+            message=(
+                f"批次 #{batch_id} 已{action_text}，"
+                "当前恢复为待承接。"
+            ),
+        ),
+        status_code=303,
+    )
+
+
+@app.post("/upload-batches/{batch_id}/correct-channel")
+def correct_upload_batch_channel(
+    request: Request,
+    batch_id: int,
+    redemption_mode: str = Form(...),
+    claim_deadline: str = Form(""),
+    return_url: str = Form("/business-records"),
+):
+    user = get_current_user(request)
+
+    if not user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    if not can_manage_business_batches(user):
+        return RedirectResponse(
+            url="/dashboard",
+            status_code=302,
+        )
+
+    db = SessionLocal()
+    batch = (
+        db.query(UploadBatch)
+        .filter(UploadBatch.id == batch_id)
+        .first()
+    )
+
+    if batch is None:
+        db.close()
+        return RedirectResponse(
+            url="/business-records",
+            status_code=302,
+        )
+
+    old_mode = batch.redemption_mode
+    old_deadline = batch.claim_deadline
+
+    try:
+        snapshot, updated_count = (
+            correct_pending_batch_channel(
+                db,
+                batch=batch,
+                redemption_mode=redemption_mode,
+                claim_deadline_text=claim_deadline,
+            )
+        )
+
+        db.add(
+            AdminActionLog(
+                admin_id=user.id,
+                action_type=(
+                    "correct_batch_redemption_mode"
+                ),
+                target_type="upload_batch",
+                target_id=batch.id,
+                description=(
+                    f"管理员纠正上传批次 #{batch.id} 渠道："
+                    f"{business_channel_label(old_mode)} -> "
+                    f"{business_channel_label(snapshot.redemption_mode)}；"
+                    f"原截止时间：{format_utc8(old_deadline)}；"
+                    f"新截止时间：{format_utc8(snapshot.claim_deadline)}；"
+                    f"同步业务记录 {updated_count} 条"
+                ),
+            )
+        )
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        db.close()
+        return RedirectResponse(
+            url=build_batch_action_return_url(
+                return_url,
+                key="batch_error",
+                message=str(exc),
+            ),
+            status_code=303,
+        )
+
+    db.close()
+    return RedirectResponse(
+        url=build_batch_action_return_url(
+            return_url,
+            key="batch_message",
+            message=(
+                f"批次 #{batch_id} 已纠正为"
+                f"{business_channel_label(snapshot.redemption_mode)}渠道，"
+                f"并同步 {updated_count} 条业务记录。"
+            ),
+        ),
+        status_code=303,
+    )
 
 
 @app.get("/business-records/export")
@@ -3770,6 +4151,9 @@ def export_business_records(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    redemption_mode: str = Query(
+        BUSINESS_CHANNEL_ALL
+    ),
     business_status: str = Query(
         BUSINESS_STATUS_ALL
     ),
@@ -3803,6 +4187,11 @@ def export_business_records(
             allocation_amount_status
         )
     )
+    redemption_mode = (
+        normalize_business_channel_filter(
+            redemption_mode
+        )
+    )
 
     (
         record_items,
@@ -3820,6 +4209,7 @@ def export_business_records(
         end_date=end_date,
         review_status=review_status,
         acceptance_filter=acceptance_status,
+        redemption_mode=redemption_mode,
         business_status=business_status,
         allocation_amount_status=(
             allocation_amount_status
@@ -3839,6 +4229,19 @@ def export_business_records(
                 "车牌号": item["plate_number"],
                 "积分金额": item["points_amount"],
                 "银行卡号": item["bank_card"],
+                "积分使用渠道": (
+                    item["redemption_mode_label"]
+                ),
+                "领取截止时间": (
+                    format_utc8(
+                        item["claim_deadline"]
+                    )
+                    if item["claim_deadline"]
+                    else "-"
+                ),
+                "领取状态": (
+                    item["claim_status_label"]
+                ),
                 "最新审核状态": item["latest_review_status"],
                 "最新匹配状态": item["latest_match_status"],
                 "业务处理状态": (
@@ -3890,6 +4293,17 @@ def export_business_records(
         {"项目": "结束日期", "内容": end_date or "不限"},
         {"项目": "审核状态", "内容": review_status or "全部"},
         {"项目": "承接状态", "内容": acceptance_status or "全部"},
+        {
+            "项目": "积分使用渠道",
+            "内容": (
+                "全部"
+                if redemption_mode
+                == BUSINESS_CHANNEL_ALL
+                else business_channel_label(
+                    redemption_mode
+                )
+            ),
+        },
         {"项目": "业务处理状态", "内容": business_status},
         {"项目": "核销金额校验", "内容": allocation_amount_status},
         {"项目": "导出数据条数", "内容": total_records},
@@ -3953,7 +4367,7 @@ def export_business_records(
                 cell.number_format = "@"
 
         # 金额列保留两位小数
-        amount_columns = ["F", "K", "L"]
+        amount_columns = ["F", "N", "O"]
 
         for column_letter in amount_columns:
             for cell in detail_sheet[column_letter][1:]:
@@ -4140,6 +4554,27 @@ def business_record_detail_page(
         "batch_id": record.batch_id,
         "batch_filename": batch.filename if batch else "-",
         "acceptance_status": acceptance_status,
+        "redemption_mode": record.redemption_mode,
+        "redemption_mode_label": (
+            business_channel_label(
+                record.redemption_mode
+            )
+        ),
+        "is_cash_rebate": (
+            record.redemption_mode
+            == BusinessChannel.CASH_REBATE.value
+        ),
+        "claim_status": record.claim_status,
+        "claim_status_label": (
+            business_claim_status_label(
+                record.claim_status
+            )
+        ),
+        "claim_deadline": (
+            batch.claim_deadline
+            if batch
+            else None
+        ),
         "name": record.name,
         "phone": record.phone,
         "plate_number": record.plate_number,
@@ -5097,6 +5532,13 @@ def upload_excel_page(request: Request):
             "active_page": "upload_excel",
             "message": None,
             "errors": None,
+            "redemption_mode": (
+                BusinessChannel.CASH_REBATE.value
+            ),
+            "claim_deadline": "",
+            "business_channel_labels": (
+                BUSINESS_CHANNEL_LABELS
+            ),
         },
     )
 
@@ -5105,12 +5547,42 @@ def upload_excel_page(request: Request):
 async def upload_excel_submit(
     request: Request,
     file: UploadFile = File(...),
+    redemption_mode: str = Form(
+        BusinessChannel.CASH_REBATE.value
+    ),
+    claim_deadline: str = Form(""),
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if not file.filename.endswith((".xlsx", ".xls")):
+    try:
+        channel_snapshot = (
+            build_upload_channel_snapshot(
+                redemption_mode,
+                claim_deadline,
+            )
+        )
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            "upload_excel.html",
+            add_base_context(request, {
+                "request": request,
+                "active_page": "upload_excel",
+                "message": None,
+                "errors": [str(exc)],
+                "redemption_mode": redemption_mode,
+                "claim_deadline": claim_deadline,
+                "business_channel_labels": (
+                    BUSINESS_CHANNEL_LABELS
+                ),
+            }),
+            status_code=400,
+        )
+
+    original_filename = str(file.filename or "").strip()
+
+    if not original_filename.lower().endswith((".xlsx", ".xls")):
         return templates.TemplateResponse(
             "upload_excel.html",
             {
@@ -5119,85 +5591,156 @@ async def upload_excel_submit(
                 "role": user.role,
                 "message": None,
                 "errors": ["只允许上传 Excel 文件：.xlsx 或 .xls"],
+                "redemption_mode": (
+                    channel_snapshot.redemption_mode
+                ),
+                "claim_deadline": claim_deadline,
+                "business_channel_labels": (
+                    BUSINESS_CHANNEL_LABELS
+                ),
             },
+            status_code=400,
         )
 
     os.makedirs("uploads/excel", exist_ok=True)
 
     timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
-    safe_filename = f"{user.id}_{timestamp}_{file.filename}"
+    normalized_filename = os.path.basename(
+        original_filename.replace("\\", "/")
+    )
+    safe_filename = f"{user.id}_{timestamp}_{normalized_filename}"
     file_path = os.path.join("uploads", "excel", safe_filename)
 
     with open(file_path, "wb") as f:
         content = await file.read()
         f.write(content)
 
-    records, errors = parse_business_excel(file_path)
-
-    db = SessionLocal()
-
-    batch = UploadBatch(
-        user_id=user.id,
-        filename=file.filename,
-        total_rows=len(records) + len(errors),
-        success_rows=len(records),
-        failed_rows=len(errors),
-        acceptance_status="待承接",
-    )
-    db.add(batch)
-    db.commit()
-    db.refresh(batch)
-
-    reserved_public_business_nos = set()
-
-    for row_index, item in enumerate(records, start=1):
-        batch_date = batch.created_at.strftime("%Y%m%d")
-        business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
-
-        business_record = BusinessRecord(
-            user_id=user.id,
-            batch_id=batch.id,
-            business_no=business_no,
-            public_business_no=generate_unique_public_business_no(
-                db,
-                reserved_public_business_nos,
-            ),
-            name=item["name"],
-            phone=item["phone"],
-            plate_number=item["plate_number"],
-            points_amount=item["points_amount"],
-            bank_card=item["bank_card"],
-            record_service_rate=user.service_rate or 0,
-            record_upstream_cost_rate=user.upstream_cost_rate or 0,
-            record_service_rate_mode=(
-                user.service_rate_mode
-                if user.service_rate_mode in (
-                    "external",
-                    "internal",
-                )
-                else "external"
-            ),
-            record_upstream_cost_rate_mode=(
-                user.upstream_cost_rate_mode
-                if user.upstream_cost_rate_mode in (
-                    "external",
-                    "internal",
-                )
-                else "external"
+    try:
+        records, errors = parse_business_excel(
+            file_path,
+            bank_card_required=(
+                channel_snapshot.redemption_mode
+                == BusinessChannel.CASH_REBATE.value
             ),
         )
-        db.add(business_record)
+    except Exception:
+        records = []
+        errors = ["Excel 文件无法读取，请确认文件未损坏且使用固定模板"]
 
-    create_business_batch_uploaded_notifications(
-        db,
-        batch=batch,
-        uploader=user,
+    if errors:
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+
+        return templates.TemplateResponse(
+            "upload_excel.html",
+            add_base_context(request, {
+                "request": request,
+                "active_page": "upload_excel",
+                "message": None,
+                "errors": [
+                    "整份清单未导入，请修正以下问题后重新上传：",
+                    *errors,
+                ],
+                "redemption_mode": (
+                    channel_snapshot.redemption_mode
+                ),
+                "claim_deadline": claim_deadline,
+                "business_channel_labels": (
+                    BUSINESS_CHANNEL_LABELS
+                ),
+            }),
+            status_code=400,
+        )
+
+    db = SessionLocal()
+    try:
+        batch = UploadBatch(
+            user_id=user.id,
+            filename=original_filename,
+            total_rows=len(records),
+            success_rows=len(records),
+            failed_rows=0,
+            acceptance_status="待承接",
+            redemption_mode=(
+                channel_snapshot.redemption_mode
+            ),
+            claim_deadline=(
+                channel_snapshot.claim_deadline
+            ),
+        )
+        db.add(batch)
+        db.flush()
+        db.refresh(batch)
+
+        reserved_public_business_nos = set()
+
+        for row_index, item in enumerate(records, start=1):
+            batch_date = batch.created_at.strftime("%Y%m%d")
+            business_no = f"BR{batch_date}B{batch.id:06d}R{row_index:06d}"
+
+            business_record = BusinessRecord(
+                user_id=user.id,
+                batch_id=batch.id,
+                business_no=business_no,
+                public_business_no=generate_unique_public_business_no(
+                    db,
+                    reserved_public_business_nos,
+                ),
+                name=item["name"],
+                phone=item["phone"],
+                plate_number=item["plate_number"],
+                points_amount=item["points_amount"],
+                bank_card=item["bank_card"],
+                redemption_mode=(
+                    channel_snapshot.redemption_mode
+                ),
+                claim_status=(
+                    channel_snapshot.claim_status
+                ),
+                record_service_rate=user.service_rate or 0,
+                record_upstream_cost_rate=user.upstream_cost_rate or 0,
+                record_service_rate_mode=(
+                    user.service_rate_mode
+                    if user.service_rate_mode in (
+                        "external",
+                        "internal",
+                    )
+                    else "external"
+                ),
+                record_upstream_cost_rate_mode=(
+                    user.upstream_cost_rate_mode
+                    if user.upstream_cost_rate_mode in (
+                        "external",
+                        "internal",
+                    )
+                    else "external"
+                ),
+            )
+            db.add(business_record)
+
+        create_business_batch_uploaded_notifications(
+            db,
+            batch=batch,
+            uploader=user,
+        )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+        raise
+    finally:
+        db.close()
+
+    message = (
+        f"上传成功：{business_channel_label(channel_snapshot.redemption_mode)}渠道，"
+        f"已完整导入 {len(records)} 行，等待管理员承接。"
     )
-
-    db.commit()
-    db.close()
-
-    message = f"上传成功：共读取 {len(records) + len(errors)} 行，成功导入 {len(records)} 行，失败 {len(errors)} 行。"
 
     return templates.TemplateResponse(
         "upload_excel.html",
@@ -5207,6 +5750,13 @@ async def upload_excel_submit(
             "role": user.role,
             "message": message,
             "errors": errors,
+            "redemption_mode": (
+                channel_snapshot.redemption_mode
+            ),
+            "claim_deadline": claim_deadline,
+            "business_channel_labels": (
+                BUSINESS_CHANNEL_LABELS
+            ),
         },
     )
 
@@ -5219,6 +5769,10 @@ def build_accepted_business_batch_options(db, partner_id: int):
         db.query(UploadBatch)
         .filter(UploadBatch.user_id == partner_id)
         .filter(UploadBatch.acceptance_status == ACCEPTED_BATCH_STATUS)
+        .filter(
+            UploadBatch.redemption_mode
+            == BusinessChannel.CASH_REBATE.value
+        )
         .order_by(UploadBatch.id.desc())
         .all()
     )
@@ -6958,8 +7512,13 @@ def upload_batches_page(
     end_date: str = Query(""),
     review_status: str = Query("全部"),
     acceptance_status: str = Query("全部"),
+    redemption_mode: str = Query(
+        BUSINESS_CHANNEL_ALL
+    ),
     batch_page: int = 1,
     batch_page_size: int = 5,
+    batch_message: str = Query(""),
+    batch_error: str = Query(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -6982,7 +7541,21 @@ def upload_batches_page(
     if acceptance_status not in allowed_acceptance_statuses:
         acceptance_status = "全部"
 
-    query = db.query(UploadBatch)
+    redemption_mode = (
+        normalize_business_channel_filter(
+            redemption_mode
+        )
+    )
+
+    query = db.query(UploadBatch).filter(
+        UploadBatch.success_rows > 0
+    )
+
+    if redemption_mode != BUSINESS_CHANNEL_ALL:
+        query = query.filter(
+            UploadBatch.redemption_mode
+            == redemption_mode
+        )
 
     # 权限隔离：
     # 管理员可以查看全部上传记录
@@ -7040,7 +7613,26 @@ def upload_batches_page(
                 "success_rows": batch.success_rows,
                 "failed_rows": batch.failed_rows,
                 "acceptance_status": batch.acceptance_status or "待承接",
+                "redemption_mode": batch.redemption_mode,
+                "redemption_mode_label": (
+                    business_channel_label(
+                        batch.redemption_mode
+                    )
+                ),
+                "claim_deadline": batch.claim_deadline,
                 "created_at": batch.created_at,
+                "revert_block_reason": (
+                    batch_revert_block_reason(
+                        db,
+                        batch=batch,
+                    )
+                    if batch.acceptance_status
+                    in (
+                        ACCEPTED_BATCH_STATUS,
+                        REJECTED_BATCH_STATUS,
+                    )
+                    else None
+                ),
             }
         )
 
@@ -7063,11 +7655,18 @@ def upload_batches_page(
             "end_date": end_date,
             "review_status": review_status,
             "acceptance_status": acceptance_status,
+            "redemption_mode": redemption_mode,
+            "business_channel_all": BUSINESS_CHANNEL_ALL,
+            "business_channel_labels": (
+                BUSINESS_CHANNEL_LABELS
+            ),
             "batch_page": batch_page,
             "batch_page_size": batch_page_size,
             "batch_total": batch_total,
             "batch_total_pages": batch_total_pages,
             "allowed_batch_page_sizes": allowed_batch_page_sizes,
+            "batch_message": batch_message,
+            "batch_error": batch_error,
         },
     )
 

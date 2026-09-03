@@ -693,10 +693,15 @@
         </div>
 
         <div class="ui-hint">
-            当前页面展示该业务数据的基础信息、核销状态，以及关联的全部凭证审核记录。
+            {% if detail.is_cash_rebate %}
+                当前为现金返现业务，展示核销状态及关联的全部凭证审核记录。
+            {% else %}
+                当前为商城积分业务，不进入 OCR、凭证匹配和审核队列。
+            {% endif %}
         </div>
 
         <div class="summary-grid">
+            {% if detail.is_cash_rebate %}
             <div class="summary-card">
                 <div class="summary-label">业务金额</div>
                 <div class="summary-value">{{ detail.points_amount | format_amount }}</div>
@@ -734,9 +739,27 @@
                     {% endif %}
                 </div>
             </div>
+            {% else %}
+            <div class="summary-card">
+                <div class="summary-label">积分金额</div>
+                <div class="summary-value">{{ detail.points_amount | format_amount }}</div>
+            </div>
+            <div class="summary-card success">
+                <div class="summary-label">积分使用渠道</div>
+                <div class="summary-value">{{ detail.redemption_mode_label }}</div>
+            </div>
+            <div class="summary-card warning">
+                <div class="summary-label">领取状态</div>
+                <div class="summary-value">{{ detail.claim_status_label }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">领取截止时间</div>
+                <div class="summary-value" style="font-size: 18px;">{{ detail.claim_deadline | format_utc8 }}</div>
+            </div>
+            {% endif %}
         </div>
 
-        {% if detail.allocation_amount_error %}
+        {% if detail.is_cash_rebate and detail.allocation_amount_error %}
             <div class="ui-hint" style="color: #b91c1c; border-color: #fecaca; background: #fef2f2;">
                 核销金额校验异常：{{ detail.allocation_amount_error }}
             </div>
@@ -784,6 +807,16 @@
             </div>
 
             <div class="detail-item">
+                <div class="detail-label">积分使用渠道</div>
+                <div class="detail-value">{{ detail.redemption_mode_label }}</div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-label">领取截止时间</div>
+                <div class="detail-value">{{ detail.claim_deadline | format_utc8 }}</div>
+            </div>
+
+            <div class="detail-item">
                 <div class="detail-label">下游服务费率</div>
                 <div class="detail-value">{{ detail.record_service_rate }}%</div>
             </div>
@@ -818,6 +851,7 @@
         </div>
     </div>
 
+    {% if detail.is_cash_rebate %}
     <div class="ui-card" style="margin-top: 20px;">
 
         {% set approved_voucher_items =
@@ -1007,5 +1041,12 @@
             </div>
         {% endif %}
     </div>
+    {% else %}
+    <div class="ui-card" style="margin-top: 20px;">
+        <div class="empty-state">
+            商城积分业务已与现金凭证链路隔离，后续将在会员激活阶段进入领取与积分入账流程。
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

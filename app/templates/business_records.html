@@ -24,11 +24,11 @@
         }
 
         .filter-form-admin {
-            grid-template-columns: 160px minmax(220px, 1fr) 140px 140px 145px 145px auto;
+            grid-template-columns: 150px minmax(210px, 1fr) 135px 135px 140px 140px 140px auto;
         }
 
         .filter-form-partner {
-            grid-template-columns: minmax(240px, 1fr) 150px 150px 145px 145px auto;
+            grid-template-columns: minmax(220px, 1fr) 140px 140px 140px 140px 140px auto;
         }
 
         .form-item label {
@@ -184,9 +184,46 @@
 
         table {
             width: 100%;
-            min-width: 1300px;
             border-collapse: collapse;
             font-size: 13px;
+        }
+
+        .batch-history-table {
+            min-width: 1040px;
+            table-layout: fixed;
+        }
+
+        .business-data-table {
+            min-width: 1120px;
+        }
+
+        .compact-filename {
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            color: #2563eb;
+            font-weight: 700;
+            text-decoration: none;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .cell-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            line-height: 1.35;
+            white-space: normal;
+        }
+
+        .cell-stack small {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .batch-status-cell {
+            white-space: normal;
         }
 
         .empty-state {
@@ -340,6 +377,27 @@
             color: #b91c1c;
             white-space: nowrap;
         }
+
+        .channel-message {
+            margin: 12px 0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .channel-message.success {
+            border: 1px solid #86efac;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .channel-message.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
     </style>
 
 <div class="page-container business-records-page">
@@ -355,12 +413,25 @@
                 当前仅查看上传批次 #{{ batch_id }} 生成的业务数据。
                 <a
                     class="small-link"
-                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
+                    href="/business-records?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
                 >
                     取消批次筛选
                 </a >
             {% endif %}
         </div>
+
+        {% if channel_message %}
+            <div class="channel-message success">{{ channel_message }}</div>
+        {% endif %}
+        {% if channel_error %}
+            <div class="channel-message error">渠道纠错失败：{{ channel_error }}</div>
+        {% endif %}
+        {% if batch_message %}
+            <div class="channel-message success">{{ batch_message }}</div>
+        {% endif %}
+        {% if batch_error %}
+            <div class="channel-message error">批次操作失败：{{ batch_error }}</div>
+        {% endif %}
 
         <form class="filter-form {% if role == 'admin' %}filter-form-admin{% else %}filter-form-partner{% endif %}" method="get" action="/business-records">
             <input type="hidden" name="batch_id" value="{{ batch_id }}">
@@ -427,6 +498,16 @@
             </div>
 
             <div class="form-item">
+                <label>积分使用渠道</label>
+                <select name="redemption_mode">
+                    <option value="{{ business_channel_all }}" {% if redemption_mode == business_channel_all %}selected{% endif %}>全部渠道</option>
+                    {% for value, label in business_channel_labels.items() %}
+                        <option value="{{ value }}" {% if redemption_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-item">
                 <label>业务处理状态</label>
                 <select name="business_status">
                     <option value="全部" {% if business_status == "全部" %}selected{% endif %}>全部</option>
@@ -443,7 +524,7 @@
                 {% if role == "partner" or can_export_business_records %}
                     <a
                         class="ui-button-secondary"
-                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
+                        href="/business-records/export?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}"
                     >
                         导出 Excel
                     </a >
@@ -468,11 +549,11 @@
                 </span>
                 {% if allocation_amount_status == "异常" %}
                     <a
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=全部"
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status=全部"
                     >退出异常筛选</a>
                 {% else %}
                     <a
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=异常"
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status=异常"
                     >查看异常业务</a>
                 {% endif %}
             </div>
@@ -480,7 +561,7 @@
             <div class="allocation-amount-alert">
                 <span>当前筛选范围内未发现核销金额异常业务。</span>
                 <a
-                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status=全部"
+                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status=全部"
                 >退出异常筛选</a>
             </div>
         {% endif %}
@@ -499,6 +580,7 @@
                     <input type="hidden" name="end_date" value="{{ end_date }}">
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
+                    <input type="hidden" name="redemption_mode" value="{{ redemption_mode }}">
                     <input type="hidden" name="business_status" value="{{ business_status }}">
                     <input type="hidden" name="allocation_amount_status" value="{{ allocation_amount_status }}">
                     <input type="hidden" name="page" value="{{ page }}">
@@ -516,7 +598,7 @@
                 <div class="mini-page-links">
                     {% if batch_page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page - 1 }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -529,7 +611,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -541,7 +623,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&batch_page={{ p }}&batch_page_size={{ batch_page_size }}&page={{ page }}&page_size={{ page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -555,7 +637,7 @@
 
                     {% if batch_page < batch_total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page }}&page_size={{ page_size }}&batch_page={{ batch_page + 1 }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}
@@ -563,24 +645,33 @@
                     {% endif %}
                 </div>
 
-                <a class="small-link" href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}">查看全部</a >
+                <a class="small-link" href="/upload-batches?partner_id={{ partner_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}">查看全部</a >
             </div>
         </div>
 
         {% if recent_batches and recent_batches|length > 0 %}
         <div class="table-wrap">
-            <table>
+            <table class="batch-history-table">
+                <colgroup>
+                    <col style="width: 66px;">
+                    <col style="width: 105px;">
+                    <col style="width: 126px;">
+                    <col style="width: 160px;">
+                    <col style="width: 82px;">
+                    <col style="width: 90px;">
+                    <col style="width: 150px;">
+                    <col style="width: 215px;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>批次ID</th>
                         <th>上传方</th>
                         <th>文件名</th>
-                        <th>总行数</th>
-                        <th>成功行数</th>
-                        <th>失败行数</th>
+                        <th>渠道/领取信息</th>
+                        <th>有效业务</th>
                         <th>承接状态</th>
                         <th>上传时间</th>
-                        <th>承接操作</th>
+                        <th>批次操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -588,51 +679,37 @@
                     <tr>
                         <td>{{ batch.id }}</td>
                         <td>{{ batch.username }}</td>
-                        <td>{{ batch.filename }}</td>
-                        <td>{{ batch.total_rows }}</td>
-                        <td class="amount-good">{{ batch.success_rows }}</td>
-                        <td class="amount-warning">{{ batch.failed_rows }}</td>
-                        <td>{{ batch.acceptance_status }}</td>
+                        <td>
+                            <a
+                                class="compact-filename"
+                                href="/business-records?batch_id={{ batch.id }}&redemption_mode={{ batch.redemption_mode }}"
+                                title="{{ batch.filename }}"
+                            >{{ batch.filename | compact_filename }}</a>
+                        </td>
+                        <td>
+                            <div class="cell-stack">
+                                <strong>{{ batch.redemption_mode_label }}</strong>
+                                {% if batch.redemption_mode == "MALL_REDEMPTION" %}
+                                    <small>截止 {{ batch.claim_deadline | format_utc8 }}</small>
+                                {% else %}
+                                    <small>进入凭证核销</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="amount-good">{{ batch.success_rows }} 条</td>
+                        <td class="batch-status-cell">
+                            {% if batch.acceptance_status == "待承接" %}
+                                <span class="status-pill status-pending">待承接</span>
+                            {% elif batch.acceptance_status == "已承接" %}
+                                <span class="status-pill status-approved">已承接</span>
+                            {% else %}
+                                <span class="status-pill status-rejected">已拒绝</span>
+                            {% endif %}
+                        </td>
                         <td>{{ batch.created_at | format_utc8 }}</td>
                         <td>
-                            {% if role == "admin" and batch.acceptance_status == "待承接" %}
-                                {% if can_manage_business_batches %}
-                                    <form method="post" action="/upload-batches/{{ batch.id }}/accept" style="display:inline;">
-                                        <input type="hidden" name="return_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
-                                        <button type="submit" class="small-btn">承接</button>
-                                    </form>
-
-                                    <form method="post" action="/upload-batches/{{ batch.id }}/reject" style="display:inline; margin-left:6px;">
-                                        <input type="hidden" name="return_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
-                                        <button type="submit" class="small-btn small-btn-danger">
-                                            拒绝
-                                        </button>
-                                    </form>
-                                {% else %}
-                                    <button
-                                        type="button"
-                                        class="small-btn permission-disabled-button"
-                                        disabled
-                                        aria-disabled="true"
-                                        title="当前账号暂无承接业务批次权限"
-                                    >
-                                        承接
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        class="small-btn small-btn-danger permission-disabled-button"
-                                        style="margin-left: 6px;"
-                                        disabled
-                                        aria-disabled="true"
-                                        title="当前账号暂无拒绝业务批次权限"
-                                    >
-                                        拒绝
-                                    </button>
-                                {% endif %}
-                            {% else %}
-                                -
-                            {% endif %}
+                            {% set batch_return_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+                            {% include "_batch_actions.html" %}
                         </td>                  
                     </tr>
                     {% endfor %}
@@ -656,21 +733,19 @@
 
         <div class="table-wrap">
             {% if records %}
-                <table>
+                <table class="business-data-table">
                     <thead>
                         <tr>
                             <th>业务单号</th>
                             <th>上传方</th>
-                            <th>姓名</th>
-                            <th>手机号</th>
+                            <th>客户信息</th>
                             <th>车牌号</th>
                             <th>积分金额</th>
                             <th>银行卡号</th>
-                            <th>最新审核状态</th>
-                            <th>最新匹配状态</th>
+                            <th>渠道/权益</th>
+                            <th>审核/匹配</th>
                             <th>业务处理状态</th>
-                            <th>已核销金额</th>
-                            <th>剩余金额</th>
+                            <th>核销金额</th>
                             <th>导入时间</th>
                             <th>操作</th>
                         </tr>
@@ -680,27 +755,48 @@
                             <tr>
                                 <td>{{ item.business_no }}</td>
                                 <td>{{ item.uploader_username }}</td>
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.phone }}</td>
+                                <td>
+                                    <div class="cell-stack">
+                                        <strong>{{ item.name }}</strong>
+                                        <small>{{ item.phone }}</small>
+                                    </div>
+                                </td>
                                 <td>{{ item.plate_number }}</td>
                                 <td>{{ item.points_amount | format_amount }}</td>
-                                <td>{{ item.bank_card }}</td>
+                                <td>{{ item.bank_card or "-" }}</td>
                                 <td>
-                                    {% if item.latest_review_status == "待承接" %}
-                                        <span class="status-pill status-pending">待承接</span>
-                                    {% elif item.latest_review_status == "已拒绝承接" %}
-                                        <span class="status-pill status-rejected">已拒绝承接</span>
-                                    {% elif item.latest_review_status == "待审核" %}
-                                        <span class="status-pill status-pending">待审核</span>
-                                    {% elif item.latest_review_status == "已通过" %}
-                                        <span class="status-pill status-approved">已通过</span>
-                                    {% elif item.latest_review_status == "已驳回" %}
-                                        <span class="status-pill status-rejected">已驳回</span>
-                                    {% else %}
-                                        <span class="status-pill status-none">未审核</span>
-                                    {% endif %}
+                                    <div class="cell-stack">
+                                        <strong>{{ item.redemption_mode_label }}</strong>
+                                        {% if item.redemption_mode == "MALL_REDEMPTION" %}
+                                            <small>截止 {{ item.claim_deadline | format_utc8 }}</small>
+                                            <small>{{ item.claim_status_label }}</small>
+                                        {% else %}
+                                            <small>凭证核销渠道</small>
+                                        {% endif %}
+                                    </div>
                                 </td>
-                                <td>{{ item.latest_match_status }}</td>
+                                <td>
+                                    <div class="cell-stack">
+                                        <span>
+                                        {% if item.latest_review_status == "待承接" %}
+                                            <span class="status-pill status-pending">待承接</span>
+                                        {% elif item.latest_review_status == "已拒绝承接" %}
+                                            <span class="status-pill status-rejected">已拒绝承接</span>
+                                        {% elif item.latest_review_status == "待审核" %}
+                                            <span class="status-pill status-pending">待审核</span>
+                                        {% elif item.latest_review_status == "已通过" %}
+                                            <span class="status-pill status-approved">已通过</span>
+                                        {% elif item.latest_review_status == "已驳回" %}
+                                            <span class="status-pill status-rejected">已驳回</span>
+                                        {% elif item.latest_review_status == "不适用" %}
+                                            <span class="status-pill status-none">不进入凭证队列</span>
+                                        {% else %}
+                                            <span class="status-pill status-none">未审核</span>
+                                        {% endif %}
+                                        </span>
+                                        <small>匹配：{{ item.latest_match_status }}</small>
+                                    </div>
+                                </td>
                                 <td>
                                     {% if item.business_status == "已结清" %}
                                         <span class="status-pill status-approved">已结清</span>
@@ -712,8 +808,8 @@
                                         <span class="status-pill status-none">不适用</span>
                                     {% endif %}
                                 </td>
-                                <td class="amount-good">
-                                    {% if item.acceptance_status != "已承接" %}
+                                <td>
+                                    {% if item.redemption_mode == "MALL_REDEMPTION" or item.acceptance_status != "已承接" %}
                                         -
                                     {% elif item.allocation_amount_error %}
                                         <span
@@ -721,20 +817,11 @@
                                             title="{{ item.allocation_amount_error }}"
                                         >金额异常</span>
                                     {% else %}
-                                        {{ item.approved_allocation_amount | format_amount }}
-                                    {% endif %}                                   
-                                </td>
-                                <td class="amount-warning">
-                                    {% if item.acceptance_status != "已承接" %}
-                                        -
-                                    {% elif item.allocation_amount_error %}
-                                        <span
-                                            class="status-pill status-rejected"
-                                            title="{{ item.allocation_amount_error }}"
-                                        >金额异常</span>
-                                    {% else %}
-                                        {{ item.remaining_amount | format_amount }}
-                                    {% endif %}                                    
+                                        <div class="cell-stack">
+                                            <span class="amount-good">已核销 {{ item.approved_allocation_amount | format_amount }}</span>
+                                            <small>剩余 {{ item.remaining_amount | format_amount }}</small>
+                                        </div>
+                                    {% endif %}
                                 </td>
                                 <td>{{ item.created_at | format_utc8 }}</td>
                                 <td>
@@ -774,6 +861,7 @@
                     <input type="hidden" name="end_date" value="{{ end_date }}">
                     <input type="hidden" name="review_status" value="{{ review_status }}">
                     <input type="hidden" name="acceptance_status" value="{{ acceptance_status }}">
+                    <input type="hidden" name="redemption_mode" value="{{ redemption_mode }}">
                     <input type="hidden" name="business_status" value="{{ business_status }}">
                     <input type="hidden" name="allocation_amount_status" value="{{ allocation_amount_status }}">
                     <input type="hidden" name="page" value="1">
@@ -791,7 +879,7 @@
                 <div class="page-links">
                     {% if page > 1 %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page - 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             上一页
                         </a >
                     {% else %}
@@ -804,7 +892,7 @@
                                 <span class="page-link active">{{ p }}</span>
                             {% else %}
                                 <a class="page-link"
-                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                     {{ p }}
                                 </a >
                             {% endif %}
@@ -816,7 +904,7 @@
                                     <span class="page-link active">{{ p }}</span>
                                 {% else %}
                                     <a class="page-link"
-                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                                    href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ p }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                                         {{ p }}
                                     </a >
                                 {% endif %}
@@ -830,7 +918,7 @@
 
                     {% if page < total_pages %}
                         <a class="page-link"
-                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
+                        href="/business-records?partner_id={{ partner_id }}&batch_id={{ batch_id }}&keyword={{ keyword }}&start_date={{ start_date }}&end_date={{ end_date }}&review_status={{ review_status }}&acceptance_status={{ acceptance_status }}&redemption_mode={{ redemption_mode }}&business_status={{ business_status }}&allocation_amount_status={{ allocation_amount_status }}&page={{ page + 1 }}&page_size={{ page_size }}&batch_page={{ batch_page }}&batch_page_size={{ batch_page_size }}">
                             下一页
                         </a >
                     {% else %}
