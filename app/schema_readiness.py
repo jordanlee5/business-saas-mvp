@@ -4,12 +4,13 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0002_mall_core_foundation"
+CURRENT_SCHEMA_REVISION = "0003_member_activation_security"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
         "members",
         "member_wechat_bindings",
+        "member_activation_credentials",
         "points_accounts",
         "points_grants",
         "points_ledger_entries",
@@ -42,6 +43,25 @@ REQUIRED_MALL_CORE_COLUMNS = {
         {
             "redemption_mode",
             "claim_status",
+        }
+    ),
+    "member_activation_credentials": frozenset(
+        {
+            "business_record_id",
+            "security_method",
+            "secret_algorithm",
+            "secret_iterations",
+            "secret_salt",
+            "secret_digest",
+            "failed_attempts",
+            "max_attempts",
+            "issue_version",
+            "status",
+            "issued_at",
+            "expires_at",
+            "used_at",
+            "locked_at",
+            "revoked_at",
         }
     ),
 }

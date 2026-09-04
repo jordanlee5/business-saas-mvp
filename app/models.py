@@ -15,6 +15,8 @@ from sqlalchemy import (
 )
 from .database import Base
 from .mall.domain import (
+    ActivationCredentialStatus,
+    ActivationSecurityMethod,
     BusinessChannel,
     PointsGrantStatus,
 )
@@ -599,6 +601,135 @@ class MemberWechatBinding(Base):
     last_login_at = Column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+
+class MemberActivationCredential(Base):
+    """商城业务的一次性激活凭据；绝不保存激活码明文。"""
+
+    __tablename__ = "member_activation_credentials"
+    __table_args__ = (
+        CheckConstraint(
+            "security_method IN ('ONE_TIME_CODE', 'SMS_OTP')",
+            name="ck_member_activation_credentials_method",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('ACTIVE', 'USED', 'LOCKED', 'EXPIRED', 'REVOKED')",
+            name="ck_member_activation_credentials_status",
+        ),
+        CheckConstraint(
+            "failed_attempts >= 0 AND failed_attempts <= max_attempts",
+            name="ck_member_activation_credentials_attempts",
+        ),
+        CheckConstraint(
+            "max_attempts >= 1 AND max_attempts <= 10",
+            name="ck_member_activation_credentials_max_attempts",
+        ),
+        CheckConstraint(
+            "issue_version >= 1",
+            name="ck_member_activation_credentials_issue_version",
+        ),
+        CheckConstraint(
+            "secret_iterations >= 100000 "
+            "AND secret_iterations <= 2000000",
+            name="ck_member_activation_credentials_iterations",
+        ),
+        CheckConstraint(
+            "length(secret_salt) = 32 "
+            "AND length(secret_digest) = 64",
+            name="ck_member_activation_credentials_hash_shape",
+        ),
+        CheckConstraint(
+            "expires_at > issued_at",
+            name="ck_member_activation_credentials_expiry",
+        ),
+        CheckConstraint(
+            "status <> 'USED' OR used_at IS NOT NULL",
+            name="ck_member_activation_credentials_used_time",
+        ),
+        CheckConstraint(
+            "status <> 'LOCKED' OR locked_at IS NOT NULL",
+            name="ck_member_activation_credentials_locked_time",
+        ),
+        CheckConstraint(
+            "status <> 'REVOKED' OR revoked_at IS NOT NULL",
+            name="ck_member_activation_credentials_revoked_time",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_record_id = Column(
+        Integer,
+        ForeignKey("business_records.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    security_method = Column(
+        String(30),
+        nullable=False,
+        default=ActivationSecurityMethod.ONE_TIME_CODE.value,
+        server_default=ActivationSecurityMethod.ONE_TIME_CODE.value,
+        index=True,
+    )
+    secret_algorithm = Column(
+        String(30),
+        nullable=False,
+        default="PBKDF2_SHA256",
+        server_default="PBKDF2_SHA256",
+    )
+    secret_iterations = Column(
+        Integer,
+        nullable=False,
+        default=600000,
+        server_default="600000",
+    )
+    secret_salt = Column(String(64), nullable=False)
+    secret_digest = Column(String(64), nullable=False)
+    failed_attempts = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    max_attempts = Column(
+        Integer,
+        nullable=False,
+        default=5,
+        server_default="5",
+    )
+    issue_version = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+    status = Column(
+        String(20),
+        nullable=False,
+        default=ActivationCredentialStatus.ACTIVE.value,
+        server_default=ActivationCredentialStatus.ACTIVE.value,
+        index=True,
+    )
+    issued_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    expires_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    locked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
     )
 
 

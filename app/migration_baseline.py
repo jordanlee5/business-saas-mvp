@@ -29,6 +29,7 @@ POST_BASELINE_TABLES = frozenset(
     {
         "members",
         "member_wechat_bindings",
+        "member_activation_credentials",
         "points_accounts",
         "points_grants",
         "points_ledger_entries",

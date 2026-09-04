@@ -25,6 +25,23 @@ class BusinessClaimStatus(str, Enum):
     FROZEN = "FROZEN"
 
 
+class ActivationSecurityMethod(str, Enum):
+    """会员激活可采用的附加安全因子。"""
+
+    ONE_TIME_CODE = "ONE_TIME_CODE"
+    SMS_OTP = "SMS_OTP"
+
+
+class ActivationCredentialStatus(str, Enum):
+    """一次激活凭据的生命周期状态。"""
+
+    ACTIVE = "ACTIVE"
+    USED = "USED"
+    LOCKED = "LOCKED"
+    EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"
+
+
 class PointsGrantStatus(str, Enum):
     """一个会员积分批次的状态。"""
 
@@ -55,6 +72,18 @@ VALID_BUSINESS_CHANNELS = frozenset(
 VALID_BUSINESS_CLAIM_STATUSES = frozenset(
     status.value
     for status in BusinessClaimStatus
+)
+
+
+VALID_ACTIVATION_SECURITY_METHODS = frozenset(
+    method.value
+    for method in ActivationSecurityMethod
+)
+
+
+VALID_ACTIVATION_CREDENTIAL_STATUSES = frozenset(
+    status.value
+    for status in ActivationCredentialStatus
 )
 
 
@@ -95,6 +124,22 @@ def normalize_business_channel(
         raise ValueError(
             "业务渠道必须是 CASH_REBATE 或 MALL_REDEMPTION"
         ) from exc
+
+
+def normalize_activation_security_method(
+    value: ActivationSecurityMethod | str,
+) -> ActivationSecurityMethod:
+    """规范激活安全因子；未知值必须失败关闭。"""
+    if isinstance(value, ActivationSecurityMethod):
+        return value
+
+    if not isinstance(value, str):
+        raise ValueError("不支持的激活安全因子")
+
+    try:
+        return ActivationSecurityMethod(value.strip())
+    except ValueError as exc:
+        raise ValueError("不支持的激活安全因子") from exc
 
 
 def normalize_points(

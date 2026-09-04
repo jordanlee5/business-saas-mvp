@@ -3,16 +3,45 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.mall import (
+    ActivationCredentialStatus,
+    ActivationSecurityMethod,
     BusinessChannel,
+    VALID_ACTIVATION_CREDENTIAL_STATUSES,
+    VALID_ACTIVATION_SECURITY_METHODS,
     VALID_BUSINESS_CHANNELS,
     calculate_points_expiry,
     is_activation_within_deadline,
     normalize_business_channel,
+    normalize_activation_security_method,
     normalize_points,
 )
 
 
 class MallDomainTests(unittest.TestCase):
+    def test_activation_security_values_are_fixed(self):
+        self.assertEqual(
+            VALID_ACTIVATION_SECURITY_METHODS,
+            {"ONE_TIME_CODE", "SMS_OTP"},
+        )
+        self.assertEqual(
+            VALID_ACTIVATION_CREDENTIAL_STATUSES,
+            {"ACTIVE", "USED", "LOCKED", "EXPIRED", "REVOKED"},
+        )
+        self.assertIs(
+            normalize_activation_security_method("ONE_TIME_CODE"),
+            ActivationSecurityMethod.ONE_TIME_CODE,
+        )
+        self.assertIs(
+            ActivationCredentialStatus.LOCKED,
+            ActivationCredentialStatus("LOCKED"),
+        )
+
+    def test_unknown_activation_security_method_fails_closed(self):
+        for invalid_value in ("sms", "", None):
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(ValueError):
+                    normalize_activation_security_method(invalid_value)
+
     def test_business_channels_are_fixed(self):
         self.assertEqual(
             VALID_BUSINESS_CHANNELS,

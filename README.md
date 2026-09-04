@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.4.1-M2 — 上传渠道拆分**
+- 版本：**v0.4.2-M3-1 — 会员激活与首笔积分入账基础**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`cfd738679413cd26eb3760a2d8ee083dc57c63f8`
-- 基线提交：`cfd7386 feat: establish mall core schema foundation`
+- 本轮修改前稳定代码基线：`9f7cf89eff03a8efb1bcb42c41df79ee435bcf39`
+- 基线提交：`9f7cf89 style: polish upload batch action layouts`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路；会员激活、积分入账、商品和订单业务 API 仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3-1 进一步建立一次性激活码、微信会员绑定与首笔积分入账领域服务；公网激活 API、短信发送、商品和订单仍未开放。
 
 ## 当前产品边界与术语
 
@@ -19,7 +19,7 @@ M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 
 - **本次核销金额**：一条匹配审核记录实际分配给对应业务的金额，不等同于整张凭证金额。
 - **已通过凭证金额**：一条业务下最终审核通过的本次核销金额合计。
 - **核销状态**：按已通过金额与业务金额区分未付款、部分付款、已付清及金额异常。
-- **积分商城兑换**：已支持在上传时选择的另一条积分使用渠道；当前只完成数据分流和待激活权益留存，尚不能领取、入账或下单。
+- **积分商城兑换**：已支持在上传时选择的另一条积分使用渠道；内部已具备受保护的激活与首笔入账服务，但尚未开放会员端领取 API 或下单。
 
 同一业务未来只能选择现金返现核销或积分商城兑换之一。商城规划不得让一条业务同时进入两条核销链路。规则状态见 [商城业务规则决策记录](docs/mall-business-rules-decisions.md)。
 
@@ -133,17 +133,23 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - 商品上下架、SKU、库存调整、订单取消/发货/退款、积分调整、供应商维护和结算操作均使用已登记的审计动作类型；
 - 未知或尚未完成权限分级的审计动作失败关闭，不能默认继承传统运营权限。
 
-`OPEN-005` 已确认：同一会员可以持有多个积分批次，各批次独立记录余额与到期日，会员端汇总展示总余额并保留批次明细。M1 已建立相应的会员、微信绑定、积分账户、积分批次和积分流水表；积分入账、预占、消费与退款服务仍在后续阶段实现。
+`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；积分预占、消费与退款服务仍在后续阶段实现。
 
 ## 商城核心表结构
 
-`0002_mall_core_foundation` 在初始基线之后建立以下结构，不开放业务写入口：
+`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础：
 
 - `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
 - 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
 - 新增 `points_accounts`、`points_grants` 与 `points_ledger_entries`，积分统一为 `NUMERIC(18, 2)`，同一会员可以持有多个独立到期批次，同一来源业务只能生成一个积分批次；
 - 渠道、领取状态、非负余额、有效期、流水类型、非零流水及人工调整审计要求均由数据库约束失败关闭；
-- 商品、库存、订单、退款、供应商结算及激活安全表未提前纳入本轮，仍按对应业务参数确认和后续阶段独立实现。
+- 新增 `member_activation_credentials`，一条商城业务只保留一个当前激活凭据；一次性码只保存随机盐和 PBKDF2-SHA256 摘要，不保存明文，支持重签版本、失败次数、锁定、使用、过期和撤销状态；
+- 只有已承接、未过领取截止日且仍待激活的商城业务可以签发；现金业务、待承接/已拒绝批次和已生成积分权益的业务失败关闭；
+- 激活时同时校验公开业务单号、手机号、车牌号、一次性码和服务端微信身份；预期失败返回统一文案，错误尝试可持久化并在达到上限后锁定；
+- 成功激活在同一事务创建或复用微信会员、积分账户，新增独立积分批次与首笔不可变 `GRANT` 流水，并把业务及凭据置为已激活/已使用；同一业务的唯一约束和流水幂等键共同阻止重复入账；
+- `SMS_OTP` 已登记为安全因子扩展值，但在短信供应商、发送频控和回执校验接入前由服务明确拒绝；
+- 公网激活 API 尚未开放。M3 后续切片必须先完成微信登录态、请求级限流和审计，不能把 `openid` 当作客户端可自由填写字段；
+- 商品、库存、订单、退款及供应商结算仍按后续阶段独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -159,7 +165,7 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表；`0002_mall_core_foundation` 才新增商城渠道字段与会员积分核心表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表，`0002_mall_core_foundation` 新增商城渠道字段与会员积分核心表，`0003_member_activation_security` 新增激活凭据表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -169,6 +175,8 @@ python -m alembic -c alembic.ini heads
 python -m unittest -v test_migration_environment.py
 python -m unittest -v test_initial_schema_migration.py
 python -m unittest -v test_mall_core_migration.py
+python -m unittest -v test_member_activation_migration.py
+python -m unittest -v test_member_activation_service.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -202,17 +210,17 @@ python -m app.migration_rehearsal
 
 该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
 
-已经稳定停留在 `0001_current_schema_baseline` 的 SQLite 数据库，在升级商城核心结构前必须停止应用，并运行：
+已经稳定停留在 `0001_current_schema_baseline` 或 `0002_mall_core_foundation` 的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
 
 ```powershell
 python -m app.migration_upgrade_rehearsal
 ```
 
-该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录 0001 的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0002_mall_core_foundation`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成页面验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
+该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0003_member_activation_security`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
 
 ## 测试基线
 
-在当前 M2 工作副本上，完整依赖环境中的回归命令为：
+在当前 M3-1 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -220,7 +228,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 339 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量单元测试：`Ran 354 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

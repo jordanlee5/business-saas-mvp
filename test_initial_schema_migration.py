@@ -20,9 +20,10 @@ from app.migration_baseline import (
     normalize_server_default,
     validate_and_adopt_baseline,
 )
+from app.schema_readiness import CURRENT_SCHEMA_REVISION
 
 
-MALL_CORE_REVISION = "0002_mall_core_foundation"
+MALL_CORE_REVISION = CURRENT_SCHEMA_REVISION
 
 
 def build_sqlite_url(database_path: Path) -> str:

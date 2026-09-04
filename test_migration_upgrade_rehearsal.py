@@ -132,7 +132,7 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 MigrationUpgradeRehearsalError,
-                "要求源库位于初始基线",
+                "受支持的历史版本",
             ):
                 rehearse_mall_core_upgrade(
                     build_sqlite_database_url(source_path),
@@ -140,6 +140,40 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
                 )
 
             self.assertFalse(backup_directory.exists())
+
+    def test_mall_core_revision_can_rehearse_next_upgrade(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "mall-core.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            command.upgrade(
+                build_config(build_sqlite_database_url(source_path)),
+                "0002_mall_core_foundation",
+            )
+            source_snapshot = capture_legacy_snapshot(source_path)
+
+            result = rehearse_mall_core_upgrade(
+                build_sqlite_database_url(source_path),
+                backup_directory=backup_directory,
+            )
+
+            self.assertEqual(
+                result.source_revision,
+                "0002_mall_core_foundation",
+            )
+            self.assertEqual(
+                get_current_revision(source_path),
+                "0002_mall_core_foundation",
+            )
+            self.assertEqual(
+                get_current_revision(result.rehearsal_database),
+                CURRENT_SCHEMA_REVISION,
+            )
+            self.assertEqual(
+                capture_legacy_snapshot(result.backup_database),
+                source_snapshot,
+            )
 
     def test_already_upgraded_database_is_rejected_without_output(self):
         with TemporaryDirectory() as temporary_directory:

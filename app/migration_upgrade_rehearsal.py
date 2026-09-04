@@ -40,7 +40,33 @@ DEFAULT_UPGRADE_REHEARSAL_DIRECTORY = (
 
 
 class MigrationUpgradeRehearsalError(RuntimeError):
-    """Raised when the 0001-to-current copy rehearsal is unsafe."""
+    """Raised when a supported-revision copy rehearsal is unsafe."""
+
+
+MALL_CORE_FOUNDATION_REVISION = "0002_mall_core_foundation"
+SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
+    {
+        BASELINE_REVISION,
+        MALL_CORE_FOUNDATION_REVISION,
+    }
+)
+MALL_CORE_FOUNDATION_TABLES = frozenset(
+    {
+        "members",
+        "member_wechat_bindings",
+        "points_accounts",
+        "points_grants",
+        "points_ledger_entries",
+    }
+)
+MALL_CORE_FOUNDATION_COLUMNS = {
+    "upload_batches": frozenset(
+        {"redemption_mode", "claim_deadline"}
+    ),
+    "business_records": frozenset(
+        {"redemption_mode", "claim_status"}
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -240,6 +266,47 @@ def build_alembic_config(database_url: str) -> Config:
     return config
 
 
+def validate_mall_core_foundation_source(
+    database_path: Path,
+) -> None:
+    """Fail closed when a database only claims to be at revision 0002."""
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        missing_tables = MALL_CORE_FOUNDATION_TABLES - tables
+        if missing_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0002 源库缺少商城核心表："
+                + ", ".join(sorted(missing_tables))
+            )
+        if "member_activation_credentials" in tables:
+            raise MigrationUpgradeRehearsalError(
+                "0002 源库已存在未登记的激活凭据表"
+            )
+        missing_columns: list[str] = []
+        for table_name, required_columns in (
+            MALL_CORE_FOUNDATION_COLUMNS.items()
+        ):
+            columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    table_name,
+                )
+            }
+            missing_columns.extend(
+                f"{table_name}.{column_name}"
+                for column_name in sorted(required_columns - columns)
+            )
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0002 源库缺少商城核心字段："
+                + ", ".join(missing_columns)
+            )
+    finally:
+        connection.close()
+
+
 def rehearse_mall_core_upgrade(
     database_url: str,
     *,
@@ -248,20 +315,24 @@ def rehearse_mall_core_upgrade(
     """Upgrade only a copy and prove that all legacy values survive."""
     source_path = get_sqlite_database_path(database_url)
     source_revision = get_current_revision(source_path)
-    if source_revision != BASELINE_REVISION:
+    if source_revision not in SUPPORTED_UPGRADE_SOURCE_REVISIONS:
         actual = source_revision or "无版本标记"
         raise MigrationUpgradeRehearsalError(
-            "商城核心升级副本演练要求源库位于初始基线："
-            f"当前为 {actual}，要求为 {BASELINE_REVISION}"
+            "升级副本演练要求源库位于受支持的历史版本："
+            f"当前为 {actual}，支持 "
+            + "、".join(sorted(SUPPORTED_UPGRADE_SOURCE_REVISIONS))
         )
 
-    try:
-        validate_and_adopt_baseline(database_url)
-    except BaselineAdoptionError as exc:
-        raise MigrationUpgradeRehearsalError(
-            "源库未通过 0001 结构与数据完整性预检："
-            f"{exc}"
-        ) from exc
+    if source_revision == BASELINE_REVISION:
+        try:
+            validate_and_adopt_baseline(database_url)
+        except BaselineAdoptionError as exc:
+            raise MigrationUpgradeRehearsalError(
+                "源库未通过 0001 结构与数据完整性预检："
+                f"{exc}"
+            ) from exc
+    else:
+        validate_mall_core_foundation_source(source_path)
 
     source_business_fingerprint = get_business_fingerprint(source_path)
     source_snapshot = capture_legacy_snapshot(source_path)
@@ -345,7 +416,7 @@ def rehearse_mall_core_upgrade(
         source_database=source_path,
         backup_database=backup_path,
         rehearsal_database=rehearsal_path,
-        source_revision=BASELINE_REVISION,
+        source_revision=source_revision,
         target_revision=CURRENT_SCHEMA_REVISION,
         source_business_fingerprint=source_business_fingerprint,
         legacy_data_fingerprint=legacy_data_fingerprint,
@@ -354,7 +425,7 @@ def rehearse_mall_core_upgrade(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="在 SQLite 副本上演练 0001 到当前 head 的升级"
+        description="在 SQLite 副本上演练受支持历史版本到当前 head 的升级"
     )
     parser.add_argument(
         "--backup-dir",
