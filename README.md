@@ -133,7 +133,7 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - 商品上下架、SKU、库存调整、订单取消/发货/退款、积分调整、供应商维护和结算操作均使用已登记的审计动作类型；
 - 未知或尚未完成权限分级的审计动作失败关闭，不能默认继承传统运营权限。
 
-`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；积分预占、消费与退款服务仍在后续阶段实现。
+`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 把首笔入账收敛到统一只追加服务，并提供按流水重算账户和批次余额、检测缓存漂移的只读审计能力。积分到期、人工调整、预占、消费与退款仍在后续切片实现。
 
 ## 商城核心表结构
 
@@ -147,6 +147,7 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - 只有已承接、未过领取截止日且仍待激活的商城业务可以签发；现金业务、待承接/已拒绝批次和已生成积分权益的业务失败关闭；
 - 激活时同时校验公开业务单号、手机号、车牌号、一次性码和服务端微信身份；预期失败返回统一文案，错误尝试可持久化并在达到上限后锁定；
 - 成功激活在同一事务创建或复用微信会员、积分账户，新增独立积分批次与首笔不可变 `GRANT` 流水，并把业务及凭据置为已激活/已使用；同一业务的唯一约束和流水幂等键共同阻止重复入账；
+- 首笔 `GRANT` 只能通过积分流水服务追加；服务同步更新账户和批次缓存，并在写入前后使用流水重算结果进行一致性校验，发现缓存漂移时失败关闭且不静默覆盖；
 - `SMS_OTP` 已登记为安全因子扩展值，但在短信供应商、发送频控和回执校验接入前由服务明确拒绝；
 - 公网激活 API 尚未开放。M3 后续切片必须先完成微信登录态、请求级限流和审计，不能把 `openid` 当作客户端可自由填写字段；
 - 商品、库存、订单、退款及供应商结算仍按后续阶段独立实现。
@@ -177,6 +178,7 @@ python -m unittest -v test_initial_schema_migration.py
 python -m unittest -v test_mall_core_migration.py
 python -m unittest -v test_member_activation_migration.py
 python -m unittest -v test_member_activation_service.py
+python -m unittest -v test_points_ledger_service.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -220,7 +222,7 @@ python -m app.migration_upgrade_rehearsal
 
 ## 测试基线
 
-在当前 M3-1 工作副本上，完整依赖环境中的回归命令为：
+在当前 M3-2 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -228,7 +230,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 354 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量单元测试：`Ran 361 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

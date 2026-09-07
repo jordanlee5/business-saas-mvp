@@ -15,12 +15,12 @@ from .domain import (
     BusinessChannel,
     BusinessClaimStatus,
     PointsGrantStatus,
-    PointsLedgerEntryType,
     calculate_points_expiry,
     is_activation_within_deadline,
     normalize_activation_security_method,
     normalize_points,
 )
+from .points_ledger_service import record_initial_points_grant
 from ..time_utils import utc8_now
 
 
@@ -364,7 +364,6 @@ def activate_mall_business(
         MemberWechatBinding,
         PointsAccount,
         PointsGrant,
-        PointsLedgerEntry,
         UploadBatch,
     )
 
@@ -587,7 +586,7 @@ def activate_mall_business(
         account_id=account.id,
         business_record_id=business.id,
         granted_points=points,
-        available_points=points,
+        available_points=Decimal("0.00"),
         reserved_points=Decimal("0.00"),
         activated_at=current_time,
         expires_at=grant_expires_at,
@@ -598,22 +597,14 @@ def activate_mall_business(
     db.add(grant)
     db.flush()
 
-    ledger_entry = PointsLedgerEntry(
-        grant_id=grant.id,
-        entry_type=PointsLedgerEntryType.GRANT.value,
-        available_points_delta=points,
-        reserved_points_delta=Decimal("0.00"),
+    record_initial_points_grant(
+        db,
+        grant=grant,
         idempotency_key=f"mall-activation-grant:{business.id}",
         reference_type="BUSINESS_RECORD",
         reference_id=business.public_business_no,
-        created_at=current_time,
+        now=current_time,
     )
-    db.add(ledger_entry)
-    account.available_points = normalize_points(
-        account.available_points,
-    ) + points
-    account.version = (account.version or 0) + 1
-    account.updated_at = current_time
     business.claim_status = BusinessClaimStatus.ACTIVATED.value
     credential.status = ActivationCredentialStatus.USED.value
     credential.used_at = current_time
