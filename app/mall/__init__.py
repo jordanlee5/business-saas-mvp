@@ -65,6 +65,14 @@ from .channel_service import (
     normalize_business_channel_filter,
     revert_batch_decision,
 )
+from .points_expiry_service import (
+    PointsExpiryItem,
+    PointsExpiryPage,
+    PointsExpiryResult,
+    expire_points_grant,
+    list_due_points_grants,
+    list_expiring_points_grants,
+)
 
 __all__ = [
     "ActivationCredentialStatus",
@@ -89,6 +97,9 @@ __all__ = [
     "PointsAccountBalanceAudit",
     "PointsGrantBalanceAudit",
     "PointsGrantStatus",
+    "PointsExpiryItem",
+    "PointsExpiryPage",
+    "PointsExpiryResult",
     "PointsLedgerBalance",
     "PointsLedgerEntryType",
     "REJECTED_BATCH_STATUS",
@@ -121,5 +132,8 @@ __all__ = [
     "issue_activation_credential",
     "issue_one_time_activation_code",
     "record_initial_points_grant",
+    "expire_points_grant",
+    "list_due_points_grants",
+    "list_expiring_points_grants",
     "revert_batch_decision",
 ]

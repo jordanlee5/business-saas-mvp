@@ -179,20 +179,33 @@ def audit_points_account_balance(
         PointsLedgerEntry,
     )
 
-    account = db.query(PointsAccount).filter(
+    # 直接读取列，避免长会话的 ORM 身份缓存掩盖其他事务已提交的余额。
+    account = db.query(
+        PointsAccount.id,
+        PointsAccount.available_points,
+        PointsAccount.reserved_points,
+    ).filter(
         PointsAccount.id == account_id
     ).one_or_none()
     if account is None:
         raise ValueError("积分账户不存在")
 
     grants = (
-        db.query(PointsGrant)
+        db.query(
+            PointsGrant.id,
+            PointsGrant.available_points,
+            PointsGrant.reserved_points,
+        )
         .filter(PointsGrant.account_id == account_id)
         .order_by(PointsGrant.id.asc())
         .all()
     )
     entries = (
-        db.query(PointsLedgerEntry)
+        db.query(
+            PointsLedgerEntry.grant_id,
+            PointsLedgerEntry.available_points_delta,
+            PointsLedgerEntry.reserved_points_delta,
+        )
         .join(
             PointsGrant,
             PointsLedgerEntry.grant_id == PointsGrant.id,
@@ -269,6 +282,31 @@ def _normalize_required_text(
     return normalized
 
 
+def _lock_points_grant_and_account(db, *, grant_id):
+    """统一先账户、后批次的锁顺序，并读取锁取得后的最新余额。"""
+    from ..models import PointsAccount, PointsGrant
+
+    db.flush()
+    owner = db.query(PointsGrant.account_id).filter(
+        PointsGrant.id == grant_id,
+    ).one_or_none()
+    if owner is None:
+        raise ValueError("积分批次不存在")
+    account = (
+        db.query(PointsAccount).filter(PointsAccount.id == owner.account_id)
+        .with_for_update().populate_existing().one_or_none()
+    )
+    if account is None:
+        raise ValueError("积分账户不存在")
+    grant = (
+        db.query(PointsGrant).filter(PointsGrant.id == grant_id)
+        .with_for_update().populate_existing().one_or_none()
+    )
+    if grant is None or grant.account_id != account.id:
+        raise ValueError("积分批次归属发生变化，请回滚后重试")
+    return grant, account
+
+
 def record_initial_points_grant(
     db,
     *,
@@ -285,11 +323,7 @@ def record_initial_points_grant(
     重复提交完全相同的幂等请求不会二次增加积分；同一幂等键
     携带不同内容时失败关闭。调用方负责提交或回滚整个事务。
     """
-    from ..models import (
-        PointsAccount,
-        PointsGrant,
-        PointsLedgerEntry,
-    )
+    from ..models import PointsLedgerEntry
 
     if grant is None or grant.id is None:
         raise ValueError("积分批次不存在")
@@ -311,22 +345,7 @@ def record_initial_points_grant(
     )
     current_time = now or utc8_now()
 
-    locked_grant = (
-        db.query(PointsGrant)
-        .filter(PointsGrant.id == grant.id)
-        .with_for_update()
-        .one_or_none()
-    )
-    if locked_grant is None:
-        raise ValueError("积分批次不存在")
-    account = (
-        db.query(PointsAccount)
-        .filter(PointsAccount.id == locked_grant.account_id)
-        .with_for_update()
-        .one_or_none()
-    )
-    if account is None:
-        raise ValueError("积分账户不存在")
+    locked_grant, account = _lock_points_grant_and_account(db, grant_id=grant.id)
 
     points = normalize_points(
         locked_grant.granted_points,

@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.4.2-M3-1 — 会员激活与首笔积分入账基础**
+- 版本：**v0.4.2-M3-3 — 积分到期处理与即将到期查询**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`9f7cf89eff03a8efb1bcb42c41df79ee435bcf39`
-- 基线提交：`9f7cf89 style: polish upload batch action layouts`
+- 本轮修改前稳定代码基线：`c5239b7f3d8392735fc2634842322928df33db34`
+- 基线提交：`c5239b7 feat: add points ledger consistency checks`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3-1 进一步建立一次性激活码、微信会员绑定与首笔积分入账领域服务；公网激活 API、短信发送、商品和订单仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已逐步建立一次性激活码、微信会员绑定、首笔积分入账、余额审计以及到期维护任务；公网激活 API、短信发送、商品和订单仍未开放。
 
 ## 当前产品边界与术语
 
@@ -133,7 +133,16 @@ M1 已为未来商城后台写操作建立独立细权限函数和稳定审计�
 - 商品上下架、SKU、库存调整、订单取消/发货/退款、积分调整、供应商维护和结算操作均使用已登记的审计动作类型；
 - 未知或尚未完成权限分级的审计动作失败关闭，不能默认继承传统运营权限。
 
-`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 把首笔入账收敛到统一只追加服务，并提供按流水重算账户和批次余额、检测缓存漂移的只读审计能力。积分到期、人工调整、预占、消费与退款仍在后续切片实现。
+`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 提供统一入账和按流水重算余额的审计能力；M3-3 新增 `EXPIRE` 到期扣减、默认只读的维护命令及即将到期查询。人工调整、会员积分详情与 Excel 导出仍是 M3 待办；预占、消费与退款在后续订单阶段实现。
+
+积分维护命令：
+
+```powershell
+python -m app.points_expiry_task
+python -m app.points_expiry_task --upcoming-days 30
+```
+
+以上命令只读，不执行迁移或扣分。执行扣减、分页、阻止原因和退出码见 [积分到期操作说明](docs/points-expiry-operations.md)。本轮没有安装计划任务；未来下单仍必须实时校验积分批次到期时间，不能仅依赖缓存余额或定时任务运行频率。
 
 ## 商城核心表结构
 
@@ -179,6 +188,7 @@ python -m unittest -v test_mall_core_migration.py
 python -m unittest -v test_member_activation_migration.py
 python -m unittest -v test_member_activation_service.py
 python -m unittest -v test_points_ledger_service.py
+python -m unittest -v test_points_expiry.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -222,7 +232,7 @@ python -m app.migration_upgrade_rehearsal
 
 ## 测试基线
 
-在当前 M3-2 工作副本上，完整依赖环境中的回归命令为：
+在当前 M3-3 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -230,7 +240,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 361 tests ... OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量单元测试：`Ran 388 tests ... OK (skipped=1)`；本轮新增 27 项到期测试；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
