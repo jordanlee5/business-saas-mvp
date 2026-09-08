@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0003_member_activation_security"
+CURRENT_SCHEMA_REVISION = "0004_catalog_foundation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -14,6 +14,10 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "points_accounts",
         "points_grants",
         "points_ledger_entries",
+        "product_categories",
+        "suppliers",
+        "products",
+        "product_skus",
     }
 )
 
@@ -62,6 +66,42 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "used_at",
             "locked_at",
             "revoked_at",
+        }
+    ),
+    "product_categories": frozenset(
+        {
+            "name",
+            "slug",
+            "sort_order",
+            "is_active",
+        }
+    ),
+    "suppliers": frozenset(
+        {
+            "supplier_public_id",
+            "name",
+            "is_active",
+        }
+    ),
+    "products": frozenset(
+        {
+            "product_public_id",
+            "category_id",
+            "name",
+            "status",
+            "sort_order",
+            "published_at",
+        }
+    ),
+    "product_skus": frozenset(
+        {
+            "product_id",
+            "supplier_id",
+            "sku_code",
+            "points_price",
+            "cost_price",
+            "low_stock_threshold",
+            "is_active",
         }
     ),
 }

@@ -175,6 +175,84 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
                 source_snapshot,
             )
 
+    def test_member_activation_revision_can_rehearse_catalog_upgrade(
+        self,
+    ):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "activation-security.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            command.upgrade(
+                build_config(build_sqlite_database_url(source_path)),
+                "0003_member_activation_security",
+            )
+            source_fingerprint = get_business_fingerprint(source_path)
+            source_snapshot = capture_legacy_snapshot(source_path)
+
+            result = rehearse_mall_core_upgrade(
+                build_sqlite_database_url(source_path),
+                backup_directory=backup_directory,
+            )
+
+            self.assertEqual(
+                result.source_revision,
+                "0003_member_activation_security",
+            )
+            self.assertEqual(
+                get_current_revision(source_path),
+                "0003_member_activation_security",
+            )
+            self.assertEqual(
+                get_current_revision(result.backup_database),
+                "0003_member_activation_security",
+            )
+            self.assertEqual(
+                get_current_revision(result.rehearsal_database),
+                CURRENT_SCHEMA_REVISION,
+            )
+            self.assertEqual(
+                get_business_fingerprint(source_path),
+                source_fingerprint,
+            )
+            self.assertEqual(
+                capture_legacy_snapshot(result.backup_database),
+                source_snapshot,
+            )
+
+    def test_drifted_member_activation_source_is_rejected(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "drifted-activation.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(
+                build_config(database_url),
+                "0003_member_activation_security",
+            )
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "DROP TABLE member_activation_credentials"
+                        )
+                    )
+            finally:
+                engine.dispose()
+
+            with self.assertRaisesRegex(
+                MigrationUpgradeRehearsalError,
+                "0003 源库缺少激活凭据表",
+            ):
+                rehearse_mall_core_upgrade(
+                    database_url,
+                    backup_directory=backup_directory,
+                )
+
+            self.assertFalse(backup_directory.exists())
+
     def test_already_upgraded_database_is_rejected_without_output(self):
         with TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

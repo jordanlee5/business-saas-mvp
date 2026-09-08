@@ -33,6 +33,10 @@ POST_BASELINE_TABLES = frozenset(
         "points_accounts",
         "points_grants",
         "points_ledger_entries",
+        "product_categories",
+        "suppliers",
+        "products",
+        "product_skus",
     }
 )
 

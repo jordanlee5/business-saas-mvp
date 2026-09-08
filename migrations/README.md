@@ -8,6 +8,8 @@
 
 `0003_member_activation_security` 新增商城业务激活凭据表，激活码仅保存带随机盐的版本化摘要，并由数据库约束安全因子、生命周期、错误次数、重签版本和有效期。升级演练同时支持从 `0001_current_schema_baseline` 或 `0002_mall_core_foundation` 到当前 head；源库与升级前快照不会被演练修改。
 
+`0004_catalog_foundation` 新增商品分类、供应商、商品和 SKU 四张空表，固化商品生命周期、积分售价、人民币成本、供应商归属、排序和低库存阈值的数据库约束。升级演练继续支持 `0001`、`0002`，并新增真实 `0003_member_activation_security` 源库的结构预检；本迁移不改写既有业务、会员、积分或现金返现数据。
+
 已有 SQLite 数据库在考虑写入版本标记前，还必须停止应用并运行 `python -m app.migration_rehearsal`。演练只修改单独副本，并保留原始快照；演练通过不等于获准修改真实数据库。历史兼容画像只接受已审计的等价类型、默认值、三个索引和三个外键差异，并要求审核人、凭证上传批次、布尔值与费率模式完整性检查全部通过。
 
-应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0003_member_activation_security` 且必需表、字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。
+应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0004_catalog_foundation` 且 20 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。

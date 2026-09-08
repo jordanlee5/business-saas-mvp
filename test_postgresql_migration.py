@@ -205,6 +205,14 @@ class PostgreSQLTestConfigurationTests(unittest.TestCase):
             "granted_points NUMERIC(18, 2) NOT NULL",
             migration_sql,
         )
+        self.assertIn(
+            "points_price NUMERIC(18, 2) NOT NULL",
+            migration_sql,
+        )
+        self.assertIn(
+            "cost_price NUMERIC(18, 2) NOT NULL",
+            migration_sql,
+        )
 
 
 class PostgreSQLMigrationIntegrationTests(unittest.TestCase):

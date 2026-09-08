@@ -122,6 +122,34 @@ class SchemaReadinessTests(unittest.TestCase):
             finally:
                 engine.dispose()
 
+    def test_false_head_missing_catalog_column_is_rejected(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "missing-catalog-column.db"
+            )
+            upgrade(database_url, "head")
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "DROP INDEX ix_product_skus_is_active"
+                        )
+                    )
+                    connection.execute(
+                        text(
+                            "ALTER TABLE product_skus DROP COLUMN is_active"
+                        )
+                    )
+
+                with self.assertRaisesRegex(
+                    DatabaseSchemaNotReadyError,
+                    "product_skus.is_active",
+                ):
+                    assert_database_schema_ready(engine)
+            finally:
+                engine.dispose()
+
 
 if __name__ == "__main__":
     unittest.main()

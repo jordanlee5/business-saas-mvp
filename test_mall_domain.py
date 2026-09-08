@@ -6,18 +6,41 @@ from app.mall import (
     ActivationCredentialStatus,
     ActivationSecurityMethod,
     BusinessChannel,
+    ProductStatus,
     VALID_ACTIVATION_CREDENTIAL_STATUSES,
     VALID_ACTIVATION_SECURITY_METHODS,
     VALID_BUSINESS_CHANNELS,
+    VALID_PRODUCT_STATUSES,
     calculate_points_expiry,
     is_activation_within_deadline,
     normalize_business_channel,
     normalize_activation_security_method,
     normalize_points,
+    normalize_product_status,
 )
 
 
 class MallDomainTests(unittest.TestCase):
+    def test_product_status_values_are_fixed(self):
+        self.assertEqual(
+            VALID_PRODUCT_STATUSES,
+            {"DRAFT", "PUBLISHED", "UNPUBLISHED"},
+        )
+        self.assertIs(
+            normalize_product_status(" PUBLISHED "),
+            ProductStatus.PUBLISHED,
+        )
+        self.assertIs(
+            normalize_product_status(ProductStatus.DRAFT),
+            ProductStatus.DRAFT,
+        )
+
+    def test_unknown_product_status_fails_closed(self):
+        for invalid_value in ("published", "ARCHIVED", "", None):
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(ValueError):
+                    normalize_product_status(invalid_value)
+
     def test_activation_security_values_are_fixed(self):
         self.assertEqual(
             VALID_ACTIVATION_SECURITY_METHODS,

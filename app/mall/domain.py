@@ -63,6 +63,14 @@ class PointsLedgerEntryType(str, Enum):
     ADJUST = "ADJUST"
 
 
+class ProductStatus(str, Enum):
+    """商城商品在后台目录中的生命周期状态。"""
+
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    UNPUBLISHED = "UNPUBLISHED"
+
+
 VALID_BUSINESS_CHANNELS = frozenset(
     channel.value
     for channel in BusinessChannel
@@ -96,6 +104,12 @@ VALID_POINTS_GRANT_STATUSES = frozenset(
 VALID_POINTS_LEDGER_ENTRY_TYPES = frozenset(
     entry_type.value
     for entry_type in PointsLedgerEntryType
+)
+
+
+VALID_PRODUCT_STATUSES = frozenset(
+    status.value
+    for status in ProductStatus
 )
 
 
@@ -140,6 +154,22 @@ def normalize_activation_security_method(
         return ActivationSecurityMethod(value.strip())
     except ValueError as exc:
         raise ValueError("不支持的激活安全因子") from exc
+
+
+def normalize_product_status(
+    value: ProductStatus | str,
+) -> ProductStatus:
+    """规范商品状态；未知值必须失败关闭。"""
+    if isinstance(value, ProductStatus):
+        return value
+
+    if not isinstance(value, str):
+        raise ValueError("商品状态无效")
+
+    try:
+        return ProductStatus(value.strip())
+    except ValueError as exc:
+        raise ValueError("商品状态无效") from exc
 
 
 def normalize_points(

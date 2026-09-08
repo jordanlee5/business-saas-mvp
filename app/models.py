@@ -19,6 +19,7 @@ from .mall.domain import (
     ActivationSecurityMethod,
     BusinessChannel,
     PointsGrantStatus,
+    ProductStatus,
 )
 from .time_utils import utc8_now
 
@@ -956,4 +957,289 @@ class PointsLedgerEntry(Base):
         DateTime(timezone=True),
         nullable=False,
         default=utc8_now,
+    )
+
+
+class ProductCategory(Base):
+    """商城商品分类；排序值越小越靠前。"""
+
+    __tablename__ = "product_categories"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_product_categories_name_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(slug)) > 0",
+            name="ck_product_categories_slug_nonblank",
+        ),
+        CheckConstraint(
+            "sort_order >= 0",
+            name="ck_product_categories_sort_nonnegative",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(
+        String(120),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    slug = Column(
+        String(80),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    description = Column(Text, nullable=True)
+    sort_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        index=True,
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class Supplier(Base):
+    """第一版商城 SKU 的供货主体。"""
+
+    __tablename__ = "suppliers"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(supplier_public_id)) > 0",
+            name="ck_suppliers_public_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_suppliers_name_nonblank",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    supplier_public_id = Column(
+        String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    name = Column(
+        String(160),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    contact_name = Column(String(80), nullable=True)
+    contact_phone = Column(String(40), nullable=True)
+    remark = Column(Text, nullable=True)
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class Product(Base):
+    """商城 SPU；上下架状态不代替 SKU 的可用状态。"""
+
+    __tablename__ = "products"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(product_public_id)) > 0",
+            name="ck_products_public_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_products_name_nonblank",
+        ),
+        CheckConstraint(
+            "status IN ('DRAFT', 'PUBLISHED', 'UNPUBLISHED')",
+            name="ck_products_status",
+        ),
+        CheckConstraint(
+            "sort_order >= 0",
+            name="ck_products_sort_nonnegative",
+        ),
+        CheckConstraint(
+            "status <> 'PUBLISHED' OR published_at IS NOT NULL",
+            name="ck_products_published_time",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_public_id = Column(
+        String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    category_id = Column(
+        Integer,
+        ForeignKey("product_categories.id"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(200), nullable=False, index=True)
+    subtitle = Column(String(300), nullable=True)
+    description = Column(Text, nullable=True)
+    status = Column(
+        String(30),
+        nullable=False,
+        default=ProductStatus.DRAFT.value,
+        server_default=ProductStatus.DRAFT.value,
+        index=True,
+    )
+    sort_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        index=True,
+    )
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class ProductSku(Base):
+    """商品可售最小单位；积分价和人民币成本均保留两位。"""
+
+    __tablename__ = "product_skus"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(sku_code)) > 0",
+            name="ck_product_skus_code_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_product_skus_name_nonblank",
+        ),
+        CheckConstraint(
+            "points_price > 0",
+            name="ck_product_skus_points_price_positive",
+        ),
+        CheckConstraint(
+            "cost_price >= 0",
+            name="ck_product_skus_cost_price_nonnegative",
+        ),
+        CheckConstraint(
+            "low_stock_threshold >= 0",
+            name="ck_product_skus_threshold_nonnegative",
+        ),
+        CheckConstraint(
+            "sort_order >= 0",
+            name="ck_product_skus_sort_nonnegative",
+        ),
+        UniqueConstraint(
+            "product_id",
+            "name",
+            name="uq_product_skus_product_name",
+        ),
+        UniqueConstraint(
+            "supplier_id",
+            "supplier_sku_code",
+            name="uq_product_skus_supplier_code",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(
+        Integer,
+        ForeignKey("products.id"),
+        nullable=False,
+        index=True,
+    )
+    supplier_id = Column(
+        Integer,
+        ForeignKey("suppliers.id"),
+        nullable=False,
+        index=True,
+    )
+    sku_code = Column(
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    name = Column(String(160), nullable=False)
+    supplier_sku_code = Column(String(100), nullable=True)
+    points_price = Column(
+        Numeric(18, 2),
+        nullable=False,
+    )
+    cost_price = Column(
+        Numeric(18, 2),
+        nullable=False,
+    )
+    low_stock_threshold = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    sort_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
     )

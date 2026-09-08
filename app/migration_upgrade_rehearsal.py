@@ -44,10 +44,14 @@ class MigrationUpgradeRehearsalError(RuntimeError):
 
 
 MALL_CORE_FOUNDATION_REVISION = "0002_mall_core_foundation"
+MEMBER_ACTIVATION_SECURITY_REVISION = (
+    "0003_member_activation_security"
+)
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
         MALL_CORE_FOUNDATION_REVISION,
+        MEMBER_ACTIVATION_SECURITY_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -67,6 +71,25 @@ MALL_CORE_FOUNDATION_COLUMNS = {
         {"redemption_mode", "claim_status"}
     ),
 }
+MEMBER_ACTIVATION_SECURITY_COLUMNS = frozenset(
+    {
+        "business_record_id",
+        "security_method",
+        "secret_algorithm",
+        "secret_iterations",
+        "secret_salt",
+        "secret_digest",
+        "failed_attempts",
+        "max_attempts",
+        "issue_version",
+        "status",
+        "issued_at",
+        "expires_at",
+        "used_at",
+        "locked_at",
+        "revoked_at",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -268,8 +291,10 @@ def build_alembic_config(database_url: str) -> Config:
 
 def validate_mall_core_foundation_source(
     database_path: Path,
+    *,
+    require_activation_security: bool = False,
 ) -> None:
-    """Fail closed when a database only claims to be at revision 0002."""
+    """Fail closed when a 0002/0003 source only claims its revision."""
     connection = open_read_only_database(database_path)
     try:
         tables = set(list_legacy_table_names(connection))
@@ -279,9 +304,19 @@ def validate_mall_core_foundation_source(
                 "0002 源库缺少商城核心表："
                 + ", ".join(sorted(missing_tables))
             )
-        if "member_activation_credentials" in tables:
+        if (
+            not require_activation_security
+            and "member_activation_credentials" in tables
+        ):
             raise MigrationUpgradeRehearsalError(
                 "0002 源库已存在未登记的激活凭据表"
+            )
+        if (
+            require_activation_security
+            and "member_activation_credentials" not in tables
+        ):
+            raise MigrationUpgradeRehearsalError(
+                "0003 源库缺少激活凭据表"
             )
         missing_columns: list[str] = []
         for table_name, required_columns in (
@@ -303,6 +338,23 @@ def validate_mall_core_foundation_source(
                 "0002 源库缺少商城核心字段："
                 + ", ".join(missing_columns)
             )
+        if require_activation_security:
+            activation_columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    "member_activation_credentials",
+                )
+            }
+            missing_activation_columns = (
+                MEMBER_ACTIVATION_SECURITY_COLUMNS
+                - activation_columns
+            )
+            if missing_activation_columns:
+                raise MigrationUpgradeRehearsalError(
+                    "0003 源库缺少激活安全字段："
+                    + ", ".join(sorted(missing_activation_columns))
+                )
     finally:
         connection.close()
 
@@ -331,8 +383,13 @@ def rehearse_mall_core_upgrade(
                 "源库未通过 0001 结构与数据完整性预检："
                 f"{exc}"
             ) from exc
-    else:
+    elif source_revision == MALL_CORE_FOUNDATION_REVISION:
         validate_mall_core_foundation_source(source_path)
+    else:
+        validate_mall_core_foundation_source(
+            source_path,
+            require_activation_security=True,
+        )
 
     source_business_fingerprint = get_business_fingerprint(source_path)
     source_snapshot = capture_legacy_snapshot(source_path)
