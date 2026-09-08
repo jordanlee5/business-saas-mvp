@@ -73,6 +73,12 @@ from .points_expiry_service import (
     list_due_points_grants,
     list_expiring_points_grants,
 )
+from .points_adjustment_service import (
+    ADJUSTMENT_PERMISSION_MESSAGE,
+    PointsAdjustmentResult,
+    adjust_points_grant,
+    execute_points_adjustment,
+)
 
 __all__ = [
     "ActivationCredentialStatus",
@@ -81,6 +87,7 @@ __all__ = [
     "ACTIVATION_CODE_HASH_ITERATIONS",
     "ACTIVATION_CODE_MAX_ATTEMPTS",
     "ACTIVATION_FAILURE_MESSAGE",
+    "ADJUSTMENT_PERMISSION_MESSAGE",
     "BusinessChannel",
     "BusinessClaimStatus",
     "ACCEPTED_BATCH_STATUS",
@@ -95,6 +102,7 @@ __all__ = [
     "POINTS_BALANCE_MISMATCH_MESSAGE",
     "InitialGrantLedgerResult",
     "PointsAccountBalanceAudit",
+    "PointsAdjustmentResult",
     "PointsGrantBalanceAudit",
     "PointsGrantStatus",
     "PointsExpiryItem",
@@ -115,6 +123,8 @@ __all__ = [
     "calculate_points_account_balance",
     "calculate_points_grant_balance",
     "activate_mall_business",
+    "adjust_points_grant",
+    "execute_points_adjustment",
     "build_upload_channel_snapshot",
     "batch_revert_block_reason",
     "business_claim_status_label",
