@@ -192,6 +192,23 @@ MALL_POINTS_ADJUSTMENT_LEVELS = frozenset(
 )
 
 
+# 会员积分包含来源客户信息，只向商城运营角色开放。
+MALL_MEMBER_POINTS_VIEW_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
+MALL_MEMBER_POINTS_EXPORT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS = (
     frozenset(
         {
@@ -227,6 +244,8 @@ MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
             MALL_ORDER_MANAGEMENT_LEVELS,
         MallAuditActionType.POINTS_ADJUST:
             MALL_POINTS_ADJUSTMENT_LEVELS,
+        MallAuditActionType.MEMBER_POINTS_EXPORT:
+            MALL_MEMBER_POINTS_EXPORT_LEVELS,
         MallAuditActionType.SUPPLIER_CREATE:
             MALL_SUPPLIER_MANAGEMENT_LEVELS,
         MallAuditActionType.SUPPLIER_UPDATE:
@@ -486,6 +505,26 @@ def can_adjust_mall_points(
     return has_admin_level(
         user,
         MALL_POINTS_ADJUSTMENT_LEVELS,
+    )
+
+
+def can_view_mall_member_points(
+    user: object | None,
+) -> bool:
+    """是否可以查看会员积分汇总、批次和流水。"""
+    return has_admin_level(
+        user,
+        MALL_MEMBER_POINTS_VIEW_LEVELS,
+    )
+
+
+def can_export_mall_member_points(
+    user: object | None,
+) -> bool:
+    """是否可以导出单个会员的积分对账明细。"""
+    return has_admin_level(
+        user,
+        MALL_MEMBER_POINTS_EXPORT_LEVELS,
     )
 
 

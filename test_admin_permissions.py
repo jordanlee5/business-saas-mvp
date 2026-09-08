@@ -20,6 +20,8 @@ from app.admin_permissions import (
     can_manage_business_batches,
     can_view_business_records,
     can_manage_promotion_pages,
+    can_export_mall_member_points,
+    can_view_mall_member_points,
     get_admin_level,
     is_admin_user,
     is_super_admin,
@@ -59,6 +61,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertTrue(can_view_business_records(user))
         self.assertTrue(can_manage_business_batches(user))
         self.assertTrue(can_export_business_records(user))
+        self.assertTrue(can_view_mall_member_points(user))
+        self.assertTrue(can_export_mall_member_points(user))
 
     def test_primary_reviewer_has_small_team_permissions(self):
         user = make_user(
@@ -83,6 +87,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertTrue(can_view_business_records(user))
         self.assertFalse(can_manage_business_batches(user))
         self.assertFalse(can_export_business_records(user))
+        self.assertFalse(can_view_mall_member_points(user))
+        self.assertFalse(can_export_mall_member_points(user))
 
     def test_secondary_reviewer_only_has_secondary_review_permission(self):
         user = make_user(
@@ -107,6 +113,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertTrue(can_view_business_records(user))
         self.assertFalse(can_manage_business_batches(user))
         self.assertFalse(can_export_business_records(user))
+        self.assertFalse(can_view_mall_member_points(user))
+        self.assertFalse(can_export_mall_member_points(user))
 
     def test_operator_has_operation_permissions(self):
         user = make_user(
@@ -131,6 +139,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertTrue(can_view_business_records(user))
         self.assertTrue(can_manage_business_batches(user))
         self.assertTrue(can_export_business_records(user))
+        self.assertTrue(can_view_mall_member_points(user))
+        self.assertTrue(can_export_mall_member_points(user))
 
     def test_partner_has_no_admin_permissions(self):
         user = make_user(
@@ -153,6 +163,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_view_business_records(user))
         self.assertFalse(can_manage_business_batches(user))
         self.assertFalse(can_export_business_records(user))
+        self.assertFalse(can_view_mall_member_points(user))
+        self.assertFalse(can_export_mall_member_points(user))
 
     def test_admin_without_level_is_rejected(self):
         user = make_user(
@@ -169,6 +181,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_view_business_records(user))
         self.assertFalse(can_manage_business_batches(user))
         self.assertFalse(can_export_business_records(user))
+        self.assertFalse(can_view_mall_member_points(user))
+        self.assertFalse(can_export_mall_member_points(user))
 
     def test_invalid_admin_level_is_rejected(self):
         user = make_user(
@@ -186,6 +200,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_view_business_records(user))
         self.assertFalse(can_manage_business_batches(user))
         self.assertFalse(can_export_business_records(user))
+        self.assertFalse(can_view_mall_member_points(user))
+        self.assertFalse(can_export_mall_member_points(user))
 
     def test_none_user_has_no_permissions(self):
         self.assertIsNone(get_admin_level(None))
@@ -203,6 +219,8 @@ class AdminPermissionsTests(unittest.TestCase):
         self.assertFalse(can_view_business_records(None))
         self.assertFalse(can_manage_business_batches(None))
         self.assertFalse(can_export_business_records(None))
+        self.assertFalse(can_view_mall_member_points(None))
+        self.assertFalse(can_export_mall_member_points(None))
 
 
     def test_promotion_page_management_permission(

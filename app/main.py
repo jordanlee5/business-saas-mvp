@@ -87,6 +87,13 @@ from .mall import (
     decide_pending_batch,
     normalize_business_channel_filter,
     revert_batch_decision,
+    MEMBER_STATUS_ACTIVE,
+    MEMBER_STATUS_ALL,
+    MEMBER_STATUS_INACTIVE,
+    build_member_points_workbook,
+    get_member_points_detail,
+    list_member_points,
+    record_member_points_export,
 )
 from .notification_service import (
     create_business_batch_uploaded_notifications,
@@ -126,6 +133,8 @@ from .admin_permissions import (
     can_manage_business_batches,
     can_view_business_records,
     can_manage_promotion_pages,
+    can_export_mall_member_points,
+    can_view_mall_member_points,
 )
 
 from .match_review_workflow import (
@@ -328,6 +337,12 @@ def admin_navigation_context(
                     user
                 )
             )
+        ),
+        "can_view_mall_member_points": (
+            can_view_mall_member_points(user)
+        ),
+        "can_export_mall_member_points": (
+            can_export_mall_member_points(user)
         ),
     }
 
@@ -545,6 +560,12 @@ def add_base_context(request: Request, context: dict):
             user.role == "partner"
             or can_export_business_records(user)
         )
+        context["can_view_mall_member_points"] = (
+            can_view_mall_member_points(user)
+        )
+        context["can_export_mall_member_points"] = (
+            can_export_mall_member_points(user)
+        )
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -561,6 +582,8 @@ def add_base_context(request: Request, context: dict):
         context["can_view_business_records"] = False
         context["can_manage_business_batches"] = False
         context["can_export_business_records"] = False
+        context["can_view_mall_member_points"] = False
+        context["can_export_mall_member_points"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -7981,6 +8004,149 @@ def export_my_settlement(
         filename=f"我的结算报表_{timestamp}.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@app.get("/member-points", response_class=HTMLResponse)
+def member_points_page(
+    request: Request,
+    keyword: str = Query(""),
+    member_status: str = Query(MEMBER_STATUS_ALL),
+    page: int = Query(1),
+    page_size: int = Query(10),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_view_mall_member_points(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            result = list_member_points(
+                db,
+                keyword=keyword,
+                member_status=member_status,
+                page=page,
+                page_size=page_size,
+            )
+        except ValueError as exc:
+            result = list_member_points(db)
+            error = str(exc)
+        context = add_base_context(request, {
+            "request": request,
+            "page_title": "会员积分",
+            "active_page": "member_points",
+            "result": result,
+            "member_status_all": MEMBER_STATUS_ALL,
+            "member_status_active": MEMBER_STATUS_ACTIVE,
+            "member_status_inactive": MEMBER_STATUS_INACTIVE,
+            "allowed_page_sizes": (10, 20, 50),
+            "error": error or None,
+        })
+        return templates.TemplateResponse(
+            request=request,
+            name="member_points.html",
+            context=context,
+        )
+    finally:
+        db.close()
+
+
+@app.get(
+    "/member-points/{member_id}",
+    response_class=HTMLResponse,
+)
+def member_points_detail_page(
+    request: Request,
+    member_id: int,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_view_mall_member_points(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            detail = get_member_points_detail(
+                db, member_id=member_id
+            )
+        except ValueError as exc:
+            query = urlencode({"error": str(exc)})
+            return RedirectResponse(
+                url=f"/member-points?{query}", status_code=302
+            )
+        context = add_base_context(request, {
+            "request": request,
+            "page_title": "会员积分详情",
+            "active_page": "member_points",
+            "detail": detail,
+        })
+        return templates.TemplateResponse(
+            request=request,
+            name="member_points_detail.html",
+            context=context,
+        )
+    finally:
+        db.close()
+
+
+@app.get("/member-points/{member_id}/export")
+def export_member_points(
+    request: Request,
+    member_id: int,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_export_mall_member_points(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            generated_at = utc8_now()
+            detail = get_member_points_detail(
+                db, member_id=member_id, now=generated_at
+            )
+            workbook = build_member_points_workbook(
+                detail, exported_at=generated_at
+            )
+            record_member_points_export(
+                db,
+                actor_admin_id=user.id,
+                detail=detail,
+                now=generated_at,
+            )
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            query = urlencode({"error": str(exc)})
+            return RedirectResponse(
+                url=f"/member-points?{query}", status_code=302
+            )
+        timestamp = generated_at.strftime("%Y%m%d%H%M%S")
+        filename = f"member_points_{detail.member_id}_{timestamp}.xlsx"
+        return StreamingResponse(
+            workbook,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{filename}"'
+                )
+            },
+        )
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 @app.get("/logout")

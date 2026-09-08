@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .member-page { max-width: 1420px; margin: 0 auto; }
+    .member-note, .member-error { margin: 14px 0 20px; padding: 12px 14px; border-radius: 10px; }
+    .member-note { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .member-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+    .member-filter { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 120px 120px; gap: 12px; align-items: end; margin-bottom: 22px; }
+    .member-filter label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
+    .member-filter input, .member-filter select { width: 100%; height: 40px; border: 1px solid #cbd5e1; border-radius: 9px; padding: 0 11px; background: white; }
+    .member-table-wrap { overflow-x: auto; }
+    .member-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .member-table th, .member-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    .member-table th { background: #f8fafc; color: #475569; }
+    .badge { display: inline-block; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 800; }
+    .badge-ok { color: #047857; background: #d1fae5; }
+    .badge-warn { color: #b45309; background: #fef3c7; }
+    .badge-off { color: #b91c1c; background: #fee2e2; }
+    .detail-link { color: #2563eb; font-weight: 800; text-decoration: none; }
+    .member-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+    .pager { display: flex; gap: 7px; align-items: center; }
+    .pager a, .pager span { padding: 7px 10px; border-radius: 8px; background: #e2e8f0; color: #334155; text-decoration: none; font-weight: 700; }
+    .pager .current { color: white; background: #2563eb; }
+    @media (max-width: 900px) { .member-filter { grid-template-columns: 1fr; } }
+</style>
+
+<div class="member-page page-card">
+    <div class="page-header"><h1 class="page-title">会员积分</h1></div>
+    <div class="member-note">只读查看会员积分账户、独立批次、到期时间和不可变流水。页面中的来源客户信息已脱敏；查询不会执行到期处理或自动修复余额。</div>
+    {% if error %}<div class="member-error">{{ error }}</div>{% endif %}
+    <form class="member-filter" method="get" action="/member-points">
+        <label>关键词<input name="keyword" value="{{ result.keyword }}" placeholder="会员编号 / 业务单号 / 姓名 / 手机号 / 车牌号"></label>
+        <label>会员状态<select name="member_status">
+            <option value="{{ member_status_all }}" {% if result.member_status == member_status_all %}selected{% endif %}>全部</option>
+            <option value="{{ member_status_active }}" {% if result.member_status == member_status_active %}selected{% endif %}>启用</option>
+            <option value="{{ member_status_inactive }}" {% if result.member_status == member_status_inactive %}selected{% endif %}>停用</option>
+        </select></label>
+        <label>每页<select name="page_size">{% for size in allowed_page_sizes %}<option value="{{ size }}" {% if result.page_size == size %}selected{% endif %}>{{ size }} 条</option>{% endfor %}</select></label>
+        <button class="btn btn-primary" type="submit">筛选</button>
+    </form>
+    <div class="member-table-wrap"><table class="member-table">
+        <thead><tr><th>会员公开编号</th><th>状态</th><th>可用积分</th><th>预占积分</th><th>积分批次</th><th>流水</th><th>最近到期</th><th>账本一致性</th><th>操作</th></tr></thead>
+        <tbody>{% for item in result.items %}<tr>
+            <td>{{ item.member_public_id }}</td><td><span class="badge {{ 'badge-ok' if item.is_active else 'badge-off' }}">{{ '启用' if item.is_active else '停用' }}</span></td>
+            <td>{{ '%.2f' | format(item.available_points) }}</td><td>{{ '%.2f' | format(item.reserved_points) }}</td><td>{{ item.grant_count }}</td><td>{{ item.ledger_count }}</td><td>{{ item.nearest_expires_at | format_utc8 }}</td>
+            <td><span class="badge {{ 'badge-ok' if item.is_consistent else 'badge-warn' }}">{{ '一致' if item.is_consistent else '异常' }}</span></td><td><a class="detail-link" href="/member-points/{{ item.member_id }}">查看详情</a></td>
+        </tr>{% else %}<tr><td colspan="9">暂无符合条件的会员积分记录。</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="member-footer"><span>共 {{ result.total }} 个会员，当前第 {{ result.page }} / {{ result.total_pages }} 页</span><div class="pager">
+        {% if result.page > 1 %}<a href="/member-points?page={{ result.page - 1 }}&page_size={{ result.page_size }}&member_status={{ result.member_status }}&keyword={{ result.keyword | urlencode }}">上一页</a>{% endif %}<span class="current">{{ result.page }}</span>{% if result.page < result.total_pages %}<a href="/member-points?page={{ result.page + 1 }}&page_size={{ result.page_size }}&member_status={{ result.member_status }}&keyword={{ result.keyword | urlencode }}">下一页</a>{% endif %}
+    </div></div>
+</div>
+{% endblock %}

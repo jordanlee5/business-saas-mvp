@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class MallAuditActionType(str, Enum):
-    """商城后台写操作使用的稳定审计动作类型。"""
+    """商城后台敏感操作使用的稳定审计动作类型。"""
 
     PRODUCT_CREATE = "mall_product_create"
     PRODUCT_UPDATE = "mall_product_update"
@@ -15,6 +15,7 @@ class MallAuditActionType(str, Enum):
     ORDER_SHIP = "mall_order_ship"
     ORDER_REFUND = "mall_order_refund"
     POINTS_ADJUST = "mall_points_adjust"
+    MEMBER_POINTS_EXPORT = "mall_member_points_export"
     SUPPLIER_CREATE = "mall_supplier_create"
     SUPPLIER_UPDATE = "mall_supplier_update"
     SUPPLIER_SETTLEMENT_GENERATE = (

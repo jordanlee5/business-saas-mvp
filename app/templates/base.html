@@ -303,6 +303,19 @@
             </div>
             {% endif %}
 
+            {% if can_view_mall_member_points | default(false) %}
+            <div class="side-section">
+                <div class="side-title">积分商城</div>
+                <a
+                    class="side-link {% if active_page == 'member_points' %}active{% endif %}"
+                    href="/member-points"
+                >
+                    <span class="side-icon">🪙</span>
+                    <span>会员积分</span>
+                </a >
+            </div>
+            {% endif %}
+
             {% if can_manage_administrators | default(false) %}
             <div class="side-section">
                 <div class="side-title">系统管理</div>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .points-detail { max-width: 1500px; margin: 0 auto; display: grid; gap: 20px; }
+    .detail-actions { display: flex; gap: 10px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; }
+    .summary-item { padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .summary-item span { display: block; color: #64748b; font-size: 13px; margin-bottom: 8px; }
+    .summary-item strong { font-size: 22px; color: #0f172a; }
+    .consistency-ok { color: #047857 !important; } .consistency-warn { color: #b45309 !important; }
+    .detail-note { padding: 12px 14px; margin-bottom: 18px; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; }
+    .section-title { margin: 0 0 14px; color: #0f172a; }
+    .table-wrap { overflow-x: auto; } .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .detail-table th, .detail-table td { padding: 10px 9px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    .detail-table th { background: #f8fafc; color: #475569; }
+    .badge { display: inline-block; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
+    .delta-plus { color: #047857; font-weight: 800; } .delta-minus { color: #b91c1c; font-weight: 800; }
+    @media (max-width: 1000px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+<div class="points-detail">
+    <section class="page-card"><div class="page-header"><div><h1 class="page-title">会员积分详情</h1><div style="margin-top:8px;color:#64748b">{{ detail.member_public_id }}</div></div><div class="detail-actions"><a class="btn btn-secondary" href="/member-points">返回列表</a>{% if can_export_mall_member_points %}<a class="btn btn-primary" href="/member-points/{{ detail.member_id }}/export">导出 Excel</a>{% endif %}</div></div>
+        <div class="detail-note">来源姓名、手机号和车牌号在页面脱敏。Excel 含对账所需客户明细，导出行为会记录管理员、会员、时间和数据范围。</div>
+        <div class="summary-grid"><div class="summary-item"><span>可用积分</span><strong>{{ '%.2f' | format(detail.available_points) }}</strong></div><div class="summary-item"><span>预占积分</span><strong>{{ '%.2f' | format(detail.reserved_points) }}</strong></div><div class="summary-item"><span>账户版本</span><strong>{{ detail.account_version }}</strong></div><div class="summary-item"><span>账本一致性</span><strong class="{{ 'consistency-ok' if detail.is_consistent else 'consistency-warn' }}">{{ '一致' if detail.is_consistent else '异常，请停止写操作' }}</strong></div></div>
+    </section>
+    <section class="page-card"><h2 class="section-title">积分批次（按到期时间排序）</h2><div class="table-wrap"><table class="detail-table">
+        <thead><tr><th>批次ID</th><th>来源业务单号</th><th>上传方</th><th>客户姓名</th><th>手机号</th><th>车牌号</th><th>授予</th><th>可用</th><th>预占</th><th>激活时间</th><th>到期时间</th><th>状态</th></tr></thead>
+        <tbody>{% for item in detail.grants %}<tr><td>{{ item.grant_id }}</td><td>{{ item.business_no }}</td><td>{{ item.uploader_name }}</td><td>{{ item.customer_name_masked }}</td><td>{{ item.customer_phone_masked }}</td><td>{{ item.plate_number_masked }}</td><td>{{ '%.2f' | format(item.granted_points) }}</td><td>{{ '%.2f' | format(item.available_points) }}</td><td>{{ '%.2f' | format(item.reserved_points) }}</td><td>{{ item.activated_at | format_utc8 }}</td><td>{{ item.expires_at | format_utc8 }}</td><td><span class="badge">{{ item.status_label }}</span></td></tr>{% else %}<tr><td colspan="12">该会员暂无积分批次。</td></tr>{% endfor %}</tbody>
+    </table></div></section>
+    <section class="page-card"><h2 class="section-title">不可变积分流水（最新在前）</h2><div class="table-wrap"><table class="detail-table">
+        <thead><tr><th>流水ID</th><th>批次ID</th><th>业务单号</th><th>类型</th><th>可用变化</th><th>预占变化</th><th>管理员</th><th>原因</th><th>来源</th><th>时间</th></tr></thead>
+        <tbody>{% for item in detail.ledgers %}<tr><td>{{ item.ledger_id }}</td><td>{{ item.grant_id }}</td><td>{{ item.business_no }}</td><td>{{ item.entry_type_label }}</td><td class="{{ 'delta-plus' if item.available_points_delta > 0 else 'delta-minus' if item.available_points_delta < 0 else '' }}">{{ '%+.2f' | format(item.available_points_delta) }}</td><td class="{{ 'delta-plus' if item.reserved_points_delta > 0 else 'delta-minus' if item.reserved_points_delta < 0 else '' }}">{{ '%+.2f' | format(item.reserved_points_delta) }}</td><td>{{ item.actor_username or '-' }}</td><td>{{ item.reason or '-' }}</td><td>{{ item.reference_type or '-' }}{% if item.reference_id %} / {{ item.reference_id }}{% endif %}</td><td>{{ item.created_at | format_utc8 }}</td></tr>{% else %}<tr><td colspan="10">该会员暂无积分流水。</td></tr>{% endfor %}</tbody>
+    </table></div></section>
+</div>
+{% endblock %}

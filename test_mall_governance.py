@@ -14,6 +14,8 @@ from app.admin_permissions import (
     can_manage_mall_orders,
     can_manage_mall_suppliers,
     can_perform_mall_audit_action,
+    can_export_mall_member_points,
+    can_view_mall_member_points,
 )
 from app.mall import (
     MallAuditActionType,
@@ -128,6 +130,17 @@ class MallPermissionTests(unittest.TestCase):
                         self.operator
                     )
                 )
+
+    def test_member_points_view_and_export_allow_only_operations_roles(self):
+        for permission_function in (
+            can_view_mall_member_points,
+            can_export_mall_member_points,
+        ):
+            self.assertTrue(permission_function(self.super_admin))
+            self.assertTrue(permission_function(self.operator))
+            self.assertFalse(permission_function(self.primary_reviewer))
+            self.assertFalse(permission_function(self.secondary_reviewer))
+            self.assertFalse(permission_function(self.partner))
 
     def test_every_audit_action_has_explicit_permission_mapping(
         self,
