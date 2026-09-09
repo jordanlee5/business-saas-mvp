@@ -169,7 +169,9 @@ python -m app.points_expiry_task --upcoming-days 30
 - `OPEN-006` 已确认为退款退回原积分批次，原批次已到期时进入人工处理且不自动延期；`OPEN-007` 已确认为第一版全部包邮。这两项只作为后续订单约束，本轮没有实现退款或运费代码；
 - `SMS_OTP` 已登记为安全因子扩展值，但在短信供应商、发送频控和回执校验接入前由服务明确拒绝；
 - 公网激活 API 尚未开放。未来会员端接口必须先完成微信登录态、请求级限流和审计，不能把 `openid` 当作客户端可自由填写字段；
-- 商品与 SKU 的后台写服务和页面、媒体、库存、订单、退款及供应商结算仍按后续切片独立实现。迁移后四张目录表为空是预期结果；完整边界见 [商品目录基础说明](docs/catalog-foundation.md)。
+- M4-2 已新增分类、供应商、商品与 SKU 的受控写服务：超级管理员和运营管理员可以创建与编辑目录，所有实际写入同步生成管理员操作日志；商品只能通过专用状态操作上下架，上架前必须具有启用分类和至少一个有效供应商 SKU；
+- 商品与供应商公开编号及 SKU 编码保持稳定，价格、成本、排序、唯一字段和停用边界失败关闭。当前服务不自行提交事务，调用方必须整体提交或回滚；完整边界见 [商品目录写服务说明](docs/catalog-service.md)；
+- 商品后台页面、HTTP 写接口、媒体、库存、订单、退款及供应商结算仍按后续切片独立实现。迁移后未调用写服务时四张目录表为空仍是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
 
 ## 数据库、上传目录与迁移边界
 
@@ -202,6 +204,7 @@ python -m unittest -v test_points_expiry.py
 python -m unittest -v test_points_adjustment_service.py
 python -m unittest -v test_member_points_service.py test_member_points_routes.py
 python -m unittest -v test_catalog_foundation_migration.py test_mall_domain.py
+python -m unittest -v test_catalog_service.py test_mall_governance.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -281,6 +284,7 @@ business-saas-mvp/
 │  └─ static/                       # 样式、脚本与图片资源
 ├─ docs/
 │  ├─ catalog-foundation.md         # M4-1 商品目录数据边界与迁移说明
+│  ├─ catalog-service.md            # M4-2 商品目录写服务与状态边界
 │  └─ mall-business-rules-decisions.md
 ├─ migrations/                     # Alembic 环境与后续迁移版本
 ├─ alembic.ini                     # Alembic 项目配置

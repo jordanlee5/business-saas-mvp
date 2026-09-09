@@ -222,6 +222,10 @@ MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS = (
 # can_perform_mall_audit_action 会失败关闭，而不是默认放行。
 MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
     {
+        MallAuditActionType.CATEGORY_CREATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.CATEGORY_UPDATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.PRODUCT_CREATE:
             MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.PRODUCT_UPDATE:
