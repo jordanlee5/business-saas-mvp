@@ -303,9 +303,19 @@
             </div>
             {% endif %}
 
-            {% if can_view_mall_member_points | default(false) %}
+            {% if (can_view_mall_member_points | default(false)) or (can_manage_mall_catalog | default(false)) %}
             <div class="side-section">
                 <div class="side-title">积分商城</div>
+                {% if can_manage_mall_catalog | default(false) %}
+                <a
+                    class="side-link {% if active_page == 'mall_catalog' %}active{% endif %}"
+                    href="/mall-catalog"
+                >
+                    <span class="side-icon">🛍️</span>
+                    <span>商品目录</span>
+                </a >
+                {% endif %}
+                {% if can_view_mall_member_points | default(false) %}
                 <a
                     class="side-link {% if active_page == 'member_points' %}active{% endif %}"
                     href="/member-points"
@@ -313,6 +323,7 @@
                     <span class="side-icon">🪙</span>
                     <span>会员积分</span>
                 </a >
+                {% endif %}
             </div>
             {% endif %}
 

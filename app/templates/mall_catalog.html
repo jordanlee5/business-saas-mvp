@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .catalog-page { max-width: 1500px; margin: 0 auto; }
+    .catalog-header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+    .catalog-summary { display: flex; gap: 9px; flex-wrap: wrap; }
+    .catalog-count { padding: 8px 11px; border-radius: 9px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 800; }
+    .catalog-note, .catalog-message, .catalog-error { margin: 14px 0; padding: 11px 13px; border-radius: 9px; line-height: 1.6; }
+    .catalog-note { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .catalog-message { color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .catalog-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+    .catalog-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+    .catalog-tab { padding: 9px 15px; border-radius: 9px; color: #475569; background: #e2e8f0; text-decoration: none; font-weight: 800; }
+    .catalog-tab.active { color: #fff; background: #2563eb; }
+    .catalog-section { margin-top: 16px; }
+    .catalog-section h2 { margin: 0 0 14px; color: #0f172a; font-size: 21px; }
+    .catalog-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+    .catalog-form label { display: grid; gap: 6px; font-size: 13px; color: #334155; font-weight: 800; }
+    .catalog-form input, .catalog-form select, .catalog-form textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 10px; background: #fff; font: inherit; }
+    .catalog-form input, .catalog-form select { height: 39px; }
+    .catalog-form textarea { min-height: 78px; resize: vertical; }
+    .catalog-form .wide { grid-column: span 2; }
+    .catalog-form .full { grid-column: 1 / -1; }
+    .catalog-check { display: flex !important; grid-auto-flow: column; justify-content: start; align-items: center; gap: 7px !important; height: 39px; }
+    .catalog-check input { width: 16px; height: 16px; }
+    .catalog-create { margin-bottom: 18px; padding: 16px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+    .catalog-create h3 { margin: 0 0 13px; font-size: 16px; }
+    .catalog-table-wrap { overflow-x: auto; }
+    .catalog-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .catalog-table th, .catalog-table td { padding: 11px 9px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    .catalog-table th { white-space: nowrap; background: #f8fafc; color: #475569; }
+    .catalog-badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .catalog-badge.ok { color: #047857; background: #d1fae5; }
+    .catalog-badge.warn { color: #b45309; background: #fef3c7; }
+    .catalog-badge.off { color: #b91c1c; background: #fee2e2; }
+    .catalog-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .catalog-actions form { margin: 0; }
+    .catalog-details { margin-top: 8px; }
+    .catalog-details > summary { color: #2563eb; cursor: pointer; font-weight: 800; }
+    .catalog-details[open] > summary { margin-bottom: 12px; }
+    .product-card { margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; }
+    .product-head { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 14px 16px; background: #f8fafc; }
+    .product-title { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+    .product-title strong { color: #0f172a; font-size: 16px; }
+    .product-meta { margin-top: 5px; color: #64748b; font-size: 12px; }
+    .product-body { padding: 0 16px 16px; }
+    .sku-panel { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
+    .sku-panel h4 { margin: 0 0 10px; }
+    .empty-state { padding: 26px; text-align: center; color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; }
+    .compact-button { border: 0; cursor: pointer; min-height: 32px; }
+    @media (max-width: 1050px) { .catalog-form { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+    @media (max-width: 700px) { .catalog-form { grid-template-columns: 1fr; } .catalog-form .wide, .catalog-form .full { grid-column: auto; } .product-head { align-items: flex-start; flex-direction: column; } }
+</style>
+
+<div class="catalog-page page-card">
+    <div class="catalog-header">
+        <div>
+            <h1 class="page-title">商品目录</h1>
+            <div class="catalog-summary">
+                <span class="catalog-count">分类 {{ catalog.categories | length }}</span>
+                <span class="catalog-count">供应商 {{ catalog.suppliers | length }}</span>
+                <span class="catalog-count">商品 {{ catalog.products | length }}</span>
+                <span class="catalog-count">SKU {{ catalog.sku_count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="catalog-note">
+        当前页面维护分类、供应商、商品文字资料、SKU 当前价格与上下架状态。图片、库存余额和 Excel 将在后续独立切片接入；本页不会直接覆盖库存。
+    </div>
+    {% if message %}<div class="catalog-message">{{ message }}</div>{% endif %}
+    {% if error %}<div class="catalog-error">{{ error }}</div>{% endif %}
+
+    <nav class="catalog-tabs">
+        <a class="catalog-tab {% if section == section_products %}active{% endif %}" href="/mall-catalog?section={{ section_products }}">商品与 SKU</a>
+        <a class="catalog-tab {% if section == section_categories %}active{% endif %}" href="/mall-catalog?section={{ section_categories }}">商品分类</a>
+        <a class="catalog-tab {% if section == section_suppliers %}active{% endif %}" href="/mall-catalog?section={{ section_suppliers }}">供应商</a>
+    </nav>
+
+    {% if section == section_products %}
+    <section class="catalog-section">
+        <h2>商品与 SKU</h2>
+        <div class="catalog-create">
+            <h3>新建草稿商品</h3>
+            {% if catalog.active_categories %}
+            <form class="catalog-form" method="post" action="/mall-catalog/products/create">
+                <label>所属分类
+                    <select name="category_id" required>
+                        {% for category in catalog.active_categories %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="wide">商品名称<input name="name" maxlength="200" required></label>
+                <label>排序<input name="sort_order" type="number" min="0" value="0" required></label>
+                <label class="wide">副标题<input name="subtitle" maxlength="300"></label>
+                <label class="wide">商品说明<textarea name="description" maxlength="10000"></textarea></label>
+                <div class="full"><button class="ui-button-primary compact-button" type="submit">创建草稿商品</button></div>
+            </form>
+            {% else %}
+            <div class="empty-state">请先在“商品分类”中创建并启用至少一个分类。</div>
+            {% endif %}
+        </div>
+
+        {% for product in catalog.products %}
+        <article class="product-card">
+            <div class="product-head">
+                <div>
+                    <div class="product-title">
+                        <strong>{{ product.name }}</strong>
+                        <span class="catalog-badge {{ 'ok' if product.status == 'PUBLISHED' else ('warn' if product.status == 'DRAFT' else 'off') }}">{{ product.status_label }}</span>
+                        <span class="catalog-badge {{ 'ok' if product.skus else 'warn' }}">{{ product.skus | length }} 个 SKU</span>
+                    </div>
+                    <div class="product-meta">{{ product.product_public_id }} · {{ product.category_name }} · 排序 {{ product.sort_order }}{% if product.published_at %} · 上架 {{ product.published_at | format_utc8 }}{% endif %}</div>
+                </div>
+                <div class="catalog-actions">
+                    {% if product.status != 'PUBLISHED' %}
+                    <form method="post" action="/mall-catalog/products/{{ product.id }}/publish"><button class="ui-button-success ui-button-compact compact-button" type="submit">上架</button></form>
+                    {% else %}
+                    <form method="post" action="/mall-catalog/products/{{ product.id }}/unpublish"><button class="ui-button-danger ui-button-compact compact-button" type="submit">下架</button></form>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="product-body">
+                <details class="catalog-details">
+                    <summary>编辑商品资料</summary>
+                    <form class="catalog-form" method="post" action="/mall-catalog/products/{{ product.id }}/update">
+                        <label>所属分类<select name="category_id" required>{% for category in catalog.categories %}{% if category.is_active or category.id == product.category_id %}<option value="{{ category.id }}" {% if category.id == product.category_id %}selected{% endif %}>{{ category.name }}{% if not category.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}</select></label>
+                        <label class="wide">商品名称<input name="name" maxlength="200" value="{{ product.name }}" required></label>
+                        <label>排序<input name="sort_order" type="number" min="0" value="{{ product.sort_order }}" required></label>
+                        <label class="wide">副标题<input name="subtitle" maxlength="300" value="{{ product.subtitle or '' }}"></label>
+                        <label class="wide">商品说明<textarea name="description" maxlength="10000">{{ product.description or '' }}</textarea></label>
+                        <div class="full"><button class="ui-button-primary compact-button" type="submit">保存商品资料</button></div>
+                    </form>
+                </details>
+
+                <div class="sku-panel">
+                    <h4>SKU 明细</h4>
+                    {% if product.skus %}
+                    <div class="catalog-table-wrap"><table class="catalog-table">
+                        <thead><tr><th>SKU 编码</th><th>名称</th><th>供应商</th><th>积分售价</th><th>人民币成本</th><th>预警阈值</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody>{% for sku in product.skus %}<tr>
+                            <td>{{ sku.sku_code }}</td><td>{{ sku.name }}</td><td>{{ sku.supplier_name }}</td>
+                            <td>{{ '%.2f' | format(sku.points_price) }}</td><td>{{ '%.2f' | format(sku.cost_price) }}</td><td>{{ sku.low_stock_threshold }}</td>
+                            <td><span class="catalog-badge {{ 'ok' if sku.is_active else 'off' }}">{{ '启用' if sku.is_active else '停用' }}</span></td>
+                            <td><details class="catalog-details"><summary>编辑</summary>
+                                <form class="catalog-form" method="post" action="/mall-catalog/skus/{{ sku.id }}/update">
+                                    <label>供应商<select name="supplier_id" required>{% for supplier in catalog.suppliers %}{% if supplier.is_active or supplier.id == sku.supplier_id %}<option value="{{ supplier.id }}" {% if supplier.id == sku.supplier_id %}selected{% endif %}>{{ supplier.name }}{% if not supplier.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}</select></label>
+                                    <label>SKU 名称<input name="name" maxlength="160" value="{{ sku.name }}" required></label>
+                                    <label>供应商货号<input name="supplier_sku_code" maxlength="100" value="{{ sku.supplier_sku_code or '' }}"></label>
+                                    <label>积分售价<input name="points_price" type="number" min="0.01" step="0.01" value="{{ '%.2f' | format(sku.points_price) }}" required></label>
+                                    <label>人民币成本<input name="cost_price" type="number" min="0" step="0.01" value="{{ '%.2f' | format(sku.cost_price) }}" required></label>
+                                    <label>预警阈值<input name="low_stock_threshold" type="number" min="0" value="{{ sku.low_stock_threshold }}" required></label>
+                                    <label>排序<input name="sort_order" type="number" min="0" value="{{ sku.sort_order }}" required></label>
+                                    <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if sku.is_active %}checked{% endif %}>启用 SKU</label>
+                                    <div class="full"><button class="ui-button-primary compact-button" type="submit">保存 SKU</button></div>
+                                </form>
+                            </details></td>
+                        </tr>{% endfor %}</tbody>
+                    </table></div>
+                    {% else %}<div class="empty-state">该商品尚未创建 SKU，不能上架。</div>{% endif %}
+
+                    <details class="catalog-details" {% if not product.skus %}open{% endif %}>
+                        <summary>新增 SKU</summary>
+                        {% if catalog.active_suppliers %}
+                        <form class="catalog-form" method="post" action="/mall-catalog/products/{{ product.id }}/skus/create">
+                            <label>供应商<select name="supplier_id" required>{% for supplier in catalog.active_suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}</select></label>
+                            <label>SKU 编码<input name="sku_code" maxlength="64" required></label>
+                            <label>SKU 名称<input name="name" maxlength="160" required></label>
+                            <label>供应商货号<input name="supplier_sku_code" maxlength="100"></label>
+                            <label>积分售价<input name="points_price" type="number" min="0.01" step="0.01" required></label>
+                            <label>人民币成本<input name="cost_price" type="number" min="0" step="0.01" required></label>
+                            <label>预警阈值<input name="low_stock_threshold" type="number" min="0" value="0" required></label>
+                            <label>排序<input name="sort_order" type="number" min="0" value="0" required></label>
+                            <label class="catalog-check"><input name="is_active" type="checkbox" value="true" checked>启用 SKU</label>
+                            <div class="full"><button class="ui-button-primary compact-button" type="submit">创建 SKU</button></div>
+                        </form>
+                        {% else %}<div class="empty-state">请先在“供应商”中创建并启用至少一个供应商。</div>{% endif %}
+                    </details>
+                </div>
+            </div>
+        </article>
+        {% else %}<div class="empty-state">暂无商品。建立启用分类后，可在上方创建第一个草稿商品。</div>{% endfor %}
+    </section>
+
+    {% elif section == section_categories %}
+    <section class="catalog-section">
+        <h2>商品分类</h2>
+        <div class="catalog-create">
+            <h3>新建分类</h3>
+            <form class="catalog-form" method="post" action="/mall-catalog/categories/create">
+                <label>分类名称<input name="name" maxlength="120" required></label>
+                <label>分类 slug<input name="slug" maxlength="80" placeholder="例如 car-service" required></label>
+                <label>排序<input name="sort_order" type="number" min="0" value="0" required></label>
+                <label class="catalog-check"><input name="is_active" type="checkbox" value="true" checked>启用分类</label>
+                <label class="full">分类说明<textarea name="description" maxlength="5000"></textarea></label>
+                <div class="full"><button class="ui-button-primary compact-button" type="submit">创建分类</button></div>
+            </form>
+        </div>
+        {% if catalog.categories %}<div class="catalog-table-wrap"><table class="catalog-table">
+            <thead><tr><th>分类</th><th>slug</th><th>排序</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>{% for category in catalog.categories %}<tr>
+                <td><strong>{{ category.name }}</strong><br><span class="product-meta">{{ category.description or '无说明' }}</span></td><td>{{ category.slug }}</td><td>{{ category.sort_order }}</td>
+                <td><span class="catalog-badge {{ 'ok' if category.is_active else 'off' }}">{{ '启用' if category.is_active else '停用' }}</span></td>
+                <td><details class="catalog-details"><summary>编辑</summary>
+                    <form class="catalog-form" method="post" action="/mall-catalog/categories/{{ category.id }}/update">
+                        <label>分类名称<input name="name" maxlength="120" value="{{ category.name }}" required></label>
+                        <label>分类 slug<input name="slug" maxlength="80" value="{{ category.slug }}" required></label>
+                        <label>排序<input name="sort_order" type="number" min="0" value="{{ category.sort_order }}" required></label>
+                        <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if category.is_active %}checked{% endif %}>启用分类</label>
+                        <label class="full">分类说明<textarea name="description" maxlength="5000">{{ category.description or '' }}</textarea></label>
+                        <div class="full"><button class="ui-button-primary compact-button" type="submit">保存分类</button></div>
+                    </form>
+                </details></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>{% else %}<div class="empty-state">暂无商品分类。</div>{% endif %}
+    </section>
+
+    {% else %}
+    <section class="catalog-section">
+        <h2>供应商</h2>
+        <div class="catalog-create">
+            <h3>新建供应商</h3>
+            <form class="catalog-form" method="post" action="/mall-catalog/suppliers/create">
+                <label class="wide">供应商名称<input name="name" maxlength="160" required></label>
+                <label>联系人<input name="contact_name" maxlength="80"></label>
+                <label>联系电话<input name="contact_phone" maxlength="40"></label>
+                <label class="wide">备注<textarea name="remark" maxlength="5000"></textarea></label>
+                <label class="catalog-check"><input name="is_active" type="checkbox" value="true" checked>启用供应商</label>
+                <div><button class="ui-button-primary compact-button" type="submit">创建供应商</button></div>
+            </form>
+        </div>
+        {% if catalog.suppliers %}<div class="catalog-table-wrap"><table class="catalog-table">
+            <thead><tr><th>公开编号</th><th>供应商</th><th>联系人</th><th>联系电话</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>{% for supplier in catalog.suppliers %}<tr>
+                <td>{{ supplier.supplier_public_id }}</td><td><strong>{{ supplier.name }}</strong><br><span class="product-meta">{{ supplier.remark or '无备注' }}</span></td><td>{{ supplier.contact_name or '-' }}</td><td>{{ supplier.contact_phone or '-' }}</td>
+                <td><span class="catalog-badge {{ 'ok' if supplier.is_active else 'off' }}">{{ '启用' if supplier.is_active else '停用' }}</span></td>
+                <td><details class="catalog-details"><summary>编辑</summary>
+                    <form class="catalog-form" method="post" action="/mall-catalog/suppliers/{{ supplier.id }}/update">
+                        <label class="wide">供应商名称<input name="name" maxlength="160" value="{{ supplier.name }}" required></label>
+                        <label>联系人<input name="contact_name" maxlength="80" value="{{ supplier.contact_name or '' }}"></label>
+                        <label>联系电话<input name="contact_phone" maxlength="40" value="{{ supplier.contact_phone or '' }}"></label>
+                        <label class="wide">备注<textarea name="remark" maxlength="5000">{{ supplier.remark or '' }}</textarea></label>
+                        <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if supplier.is_active %}checked{% endif %}>启用供应商</label>
+                        <div><button class="ui-button-primary compact-button" type="submit">保存供应商</button></div>
+                    </form>
+                </details></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>{% else %}<div class="empty-state">暂无供应商。</div>{% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

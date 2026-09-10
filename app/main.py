@@ -90,10 +90,25 @@ from .mall import (
     MEMBER_STATUS_ACTIVE,
     MEMBER_STATUS_ALL,
     MEMBER_STATUS_INACTIVE,
+    CATALOG_SECTION_CATEGORIES,
+    CATALOG_SECTION_PRODUCTS,
+    CATALOG_SECTION_SUPPLIERS,
     build_member_points_workbook,
+    create_product,
+    create_product_category,
+    create_product_sku,
+    create_supplier,
+    get_catalog_admin_snapshot,
     get_member_points_detail,
     list_member_points,
+    normalize_catalog_section,
+    publish_product,
     record_member_points_export,
+    unpublish_product,
+    update_product,
+    update_product_category,
+    update_product_sku,
+    update_supplier,
 )
 from .notification_service import (
     create_business_batch_uploaded_notifications,
@@ -133,6 +148,7 @@ from .admin_permissions import (
     can_manage_business_batches,
     can_view_business_records,
     can_manage_promotion_pages,
+    can_manage_mall_catalog,
     can_export_mall_member_points,
     can_view_mall_member_points,
 )
@@ -316,6 +332,9 @@ def admin_navigation_context(
         ),
         "can_manage_promotion_pages": (
             can_manage_promotion_pages(user)
+        ),
+        "can_manage_mall_catalog": (
+            can_manage_mall_catalog(user)
         ),
         "can_view_business_records": bool(
             user
@@ -549,6 +568,9 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_promotion_pages"] = (
             can_manage_promotion_pages(user)
         )
+        context["can_manage_mall_catalog"] = (
+            can_manage_mall_catalog(user)
+        )
         context["can_view_business_records"] = (
             user.role == "partner"
             or can_view_business_records(user)
@@ -579,6 +601,7 @@ def add_base_context(request: Request, context: dict):
         context["can_view_stats"] = False
         context["can_export_stats"] = False
         context["can_manage_promotion_pages"] = False
+        context["can_manage_mall_catalog"] = False
         context["can_view_business_records"] = False
         context["can_manage_business_batches"] = False
         context["can_export_business_records"] = False
@@ -8003,6 +8026,366 @@ def export_my_settlement(
         export_path,
         filename=f"我的结算报表_{timestamp}.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+def _mall_catalog_redirect(
+    section: str,
+    *,
+    message: str = "",
+    error: str = "",
+):
+    query = {"section": section}
+    if message:
+        query["message"] = message
+    if error:
+        query["error"] = error
+    return RedirectResponse(
+        url=f"/mall-catalog?{urlencode(query)}",
+        status_code=303,
+    )
+
+
+def _run_catalog_mutation(
+    request: Request,
+    *,
+    section: str,
+    success_message: str,
+    operation,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_catalog(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            result = operation(db, user.id)
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            return _mall_catalog_redirect(section, error=str(exc))
+        except IntegrityError:
+            db.rollback()
+            return _mall_catalog_redirect(
+                section,
+                error="商品目录数据存在唯一或关联冲突",
+            )
+        except Exception:
+            db.rollback()
+            raise
+        return _mall_catalog_redirect(
+            section,
+            message=(
+                success_message
+                if result.changed
+                else "当前数据没有变化"
+            ),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/mall-catalog", response_class=HTMLResponse)
+def mall_catalog_page(
+    request: Request,
+    section: str = Query(CATALOG_SECTION_PRODUCTS),
+    message: str = Query(""),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_catalog(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    try:
+        normalized_section = normalize_catalog_section(section)
+    except ValueError as exc:
+        normalized_section = CATALOG_SECTION_PRODUCTS
+        error = error or str(exc)
+
+    db = SessionLocal()
+    try:
+        catalog = get_catalog_admin_snapshot(db)
+        context = add_base_context(request, {
+            "request": request,
+            "page_title": "商品目录",
+            "active_page": "mall_catalog",
+            "catalog": catalog,
+            "section": normalized_section,
+            "section_products": CATALOG_SECTION_PRODUCTS,
+            "section_categories": CATALOG_SECTION_CATEGORIES,
+            "section_suppliers": CATALOG_SECTION_SUPPLIERS,
+            "message": message or None,
+            "error": error or None,
+        })
+        return templates.TemplateResponse(
+            request=request,
+            name="mall_catalog.html",
+            context=context,
+        )
+    finally:
+        db.close()
+
+
+@app.post("/mall-catalog/categories/create")
+def create_catalog_category_route(
+    request: Request,
+    name: str = Form(...),
+    slug: str = Form(...),
+    description: str = Form(""),
+    sort_order: int = Form(0),
+    is_active: bool = Form(False),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_CATEGORIES,
+        success_message="商品分类已创建",
+        operation=lambda db, actor_id: create_product_category(
+            db,
+            actor_admin_id=actor_id,
+            name=name,
+            slug=slug,
+            description=description,
+            sort_order=sort_order,
+            is_active=is_active,
+        ),
+    )
+
+
+@app.post("/mall-catalog/categories/{category_id}/update")
+def update_catalog_category_route(
+    request: Request,
+    category_id: int,
+    name: str = Form(...),
+    slug: str = Form(...),
+    description: str = Form(""),
+    sort_order: int = Form(0),
+    is_active: bool = Form(False),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_CATEGORIES,
+        success_message="商品分类已更新",
+        operation=lambda db, actor_id: update_product_category(
+            db,
+            category_id=category_id,
+            actor_admin_id=actor_id,
+            name=name,
+            slug=slug,
+            description=description,
+            sort_order=sort_order,
+            is_active=is_active,
+        ),
+    )
+
+
+@app.post("/mall-catalog/suppliers/create")
+def create_catalog_supplier_route(
+    request: Request,
+    name: str = Form(...),
+    contact_name: str = Form(""),
+    contact_phone: str = Form(""),
+    remark: str = Form(""),
+    is_active: bool = Form(False),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_SUPPLIERS,
+        success_message="供应商已创建",
+        operation=lambda db, actor_id: create_supplier(
+            db,
+            actor_admin_id=actor_id,
+            name=name,
+            contact_name=contact_name,
+            contact_phone=contact_phone,
+            remark=remark,
+            is_active=is_active,
+        ),
+    )
+
+
+@app.post("/mall-catalog/suppliers/{supplier_id}/update")
+def update_catalog_supplier_route(
+    request: Request,
+    supplier_id: int,
+    name: str = Form(...),
+    contact_name: str = Form(""),
+    contact_phone: str = Form(""),
+    remark: str = Form(""),
+    is_active: bool = Form(False),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_SUPPLIERS,
+        success_message="供应商已更新",
+        operation=lambda db, actor_id: update_supplier(
+            db,
+            supplier_id=supplier_id,
+            actor_admin_id=actor_id,
+            name=name,
+            contact_name=contact_name,
+            contact_phone=contact_phone,
+            remark=remark,
+            is_active=is_active,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/create")
+def create_catalog_product_route(
+    request: Request,
+    category_id: int = Form(...),
+    name: str = Form(...),
+    subtitle: str = Form(""),
+    description: str = Form(""),
+    sort_order: int = Form(0),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="草稿商品已创建",
+        operation=lambda db, actor_id: create_product(
+            db,
+            actor_admin_id=actor_id,
+            category_id=category_id,
+            name=name,
+            subtitle=subtitle,
+            description=description,
+            sort_order=sort_order,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/{product_id}/update")
+def update_catalog_product_route(
+    request: Request,
+    product_id: int,
+    category_id: int = Form(...),
+    name: str = Form(...),
+    subtitle: str = Form(""),
+    description: str = Form(""),
+    sort_order: int = Form(0),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品资料已更新",
+        operation=lambda db, actor_id: update_product(
+            db,
+            product_id=product_id,
+            actor_admin_id=actor_id,
+            category_id=category_id,
+            name=name,
+            subtitle=subtitle,
+            description=description,
+            sort_order=sort_order,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/{product_id}/publish")
+def publish_catalog_product_route(
+    request: Request,
+    product_id: int,
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品已上架",
+        operation=lambda db, actor_id: publish_product(
+            db,
+            product_id=product_id,
+            actor_admin_id=actor_id,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/{product_id}/unpublish")
+def unpublish_catalog_product_route(
+    request: Request,
+    product_id: int,
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品已下架",
+        operation=lambda db, actor_id: unpublish_product(
+            db,
+            product_id=product_id,
+            actor_admin_id=actor_id,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/{product_id}/skus/create")
+def create_catalog_sku_route(
+    request: Request,
+    product_id: int,
+    supplier_id: int = Form(...),
+    sku_code: str = Form(...),
+    name: str = Form(...),
+    supplier_sku_code: str = Form(""),
+    points_price: str = Form(...),
+    cost_price: str = Form(...),
+    low_stock_threshold: int = Form(0),
+    is_active: bool = Form(False),
+    sort_order: int = Form(0),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品 SKU 已创建",
+        operation=lambda db, actor_id: create_product_sku(
+            db,
+            product_id=product_id,
+            supplier_id=supplier_id,
+            actor_admin_id=actor_id,
+            sku_code=sku_code,
+            name=name,
+            supplier_sku_code=supplier_sku_code,
+            points_price=points_price,
+            cost_price=cost_price,
+            low_stock_threshold=low_stock_threshold,
+            is_active=is_active,
+            sort_order=sort_order,
+        ),
+    )
+
+
+@app.post("/mall-catalog/skus/{sku_id}/update")
+def update_catalog_sku_route(
+    request: Request,
+    sku_id: int,
+    supplier_id: int = Form(...),
+    name: str = Form(...),
+    supplier_sku_code: str = Form(""),
+    points_price: str = Form(...),
+    cost_price: str = Form(...),
+    low_stock_threshold: int = Form(0),
+    is_active: bool = Form(False),
+    sort_order: int = Form(0),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品 SKU 已更新",
+        operation=lambda db, actor_id: update_product_sku(
+            db,
+            sku_id=sku_id,
+            actor_admin_id=actor_id,
+            supplier_id=supplier_id,
+            name=name,
+            supplier_sku_code=supplier_sku_code,
+            points_price=points_price,
+            cost_price=cost_price,
+            low_stock_threshold=low_stock_threshold,
+            is_active=is_active,
+            sort_order=sort_order,
+        ),
     )
 
 
