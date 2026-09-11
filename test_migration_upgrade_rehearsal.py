@@ -253,6 +253,60 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
 
             self.assertFalse(backup_directory.exists())
 
+    def test_catalog_revision_can_rehearse_product_media_upgrade(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "catalog-foundation.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(build_config(database_url), "0004_catalog_foundation")
+            source_snapshot = capture_legacy_snapshot(source_path)
+
+            result = rehearse_mall_core_upgrade(
+                database_url,
+                backup_directory=backup_directory,
+            )
+
+            self.assertEqual(result.source_revision, "0004_catalog_foundation")
+            self.assertEqual(
+                get_current_revision(source_path),
+                "0004_catalog_foundation",
+            )
+            self.assertEqual(
+                get_current_revision(result.rehearsal_database),
+                CURRENT_SCHEMA_REVISION,
+            )
+            self.assertEqual(
+                capture_legacy_snapshot(result.backup_database),
+                source_snapshot,
+            )
+
+    def test_drifted_catalog_source_is_rejected_without_output(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "drifted-catalog.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(build_config(database_url), "0004_catalog_foundation")
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(text("DROP TABLE product_skus"))
+            finally:
+                engine.dispose()
+
+            with self.assertRaisesRegex(
+                MigrationUpgradeRehearsalError,
+                "0004 源库缺少商品目录表",
+            ):
+                rehearse_mall_core_upgrade(
+                    database_url,
+                    backup_directory=backup_directory,
+                )
+            self.assertFalse(backup_directory.exists())
+
     def test_already_upgraded_database_is_rejected_without_output(self):
         with TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

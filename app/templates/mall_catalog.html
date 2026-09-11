@@ -47,6 +47,12 @@
     .product-body { padding: 0 16px 16px; }
     .sku-panel { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
     .sku-panel h4 { margin: 0 0 10px; }
+    .media-panel { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
+    .media-panel h4 { margin: 0 0 10px; }
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin: 12px 0; }
+    .media-card { padding: 11px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fbff; }
+    .media-preview { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 8px; background: #e2e8f0; }
+    .media-card-meta { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0; align-items: center; }
     .empty-state { padding: 26px; text-align: center; color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; }
     .compact-button { border: 0; cursor: pointer; min-height: 32px; }
     @media (max-width: 1050px) { .catalog-form { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
@@ -62,12 +68,13 @@
                 <span class="catalog-count">供应商 {{ catalog.suppliers | length }}</span>
                 <span class="catalog-count">商品 {{ catalog.products | length }}</span>
                 <span class="catalog-count">SKU {{ catalog.sku_count }}</span>
+                <span class="catalog-count">图片 {{ catalog.media_count }}</span>
             </div>
         </div>
     </div>
 
     <div class="catalog-note">
-        当前页面维护分类、供应商、商品文字资料、SKU 当前价格与上下架状态。图片、库存余额和 Excel 将在后续独立切片接入；本页不会直接覆盖库存。
+        当前页面维护分类、供应商、商品文字资料、SKU 当前价格、上下架状态及主图/轮播图/详情图。库存余额和 Excel 将在后续独立切片接入；本页不会直接覆盖库存。
     </div>
     {% if message %}<div class="catalog-message">{{ message }}</div>{% endif %}
     {% if error %}<div class="catalog-error">{{ error }}</div>{% endif %}
@@ -109,6 +116,7 @@
                         <strong>{{ product.name }}</strong>
                         <span class="catalog-badge {{ 'ok' if product.status == 'PUBLISHED' else ('warn' if product.status == 'DRAFT' else 'off') }}">{{ product.status_label }}</span>
                         <span class="catalog-badge {{ 'ok' if product.skus else 'warn' }}">{{ product.skus | length }} 个 SKU</span>
+                        <span class="catalog-badge {{ 'ok' if product.media else 'warn' }}">{{ product.media | length }} 张图片</span>
                     </div>
                     <div class="product-meta">{{ product.product_public_id }} · {{ product.category_name }} · 排序 {{ product.sort_order }}{% if product.published_at %} · 上架 {{ product.published_at | format_utc8 }}{% endif %}</div>
                 </div>
@@ -132,6 +140,46 @@
                         <div class="full"><button class="ui-button-primary compact-button" type="submit">保存商品资料</button></div>
                     </form>
                 </details>
+
+                <div class="media-panel">
+                    <h4>商品图片</h4>
+                    {% if product.media %}
+                    <div class="media-grid">
+                        {% for media in product.media %}
+                        <div class="media-card">
+                            <img class="media-preview" src="{{ media.image_path }}" alt="{{ media.alt_text or product.name }}" loading="lazy">
+                            <div class="media-card-meta">
+                                <span class="catalog-badge {{ 'ok' if media.is_active else 'off' }}">{{ media.role_label }} · {{ '启用' if media.is_active else '停用' }}</span>
+                                <span class="product-meta">排序 {{ media.sort_order }}</span>
+                            </div>
+                            <form class="catalog-form" method="post" action="/mall-catalog/media/{{ media.id }}/update">
+                                <label class="wide">替代文字<input name="alt_text" maxlength="200" value="{{ media.alt_text or '' }}"></label>
+                                <label>排序<input name="sort_order" type="number" min="0" value="{{ media.sort_order }}" required></label>
+                                <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if media.is_active %}checked{% endif %}>启用图片</label>
+                                <div class="full catalog-actions">
+                                    <button class="ui-button-primary compact-button" type="submit">保存图片资料</button>
+                                </div>
+                            </form>
+                            <form method="post" action="/mall-catalog/media/{{ media.id }}/delete">
+                                <button class="ui-button-danger ui-button-compact compact-button" type="submit">删除图片</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}<div class="empty-state">该商品尚未上传图片。</div>{% endif %}
+
+                    <details class="catalog-details" {% if not product.media %}open{% endif %}>
+                        <summary>上传商品图片</summary>
+                        <form class="catalog-form" method="post" enctype="multipart/form-data" action="/mall-catalog/products/{{ product.id }}/media/upload">
+                            <label>图片用途<select name="media_role" required><option value="MAIN">主图（替换现有主图）</option><option value="CAROUSEL">轮播图</option><option value="DETAIL">详情图</option></select></label>
+                            <label class="wide">图片文件<input name="image_file" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+                            <label>排序<input name="sort_order" type="number" min="0" value="0" required></label>
+                            <label class="wide">替代文字<input name="alt_text" maxlength="200" placeholder="用于无障碍阅读与图片加载失败场景"></label>
+                            <label class="catalog-check"><input name="is_active" type="checkbox" value="true" checked>启用图片</label>
+                            <div><button class="ui-button-primary compact-button" type="submit">上传图片</button></div>
+                        </form>
+                    </details>
+                </div>
 
                 <div class="sku-panel">
                     <h4>SKU 明细</h4>

@@ -6,12 +6,14 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     false,
     true,
+    text,
 )
 from .database import Base
 from .mall.domain import (
@@ -19,6 +21,7 @@ from .mall.domain import (
     ActivationSecurityMethod,
     BusinessChannel,
     PointsGrantStatus,
+    ProductMediaRole,
     ProductStatus,
 )
 from .time_utils import utc8_now
@@ -1230,6 +1233,86 @@ class ProductSku(Base):
         nullable=False,
         default=0,
         server_default="0",
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class ProductMedia(Base):
+    """商品主图、轮播图与详情图；文件与宣传页素材隔离。"""
+
+    __tablename__ = "product_media"
+    __table_args__ = (
+        CheckConstraint(
+            "media_role IN ('MAIN', 'CAROUSEL', 'DETAIL')",
+            name="ck_product_media_role",
+        ),
+        CheckConstraint(
+            "length(trim(image_path)) > 0",
+            name="ck_product_media_path_nonblank",
+        ),
+        CheckConstraint(
+            "sort_order >= 0",
+            name="ck_product_media_sort_nonnegative",
+        ),
+        Index(
+            "uq_product_media_one_main_per_product",
+            "product_id",
+            unique=True,
+            sqlite_where=text("media_role = 'MAIN'"),
+            postgresql_where=text("media_role = 'MAIN'"),
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(
+        Integer,
+        ForeignKey("products.id"),
+        nullable=False,
+        index=True,
+    )
+    media_role = Column(
+        String(30),
+        nullable=False,
+        default=ProductMediaRole.DETAIL.value,
+        server_default=ProductMediaRole.DETAIL.value,
+        index=True,
+    )
+    image_path = Column(
+        String(500),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    alt_text = Column(String(200), nullable=True)
+    sort_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        index=True,
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    uploaded_by_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
         index=True,
     )
     created_at = Column(

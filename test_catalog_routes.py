@@ -1,13 +1,17 @@
+import asyncio
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import unquote_plus
 
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from starlette.requests import Request
+from starlette.datastructures import UploadFile
 
 from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER, SUPER_ADMIN
 from app.database import Base
@@ -17,6 +21,7 @@ from app.main import (
     create_catalog_product_route,
     create_catalog_sku_route,
     create_catalog_supplier_route,
+    delete_catalog_product_media_route,
     mall_catalog_page,
     publish_catalog_product_route,
     unpublish_catalog_product_route,
@@ -24,6 +29,8 @@ from app.main import (
     update_catalog_product_route,
     update_catalog_sku_route,
     update_catalog_supplier_route,
+    update_catalog_product_media_route,
+    upload_catalog_product_media_route,
 )
 from app.mall import (
     create_product,
@@ -34,6 +41,7 @@ from app.models import (
     AdminActionLog,
     Product,
     ProductCategory,
+    ProductMedia,
     ProductSku,
     Supplier,
     User,
@@ -419,6 +427,139 @@ class CatalogRouteTests(unittest.TestCase):
                 )
         with self.Session() as db:
             self.assertEqual(db.query(ProductCategory).count(), 0)
+
+    def test_product_media_upload_update_delete_route_workflow(self):
+        with self.Session() as db:
+            category = create_product_category(
+                db,
+                actor_admin_id=self.operator.id,
+                name="图片分类",
+                slug="media-category",
+            ).entity
+            product = create_product(
+                db,
+                actor_admin_id=self.operator.id,
+                category_id=category.id,
+                name="图片商品",
+            ).entity
+            product_id = product.id
+            product_public_id = product.product_public_id
+            db.commit()
+
+        image_bytes = BytesIO()
+        Image.new("RGB", (20, 20), color=(37, 99, 235)).save(
+            image_bytes,
+            format="PNG",
+        )
+        upload = UploadFile(
+            filename="main.png",
+            file=BytesIO(image_bytes.getvalue()),
+        )
+        image_path = (
+            f"/uploads/mall_products/{product_public_id}/main_test.webp"
+        )
+        with (
+            patch("app.main.get_current_user", return_value=self.operator),
+            patch("app.main.SessionLocal", side_effect=self.Session),
+            patch("app.main.save_product_image", return_value=image_path),
+        ):
+            response = asyncio.run(
+                upload_catalog_product_media_route(
+                    make_request(method="POST"),
+                    product_id,
+                    "MAIN",
+                    "商品主图",
+                    2,
+                    True,
+                    upload,
+                )
+            )
+        self.assertIn("商品图片已上传", unquote_plus(response.headers["location"]))
+
+        with self.Session() as db:
+            media = db.query(ProductMedia).one()
+            media_id = media.id
+            self.assertEqual(media.image_path, image_path)
+
+        response = self.call_route(
+            self.operator,
+            update_catalog_product_media_route,
+            make_request(method="POST"),
+            media_id,
+            "新替代文字",
+            1,
+            False,
+        )
+        self.assertIn("图片资料已更新", unquote_plus(response.headers["location"]))
+        with patch("app.main.delete_product_image", return_value=True) as delete_file:
+            response = self.call_route(
+                self.operator,
+                delete_catalog_product_media_route,
+                make_request(method="POST"),
+                media_id,
+            )
+        self.assertIn("商品图片已删除", unquote_plus(response.headers["location"]))
+        delete_file.assert_called_once_with(image_path)
+        with self.Session() as db:
+            self.assertEqual(db.query(ProductMedia).count(), 0)
+            self.assertEqual(
+                db.query(AdminActionLog)
+                .filter(AdminActionLog.action_type.like("mall_product_media_%"))
+                .count(),
+                3,
+            )
+
+    def test_product_media_upload_failure_removes_saved_file(self):
+        with self.Session() as db:
+            category = create_product_category(
+                db,
+                actor_admin_id=self.operator.id,
+                name="失败清理分类",
+                slug="media-cleanup",
+            ).entity
+            product = create_product(
+                db,
+                actor_admin_id=self.operator.id,
+                category_id=category.id,
+                name="失败清理商品",
+            ).entity
+            product_id = product.id
+            product_public_id = product.product_public_id
+            db.commit()
+
+        upload = UploadFile(
+            filename="detail.png",
+            file=BytesIO(b"test-only-image-content"),
+        )
+        image_path = (
+            f"/uploads/mall_products/{product_public_id}/detail_test.webp"
+        )
+        with (
+            patch("app.main.get_current_user", return_value=self.operator),
+            patch("app.main.SessionLocal", side_effect=self.Session),
+            patch("app.main.save_product_image", return_value=image_path),
+            patch(
+                "app.main.save_product_media_record",
+                side_effect=ValueError("模拟数据库校验失败"),
+            ),
+            patch("app.main.delete_product_image", return_value=True) as delete_file,
+        ):
+            response = asyncio.run(
+                upload_catalog_product_media_route(
+                    make_request(method="POST"),
+                    product_id,
+                    "DETAIL",
+                    "",
+                    0,
+                    True,
+                    upload,
+                )
+            )
+
+        self.assertIn("模拟数据库校验失败", unquote_plus(response.headers["location"]))
+        delete_file.assert_called_once_with(image_path)
+        with self.Session() as db:
+            self.assertEqual(db.query(ProductMedia).count(), 0)
 
 
 if __name__ == "__main__":

@@ -234,6 +234,12 @@ MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
             MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.PRODUCT_UNPUBLISH:
             MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_MEDIA_CREATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_MEDIA_UPDATE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.PRODUCT_MEDIA_DELETE:
+            MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.SKU_CREATE:
             MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.SKU_UPDATE:

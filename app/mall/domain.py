@@ -71,6 +71,14 @@ class ProductStatus(str, Enum):
     UNPUBLISHED = "UNPUBLISHED"
 
 
+class ProductMediaRole(str, Enum):
+    """商品图片在目录中的稳定用途。"""
+
+    MAIN = "MAIN"
+    CAROUSEL = "CAROUSEL"
+    DETAIL = "DETAIL"
+
+
 VALID_BUSINESS_CHANNELS = frozenset(
     channel.value
     for channel in BusinessChannel
@@ -110,6 +118,12 @@ VALID_POINTS_LEDGER_ENTRY_TYPES = frozenset(
 VALID_PRODUCT_STATUSES = frozenset(
     status.value
     for status in ProductStatus
+)
+
+
+VALID_PRODUCT_MEDIA_ROLES = frozenset(
+    role.value
+    for role in ProductMediaRole
 )
 
 
@@ -170,6 +184,22 @@ def normalize_product_status(
         return ProductStatus(value.strip())
     except ValueError as exc:
         raise ValueError("商品状态无效") from exc
+
+
+def normalize_product_media_role(
+    value: ProductMediaRole | str,
+) -> ProductMediaRole:
+    """规范商品图片用途；未知值必须失败关闭。"""
+    if isinstance(value, ProductMediaRole):
+        return value
+
+    if not isinstance(value, str):
+        raise ValueError("商品图片用途无效")
+
+    try:
+        return ProductMediaRole(value.strip().upper())
+    except ValueError as exc:
+        raise ValueError("商品图片用途无效") from exc
 
 
 def normalize_points(

@@ -37,6 +37,7 @@ POST_BASELINE_TABLES = frozenset(
         "suppliers",
         "products",
         "product_skus",
+        "product_media",
     }
 )
 

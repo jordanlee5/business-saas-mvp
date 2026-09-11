@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from .domain import ProductStatus
+from .domain import ProductMediaRole, ProductStatus
 
 
 CATALOG_SECTION_PRODUCTS = "products"
@@ -23,6 +23,17 @@ PRODUCT_STATUS_LABELS = {
     ProductStatus.DRAFT.value: "草稿",
     ProductStatus.PUBLISHED.value: "已上架",
     ProductStatus.UNPUBLISHED.value: "已下架",
+}
+
+PRODUCT_MEDIA_ROLE_LABELS = {
+    ProductMediaRole.MAIN.value: "主图",
+    ProductMediaRole.CAROUSEL.value: "轮播图",
+    ProductMediaRole.DETAIL.value: "详情图",
+}
+PRODUCT_MEDIA_ROLE_ORDER = {
+    ProductMediaRole.MAIN.value: 0,
+    ProductMediaRole.CAROUSEL.value: 1,
+    ProductMediaRole.DETAIL.value: 2,
 }
 
 
@@ -64,6 +75,18 @@ class CatalogSkuItem:
 
 
 @dataclass(frozen=True)
+class CatalogMediaItem:
+    id: int
+    product_id: int
+    media_role: str
+    role_label: str
+    image_path: str
+    alt_text: str | None
+    sort_order: int
+    is_active: bool
+
+
+@dataclass(frozen=True)
 class CatalogProductItem:
     id: int
     product_public_id: str
@@ -77,6 +100,7 @@ class CatalogProductItem:
     sort_order: int
     published_at: datetime | None
     skus: tuple[CatalogSkuItem, ...]
+    media: tuple[CatalogMediaItem, ...]
 
 
 @dataclass(frozen=True)
@@ -87,6 +111,7 @@ class CatalogAdminSnapshot:
     active_suppliers: tuple[CatalogSupplierItem, ...]
     products: tuple[CatalogProductItem, ...]
     sku_count: int
+    media_count: int
 
 
 def normalize_catalog_section(value) -> str:
@@ -98,7 +123,13 @@ def normalize_catalog_section(value) -> str:
 
 def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
     """读取后台目录快照，不刷新、不修复，也不写入任何数据。"""
-    from ..models import Product, ProductCategory, ProductSku, Supplier
+    from ..models import (
+        Product,
+        ProductCategory,
+        ProductMedia,
+        ProductSku,
+        Supplier,
+    )
 
     with db.no_autoflush:
         category_rows = (
@@ -122,6 +153,16 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
                 ProductSku.product_id.asc(),
                 ProductSku.sort_order.asc(),
                 ProductSku.id.asc(),
+            )
+            .all()
+        )
+        media_rows = (
+            db.query(ProductMedia)
+            .order_by(
+                ProductMedia.product_id.asc(),
+                ProductMedia.media_role.asc(),
+                ProductMedia.sort_order.asc(),
+                ProductMedia.id.asc(),
             )
             .all()
         )
@@ -168,6 +209,22 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
             sort_order=row.sort_order,
         )
         skus_by_product.setdefault(row.product_id, []).append(item)
+    media_by_product: dict[int, list[CatalogMediaItem]] = {}
+    for row in media_rows:
+        item = CatalogMediaItem(
+            id=row.id,
+            product_id=row.product_id,
+            media_role=row.media_role,
+            role_label=PRODUCT_MEDIA_ROLE_LABELS.get(
+                row.media_role,
+                "异常用途",
+            ),
+            image_path=row.image_path,
+            alt_text=row.alt_text,
+            sort_order=row.sort_order,
+            is_active=row.is_active is True,
+        )
+        media_by_product.setdefault(row.product_id, []).append(item)
     products = tuple(
         CatalogProductItem(
             id=row.id,
@@ -182,6 +239,16 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
             sort_order=row.sort_order,
             published_at=row.published_at,
             skus=tuple(skus_by_product.get(row.id, ())),
+            media=tuple(
+                sorted(
+                    media_by_product.get(row.id, ()),
+                    key=lambda item: (
+                        PRODUCT_MEDIA_ROLE_ORDER.get(item.media_role, 99),
+                        item.sort_order,
+                        item.id,
+                    ),
+                )
+            ),
         )
         for row in product_rows
     )
@@ -192,4 +259,5 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
         active_suppliers=tuple(item for item in suppliers if item.is_active),
         products=products,
         sku_count=len(sku_rows),
+        media_count=len(media_rows),
     )

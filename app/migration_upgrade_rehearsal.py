@@ -47,11 +47,13 @@ MALL_CORE_FOUNDATION_REVISION = "0002_mall_core_foundation"
 MEMBER_ACTIVATION_SECURITY_REVISION = (
     "0003_member_activation_security"
 )
+CATALOG_FOUNDATION_REVISION = "0004_catalog_foundation"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
         MALL_CORE_FOUNDATION_REVISION,
         MEMBER_ACTIVATION_SECURITY_REVISION,
+        CATALOG_FOUNDATION_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -90,6 +92,43 @@ MEMBER_ACTIVATION_SECURITY_COLUMNS = frozenset(
         "revoked_at",
     }
 )
+CATALOG_FOUNDATION_TABLES = frozenset(
+    {
+        "product_categories",
+        "suppliers",
+        "products",
+        "product_skus",
+    }
+)
+CATALOG_FOUNDATION_COLUMNS = {
+    "product_categories": frozenset(
+        {"name", "slug", "sort_order", "is_active"}
+    ),
+    "suppliers": frozenset(
+        {"supplier_public_id", "name", "is_active"}
+    ),
+    "products": frozenset(
+        {
+            "product_public_id",
+            "category_id",
+            "name",
+            "status",
+            "sort_order",
+            "published_at",
+        }
+    ),
+    "product_skus": frozenset(
+        {
+            "product_id",
+            "supplier_id",
+            "sku_code",
+            "points_price",
+            "cost_price",
+            "low_stock_threshold",
+            "is_active",
+        }
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -359,6 +398,49 @@ def validate_mall_core_foundation_source(
         connection.close()
 
 
+def validate_catalog_foundation_source(database_path: Path) -> None:
+    """Fail closed when a 0004 source only claims its catalog revision."""
+    validate_mall_core_foundation_source(
+        database_path,
+        require_activation_security=True,
+    )
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        missing_tables = CATALOG_FOUNDATION_TABLES - tables
+        if missing_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0004 源库缺少商品目录表："
+                + ", ".join(sorted(missing_tables))
+            )
+        if "product_media" in tables:
+            raise MigrationUpgradeRehearsalError(
+                "0004 源库已存在未登记的商品媒体表"
+            )
+        missing_columns: list[str] = []
+        for table_name, required_columns in (
+            CATALOG_FOUNDATION_COLUMNS.items()
+        ):
+            columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    table_name,
+                )
+            }
+            missing_columns.extend(
+                f"{table_name}.{column_name}"
+                for column_name in sorted(required_columns - columns)
+            )
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0004 源库缺少商品目录字段："
+                + ", ".join(missing_columns)
+            )
+    finally:
+        connection.close()
+
+
 def rehearse_mall_core_upgrade(
     database_url: str,
     *,
@@ -385,6 +467,8 @@ def rehearse_mall_core_upgrade(
             ) from exc
     elif source_revision == MALL_CORE_FOUNDATION_REVISION:
         validate_mall_core_foundation_source(source_path)
+    elif source_revision == CATALOG_FOUNDATION_REVISION:
+        validate_catalog_foundation_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,

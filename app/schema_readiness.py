@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0004_catalog_foundation"
+CURRENT_SCHEMA_REVISION = "0005_product_media"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -18,6 +18,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "suppliers",
         "products",
         "product_skus",
+        "product_media",
     }
 )
 
@@ -102,6 +103,16 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "cost_price",
             "low_stock_threshold",
             "is_active",
+        }
+    ),
+    "product_media": frozenset(
+        {
+            "product_id",
+            "media_role",
+            "image_path",
+            "sort_order",
+            "is_active",
+            "uploaded_by_id",
         }
     ),
 }

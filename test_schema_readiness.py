@@ -150,6 +150,25 @@ class SchemaReadinessTests(unittest.TestCase):
             finally:
                 engine.dispose()
 
+    def test_false_head_missing_product_media_table_is_rejected(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "missing-media.db"
+            )
+            upgrade(database_url, "head")
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(text("DROP TABLE product_media"))
+
+                with self.assertRaisesRegex(
+                    DatabaseSchemaNotReadyError,
+                    "product_media",
+                ):
+                    assert_database_schema_ready(engine)
+            finally:
+                engine.dispose()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,6 +79,7 @@ from .mall import (
     PENDING_BATCH_STATUS,
     REJECTED_BATCH_STATUS,
     BusinessChannel,
+    MAX_PRODUCT_IMAGE_BYTES,
     batch_revert_block_reason,
     build_upload_channel_snapshot,
     business_claim_status_label,
@@ -98,16 +99,22 @@ from .mall import (
     create_product_category,
     create_product_sku,
     create_supplier,
+    delete_product_image,
+    delete_product_media_record,
     get_catalog_admin_snapshot,
     get_member_points_detail,
     list_member_points,
     normalize_catalog_section,
+    normalize_product_media_role,
     publish_product,
+    save_product_image,
+    save_product_media_record,
     record_member_points_export,
     unpublish_product,
     update_product,
     update_product_category,
     update_product_sku,
+    update_product_media_record,
     update_supplier,
 )
 from .notification_service import (
@@ -8385,6 +8392,184 @@ def update_catalog_sku_route(
             low_stock_threshold=low_stock_threshold,
             is_active=is_active,
             sort_order=sort_order,
+        ),
+    )
+
+
+@app.post("/mall-catalog/products/{product_id}/media/upload")
+async def upload_catalog_product_media_route(
+    request: Request,
+    product_id: int,
+    media_role: str = Form(...),
+    alt_text: str = Form(""),
+    sort_order: int = Form(0),
+    is_active: bool = Form(False),
+    image_file: UploadFile = File(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_catalog(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    original_filename = image_file.filename or ""
+    try:
+        image_content = await image_file.read(MAX_PRODUCT_IMAGE_BYTES + 1)
+    except Exception:
+        return _mall_catalog_redirect(
+            CATALOG_SECTION_PRODUCTS,
+            error="商品图片读取失败，请重试",
+        )
+    finally:
+        await image_file.close()
+
+    db = SessionLocal()
+    saved_image_url = None
+    replaced_image_url = None
+    try:
+        product = db.get(models.Product, product_id)
+        if product is None:
+            return _mall_catalog_redirect(
+                CATALOG_SECTION_PRODUCTS,
+                error="商品编号不存在",
+            )
+        try:
+            role = normalize_product_media_role(media_role)
+            saved_image_url = save_product_image(
+                content=image_content,
+                original_filename=original_filename,
+                product_public_id=product.product_public_id,
+                media_role=role,
+            )
+            result = save_product_media_record(
+                db,
+                product_id=product.id,
+                actor_admin_id=user.id,
+                media_role=role,
+                image_path=saved_image_url,
+                alt_text=alt_text,
+                sort_order=sort_order,
+                is_active=is_active,
+            )
+            replaced_image_url = result.previous_image_path
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            if saved_image_url:
+                try:
+                    delete_product_image(saved_image_url)
+                except OSError:
+                    pass
+            return _mall_catalog_redirect(
+                CATALOG_SECTION_PRODUCTS,
+                error=str(exc),
+            )
+        except IntegrityError:
+            db.rollback()
+            if saved_image_url:
+                try:
+                    delete_product_image(saved_image_url)
+                except OSError:
+                    pass
+            return _mall_catalog_redirect(
+                CATALOG_SECTION_PRODUCTS,
+                error="商品图片数据存在唯一或关联冲突",
+            )
+        except Exception:
+            db.rollback()
+            if saved_image_url:
+                try:
+                    delete_product_image(saved_image_url)
+                except OSError:
+                    pass
+            raise
+    finally:
+        db.close()
+
+    if replaced_image_url:
+        try:
+            delete_product_image(replaced_image_url)
+        except OSError:
+            pass
+    return _mall_catalog_redirect(
+        CATALOG_SECTION_PRODUCTS,
+        message=(
+            "商品主图已替换"
+            if replaced_image_url
+            else "商品图片已上传"
+        ),
+    )
+
+
+@app.post("/mall-catalog/media/{media_id}/update")
+def update_catalog_product_media_route(
+    request: Request,
+    media_id: int,
+    alt_text: str = Form(""),
+    sort_order: int = Form(0),
+    is_active: bool = Form(False),
+):
+    return _run_catalog_mutation(
+        request,
+        section=CATALOG_SECTION_PRODUCTS,
+        success_message="商品图片资料已更新",
+        operation=lambda db, actor_id: update_product_media_record(
+            db,
+            media_id=media_id,
+            actor_admin_id=actor_id,
+            alt_text=alt_text,
+            sort_order=sort_order,
+            is_active=is_active,
+        ),
+    )
+
+
+@app.post("/mall-catalog/media/{media_id}/delete")
+def delete_catalog_product_media_route(
+    request: Request,
+    media_id: int,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_catalog(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    image_path = None
+    try:
+        try:
+            result = delete_product_media_record(
+                db,
+                media_id=media_id,
+                actor_admin_id=user.id,
+            )
+            image_path = result.previous_image_path
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            return _mall_catalog_redirect(
+                CATALOG_SECTION_PRODUCTS,
+                error=str(exc),
+            )
+        except Exception:
+            db.rollback()
+            raise
+    finally:
+        db.close()
+
+    cleanup_failed = False
+    if image_path:
+        try:
+            delete_product_image(image_path)
+        except OSError:
+            cleanup_failed = True
+    return _mall_catalog_redirect(
+        CATALOG_SECTION_PRODUCTS,
+        message=(
+            "商品图片记录已删除；原文件清理失败，请检查磁盘权限"
+            if cleanup_failed
+            else "商品图片已删除"
         ),
     )
 

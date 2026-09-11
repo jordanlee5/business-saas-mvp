@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.4.3-M4-3 — 商品目录管理后台**
+- 版本：**v0.4.3-M4-4 — 商品媒体基础与后台维护**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`cc561dbe72184759f19fc9afe55bba006f798df2`
-- 基线提交：`cc561db feat: add catalog management service`
+- 本轮修改前稳定代码基线：`d1abbc1e248d5245866352dd9f27a8a3a07ac9be`
+- 基线提交：`d1abbc1 feat: add catalog management admin page`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4-1 建立商品分类、供应商、商品和 SKU 数据基础，M4-2 建立受控写服务，M4-3 已开放管理员商品目录维护页面；商品媒体、库存、订单及小程序商品接口仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4-1 建立商品目录数据基础，M4-2 建立受控写服务，M4-3 开放管理员维护页面，M4-4 已接入独立的商品主图、轮播图和详情图维护；库存、商品/库存 Excel、订单及小程序商品接口仍未开放。
 
 ## 当前产品边界与术语
 
@@ -151,7 +151,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 ## 商城核心与商品目录表结构
 
-`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础：
+`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础：
 
 - `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
 - 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
@@ -172,13 +172,14 @@ python -m app.points_expiry_task --upcoming-days 30
 - M4-2 已新增分类、供应商、商品与 SKU 的受控写服务：超级管理员和运营管理员可以创建与编辑目录，所有实际写入同步生成管理员操作日志；商品只能通过专用状态操作上下架，上架前必须具有启用分类和至少一个有效供应商 SKU；
 - 商品与供应商公开编号及 SKU 编码保持稳定，价格、成本、排序、唯一字段和停用边界失败关闭。当前服务不自行提交事务，调用方必须整体提交或回滚；完整边界见 [商品目录写服务说明](docs/catalog-service.md)；
 - M4-3 已在左侧“积分商城”新增 `/mall-catalog` 商品目录入口，超级管理员和运营管理员可分区维护分类、供应商、商品、SKU 及上下架；页面操作继续调用受控服务并把目录变化和操作日志放在同一事务，完整边界见 [商品目录管理后台说明](docs/catalog-admin.md)；
-- 商品媒体、库存、商品/库存 Excel、删除、订单、退款及供应商结算仍按后续切片独立实现。未主动创建目录资料时四张目录表为空仍是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
+- M4-4 新增 `product_media`，在 `/mall-catalog` 维护主图、轮播图和详情图；商品图片与宣传页素材分目录保存，上传格式、大小、尺寸、路径和删除边界失败关闭，实际写入均记录审计，完整边界见 [商品媒体说明](docs/product-media.md)；
+- 库存、商品/库存 Excel、订单、退款及供应商结算仍按后续切片独立实现。未主动创建目录资料或图片时对应目录表为空仍是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
 
 ## 数据库、上传目录与迁移边界
 
 - 应用从进程环境变量 `DATABASE_URL` 读取数据库连接地址；未设置或只包含空白时，仍使用项目根目录下的本地 SQLite 文件 `sqlite:///./saas_mvp.db`；
 - SQLite 连接继续使用现有的跨线程兼容参数；其他数据库方言不会接收 SQLite 专属参数；
-- 凭证及宣传页图片保存在本地 `uploads/` 目录；
+- 凭证、宣传页图片及商品图片保存在本地 `uploads/` 目录；商品图片使用独立的 `uploads/mall_products/` 子目录；
 - `saas_mvp.db`、`uploads/` 和 `.env` 均不应提交到 Git；
 - 应用和管理员初始化不再调用 `create_all`；数据库不是当前 Alembic head 或版本标记与结构不一致时，启动会明确失败；
 - 仓库根目录的 `add_*.py` 是历史阶段迁移脚本，不是统一迁移框架；
@@ -188,7 +189,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表，`0002_mall_core_foundation` 新增商城渠道字段与会员积分核心表，`0003_member_activation_security` 新增激活凭据表，`0004_catalog_foundation` 新增商品目录四张表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表，`0002_mall_core_foundation` 新增商城渠道字段与会员积分核心表，`0003_member_activation_security` 新增激活凭据表，`0004_catalog_foundation` 新增商品目录四张表，`0005_product_media` 新增商品媒体表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -206,6 +207,8 @@ python -m unittest -v test_points_adjustment_service.py
 python -m unittest -v test_member_points_service.py test_member_points_routes.py
 python -m unittest -v test_catalog_foundation_migration.py test_mall_domain.py
 python -m unittest -v test_catalog_service.py test_mall_governance.py
+python -m unittest -v test_product_media_storage.py test_product_media_service.py
+python -m unittest -v test_product_media_migration.py test_catalog_routes.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -239,17 +242,17 @@ python -m app.migration_rehearsal
 
 该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
 
-已经稳定停留在 `0001_current_schema_baseline`、`0002_mall_core_foundation` 或 `0003_member_activation_security` 的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
+已经稳定停留在 `0001_current_schema_baseline`、`0002_mall_core_foundation`、`0003_member_activation_security` 或 `0004_catalog_foundation` 的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
 
 ```powershell
 python -m app.migration_upgrade_rehearsal
 ```
 
-该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0004_catalog_foundation`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
+该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0005_product_media`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
 
 ## 测试基线
 
-在当前 M4-3 工作副本上，完整依赖环境中的回归命令为：
+在当前 M4-4 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -257,7 +260,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量单元测试：`Ran 459 tests ... OK (skipped=1)`；M4-3 新增 8 项商品目录页面、路由权限、事务回滚和完整操作链路测试；未配置独立 PostgreSQL 测试库时，只跳过真实连接往返测试；
+- 全量回归基线为 `Ran 476 tests`、`OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，仅跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -287,6 +290,7 @@ business-saas-mvp/
 │  ├─ catalog-foundation.md         # M4-1 商品目录数据边界与迁移说明
 │  ├─ catalog-service.md            # M4-2 商品目录写服务与状态边界
 │  ├─ catalog-admin.md              # M4-3 商品目录管理页面与路由边界
+│  ├─ product-media.md              # M4-4 商品媒体、存储与迁移边界
 │  └─ mall-business-rules-decisions.md
 ├─ migrations/                     # Alembic 环境与后续迁移版本
 ├─ alembic.ini                     # Alembic 项目配置

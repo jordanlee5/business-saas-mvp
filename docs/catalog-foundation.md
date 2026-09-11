@@ -30,7 +30,7 @@ M4-1 只建立商城商品目录的数据库基础和状态规则，不提供后
 
 ## 4. 数据库升级
 
-当前迁移 head 为 `0004_catalog_foundation`。已有 SQLite 数据库可能处于 `0001`、`0002` 或 `0003`；升级前必须停止应用、保留数据库与上传目录备份，并先运行：
+M4-1 完成时的迁移 head 为 `0004_catalog_foundation`；当前 head 已由后续切片推进，具体版本见仓库根目录 README。处于 `0001`、`0002`、`0003` 或 `0004` 的已有 SQLite 数据库升级前必须停止应用、保留数据库与上传目录备份，并先运行：
 
 ```powershell
 python -m app.migration_upgrade_rehearsal
@@ -48,4 +48,4 @@ python -m alembic -c alembic.ini upgrade head
 python -c "from app.database import engine; from app.schema_readiness import assert_database_schema_ready; r=assert_database_schema_ready(engine); print('结构就绪版本:', r.revision); print('必需表数量:', len(r.checked_tables))"
 ```
 
-预期版本为 `0004_catalog_foundation`，必需表数量为 20。该检查不创建商品数据。
+M4-1 当时的预期版本为 `0004_catalog_foundation`、必需表数量为 20；当前版本与数量见根目录 README。该检查不创建商品数据。
