@@ -79,6 +79,21 @@ class ProductMediaRole(str, Enum):
     DETAIL = "DETAIL"
 
 
+class InventoryMovementType(str, Enum):
+    """M4 阶段允许写入的 SKU 库存流水类型。"""
+
+    RECEIPT = "RECEIPT"
+    ADJUSTMENT = "ADJUSTMENT"
+
+
+class InventoryStockStatus(str, Enum):
+    """根据 SKU 可售数量和低库存阈值得出的只读状态。"""
+
+    IN_STOCK = "IN_STOCK"
+    LOW_STOCK = "LOW_STOCK"
+    OUT_OF_STOCK = "OUT_OF_STOCK"
+
+
 VALID_BUSINESS_CHANNELS = frozenset(
     channel.value
     for channel in BusinessChannel
@@ -124,6 +139,18 @@ VALID_PRODUCT_STATUSES = frozenset(
 VALID_PRODUCT_MEDIA_ROLES = frozenset(
     role.value
     for role in ProductMediaRole
+)
+
+
+VALID_INVENTORY_MOVEMENT_TYPES = frozenset(
+    movement_type.value
+    for movement_type in InventoryMovementType
+)
+
+
+VALID_INVENTORY_STOCK_STATUSES = frozenset(
+    status.value
+    for status in InventoryStockStatus
 )
 
 
@@ -200,6 +227,48 @@ def normalize_product_media_role(
         return ProductMediaRole(value.strip().upper())
     except ValueError as exc:
         raise ValueError("商品图片用途无效") from exc
+
+
+def normalize_inventory_movement_type(
+    value: InventoryMovementType | str,
+) -> InventoryMovementType:
+    """规范库存流水类型；未知值必须失败关闭。"""
+    if isinstance(value, InventoryMovementType):
+        return value
+
+    if not isinstance(value, str):
+        raise ValueError("库存流水类型无效")
+
+    try:
+        return InventoryMovementType(value.strip().upper())
+    except ValueError as exc:
+        raise ValueError("库存流水类型无效") from exc
+
+
+def classify_inventory_stock(
+    *,
+    on_hand_quantity: int,
+    reserved_quantity: int,
+    low_stock_threshold: int,
+) -> InventoryStockStatus:
+    """按可售数量判断正常、低库存或无库存状态。"""
+    values = {
+        "现存数量": on_hand_quantity,
+        "预占数量": reserved_quantity,
+        "低库存阈值": low_stock_threshold,
+    }
+    for field_name, value in values.items():
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{field_name}必须是非负整数")
+    if reserved_quantity > on_hand_quantity:
+        raise ValueError("预占数量不能超过现存数量")
+
+    available_quantity = on_hand_quantity - reserved_quantity
+    if available_quantity == 0:
+        return InventoryStockStatus.OUT_OF_STOCK
+    if available_quantity <= low_stock_threshold:
+        return InventoryStockStatus.LOW_STOCK
+    return InventoryStockStatus.IN_STOCK
 
 
 def normalize_points(

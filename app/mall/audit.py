@@ -15,6 +15,7 @@ class MallAuditActionType(str, Enum):
     PRODUCT_MEDIA_DELETE = "mall_product_media_delete"
     SKU_CREATE = "mall_sku_create"
     SKU_UPDATE = "mall_sku_update"
+    INVENTORY_RECEIVE = "mall_inventory_receive"
     INVENTORY_ADJUST = "mall_inventory_adjust"
     ORDER_CANCEL = "mall_order_cancel"
     ORDER_SHIP = "mall_order_ship"

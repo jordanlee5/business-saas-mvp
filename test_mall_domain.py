@@ -6,14 +6,19 @@ from app.mall import (
     ActivationCredentialStatus,
     ActivationSecurityMethod,
     BusinessChannel,
+    InventoryMovementType,
+    InventoryStockStatus,
     ProductStatus,
     VALID_ACTIVATION_CREDENTIAL_STATUSES,
     VALID_ACTIVATION_SECURITY_METHODS,
     VALID_BUSINESS_CHANNELS,
+    VALID_INVENTORY_MOVEMENT_TYPES,
     VALID_PRODUCT_STATUSES,
     calculate_points_expiry,
+    classify_inventory_stock,
     is_activation_within_deadline,
     normalize_business_channel,
+    normalize_inventory_movement_type,
     normalize_activation_security_method,
     normalize_points,
     normalize_product_status,
@@ -21,6 +26,44 @@ from app.mall import (
 
 
 class MallDomainTests(unittest.TestCase):
+    def test_inventory_types_and_stock_status_are_fixed(self):
+        self.assertEqual(
+            VALID_INVENTORY_MOVEMENT_TYPES,
+            {"RECEIPT", "ADJUSTMENT"},
+        )
+        self.assertIs(
+            normalize_inventory_movement_type(" receipt "),
+            InventoryMovementType.RECEIPT,
+        )
+        self.assertIs(
+            classify_inventory_stock(
+                on_hand_quantity=5,
+                reserved_quantity=0,
+                low_stock_threshold=5,
+            ),
+            InventoryStockStatus.LOW_STOCK,
+        )
+        self.assertIs(
+            classify_inventory_stock(
+                on_hand_quantity=5,
+                reserved_quantity=5,
+                low_stock_threshold=1,
+            ),
+            InventoryStockStatus.OUT_OF_STOCK,
+        )
+
+    def test_invalid_inventory_values_fail_closed(self):
+        for invalid_type in ("OUTBOUND", "", None):
+            with self.subTest(invalid_type=invalid_type):
+                with self.assertRaises(ValueError):
+                    normalize_inventory_movement_type(invalid_type)
+        with self.assertRaisesRegex(ValueError, "预占数量不能超过现存数量"):
+            classify_inventory_stock(
+                on_hand_quantity=1,
+                reserved_quantity=2,
+                low_stock_threshold=0,
+            )
+
     def test_product_status_values_are_fixed(self):
         self.assertEqual(
             VALID_PRODUCT_STATUSES,

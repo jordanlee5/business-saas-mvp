@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0005_product_media"
+CURRENT_SCHEMA_REVISION = "0006_inventory_foundation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -19,6 +19,8 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "products",
         "product_skus",
         "product_media",
+        "inventory_balances",
+        "inventory_movements",
     }
 )
 
@@ -113,6 +115,28 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "sort_order",
             "is_active",
             "uploaded_by_id",
+        }
+    ),
+    "inventory_balances": frozenset(
+        {
+            "sku_id",
+            "on_hand_quantity",
+            "reserved_quantity",
+            "version",
+        }
+    ),
+    "inventory_movements": frozenset(
+        {
+            "movement_public_id",
+            "sku_id",
+            "movement_type",
+            "quantity_delta",
+            "quantity_before",
+            "quantity_after",
+            "balance_version",
+            "idempotency_key",
+            "reason",
+            "actor_admin_id",
         }
     ),
 }

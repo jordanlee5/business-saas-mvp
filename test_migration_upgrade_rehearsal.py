@@ -307,6 +307,79 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
                 )
             self.assertFalse(backup_directory.exists())
 
+    def test_product_media_revision_can_rehearse_inventory_upgrade(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "product-media.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(build_config(database_url), "0005_product_media")
+            source_snapshot = capture_legacy_snapshot(source_path)
+
+            result = rehearse_mall_core_upgrade(
+                database_url,
+                backup_directory=backup_directory,
+            )
+
+            self.assertEqual(result.source_revision, "0005_product_media")
+            self.assertEqual(
+                get_current_revision(source_path),
+                "0005_product_media",
+            )
+            self.assertEqual(
+                get_current_revision(result.rehearsal_database),
+                CURRENT_SCHEMA_REVISION,
+            )
+            self.assertEqual(
+                capture_legacy_snapshot(result.backup_database),
+                source_snapshot,
+            )
+            rehearsal_engine = create_engine(
+                build_sqlite_database_url(result.rehearsal_database)
+            )
+            try:
+                with rehearsal_engine.connect() as connection:
+                    self.assertEqual(
+                        connection.execute(
+                            text("SELECT COUNT(*) FROM inventory_balances")
+                        ).scalar_one(),
+                        0,
+                    )
+                    self.assertEqual(
+                        connection.execute(
+                            text("SELECT COUNT(*) FROM inventory_movements")
+                        ).scalar_one(),
+                        0,
+                    )
+            finally:
+                rehearsal_engine.dispose()
+
+    def test_drifted_product_media_source_is_rejected_without_output(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "drifted-product-media.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(build_config(database_url), "0005_product_media")
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(text("DROP TABLE product_media"))
+            finally:
+                engine.dispose()
+
+            with self.assertRaisesRegex(
+                MigrationUpgradeRehearsalError,
+                "0005 源库缺少商品媒体表",
+            ):
+                rehearse_mall_core_upgrade(
+                    database_url,
+                    backup_directory=backup_directory,
+                )
+            self.assertFalse(backup_directory.exists())
+
     def test_already_upgraded_database_is_rejected_without_output(self):
         with TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

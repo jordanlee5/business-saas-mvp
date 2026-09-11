@@ -48,12 +48,14 @@ MEMBER_ACTIVATION_SECURITY_REVISION = (
     "0003_member_activation_security"
 )
 CATALOG_FOUNDATION_REVISION = "0004_catalog_foundation"
+PRODUCT_MEDIA_REVISION = "0005_product_media"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
         MALL_CORE_FOUNDATION_REVISION,
         MEMBER_ACTIVATION_SECURITY_REVISION,
         CATALOG_FOUNDATION_REVISION,
+        PRODUCT_MEDIA_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -129,6 +131,22 @@ CATALOG_FOUNDATION_COLUMNS = {
         }
     ),
 }
+PRODUCT_MEDIA_COLUMNS = frozenset(
+    {
+        "product_id",
+        "media_role",
+        "image_path",
+        "sort_order",
+        "is_active",
+        "uploaded_by_id",
+    }
+)
+INVENTORY_FOUNDATION_TABLES = frozenset(
+    {
+        "inventory_balances",
+        "inventory_movements",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -398,8 +416,12 @@ def validate_mall_core_foundation_source(
         connection.close()
 
 
-def validate_catalog_foundation_source(database_path: Path) -> None:
-    """Fail closed when a 0004 source only claims its catalog revision."""
+def validate_catalog_foundation_source(
+    database_path: Path,
+    *,
+    require_product_media: bool = False,
+) -> None:
+    """Fail closed when a claimed 0004/0005 catalog source is incomplete."""
     validate_mall_core_foundation_source(
         database_path,
         require_activation_security=True,
@@ -413,9 +435,19 @@ def validate_catalog_foundation_source(database_path: Path) -> None:
                 "0004 源库缺少商品目录表："
                 + ", ".join(sorted(missing_tables))
             )
-        if "product_media" in tables:
+        if not require_product_media and "product_media" in tables:
             raise MigrationUpgradeRehearsalError(
                 "0004 源库已存在未登记的商品媒体表"
+            )
+        if require_product_media and "product_media" not in tables:
+            raise MigrationUpgradeRehearsalError(
+                "0005 源库缺少商品媒体表"
+            )
+        unexpected_inventory_tables = INVENTORY_FOUNDATION_TABLES & tables
+        if unexpected_inventory_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0004/0005 源库已存在未登记的库存表："
+                + ", ".join(sorted(unexpected_inventory_tables))
             )
         missing_columns: list[str] = []
         for table_name, required_columns in (
@@ -437,6 +469,20 @@ def validate_catalog_foundation_source(database_path: Path) -> None:
                 "0004 源库缺少商品目录字段："
                 + ", ".join(missing_columns)
             )
+        if require_product_media:
+            media_columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    "product_media",
+                )
+            }
+            missing_media_columns = PRODUCT_MEDIA_COLUMNS - media_columns
+            if missing_media_columns:
+                raise MigrationUpgradeRehearsalError(
+                    "0005 源库缺少商品媒体字段："
+                    + ", ".join(sorted(missing_media_columns))
+                )
     finally:
         connection.close()
 
@@ -469,6 +515,11 @@ def rehearse_mall_core_upgrade(
         validate_mall_core_foundation_source(source_path)
     elif source_revision == CATALOG_FOUNDATION_REVISION:
         validate_catalog_foundation_source(source_path)
+    elif source_revision == PRODUCT_MEDIA_REVISION:
+        validate_catalog_foundation_source(
+            source_path,
+            require_product_media=True,
+        )
     else:
         validate_mall_core_foundation_source(
             source_path,

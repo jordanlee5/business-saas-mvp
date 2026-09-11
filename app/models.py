@@ -20,6 +20,7 @@ from .mall.domain import (
     ActivationCredentialStatus,
     ActivationSecurityMethod,
     BusinessChannel,
+    InventoryMovementType,
     PointsGrantStatus,
     ProductMediaRole,
     ProductStatus,
@@ -1325,4 +1326,155 @@ class ProductMedia(Base):
         nullable=False,
         default=utc8_now,
         onupdate=utc8_now,
+    )
+
+
+class InventoryBalance(Base):
+    """每个 SKU 的库存余额；所有变更必须能够由流水重算。"""
+
+    __tablename__ = "inventory_balances"
+    __table_args__ = (
+        CheckConstraint(
+            "on_hand_quantity >= 0",
+            name="ck_inventory_balances_on_hand_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_quantity >= 0",
+            name="ck_inventory_balances_reserved_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_quantity <= on_hand_quantity",
+            name="ck_inventory_balances_reserved_within_on_hand",
+        ),
+        CheckConstraint(
+            "version >= 0",
+            name="ck_inventory_balances_version_nonnegative",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    sku_id = Column(
+        Integer,
+        ForeignKey("product_skus.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    on_hand_quantity = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    reserved_quantity = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    version = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        onupdate=utc8_now,
+    )
+
+
+class InventoryMovement(Base):
+    """SKU 库存不可变流水；记录每次变动前后的完整证据。"""
+
+    __tablename__ = "inventory_movements"
+    __table_args__ = (
+        CheckConstraint(
+            "movement_type IN ('RECEIPT', 'ADJUSTMENT')",
+            name="ck_inventory_movements_type",
+        ),
+        CheckConstraint(
+            "quantity_delta <> 0",
+            name="ck_inventory_movements_delta_nonzero",
+        ),
+        CheckConstraint(
+            "quantity_before >= 0",
+            name="ck_inventory_movements_before_nonnegative",
+        ),
+        CheckConstraint(
+            "quantity_after >= 0",
+            name="ck_inventory_movements_after_nonnegative",
+        ),
+        CheckConstraint(
+            "quantity_after = quantity_before + quantity_delta",
+            name="ck_inventory_movements_arithmetic",
+        ),
+        CheckConstraint(
+            "balance_version > 0",
+            name="ck_inventory_movements_version_positive",
+        ),
+        CheckConstraint(
+            "length(trim(idempotency_key)) > 0",
+            name="ck_inventory_movements_idempotency_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(reason)) > 0",
+            name="ck_inventory_movements_reason_nonblank",
+        ),
+        UniqueConstraint(
+            "sku_id",
+            "balance_version",
+            name="uq_inventory_movements_sku_version",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    movement_public_id = Column(
+        String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    sku_id = Column(
+        Integer,
+        ForeignKey("product_skus.id"),
+        nullable=False,
+        index=True,
+    )
+    movement_type = Column(
+        String(30),
+        nullable=False,
+        default=InventoryMovementType.ADJUSTMENT.value,
+        server_default=InventoryMovementType.ADJUSTMENT.value,
+        index=True,
+    )
+    quantity_delta = Column(Integer, nullable=False)
+    quantity_before = Column(Integer, nullable=False)
+    quantity_after = Column(Integer, nullable=False)
+    balance_version = Column(Integer, nullable=False)
+    idempotency_key = Column(
+        String(128),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    reason = Column(String(500), nullable=False)
+    actor_admin_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc8_now,
+        index=True,
     )
