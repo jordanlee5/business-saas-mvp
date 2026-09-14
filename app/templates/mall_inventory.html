@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .inventory-page { max-width: 1500px; margin: 0 auto; }
+    .inventory-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .inventory-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .inventory-count { padding: 8px 11px; border-radius: 9px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 800; }
+    .inventory-count.warn { color: #b45309; background: #fef3c7; }
+    .inventory-count.off { color: #b91c1c; background: #fee2e2; }
+    .inventory-note, .inventory-message, .inventory-error { margin: 14px 0; padding: 11px 13px; border-radius: 9px; line-height: 1.6; }
+    .inventory-note { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .inventory-message { color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .inventory-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+    .inventory-filter { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 120px 120px; gap: 11px; align-items: end; margin: 18px 0; }
+    .inventory-filter label, .inventory-form label, .movement-filter label { display: grid; gap: 6px; color: #334155; font-size: 13px; font-weight: 800; }
+    .inventory-filter input, .inventory-filter select, .inventory-form input, .movement-filter select { width: 100%; height: 39px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px; background: #fff; font: inherit; }
+    .inventory-table-wrap { overflow-x: auto; }
+    .inventory-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .inventory-table th, .inventory-table td { padding: 11px 9px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    .inventory-table th { white-space: nowrap; background: #f8fafc; color: #475569; }
+    .inventory-title { color: #0f172a; font-weight: 800; }
+    .inventory-meta { display: block; margin-top: 4px; color: #64748b; font-size: 12px; }
+    .quantity-stack { display: grid; gap: 3px; min-width: 116px; white-space: nowrap; }
+    .inventory-badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .inventory-badge.ok { color: #047857; background: #d1fae5; }
+    .inventory-badge.warn { color: #b45309; background: #fef3c7; }
+    .inventory-badge.off { color: #b91c1c; background: #fee2e2; }
+    .inventory-badge.neutral { color: #475569; background: #e2e8f0; }
+    .inventory-details > summary { color: #2563eb; cursor: pointer; font-weight: 800; white-space: nowrap; }
+    .inventory-action-panel { min-width: 440px; margin-top: 10px; padding: 12px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fbff; }
+    .inventory-form { display: grid; grid-template-columns: 105px minmax(200px, 1fr) auto; gap: 9px; align-items: end; }
+    .inventory-form + .inventory-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1; }
+    .inventory-button { min-height: 39px; border: 0; }
+    .inventory-section { margin-top: 24px; }
+    .inventory-section-head { display: flex; justify-content: space-between; gap: 14px; align-items: end; flex-wrap: wrap; margin-bottom: 12px; }
+    .inventory-section h2 { margin: 0; color: #0f172a; font-size: 20px; }
+    .movement-filter { display: grid; grid-template-columns: minmax(280px, 440px) auto; gap: 9px; align-items: end; }
+    .inventory-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 15px; flex-wrap: wrap; color: #475569; font-size: 13px; }
+    .inventory-pager { display: flex; gap: 7px; align-items: center; }
+    .inventory-pager a, .inventory-pager span { padding: 7px 10px; border-radius: 8px; background: #e2e8f0; color: #334155; text-decoration: none; font-weight: 700; }
+    .inventory-pager .current { color: #fff; background: #2563eb; }
+    .inventory-empty { padding: 24px; text-align: center; color: #64748b; }
+    @media (max-width: 980px) { .inventory-filter { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 700px) { .inventory-filter, .inventory-form, .movement-filter { grid-template-columns: 1fr; } .inventory-action-panel { min-width: 280px; } }
+</style>
+
+<div class="inventory-page page-card">
+    <div class="inventory-header">
+        <div>
+            <h1 class="page-title">库存管理</h1>
+            <div class="inventory-summary">
+                <span class="inventory-count">SKU {{ result.summary.sku_count }}</span>
+                <span class="inventory-count">库存正常 {{ result.summary.in_stock_count }}</span>
+                <span class="inventory-count warn">低库存 {{ result.summary.low_stock_count }}</span>
+                <span class="inventory-count off">无库存 {{ result.summary.out_of_stock_count }}</span>
+                <span class="inventory-count {{ 'off' if result.summary.inconsistent_count else '' }}">账实异常 {{ result.summary.inconsistent_count }}</span>
+                <span class="inventory-count">流水 {{ result.summary.movement_count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-note">
+        库存管理到 SKU。入库与人工调整均通过受控服务追加不可变流水，不会直接覆盖余额；账实不一致的 SKU 会停止写入并保留异常证据。本页不包含 Excel、订单预占/出库、退款或小程序接口。
+    </div>
+    {% if message %}<div class="inventory-message">{{ message }}</div>{% endif %}
+    {% if error %}<div class="inventory-error">{{ error }}</div>{% endif %}
+
+    <form class="inventory-filter" method="get" action="/mall-inventory">
+        <label>关键词
+            <input name="keyword" maxlength="100" value="{{ result.keyword }}" placeholder="SKU 编码 / 商品 / 供应商">
+        </label>
+        <label>库存状态
+            <select name="stock_status">
+                <option value="{{ inventory_status_all }}" {% if result.stock_status == inventory_status_all %}selected{% endif %}>全部</option>
+                <option value="{{ inventory_status_in_stock }}" {% if result.stock_status == inventory_status_in_stock %}selected{% endif %}>库存正常</option>
+                <option value="{{ inventory_status_low_stock }}" {% if result.stock_status == inventory_status_low_stock %}selected{% endif %}>低库存</option>
+                <option value="{{ inventory_status_out_of_stock }}" {% if result.stock_status == inventory_status_out_of_stock %}selected{% endif %}>无库存</option>
+            </select>
+        </label>
+        <label>每页
+            <select name="page_size">{% for size in allowed_page_sizes %}<option value="{{ size }}" {% if result.page_size == size %}selected{% endif %}>{{ size }} 条</option>{% endfor %}</select>
+        </label>
+        <button class="ui-button-primary inventory-button" type="submit">筛选</button>
+    </form>
+
+    <div class="inventory-table-wrap">
+        <table class="inventory-table">
+            <thead><tr><th>商品 / SKU</th><th>供应商</th><th>库存数量</th><th>预警阈值</th><th>库存状态</th><th>账实核对</th><th>版本 / 流水</th><th>操作</th></tr></thead>
+            <tbody>
+            {% for item in result.items %}
+                <tr>
+                    <td>
+                        <span class="inventory-title">{{ item.product_name }}</span>
+                        <span class="inventory-meta">{{ item.product_public_id }}</span>
+                        <span class="inventory-meta">{{ item.sku_code }} · {{ item.sku_name }}</span>
+                        {% if not item.sku_is_active %}<span class="inventory-badge neutral">SKU 已停用</span>{% endif %}
+                    </td>
+                    <td>
+                        {{ item.supplier_name }}
+                        <span class="inventory-meta">{{ item.supplier_public_id }}</span>
+                        {% if not item.supplier_is_active %}<span class="inventory-badge neutral">供应商已停用</span>{% endif %}
+                    </td>
+                    <td><div class="quantity-stack"><span>现存：{{ item.on_hand_quantity }}</span><span>预占：{{ item.reserved_quantity }}</span><strong>可售：{{ item.available_quantity }}</strong></div></td>
+                    <td>{{ item.low_stock_threshold }}</td>
+                    <td><span class="inventory-badge {% if item.stock_status == inventory_status_in_stock %}ok{% elif item.stock_status == inventory_status_low_stock %}warn{% else %}off{% endif %}">{{ item.stock_status_label }}</span></td>
+                    <td><span class="inventory-badge {{ 'ok' if item.is_consistent else 'off' }}">{{ '一致' if item.is_consistent else '异常' }}</span></td>
+                    <td>v{{ item.balance_version }}<span class="inventory-meta">{{ item.movement_count }} 条流水</span></td>
+                    <td>
+                        {% if item.is_consistent %}
+                        <details class="inventory-details">
+                            <summary>入库 / 调整</summary>
+                            <div class="inventory-action-panel">
+                                <form class="inventory-form" method="post" action="/mall-inventory/skus/{{ item.sku_id }}/receive">
+                                    <input type="hidden" name="idempotency_key" value="{{ request_keys[item.sku_id]['receive'] }}">
+                                    <label>入库数量<input name="quantity" type="number" min="1" step="1" required></label>
+                                    <label>入库原因<input name="reason" maxlength="500" placeholder="例如：采购到货入库" required></label>
+                                    <button class="ui-button-success inventory-button" type="submit">确认入库</button>
+                                </form>
+                                <form class="inventory-form" method="post" action="/mall-inventory/skus/{{ item.sku_id }}/adjust">
+                                    <input type="hidden" name="idempotency_key" value="{{ request_keys[item.sku_id]['adjust'] }}">
+                                    <label>调整增量<input name="quantity_delta" type="number" step="1" placeholder="-2 或 5" required></label>
+                                    <label>调整原因<input name="reason" maxlength="500" placeholder="例如：盘点差异调整" required></label>
+                                    <button class="ui-button-primary inventory-button" type="submit">确认调整</button>
+                                </form>
+                            </div>
+                        </details>
+                        {% else %}
+                        <span class="inventory-badge off">已停止写入</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td class="inventory-empty" colspan="8">暂无符合条件的 SKU。请先在“商品目录”创建商品与 SKU。</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="inventory-footer">
+        <span>共 {{ result.total }} 个符合条件的 SKU，当前第 {{ result.page }} / {{ result.total_pages }} 页</span>
+        <div class="inventory-pager">
+            {% if result.page > 1 %}<a href="/mall-inventory?page={{ result.page - 1 }}&page_size={{ result.page_size }}&stock_status={{ result.stock_status }}&keyword={{ result.keyword | urlencode }}&movement_sku_id={{ result.movements.sku_id }}">上一页</a>{% endif %}
+            <span class="current">{{ result.page }}</span>
+            {% if result.page < result.total_pages %}<a href="/mall-inventory?page={{ result.page + 1 }}&page_size={{ result.page_size }}&stock_status={{ result.stock_status }}&keyword={{ result.keyword | urlencode }}&movement_sku_id={{ result.movements.sku_id }}">下一页</a>{% endif %}
+        </div>
+    </div>
+
+    <section class="inventory-section">
+        <div class="inventory-section-head">
+            <div><h2>库存流水</h2><span class="inventory-meta">按操作时间倒序展示；流水不可在本页编辑或删除。</span></div>
+            <form class="movement-filter" method="get" action="/mall-inventory">
+                <input type="hidden" name="keyword" value="{{ result.keyword }}">
+                <input type="hidden" name="stock_status" value="{{ result.stock_status }}">
+                <input type="hidden" name="page" value="{{ result.page }}">
+                <input type="hidden" name="page_size" value="{{ result.page_size }}">
+                <label>流水 SKU
+                    <select name="movement_sku_id">
+                        <option value="0">全部 SKU</option>
+                        {% for option in result.sku_options %}<option value="{{ option.sku_id }}" {% if result.movements.sku_id == option.sku_id %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <button class="ui-button-secondary inventory-button" type="submit">查看流水</button>
+            </form>
+        </div>
+        <div class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead><tr><th>流水编号</th><th>商品 / SKU</th><th>类型</th><th>数量变化</th><th>变动前 → 变动后</th><th>余额版本</th><th>原因</th><th>操作者</th><th>时间（UTC+8）</th></tr></thead>
+                <tbody>
+                {% for movement in result.movements.items %}
+                    <tr>
+                        <td>{{ movement.movement_public_id }}</td>
+                        <td>{{ movement.product_name }}<span class="inventory-meta">{{ movement.sku_code }}</span></td>
+                        <td><span class="inventory-badge {{ 'ok' if movement.movement_type == 'RECEIPT' else 'neutral' }}">{{ movement.movement_type_label }}</span></td>
+                        <td><strong>{{ '+' if movement.quantity_delta > 0 else '' }}{{ movement.quantity_delta }}</strong></td>
+                        <td>{{ movement.quantity_before }} → {{ movement.quantity_after }}</td>
+                        <td>v{{ movement.balance_version }}</td>
+                        <td>{{ movement.reason }}</td>
+                        <td>{{ movement.actor_username }}</td>
+                        <td>{{ movement.created_at | format_utc8 }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td class="inventory-empty" colspan="9">暂无库存流水。</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="inventory-footer">
+            <span>共 {{ result.movements.total }} 条流水，当前第 {{ result.movements.page }} / {{ result.movements.total_pages }} 页</span>
+            <div class="inventory-pager">
+                {% if result.movements.page > 1 %}<a href="/mall-inventory?page={{ result.page }}&page_size={{ result.page_size }}&stock_status={{ result.stock_status }}&keyword={{ result.keyword | urlencode }}&movement_sku_id={{ result.movements.sku_id }}&movement_page={{ result.movements.page - 1 }}">上一页</a>{% endif %}
+                <span class="current">{{ result.movements.page }}</span>
+                {% if result.movements.page < result.movements.total_pages %}<a href="/mall-inventory?page={{ result.page }}&page_size={{ result.page_size }}&stock_status={{ result.stock_status }}&keyword={{ result.keyword | urlencode }}&movement_sku_id={{ result.movements.sku_id }}&movement_page={{ result.movements.page + 1 }}">下一页</a>{% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

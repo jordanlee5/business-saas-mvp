@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.4.3-M4-5 — SKU 库存余额与流水基础**
+- 版本：**v0.4.3-M4-6 — 库存管理后台**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`d53fed86d2c2a16babb0bfec34af9bfa8538b095`
-- 基线提交：`d53fed8 feat: add product media management`
+- 本轮修改前稳定代码基线：`bf52b8709c0140fdc66e629ac0920230cd12e4e6`
+- 基线提交：`bf52b87 feat: add inventory foundation`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4-1 建立商品目录数据基础，M4-2 建立受控写服务，M4-3 开放管理员维护页面，M4-4 接入商品媒体维护，M4-5 建立 SKU 库存余额、入库/调整流水与账实核对服务；库存管理页面、商品/库存 Excel、订单及小程序商品接口仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4-1 建立商品目录数据基础，M4-2 建立受控写服务，M4-3 开放管理员维护页面，M4-4 接入商品媒体维护，M4-5 建立 SKU 库存余额、入库/调整流水与账实核对服务，M4-6 开放受权限和审计保护的库存管理后台；商品/库存 Excel、订单及小程序商品接口仍未开放。
 
 ## 当前产品边界与术语
 
@@ -19,7 +19,7 @@ M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 
 - **本次核销金额**：一条匹配审核记录实际分配给对应业务的金额，不等同于整张凭证金额。
 - **已通过凭证金额**：一条业务下最终审核通过的本次核销金额合计。
 - **核销状态**：按已通过金额与业务金额区分未付款、部分付款、已付清及金额异常。
-- **积分商城兑换**：已支持在上传时选择的另一条积分使用渠道；内部已具备受保护的激活、积分账本和管理员商品目录维护能力，但尚未开放会员端领取 API、商品浏览或下单。
+- **积分商城兑换**：已支持在上传时选择的另一条积分使用渠道；内部已具备受保护的激活、积分账本、管理员商品目录及库存维护能力，但尚未开放会员端领取 API、商品浏览或下单。
 
 同一业务未来只能选择现金返现核销或积分商城兑换之一。商城规划不得让一条业务同时进入两条核销链路。规则状态见 [商城业务规则决策记录](docs/mall-business-rules-decisions.md)。
 
@@ -125,7 +125,7 @@ GET /api/miniprogram/v1/status
 
 ## 商城后台权限与审计基础
 
-M1 已为商城后台敏感操作建立独立细权限函数和稳定审计动作类型；M3-5 首次接入会员积分只读页面与受审计导出：
+M1 已为商城后台敏感操作建立独立细权限函数和稳定审计动作类型；M3-5 接入会员积分只读页面与受审计导出，M4-6 接入库存管理页面：
 
 - 超级管理员与运营管理员可管理商品、SKU、库存、订单和供应商，并生成待确认的供应商结算；
 - 积分人工调整与供应商结算确认仅允许超级管理员；
@@ -133,6 +133,7 @@ M1 已为商城后台敏感操作建立独立细权限函数和稳定审计动�
 - 商品上下架、SKU、库存调整、订单取消/发货/退款、积分调整、供应商维护和结算操作均使用已登记的审计动作类型；
 - 未知或尚未完成权限分级的审计动作失败关闭，不能默认继承传统运营权限。
 - 超级管理员和运营管理员可查看会员积分并导出单会员对账明细；初审、复核、上传方及无效账号不能进入页面或导出；每次成功生成导出均写入稳定操作日志。
+- 超级管理员和运营管理员可进入 `/mall-inventory` 查看 SKU 库存、状态及不可变流水，并通过受控服务执行入库与人工调整；页面不接受客户端指定操作者，也不直接覆盖库存余额。
 
 `OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 提供统一入账和按流水重算余额的审计能力；M3-3 新增 `EXPIRE` 到期扣减、默认只读的维护命令及即将到期查询；M3-4 新增仅限启用中超级管理员调用的 `ADJUST` 人工纠错领域服务；M3-5 新增管理员侧会员积分汇总、批次、流水及单会员 Excel 对账导出。预占、消费与退款仍在后续订单阶段实现。
 
@@ -174,7 +175,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M4-3 已在左侧“积分商城”新增 `/mall-catalog` 商品目录入口，超级管理员和运营管理员可分区维护分类、供应商、商品、SKU 及上下架；页面操作继续调用受控服务并把目录变化和操作日志放在同一事务，完整边界见 [商品目录管理后台说明](docs/catalog-admin.md)；
 - M4-4 新增 `product_media`，在 `/mall-catalog` 维护主图、轮播图和详情图；商品图片与宣传页素材分目录保存，上传格式、大小、尺寸、路径和删除边界失败关闭，实际写入均记录审计，完整边界见 [商品媒体说明](docs/product-media.md)；
 - M4-5 新增 `inventory_balances` 与 `inventory_movements`：库存管理到 SKU，入库和调整只追加带幂等键、前后数量、余额版本、原因和操作者的流水；余额可以按顺序流水重算，低库存与无库存状态使用可售数量和 SKU 阈值判断，完整边界见 [库存余额与流水说明](docs/inventory-foundation.md)；
-- 库存管理页面、商品/库存 Excel、订单、退款及供应商结算仍按后续切片独立实现。未主动执行库存入库或调整时两张库存表为空是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
+- M4-6 新增独立 `/mall-inventory` 库存管理后台：SKU 概览与流水查询保持只读，入库和人工调整继续调用 M4-5 服务；账实异常时只显示证据并停止写入，完整边界见 [库存管理后台说明](docs/inventory-admin.md)；
+- 商品/库存 Excel、订单、退款及供应商结算仍按后续切片独立实现。未主动执行库存入库或调整时两张库存表为空是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
 
 ## 数据库、上传目录与迁移边界
 
@@ -210,7 +212,7 @@ python -m unittest -v test_catalog_foundation_migration.py test_mall_domain.py
 python -m unittest -v test_catalog_service.py test_mall_governance.py
 python -m unittest -v test_product_media_storage.py test_product_media_service.py
 python -m unittest -v test_product_media_migration.py test_catalog_routes.py
-python -m unittest -v test_inventory_service.py test_inventory_migration.py
+python -m unittest -v test_inventory_service.py test_inventory_routes.py test_inventory_migration.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -254,7 +256,7 @@ python -m app.migration_upgrade_rehearsal
 
 ## 测试基线
 
-在当前 M4-5 工作副本上，完整依赖环境中的回归命令为：
+在当前 M4-6 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -262,7 +264,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量回归基线为 `Ran 490 tests`、`OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，仅跳过真实连接往返测试；
+- 全量回归基线为 `Ran 499 tests`、`OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，仅跳过真实连接往返测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -294,6 +296,7 @@ business-saas-mvp/
 │  ├─ catalog-admin.md              # M4-3 商品目录管理页面与路由边界
 │  ├─ product-media.md              # M4-4 商品媒体、存储与迁移边界
 │  ├─ inventory-foundation.md       # M4-5 SKU 库存余额与流水边界
+│  ├─ inventory-admin.md            # M4-6 库存管理页面与路由边界
 │  └─ mall-business-rules-decisions.md
 ├─ migrations/                     # Alembic 环境与后续迁移版本
 ├─ alembic.ini                     # Alembic 项目配置

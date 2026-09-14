@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 import os
 import hashlib
 import io
+import secrets
 import zipfile
 from datetime import datetime, date, time
 from decimal import Decimal, ROUND_HALF_UP
@@ -94,6 +95,10 @@ from .mall import (
     CATALOG_SECTION_CATEGORIES,
     CATALOG_SECTION_PRODUCTS,
     CATALOG_SECTION_SUPPLIERS,
+    INVENTORY_BALANCE_MISMATCH_MESSAGE,
+    INVENTORY_STATUS_ALL,
+    InventoryStockStatus,
+    adjust_inventory,
     build_member_points_workbook,
     create_product,
     create_product_category,
@@ -103,6 +108,7 @@ from .mall import (
     delete_product_media_record,
     get_catalog_admin_snapshot,
     get_member_points_detail,
+    list_inventory_admin,
     list_member_points,
     normalize_catalog_section,
     normalize_product_media_role,
@@ -110,6 +116,7 @@ from .mall import (
     save_product_image,
     save_product_media_record,
     record_member_points_export,
+    receive_inventory,
     unpublish_product,
     update_product,
     update_product_category,
@@ -156,6 +163,7 @@ from .admin_permissions import (
     can_view_business_records,
     can_manage_promotion_pages,
     can_manage_mall_catalog,
+    can_manage_mall_inventory,
     can_export_mall_member_points,
     can_view_mall_member_points,
 )
@@ -342,6 +350,9 @@ def admin_navigation_context(
         ),
         "can_manage_mall_catalog": (
             can_manage_mall_catalog(user)
+        ),
+        "can_manage_mall_inventory": (
+            can_manage_mall_inventory(user)
         ),
         "can_view_business_records": bool(
             user
@@ -578,6 +589,9 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_mall_catalog"] = (
             can_manage_mall_catalog(user)
         )
+        context["can_manage_mall_inventory"] = (
+            can_manage_mall_inventory(user)
+        )
         context["can_view_business_records"] = (
             user.role == "partner"
             or can_view_business_records(user)
@@ -609,6 +623,7 @@ def add_base_context(request: Request, context: dict):
         context["can_export_stats"] = False
         context["can_manage_promotion_pages"] = False
         context["can_manage_mall_catalog"] = False
+        context["can_manage_mall_inventory"] = False
         context["can_view_business_records"] = False
         context["can_manage_business_batches"] = False
         context["can_export_business_records"] = False
@@ -8570,6 +8585,223 @@ def delete_catalog_product_media_route(
             "商品图片记录已删除；原文件清理失败，请检查磁盘权限"
             if cleanup_failed
             else "商品图片已删除"
+        ),
+    )
+
+
+def _mall_inventory_redirect(
+    *,
+    sku_id: int = 0,
+    message: str = "",
+    error: str = "",
+):
+    query = {}
+    if sku_id:
+        query["movement_sku_id"] = sku_id
+    if message:
+        query["message"] = message
+    if error:
+        query["error"] = error
+    suffix = f"?{urlencode(query)}" if query else ""
+    return RedirectResponse(
+        url=f"/mall-inventory{suffix}",
+        status_code=303,
+    )
+
+
+def _new_inventory_request_key(*, actor_id: int, sku_id: int, action: str):
+    return (
+        f"inventory-page:{action}:{actor_id}:{sku_id}:"
+        f"{secrets.token_hex(16)}"
+    )
+
+
+def _run_inventory_mutation(
+    request: Request,
+    *,
+    sku_id: int,
+    success_label: str,
+    operation,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_inventory(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            result = operation(db, user.id)
+            movement_public_id = result.movement.movement_public_id
+            on_hand_quantity = result.snapshot.on_hand_quantity
+            replayed = result.replayed
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            return _mall_inventory_redirect(
+                sku_id=sku_id,
+                error=str(exc),
+            )
+        except RuntimeError as exc:
+            db.rollback()
+            if str(exc) != INVENTORY_BALANCE_MISMATCH_MESSAGE:
+                raise
+            return _mall_inventory_redirect(
+                sku_id=sku_id,
+                error=str(exc),
+            )
+        except IntegrityError:
+            db.rollback()
+            return _mall_inventory_redirect(
+                sku_id=sku_id,
+                error="库存操作发生并发或唯一冲突，请刷新页面后重试",
+            )
+        except OperationalError as exc:
+            db.rollback()
+            if "database is locked" not in str(exc).lower():
+                raise
+            return _mall_inventory_redirect(
+                sku_id=sku_id,
+                error="另一名管理员正在操作库存，请稍后刷新再试",
+            )
+        except Exception:
+            db.rollback()
+            raise
+        return _mall_inventory_redirect(
+            sku_id=sku_id,
+            message=(
+                "该库存请求已处理，本次未重复写入"
+                if replayed
+                else (
+                    f"{success_label}；流水 {movement_public_id}；"
+                    f"现存数量 {on_hand_quantity}"
+                )
+            ),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/mall-inventory", response_class=HTMLResponse)
+def mall_inventory_page(
+    request: Request,
+    keyword: str = Query(""),
+    stock_status: str = Query(INVENTORY_STATUS_ALL),
+    page: int = Query(1),
+    page_size: int = Query(10),
+    movement_sku_id: int = Query(0),
+    movement_page: int = Query(1),
+    message: str = Query(""),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_manage_mall_inventory(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            result = list_inventory_admin(
+                db,
+                keyword=keyword,
+                stock_status=stock_status,
+                page=page,
+                page_size=page_size,
+                movement_sku_id=movement_sku_id,
+                movement_page=movement_page,
+            )
+        except ValueError as exc:
+            result = list_inventory_admin(db)
+            error = error or str(exc)
+        request_keys = {
+            item.sku_id: {
+                "receive": _new_inventory_request_key(
+                    actor_id=user.id,
+                    sku_id=item.sku_id,
+                    action="receive",
+                ),
+                "adjust": _new_inventory_request_key(
+                    actor_id=user.id,
+                    sku_id=item.sku_id,
+                    action="adjust",
+                ),
+            }
+            for item in result.items
+        }
+        context = add_base_context(request, {
+            "request": request,
+            "page_title": "库存管理",
+            "active_page": "mall_inventory",
+            "result": result,
+            "request_keys": request_keys,
+            "inventory_status_all": INVENTORY_STATUS_ALL,
+            "inventory_status_in_stock": (
+                InventoryStockStatus.IN_STOCK.value
+            ),
+            "inventory_status_low_stock": (
+                InventoryStockStatus.LOW_STOCK.value
+            ),
+            "inventory_status_out_of_stock": (
+                InventoryStockStatus.OUT_OF_STOCK.value
+            ),
+            "allowed_page_sizes": (10, 20, 50),
+            "message": message or None,
+            "error": error or None,
+        })
+        return templates.TemplateResponse(
+            request=request,
+            name="mall_inventory.html",
+            context=context,
+        )
+    finally:
+        db.close()
+
+
+@app.post("/mall-inventory/skus/{sku_id}/receive")
+def receive_inventory_route(
+    request: Request,
+    sku_id: int,
+    quantity: int = Form(...),
+    reason: str = Form(...),
+    idempotency_key: str = Form(...),
+):
+    return _run_inventory_mutation(
+        request,
+        sku_id=sku_id,
+        success_label="库存入库已完成",
+        operation=lambda db, actor_id: receive_inventory(
+            db,
+            actor_admin_id=actor_id,
+            sku_id=sku_id,
+            quantity=quantity,
+            reason=reason,
+            idempotency_key=idempotency_key,
+        ),
+    )
+
+
+@app.post("/mall-inventory/skus/{sku_id}/adjust")
+def adjust_inventory_route(
+    request: Request,
+    sku_id: int,
+    quantity_delta: int = Form(...),
+    reason: str = Form(...),
+    idempotency_key: str = Form(...),
+):
+    return _run_inventory_mutation(
+        request,
+        sku_id=sku_id,
+        success_label="库存人工调整已完成",
+        operation=lambda db, actor_id: adjust_inventory(
+            db,
+            actor_admin_id=actor_id,
+            sku_id=sku_id,
+            quantity_delta=quantity_delta,
+            reason=reason,
+            idempotency_key=idempotency_key,
         ),
     )
 
