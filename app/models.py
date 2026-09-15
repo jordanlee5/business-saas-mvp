@@ -1397,11 +1397,12 @@ class InventoryMovement(Base):
     __tablename__ = "inventory_movements"
     __table_args__ = (
         CheckConstraint(
-            "movement_type IN ('RECEIPT', 'ADJUSTMENT')",
+            "movement_type IN ('RECEIPT', 'ADJUSTMENT', 'RESERVE', "
+            "'RELEASE', 'OUTBOUND', 'RETURN')",
             name="ck_inventory_movements_type",
         ),
         CheckConstraint(
-            "quantity_delta <> 0",
+            "quantity_delta <> 0 OR reserved_quantity_delta <> 0",
             name="ck_inventory_movements_delta_nonzero",
         ),
         CheckConstraint(
@@ -1417,6 +1418,24 @@ class InventoryMovement(Base):
             name="ck_inventory_movements_arithmetic",
         ),
         CheckConstraint(
+            "reserved_quantity_before >= 0",
+            name="ck_inventory_movements_reserved_before_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_quantity_after >= 0",
+            name="ck_inventory_movements_reserved_after_nonnegative",
+        ),
+        CheckConstraint(
+            "reserved_quantity_after = reserved_quantity_before + "
+            "reserved_quantity_delta",
+            name="ck_inventory_movements_reserved_arithmetic",
+        ),
+        CheckConstraint(
+            "reserved_quantity_before <= quantity_before AND "
+            "reserved_quantity_after <= quantity_after",
+            name="ck_inventory_movements_reserved_within_on_hand",
+        ),
+        CheckConstraint(
             "balance_version > 0",
             name="ck_inventory_movements_version_positive",
         ),
@@ -1427,6 +1446,18 @@ class InventoryMovement(Base):
         CheckConstraint(
             "length(trim(reason)) > 0",
             name="ck_inventory_movements_reason_nonblank",
+        ),
+        CheckConstraint(
+            "(actor_admin_id IS NOT NULL AND actor_member_id IS NULL) OR "
+            "(actor_admin_id IS NULL AND actor_member_id IS NOT NULL)",
+            name="ck_inventory_movements_single_actor",
+        ),
+        CheckConstraint(
+            "movement_type IN ('RECEIPT', 'ADJUSTMENT') OR "
+            "(reference_type IS NOT NULL AND "
+            "length(trim(reference_type)) > 0 AND reference_id IS NOT NULL "
+            "AND length(trim(reference_id)) > 0)",
+            name="ck_inventory_movements_order_reference",
         ),
         UniqueConstraint(
             "sku_id",
@@ -1458,6 +1489,15 @@ class InventoryMovement(Base):
     quantity_delta = Column(Integer, nullable=False)
     quantity_before = Column(Integer, nullable=False)
     quantity_after = Column(Integer, nullable=False)
+    reserved_quantity_delta = Column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    reserved_quantity_before = Column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    reserved_quantity_after = Column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     balance_version = Column(Integer, nullable=False)
     idempotency_key = Column(
         String(128),
@@ -1469,9 +1509,17 @@ class InventoryMovement(Base):
     actor_admin_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
+    actor_member_id = Column(
+        Integer,
+        ForeignKey("members.id"),
+        nullable=True,
+        index=True,
+    )
+    reference_type = Column(String(50), nullable=True)
+    reference_id = Column(String(64), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -1488,6 +1536,10 @@ class Order(Base):
         CheckConstraint(
             "length(trim(order_public_id)) > 0",
             name="ck_orders_public_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(idempotency_key)) > 0",
+            name="ck_orders_idempotency_key_nonblank",
         ),
         CheckConstraint(
             "status IN ('CREATED', 'CANCELLED', 'FULFILLING', "
@@ -1511,6 +1563,9 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_public_id = Column(
         String(32), nullable=False, unique=True, index=True
+    )
+    idempotency_key = Column(
+        String(128), nullable=False, unique=True, index=True
     )
     member_id = Column(
         Integer, ForeignKey("members.id"), nullable=False, index=True
@@ -1576,6 +1631,7 @@ class OrderItem(Base):
     supplier_public_id_snapshot = Column(String(32), nullable=False)
     supplier_name_snapshot = Column(String(160), nullable=False)
     supplier_sku_code_snapshot = Column(String(100), nullable=True)
+    product_image_path_snapshot = Column(String(500), nullable=True)
     unit_points_price = Column(Numeric(18, 2), nullable=False)
     unit_cost_price = Column(Numeric(18, 2), nullable=False)
     quantity = Column(Integer, nullable=False)

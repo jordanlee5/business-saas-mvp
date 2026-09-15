@@ -68,6 +68,12 @@ class InventoryMigrationTests(unittest.TestCase):
                         "idempotency_key",
                         "reason",
                         "actor_admin_id",
+                        "actor_member_id",
+                        "reserved_quantity_delta",
+                        "reserved_quantity_before",
+                        "reserved_quantity_after",
+                        "reference_type",
+                        "reference_id",
                     }
                     <= movement_columns
                 )
@@ -79,7 +85,7 @@ class InventoryMigrationTests(unittest.TestCase):
                 }
                 self.assertEqual(
                     movement_targets,
-                    {"product_skus", "users"},
+                    {"product_skus", "users", "members"},
                 )
                 balance_indexes = {
                     index["name"]: index

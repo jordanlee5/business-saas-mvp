@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.4.3-M4-6 — 库存管理后台**
+- 版本：**v0.5.0-M5-2 — 订单创建与原子预占**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`bf52b8709c0140fdc66e629ac0920230cd12e4e6`
-- 基线提交：`bf52b87 feat: add inventory foundation`
+- 本轮修改前稳定代码基线：`e9c20e833898e42348c5d4b66610c7ff98c7699a`
+- 基线提交：`e9c20e8 feat: add M5-1 order foundation`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4-1 建立商品目录数据基础，M4-2 建立受控写服务，M4-3 开放管理员维护页面，M4-4 接入商品媒体维护，M4-5 建立 SKU 库存余额、入库/调整流水与账实核对服务，M4-6 开放受权限和审计保护的库存管理后台；M5-1 建立订单、订单项快照和积分批次分配的数据基础，但下单接口、积分/库存事务、订单后台及供应商结算仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5-1 建立订单快照基础，M5-2 新增内部订单创建及积分、库存原子预占服务。下单 API、订单页面、取消、消费、发货、退款及供应商结算仍未开放。
 
 ## 当前产品边界与术语
 
@@ -152,7 +152,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 ## 商城核心与商品目录表结构
 
-`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单、订单项快照与积分批次分配基础：
+`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单快照基础；`0008_order_reservation` 新增订单幂等及可审计的库存预占能力：
 
 - `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
 - 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
@@ -176,7 +176,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M4-4 新增 `product_media`，在 `/mall-catalog` 维护主图、轮播图和详情图；商品图片与宣传页素材分目录保存，上传格式、大小、尺寸、路径和删除边界失败关闭，实际写入均记录审计，完整边界见 [商品媒体说明](docs/product-media.md)；
 - M4-5 新增 `inventory_balances` 与 `inventory_movements`：库存管理到 SKU，入库和调整只追加带幂等键、前后数量、余额版本、原因和操作者的流水；余额可以按顺序流水重算，低库存与无库存状态使用可售数量和 SKU 阈值判断，完整边界见 [库存余额与流水说明](docs/inventory-foundation.md)；
 - M4-6 新增独立 `/mall-inventory` 库存管理后台：SKU 概览与流水查询保持只读，入库和人工调整继续调用 M4-5 服务；账实异常时只显示证据并停止写入，完整边界见 [库存管理后台说明](docs/inventory-admin.md)；
-- 商品/库存 Excel、订单、退款及供应商结算仍按后续切片独立实现。未主动执行库存入库或调整时两张库存表为空是预期结果；M4-1 数据结构边界见 [商品目录基础说明](docs/catalog-foundation.md)。
+- M5-1 新增订单、订单项快照和积分批次分配三张表；M5-2 新增订单幂等键以及同时记录现存量和预占量的库存流水字段，并提供订单、FEFO 积分预占及 SKU 库存预占的原子领域服务，完整边界见 [订单原子预占说明](docs/order-reservation.md)；
+- 商品/库存 Excel、订单 API 和页面、取消、消费、发货、退款及供应商结算仍按后续切片独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -192,7 +193,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。`0001_current_schema_baseline` 只固化原有的 10 张业务表，`0002_mall_core_foundation` 新增商城渠道字段与会员积分核心表，`0003_member_activation_security` 新增激活凭据表，`0004_catalog_foundation` 新增商品目录四张表，`0005_product_media` 新增商品媒体表，`0006_inventory_foundation` 新增库存余额与流水表，`0007_order_foundation` 新增三张订单基础表。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0008_order_reservation`，结构仍为 26 张必需应用表；本次在既有订单和库存表增加幂等、预占审计字段。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -213,6 +214,7 @@ python -m unittest -v test_catalog_service.py test_mall_governance.py
 python -m unittest -v test_product_media_storage.py test_product_media_service.py
 python -m unittest -v test_product_media_migration.py test_catalog_routes.py
 python -m unittest -v test_inventory_service.py test_inventory_routes.py test_inventory_migration.py
+python -m unittest -v test_order_service.py test_order_reservation_migration.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py

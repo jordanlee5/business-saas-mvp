@@ -80,10 +80,14 @@ class ProductMediaRole(str, Enum):
 
 
 class InventoryMovementType(str, Enum):
-    """M4 阶段允许写入的 SKU 库存流水类型。"""
+    """SKU 库存流水支持的物理库存与订单预占动作。"""
 
     RECEIPT = "RECEIPT"
     ADJUSTMENT = "ADJUSTMENT"
+    RESERVE = "RESERVE"
+    RELEASE = "RELEASE"
+    OUTBOUND = "OUTBOUND"
+    RETURN = "RETURN"
 
 
 class InventoryStockStatus(str, Enum):

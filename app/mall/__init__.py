@@ -160,6 +160,14 @@ from .inventory_service import (
     assert_inventory_balance_consistent,
     audit_inventory_balance,
     receive_inventory,
+    reserve_inventory_for_order,
+)
+from .order_service import (
+    OrderLineRequest,
+    OrderPlacementResult,
+    PointsGrantReservation,
+    execute_order_placement,
+    place_order_with_reservations,
 )
 from .inventory_admin_service import (
     INVENTORY_MOVEMENT_TYPE_LABELS,
@@ -200,6 +208,9 @@ __all__ = [
     "InventorySkuItem",
     "InventorySkuOption",
     "InventorySummary",
+    "OrderLineRequest",
+    "OrderPlacementResult",
+    "PointsGrantReservation",
     "INVENTORY_MOVEMENT_TYPE_LABELS",
     "INVENTORY_STATUS_ALL",
     "INVENTORY_STATUS_LABELS",
@@ -324,4 +335,7 @@ __all__ = [
     "assert_inventory_balance_consistent",
     "audit_inventory_balance",
     "receive_inventory",
+    "reserve_inventory_for_order",
+    "place_order_with_reservations",
+    "execute_order_placement",
 ]

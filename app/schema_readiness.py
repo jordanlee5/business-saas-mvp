@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0007_order_foundation"
+CURRENT_SCHEMA_REVISION = "0008_order_reservation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -140,12 +140,18 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "idempotency_key",
             "reason",
             "actor_admin_id",
+            "reserved_quantity_delta",
+            "reserved_quantity_before",
+            "reserved_quantity_after",
+            "actor_member_id",
+            "reference_type",
+            "reference_id",
         }
     ),
     "orders": frozenset(
         {
-            "order_public_id", "member_id", "status", "total_points",
-            "total_cost_amount", "total_quantity",
+            "order_public_id", "idempotency_key", "member_id", "status",
+            "total_points", "total_cost_amount", "total_quantity",
         }
     ),
     "order_items": frozenset(
@@ -155,6 +161,7 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "sku_code_snapshot", "sku_name_snapshot",
             "supplier_public_id_snapshot", "supplier_name_snapshot",
             "supplier_sku_code_snapshot", "unit_points_price",
+            "product_image_path_snapshot",
             "unit_cost_price", "quantity", "line_points",
             "line_cost_amount",
         }

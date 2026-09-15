@@ -29,11 +29,18 @@ class MallDomainTests(unittest.TestCase):
     def test_inventory_types_and_stock_status_are_fixed(self):
         self.assertEqual(
             VALID_INVENTORY_MOVEMENT_TYPES,
-            {"RECEIPT", "ADJUSTMENT"},
+            {
+                "RECEIPT", "ADJUSTMENT", "RESERVE",
+                "RELEASE", "OUTBOUND", "RETURN",
+            },
         )
         self.assertIs(
             normalize_inventory_movement_type(" receipt "),
             InventoryMovementType.RECEIPT,
+        )
+        self.assertIs(
+            normalize_inventory_movement_type(" reserve "),
+            InventoryMovementType.RESERVE,
         )
         self.assertIs(
             classify_inventory_stock(
@@ -53,7 +60,7 @@ class MallDomainTests(unittest.TestCase):
         )
 
     def test_invalid_inventory_values_fail_closed(self):
-        for invalid_type in ("OUTBOUND", "", None):
+        for invalid_type in ("SALE", "", None):
             with self.subTest(invalid_type=invalid_type):
                 with self.assertRaises(ValueError):
                     normalize_inventory_movement_type(invalid_type)

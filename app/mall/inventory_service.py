@@ -51,6 +51,7 @@ class InventoryBalanceAudit:
 
     snapshot: InventoryStockSnapshot
     ledger_quantity: int
+    ledger_reserved_quantity: int
     ledger_version: int
     movement_count: int
     is_consistent: bool
@@ -352,6 +353,9 @@ def _apply_inventory_movement(
         quantity_delta=normalized_delta,
         quantity_before=quantity_before,
         quantity_after=quantity_after,
+        reserved_quantity_delta=0,
+        reserved_quantity_before=reserved_quantity,
+        reserved_quantity_after=reserved_quantity,
         balance_version=version_before + 1,
         idempotency_key=normalized_idempotency_key,
         reason=normalized_reason,
@@ -373,6 +377,128 @@ def _apply_inventory_movement(
         snapshot=audit.snapshot,
         movement=movement,
         action_log=action_log,
+        replayed=False,
+    )
+
+
+def reserve_inventory_for_order(
+    db,
+    *,
+    member_id: int,
+    sku_id: int,
+    quantity,
+    order_public_id,
+    idempotency_key,
+    now=None,
+) -> InventoryMutationResult:
+    """为会员订单预占 SKU 库存；调用方负责提交或整体回滚。"""
+    from ..models import (
+        InventoryBalance,
+        InventoryMovement,
+        Member,
+    )
+
+    normalized_quantity = _normalize_positive_integer(
+        quantity,
+        field_name="预占数量",
+    )
+    normalized_order_public_id = _normalize_required_text(
+        order_public_id,
+        field_name="订单编号",
+        maximum_length=32,
+    )
+    normalized_idempotency_key = _normalize_required_text(
+        idempotency_key,
+        field_name="库存幂等键",
+        maximum_length=128,
+    )
+    if isinstance(member_id, bool) or not isinstance(member_id, int) or member_id <= 0:
+        raise ValueError("会员无效")
+
+    member = (
+        db.query(Member)
+        .filter(Member.id == member_id)
+        .with_for_update()
+        .populate_existing()
+        .one_or_none()
+    )
+    if member is None or member.is_active is not True:
+        raise ValueError("会员不存在或已停用")
+    sku = _lock_sku(db, sku_id)
+
+    existing = _find_idempotent_movement(db, normalized_idempotency_key)
+    if existing is not None:
+        same_request = (
+            existing.actor_admin_id is None
+            and existing.actor_member_id == member.id
+            and existing.sku_id == sku.id
+            and existing.movement_type == InventoryMovementType.RESERVE.value
+            and existing.quantity_delta == 0
+            and existing.reserved_quantity_delta == normalized_quantity
+            and existing.reference_type == "ORDER"
+            and existing.reference_id == normalized_order_public_id
+        )
+        if not same_request:
+            raise ValueError("库存幂等键已用于其他操作")
+        audit = assert_inventory_balance_consistent(db, sku_id=sku.id)
+        return InventoryMutationResult(
+            snapshot=audit.snapshot,
+            movement=existing,
+            action_log=None,
+            replayed=True,
+        )
+
+    with db.no_autoflush:
+        balance = (
+            db.query(InventoryBalance)
+            .filter(InventoryBalance.sku_id == sku.id)
+            .with_for_update()
+            .populate_existing()
+            .one_or_none()
+        )
+    audit = assert_inventory_balance_consistent(db, sku_id=sku.id)
+    if balance is None:
+        raise ValueError("商品库存不足")
+
+    available_quantity = balance.on_hand_quantity - balance.reserved_quantity
+    if available_quantity < normalized_quantity:
+        raise ValueError("商品库存不足")
+
+    operation_time = _current_time(db, now)
+    quantity_before = balance.on_hand_quantity
+    reserved_before = balance.reserved_quantity
+    version_before = balance.version
+    reserved_after = reserved_before + normalized_quantity
+    balance.reserved_quantity = reserved_after
+    balance.version = version_before + 1
+    balance.updated_at = operation_time
+
+    movement = InventoryMovement(
+        movement_public_id=_generate_movement_public_id(db),
+        sku_id=sku.id,
+        movement_type=InventoryMovementType.RESERVE.value,
+        quantity_delta=0,
+        quantity_before=quantity_before,
+        quantity_after=quantity_before,
+        reserved_quantity_delta=normalized_quantity,
+        reserved_quantity_before=reserved_before,
+        reserved_quantity_after=reserved_after,
+        balance_version=version_before + 1,
+        idempotency_key=normalized_idempotency_key,
+        reason=f"订单 {normalized_order_public_id} 预占库存",
+        actor_admin_id=None,
+        actor_member_id=member.id,
+        reference_type="ORDER",
+        reference_id=normalized_order_public_id,
+        created_at=operation_time,
+    )
+    db.add(movement)
+    db.flush()
+    after_audit = assert_inventory_balance_consistent(db, sku_id=sku.id)
+    return InventoryMutationResult(
+        snapshot=after_audit.snapshot,
+        movement=movement,
+        action_log=None,
         replayed=False,
     )
 
@@ -449,30 +575,41 @@ def audit_inventory_balance(db, *, sku_id: int) -> InventoryBalanceAudit:
     )
 
     ledger_quantity = 0
+    ledger_reserved_quantity = 0
     ledger_version = 0
     chain_is_consistent = True
     for movement in movements:
         expected_version = ledger_version + 1
         expected_after = ledger_quantity + movement.quantity_delta
+        expected_reserved_after = (
+            ledger_reserved_quantity + movement.reserved_quantity_delta
+        )
         if (
             movement.balance_version != expected_version
             or movement.quantity_before != ledger_quantity
             or movement.quantity_after != expected_after
+            or movement.reserved_quantity_before != ledger_reserved_quantity
+            or movement.reserved_quantity_after != expected_reserved_after
             or expected_after < 0
+            or expected_reserved_after < 0
+            or expected_reserved_after > expected_after
         ):
             chain_is_consistent = False
         ledger_quantity = movement.quantity_after
+        ledger_reserved_quantity = movement.reserved_quantity_after
         ledger_version = movement.balance_version
 
     snapshot = _build_snapshot(sku, balance)
     is_consistent = (
         chain_is_consistent
         and snapshot.on_hand_quantity == ledger_quantity
+        and snapshot.reserved_quantity == ledger_reserved_quantity
         and snapshot.balance_version == ledger_version
     )
     return InventoryBalanceAudit(
         snapshot=snapshot,
         ledger_quantity=ledger_quantity,
+        ledger_reserved_quantity=ledger_reserved_quantity,
         ledger_version=ledger_version,
         movement_count=len(movements),
         is_consistent=is_consistent,

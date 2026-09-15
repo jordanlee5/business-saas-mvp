@@ -50,6 +50,7 @@ MEMBER_ACTIVATION_SECURITY_REVISION = (
 CATALOG_FOUNDATION_REVISION = "0004_catalog_foundation"
 PRODUCT_MEDIA_REVISION = "0005_product_media"
 INVENTORY_FOUNDATION_REVISION = "0006_inventory_foundation"
+ORDER_FOUNDATION_REVISION = "0007_order_foundation"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
@@ -58,6 +59,7 @@ SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
         CATALOG_FOUNDATION_REVISION,
         PRODUCT_MEDIA_REVISION,
         INVENTORY_FOUNDATION_REVISION,
+        ORDER_FOUNDATION_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -165,6 +167,28 @@ INVENTORY_FOUNDATION_COLUMNS = {
 ORDER_FOUNDATION_TABLES = frozenset(
     {"orders", "order_items", "order_points_grant_allocations"}
 )
+ORDER_FOUNDATION_COLUMNS = {
+    "orders": frozenset(
+        {
+            "order_public_id", "member_id", "status", "total_points",
+            "total_cost_amount", "total_quantity",
+        }
+    ),
+    "order_items": frozenset(
+        {
+            "order_id", "product_id", "sku_id", "supplier_id",
+            "product_public_id_snapshot", "product_name_snapshot",
+            "sku_code_snapshot", "sku_name_snapshot",
+            "supplier_public_id_snapshot", "supplier_name_snapshot",
+            "supplier_sku_code_snapshot", "unit_points_price",
+            "unit_cost_price", "quantity", "line_points",
+            "line_cost_amount",
+        }
+    ),
+    "order_points_grant_allocations": frozenset(
+        {"order_id", "points_grant_id", "allocated_points"}
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -268,6 +292,7 @@ def capture_legacy_snapshot(
         tuple[tuple[object, ...], ...],
     ]
     | None = None,
+    approved_column_changes: dict[str, frozenset[str]] | None = None,
 ) -> tuple[LegacyTableSnapshot, ...]:
     connection = open_read_only_database(database_path)
     try:
@@ -301,7 +326,12 @@ def capture_legacy_snapshot(
                 changed_columns = [
                     str(column[0])
                     for column in selected_columns
-                    if current_by_name.get(str(column[0])) != column
+                    if (
+                        current_by_name.get(str(column[0])) != column
+                        and str(column[0]) not in (
+                            approved_column_changes or {}
+                        ).get(table_name, frozenset())
+                    )
                 ]
                 if changed_columns:
                     raise MigrationUpgradeRehearsalError(
@@ -506,7 +536,11 @@ def validate_catalog_foundation_source(
         connection.close()
 
 
-def validate_inventory_foundation_source(database_path: Path) -> None:
+def validate_inventory_foundation_source(
+    database_path: Path,
+    *,
+    allow_orders: bool = False,
+) -> None:
     """Fail closed when a claimed 0006 inventory source is incomplete."""
     validate_catalog_foundation_source(
         database_path,
@@ -523,7 +557,7 @@ def validate_inventory_foundation_source(database_path: Path) -> None:
                 + ", ".join(sorted(missing_tables))
             )
         unexpected_tables = ORDER_FOUNDATION_TABLES & tables
-        if unexpected_tables:
+        if unexpected_tables and not allow_orders:
             raise MigrationUpgradeRehearsalError(
                 "0006 源库已存在未登记的订单表："
                 + ", ".join(sorted(unexpected_tables))
@@ -548,6 +582,51 @@ def validate_inventory_foundation_source(database_path: Path) -> None:
             raise MigrationUpgradeRehearsalError(
                 "0006 源库缺少库存字段："
                 + ", ".join(missing_columns)
+            )
+    finally:
+        connection.close()
+
+
+def validate_order_foundation_source(database_path: Path) -> None:
+    """Fail closed when a claimed 0007 order source is incomplete."""
+    validate_inventory_foundation_source(database_path, allow_orders=True)
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        missing_tables = ORDER_FOUNDATION_TABLES - tables
+        if missing_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0007 源库缺少订单表："
+                + ", ".join(sorted(missing_tables))
+            )
+        missing_columns: list[str] = []
+        for table_name, required_columns in ORDER_FOUNDATION_COLUMNS.items():
+            actual_columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    table_name,
+                )
+            }
+            missing_columns.extend(
+                f"{table_name}.{column_name}"
+                for column_name in sorted(required_columns - actual_columns)
+            )
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0007 源库缺少订单字段："
+                + ", ".join(missing_columns)
+            )
+        inventory_columns = {
+            str(column[0])
+            for column in get_table_column_signatures(
+                connection,
+                "inventory_movements",
+            )
+        }
+        if "reserved_quantity_delta" in inventory_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0007 源库已存在未登记的订单预占字段"
             )
     finally:
         connection.close()
@@ -588,6 +667,8 @@ def rehearse_mall_core_upgrade(
         )
     elif source_revision == INVENTORY_FOUNDATION_REVISION:
         validate_inventory_foundation_source(source_path)
+    elif source_revision == ORDER_FOUNDATION_REVISION:
+        validate_order_foundation_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,
@@ -639,6 +720,11 @@ def rehearse_mall_core_upgrade(
         rehearsal_path,
         table_names=table_names,
         expected_columns=expected_columns,
+        approved_column_changes=(
+            {"inventory_movements": frozenset({"actor_admin_id"})}
+            if source_revision == ORDER_FOUNDATION_REVISION
+            else None
+        ),
     )
     if upgraded_snapshot != source_snapshot:
         raise MigrationUpgradeRehearsalError(

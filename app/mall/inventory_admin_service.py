@@ -24,6 +24,10 @@ INVENTORY_STATUS_LABELS = {
 INVENTORY_MOVEMENT_TYPE_LABELS = {
     InventoryMovementType.RECEIPT.value: "入库",
     InventoryMovementType.ADJUSTMENT.value: "人工调整",
+    InventoryMovementType.RESERVE.value: "订单预占",
+    InventoryMovementType.RELEASE.value: "订单释放",
+    InventoryMovementType.OUTBOUND.value: "订单出库",
+    InventoryMovementType.RETURN.value: "订单退回",
 }
 
 
@@ -306,7 +310,7 @@ def list_inventory_admin(
                 quantity_after=movement.quantity_after,
                 balance_version=movement.balance_version,
                 reason=movement.reason,
-                actor_username=actor_username or "未知管理员",
+                actor_username=actor_username or "会员订单",
                 created_at=movement.created_at,
             )
             for movement, sku_code, product_name, actor_username
