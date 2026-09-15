@@ -1478,3 +1478,137 @@ class InventoryMovement(Base):
         default=utc8_now,
         index=True,
     )
+
+
+class Order(Base):
+    """纯积分订单主记录；本切片只建立持久化基础。"""
+
+    __tablename__ = "orders"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(order_public_id)) > 0",
+            name="ck_orders_public_id_nonblank",
+        ),
+        CheckConstraint(
+            "status IN ('CREATED', 'CANCELLED', 'FULFILLING', "
+            "'SHIPPED', 'COMPLETED', 'REFUNDED')",
+            name="ck_orders_status",
+        ),
+        CheckConstraint(
+            "total_points > 0",
+            name="ck_orders_total_points_positive",
+        ),
+        CheckConstraint(
+            "total_cost_amount >= 0",
+            name="ck_orders_total_cost_nonnegative",
+        ),
+        CheckConstraint(
+            "total_quantity > 0",
+            name="ck_orders_total_quantity_positive",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_public_id = Column(
+        String(32), nullable=False, unique=True, index=True
+    )
+    member_id = Column(
+        Integer, ForeignKey("members.id"), nullable=False, index=True
+    )
+    status = Column(
+        String(30), nullable=False, default="CREATED",
+        server_default="CREATED", index=True
+    )
+    total_points = Column(Numeric(18, 2), nullable=False)
+    total_cost_amount = Column(Numeric(18, 2), nullable=False)
+    total_quantity = Column(Integer, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now, index=True
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now,
+        onupdate=utc8_now
+    )
+
+
+class OrderItem(Base):
+    """订单项及下单时目录快照；目录更新不得回写这些字段。"""
+
+    __tablename__ = "order_items"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_order_items_quantity_positive"),
+        CheckConstraint(
+            "unit_points_price > 0",
+            name="ck_order_items_points_price_positive",
+        ),
+        CheckConstraint(
+            "unit_cost_price >= 0",
+            name="ck_order_items_cost_price_nonnegative",
+        ),
+        CheckConstraint(
+            "line_points = unit_points_price * quantity",
+            name="ck_order_items_points_arithmetic",
+        ),
+        CheckConstraint(
+            "line_cost_amount = unit_cost_price * quantity",
+            name="ck_order_items_cost_arithmetic",
+        ),
+        UniqueConstraint("order_id", "sku_id", name="uq_order_items_order_sku"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(
+        Integer, ForeignKey("orders.id"), nullable=False, index=True
+    )
+    product_id = Column(
+        Integer, ForeignKey("products.id"), nullable=False, index=True
+    )
+    sku_id = Column(
+        Integer, ForeignKey("product_skus.id"), nullable=False, index=True
+    )
+    supplier_id = Column(
+        Integer, ForeignKey("suppliers.id"), nullable=False, index=True
+    )
+    product_public_id_snapshot = Column(String(32), nullable=False)
+    product_name_snapshot = Column(String(200), nullable=False)
+    sku_code_snapshot = Column(String(64), nullable=False)
+    sku_name_snapshot = Column(String(160), nullable=False)
+    supplier_public_id_snapshot = Column(String(32), nullable=False)
+    supplier_name_snapshot = Column(String(160), nullable=False)
+    supplier_sku_code_snapshot = Column(String(100), nullable=True)
+    unit_points_price = Column(Numeric(18, 2), nullable=False)
+    unit_cost_price = Column(Numeric(18, 2), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    line_points = Column(Numeric(18, 2), nullable=False)
+    line_cost_amount = Column(Numeric(18, 2), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now
+    )
+
+
+class OrderPointsGrantAllocation(Base):
+    """订单实际使用的积分批次证据；供后续消费和原批次退款使用。"""
+
+    __tablename__ = "order_points_grant_allocations"
+    __table_args__ = (
+        CheckConstraint(
+            "allocated_points > 0",
+            name="ck_order_points_allocations_positive",
+        ),
+        UniqueConstraint(
+            "order_id", "points_grant_id",
+            name="uq_order_points_allocations_order_grant",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(
+        Integer, ForeignKey("orders.id"), nullable=False, index=True
+    )
+    points_grant_id = Column(
+        Integer, ForeignKey("points_grants.id"), nullable=False, index=True
+    )
+    allocated_points = Column(Numeric(18, 2), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now
+    )

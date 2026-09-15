@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0006_inventory_foundation"
+CURRENT_SCHEMA_REVISION = "0007_order_foundation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -21,6 +21,9 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "product_media",
         "inventory_balances",
         "inventory_movements",
+        "orders",
+        "order_items",
+        "order_points_grant_allocations",
     }
 )
 
@@ -138,6 +141,26 @@ REQUIRED_MALL_CORE_COLUMNS = {
             "reason",
             "actor_admin_id",
         }
+    ),
+    "orders": frozenset(
+        {
+            "order_public_id", "member_id", "status", "total_points",
+            "total_cost_amount", "total_quantity",
+        }
+    ),
+    "order_items": frozenset(
+        {
+            "order_id", "product_id", "sku_id", "supplier_id",
+            "product_public_id_snapshot", "product_name_snapshot",
+            "sku_code_snapshot", "sku_name_snapshot",
+            "supplier_public_id_snapshot", "supplier_name_snapshot",
+            "supplier_sku_code_snapshot", "unit_points_price",
+            "unit_cost_price", "quantity", "line_points",
+            "line_cost_amount",
+        }
+    ),
+    "order_points_grant_allocations": frozenset(
+        {"order_id", "points_grant_id", "allocated_points"}
     ),
 }
 

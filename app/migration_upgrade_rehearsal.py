@@ -49,6 +49,7 @@ MEMBER_ACTIVATION_SECURITY_REVISION = (
 )
 CATALOG_FOUNDATION_REVISION = "0004_catalog_foundation"
 PRODUCT_MEDIA_REVISION = "0005_product_media"
+INVENTORY_FOUNDATION_REVISION = "0006_inventory_foundation"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
@@ -56,6 +57,7 @@ SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
         MEMBER_ACTIVATION_SECURITY_REVISION,
         CATALOG_FOUNDATION_REVISION,
         PRODUCT_MEDIA_REVISION,
+        INVENTORY_FOUNDATION_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -146,6 +148,22 @@ INVENTORY_FOUNDATION_TABLES = frozenset(
         "inventory_balances",
         "inventory_movements",
     }
+)
+INVENTORY_FOUNDATION_COLUMNS = {
+    "inventory_balances": frozenset(
+        {"sku_id", "on_hand_quantity", "reserved_quantity", "version"}
+    ),
+    "inventory_movements": frozenset(
+        {
+            "movement_public_id", "sku_id", "movement_type",
+            "quantity_delta", "quantity_before", "quantity_after",
+            "balance_version", "idempotency_key", "reason",
+            "actor_admin_id",
+        }
+    ),
+}
+ORDER_FOUNDATION_TABLES = frozenset(
+    {"orders", "order_items", "order_points_grant_allocations"}
 )
 
 
@@ -420,6 +438,7 @@ def validate_catalog_foundation_source(
     database_path: Path,
     *,
     require_product_media: bool = False,
+    allow_inventory: bool = False,
 ) -> None:
     """Fail closed when a claimed 0004/0005 catalog source is incomplete."""
     validate_mall_core_foundation_source(
@@ -444,7 +463,7 @@ def validate_catalog_foundation_source(
                 "0005 源库缺少商品媒体表"
             )
         unexpected_inventory_tables = INVENTORY_FOUNDATION_TABLES & tables
-        if unexpected_inventory_tables:
+        if unexpected_inventory_tables and not allow_inventory:
             raise MigrationUpgradeRehearsalError(
                 "0004/0005 源库已存在未登记的库存表："
                 + ", ".join(sorted(unexpected_inventory_tables))
@@ -487,6 +506,53 @@ def validate_catalog_foundation_source(
         connection.close()
 
 
+def validate_inventory_foundation_source(database_path: Path) -> None:
+    """Fail closed when a claimed 0006 inventory source is incomplete."""
+    validate_catalog_foundation_source(
+        database_path,
+        require_product_media=True,
+        allow_inventory=True,
+    )
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        missing_tables = INVENTORY_FOUNDATION_TABLES - tables
+        if missing_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0006 源库缺少库存表："
+                + ", ".join(sorted(missing_tables))
+            )
+        unexpected_tables = ORDER_FOUNDATION_TABLES & tables
+        if unexpected_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0006 源库已存在未登记的订单表："
+                + ", ".join(sorted(unexpected_tables))
+            )
+        missing_columns: list[str] = []
+        for table_name, required_columns in (
+            INVENTORY_FOUNDATION_COLUMNS.items()
+        ):
+            actual_columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection, table_name
+                )
+            }
+            missing_columns.extend(
+                f"{table_name}.{column_name}"
+                for column_name in sorted(
+                    required_columns - actual_columns
+                )
+            )
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0006 源库缺少库存字段："
+                + ", ".join(missing_columns)
+            )
+    finally:
+        connection.close()
+
+
 def rehearse_mall_core_upgrade(
     database_url: str,
     *,
@@ -520,6 +586,8 @@ def rehearse_mall_core_upgrade(
             source_path,
             require_product_media=True,
         )
+    elif source_revision == INVENTORY_FOUNDATION_REVISION:
+        validate_inventory_foundation_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,

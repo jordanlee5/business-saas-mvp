@@ -40,6 +40,9 @@ POST_BASELINE_TABLES = frozenset(
         "product_media",
         "inventory_balances",
         "inventory_movements",
+        "orders",
+        "order_items",
+        "order_points_grant_allocations",
     }
 )
 
