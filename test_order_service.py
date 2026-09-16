@@ -1,8 +1,10 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from threading import Barrier
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,7 +13,9 @@ from app.admin_permissions import OPERATOR
 from app.database import Base
 from app.mall import (
     OrderLineRequest,
+    execute_order_cancellation,
     execute_order_placement,
+    expire_points_grant,
     receive_inventory,
     record_initial_points_grant,
 )
@@ -244,6 +248,14 @@ class OrderServiceTests(unittest.TestCase):
             now=NOW,
         )
 
+    def cancel(self, order_public_id, *, member_id=None, now=NOW):
+        return execute_order_cancellation(
+            self.engine,
+            member_id=self.member.id if member_id is None else member_id,
+            order_public_id=order_public_id,
+            now=now,
+        )
+
     def test_places_order_with_snapshots_fefo_points_and_stock(self):
         result = self.place()
 
@@ -412,6 +424,218 @@ class OrderServiceTests(unittest.TestCase):
                 ),
             )
         self.assertEqual(self.db.query(Order).count(), 0)
+
+    def test_cancels_created_order_and_releases_points_and_stock(self):
+        placed = self.place()
+        result = self.cancel(placed.order_public_id)
+
+        self.assertFalse(result.replayed)
+        self.assertEqual(result.status, "CANCELLED")
+        self.assertEqual(result.released_points, Decimal("105.00"))
+        self.assertEqual(len(result.points_release_entry_ids), 2)
+        self.assertEqual(len(result.inventory_release_movement_ids), 2)
+
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "CANCELLED")
+        account = self.db.get(PointsAccount, self.account.id)
+        self.assertEqual(account.available_points, Decimal("170.00"))
+        self.assertEqual(account.reserved_points, ZERO)
+        self.assertEqual(account.version, 4)
+        grants = self.db.query(PointsGrant).order_by(
+            PointsGrant.expires_at
+        ).all()
+        self.assertEqual(
+            [(row.available_points, row.reserved_points) for row in grants],
+            [
+                (Decimal("70.00"), ZERO),
+                (Decimal("100.00"), ZERO),
+            ],
+        )
+        release_entries = self.db.query(PointsLedgerEntry).filter(
+            PointsLedgerEntry.entry_type == "RELEASE"
+        ).order_by(PointsLedgerEntry.id).all()
+        self.assertEqual(len(release_entries), 2)
+        self.assertEqual(
+            [row.reserved_points_delta for row in release_entries],
+            [Decimal("-70.00"), Decimal("-35.00")],
+        )
+
+        balances = self.db.query(InventoryBalance).order_by(
+            InventoryBalance.sku_id
+        ).all()
+        self.assertEqual(
+            [(row.on_hand_quantity, row.reserved_quantity) for row in balances],
+            [(5, 0), (4, 0)],
+        )
+        releases = self.db.query(InventoryMovement).filter(
+            InventoryMovement.movement_type == "RELEASE"
+        ).order_by(InventoryMovement.sku_id).all()
+        self.assertEqual(
+            [row.reserved_quantity_delta for row in releases],
+            [-2, -1],
+        )
+        self.assertTrue(all(row.quantity_delta == 0 for row in releases))
+
+    def test_cancel_replay_does_not_duplicate_release_evidence(self):
+        placed = self.place()
+        first = self.cancel(placed.order_public_id)
+        replay = self.cancel(placed.order_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(
+            replay.points_release_entry_ids,
+            first.points_release_entry_ids,
+        )
+        self.assertEqual(
+            replay.inventory_release_movement_ids,
+            first.inventory_release_movement_ids,
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="RELEASE"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RELEASE"
+            ).count(),
+            2,
+        )
+
+    def test_concurrent_cancel_creates_one_release_set(self):
+        placed = self.place()
+        barrier = Barrier(2)
+
+        def cancel_once():
+            barrier.wait()
+            return self.cancel(placed.order_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = [pool.submit(cancel_once) for _ in range(2)]
+            outcomes = [future.result() for future in results]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="RELEASE"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RELEASE"
+            ).count(),
+            2,
+        )
+
+    def test_cancel_rejects_other_member_and_non_created_status(self):
+        placed = self.place()
+        other = Member(
+            member_public_id="MEM-ORDER-OTHER",
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.db.add(other)
+        self.db.commit()
+        with self.assertRaisesRegex(ValueError, "订单不存在"):
+            self.cancel(placed.order_public_id, member_id=other.id)
+
+        order = self.db.get(Order, placed.order_id)
+        order.status = "FULFILLING"
+        self.db.commit()
+        with self.assertRaisesRegex(ValueError, "状态不允许取消"):
+            self.cancel(placed.order_public_id)
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RELEASE"
+            ).count(),
+            0,
+        )
+
+    def test_cancel_rolls_back_stock_release_when_points_cannot_release(self):
+        placed = self.place()
+        self.db.expire_all()
+        early = self.db.get(PointsGrant, self.early_grant.id)
+        early.status = "EXPIRED"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "批次状态不允许释放"):
+            self.cancel(placed.order_public_id)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Order, placed.order_id).status, "CREATED")
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RELEASE"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            [row.reserved_quantity for row in self.db.query(
+                InventoryBalance
+            ).order_by(InventoryBalance.sku_id)],
+            [2, 1],
+        )
+
+    def test_cancel_fails_closed_when_reservation_evidence_is_tampered(self):
+        placed = self.place()
+        self.db.expire_all()
+        reserve = self.db.query(InventoryMovement).filter_by(
+            movement_type="RESERVE",
+            sku_id=self.sku_one.id,
+        ).one()
+        reserve.idempotency_key = "tampered-order-reservation"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "预占证据不完整"):
+            self.cancel(placed.order_public_id)
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RELEASE"
+            ).count(),
+            0,
+        )
+
+    def test_cancel_after_grant_expiry_releases_without_extending_expiry(self):
+        self.early_grant.expires_at = NOW + timedelta(days=1)
+        self.db.commit()
+        placed = self.place()
+        cancel_time = NOW + timedelta(days=2)
+        self.cancel(placed.order_public_id, now=cancel_time)
+
+        self.db.expire_all()
+        early = self.db.get(PointsGrant, self.early_grant.id)
+        self.assertEqual(early.expires_at, NOW + timedelta(days=1))
+        self.assertEqual(early.available_points, Decimal("70.00"))
+        self.assertEqual(early.reserved_points, ZERO)
+        expired = expire_points_grant(
+            self.db,
+            grant_id=early.id,
+            now=cancel_time,
+        )
+        self.db.commit()
+        self.assertEqual(expired.expired_points, Decimal("70.00"))
+        self.assertEqual(early.status, "EXPIRED")
+        self.assertEqual(early.available_points, ZERO)
+
+    def test_cancelled_order_with_tampered_release_fails_replay_closed(self):
+        placed = self.place()
+        self.cancel(placed.order_public_id)
+        self.db.expire_all()
+        release = self.db.query(PointsLedgerEntry).filter_by(
+            entry_type="RELEASE"
+        ).first()
+        release.reason = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "积分释放证据不完整"):
+            self.cancel(placed.order_public_id)
 
 
 if __name__ == "__main__":

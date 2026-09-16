@@ -169,6 +169,11 @@ from .order_service import (
     execute_order_placement,
     place_order_with_reservations,
 )
+from .order_cancellation_service import (
+    OrderCancellationResult,
+    cancel_created_order,
+    execute_order_cancellation,
+)
 from .inventory_admin_service import (
     INVENTORY_MOVEMENT_TYPE_LABELS,
     INVENTORY_STATUS_ALL,
@@ -209,6 +214,7 @@ __all__ = [
     "InventorySkuOption",
     "InventorySummary",
     "OrderLineRequest",
+    "OrderCancellationResult",
     "OrderPlacementResult",
     "PointsGrantReservation",
     "INVENTORY_MOVEMENT_TYPE_LABELS",
@@ -338,4 +344,6 @@ __all__ = [
     "reserve_inventory_for_order",
     "place_order_with_reservations",
     "execute_order_placement",
+    "cancel_created_order",
+    "execute_order_cancellation",
 ]
