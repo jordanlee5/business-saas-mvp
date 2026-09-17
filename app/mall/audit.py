@@ -17,6 +17,7 @@ class MallAuditActionType(str, Enum):
     SKU_UPDATE = "mall_sku_update"
     INVENTORY_RECEIVE = "mall_inventory_receive"
     INVENTORY_ADJUST = "mall_inventory_adjust"
+    ORDER_FULFILL = "mall_order_fulfill"
     ORDER_CANCEL = "mall_order_cancel"
     ORDER_SHIP = "mall_order_ship"
     ORDER_REFUND = "mall_order_refund"

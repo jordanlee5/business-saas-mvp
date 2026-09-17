@@ -14,12 +14,14 @@ from app.database import Base
 from app.mall import (
     OrderLineRequest,
     execute_order_cancellation,
+    execute_order_fulfillment,
     execute_order_placement,
     expire_points_grant,
     receive_inventory,
     record_initial_points_grant,
 )
 from app.models import (
+    AdminActionLog,
     BusinessRecord,
     InventoryBalance,
     InventoryMovement,
@@ -252,6 +254,18 @@ class OrderServiceTests(unittest.TestCase):
         return execute_order_cancellation(
             self.engine,
             member_id=self.member.id if member_id is None else member_id,
+            order_public_id=order_public_id,
+            now=now,
+        )
+
+    def fulfill(self, order_public_id, *, actor_admin_id=None, now=NOW):
+        return execute_order_fulfillment(
+            self.engine,
+            actor_admin_id=(
+                self.operator.id
+                if actor_admin_id is None
+                else actor_admin_id
+            ),
             order_public_id=order_public_id,
             now=now,
         )
@@ -636,6 +650,241 @@ class OrderServiceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "积分释放证据不完整"):
             self.cancel(placed.order_public_id)
+
+    def test_fulfills_created_order_consumes_points_and_outbounds_stock(self):
+        placed = self.place()
+        result = self.fulfill(placed.order_public_id)
+
+        self.assertFalse(result.replayed)
+        self.assertEqual(result.status, "FULFILLING")
+        self.assertEqual(result.consumed_points, Decimal("105.00"))
+        self.assertEqual(len(result.points_consume_entry_ids), 2)
+        self.assertEqual(len(result.inventory_outbound_movement_ids), 2)
+
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "FULFILLING")
+        account = self.db.get(PointsAccount, self.account.id)
+        self.assertEqual(account.available_points, Decimal("65.00"))
+        self.assertEqual(account.reserved_points, ZERO)
+        self.assertEqual(account.version, 4)
+        grants = self.db.query(PointsGrant).order_by(
+            PointsGrant.expires_at
+        ).all()
+        self.assertEqual(
+            [
+                (row.available_points, row.reserved_points, row.status)
+                for row in grants
+            ],
+            [
+                (ZERO, ZERO, "EXHAUSTED"),
+                (Decimal("65.00"), ZERO, "ACTIVE"),
+            ],
+        )
+        consume_entries = self.db.query(PointsLedgerEntry).filter_by(
+            entry_type="CONSUME"
+        ).order_by(PointsLedgerEntry.id).all()
+        self.assertEqual(len(consume_entries), 2)
+        self.assertEqual(
+            [row.available_points_delta for row in consume_entries],
+            [ZERO, ZERO],
+        )
+        self.assertEqual(
+            [row.reserved_points_delta for row in consume_entries],
+            [Decimal("-70.00"), Decimal("-35.00")],
+        )
+        self.assertTrue(
+            all(row.actor_admin_id == self.operator.id for row in consume_entries)
+        )
+
+        balances = self.db.query(InventoryBalance).order_by(
+            InventoryBalance.sku_id
+        ).all()
+        self.assertEqual(
+            [(row.on_hand_quantity, row.reserved_quantity) for row in balances],
+            [(3, 0), (3, 0)],
+        )
+        outbounds = self.db.query(InventoryMovement).filter_by(
+            movement_type="OUTBOUND"
+        ).order_by(InventoryMovement.sku_id).all()
+        self.assertEqual(
+            [row.quantity_delta for row in outbounds],
+            [-2, -1],
+        )
+        self.assertEqual(
+            [row.reserved_quantity_delta for row in outbounds],
+            [-2, -1],
+        )
+        self.assertTrue(
+            all(row.actor_admin_id == self.operator.id for row in outbounds)
+        )
+        action_log = self.db.get(AdminActionLog, result.action_log_id)
+        self.assertEqual(action_log.action_type, "mall_order_fulfill")
+        self.assertEqual(action_log.target_type, "mall_order")
+        self.assertEqual(action_log.target_id, placed.order_id)
+
+    def test_fulfillment_replay_does_not_duplicate_evidence(self):
+        placed = self.place()
+        first = self.fulfill(placed.order_public_id)
+        replay = self.fulfill(placed.order_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(replay.action_log_id, first.action_log_id)
+        self.assertEqual(
+            replay.points_consume_entry_ids,
+            first.points_consume_entry_ids,
+        )
+        self.assertEqual(
+            replay.inventory_outbound_movement_ids,
+            first.inventory_outbound_movement_ids,
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="CONSUME"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="OUTBOUND"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_fulfill"
+            ).count(),
+            1,
+        )
+
+    def test_concurrent_fulfillment_creates_one_evidence_set(self):
+        placed = self.place()
+        barrier = Barrier(2)
+
+        def fulfill_once():
+            barrier.wait()
+            return self.fulfill(placed.order_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(fulfill_once) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="CONSUME"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="OUTBOUND"
+            ).count(),
+            2,
+        )
+
+    def test_fulfillment_rejects_unauthorized_actor_and_cancelled_order(self):
+        placed = self.place()
+        with self.assertRaisesRegex(PermissionError, "无权确认商城订单履约"):
+            self.fulfill(
+                placed.order_public_id,
+                actor_admin_id=self.partner.id,
+            )
+
+        self.cancel(placed.order_public_id)
+        with self.assertRaisesRegex(ValueError, "状态不允许确认履约"):
+            self.fulfill(placed.order_public_id)
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="OUTBOUND"
+            ).count(),
+            0,
+        )
+
+    def test_fulfillment_rolls_back_outbound_when_points_are_frozen(self):
+        placed = self.place()
+        self.db.expire_all()
+        early = self.db.get(PointsGrant, self.early_grant.id)
+        early.status = "FROZEN"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "批次状态不允许消费"):
+            self.fulfill(placed.order_public_id)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Order, placed.order_id).status, "CREATED")
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="OUTBOUND"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="CONSUME"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            [
+                row.reserved_quantity
+                for row in self.db.query(InventoryBalance).order_by(
+                    InventoryBalance.sku_id
+                )
+            ],
+            [2, 1],
+        )
+
+    def test_fulfillment_fails_closed_for_tampered_reservation(self):
+        placed = self.place()
+        self.db.expire_all()
+        reserve = self.db.query(PointsLedgerEntry).filter_by(
+            entry_type="RESERVE"
+        ).first()
+        reserve.reason = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "积分预占证据不完整"):
+            self.fulfill(placed.order_public_id)
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="OUTBOUND"
+            ).count(),
+            0,
+        )
+
+    def test_fulfillment_consumes_reservation_after_original_expiry_time(self):
+        self.early_grant.expires_at = NOW + timedelta(days=1)
+        self.db.commit()
+        placed = self.place()
+        result = self.fulfill(
+            placed.order_public_id,
+            now=NOW + timedelta(days=2),
+        )
+
+        self.assertEqual(result.status, "FULFILLING")
+        self.db.expire_all()
+        early = self.db.get(PointsGrant, self.early_grant.id)
+        self.assertEqual(early.expires_at, NOW + timedelta(days=1))
+        self.assertEqual(early.available_points, ZERO)
+        self.assertEqual(early.reserved_points, ZERO)
+        self.assertEqual(early.status, "EXHAUSTED")
+
+    def test_fulfilled_order_with_tampered_evidence_fails_replay_closed(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.db.expire_all()
+        outbound = self.db.query(InventoryMovement).filter_by(
+            movement_type="OUTBOUND"
+        ).first()
+        outbound.reason = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "库存出库证据不完整"):
+            self.fulfill(placed.order_public_id)
 
 
 if __name__ == "__main__":

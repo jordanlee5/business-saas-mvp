@@ -248,6 +248,8 @@ MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
             MALL_INVENTORY_MANAGEMENT_LEVELS,
         MallAuditActionType.INVENTORY_ADJUST:
             MALL_INVENTORY_MANAGEMENT_LEVELS,
+        MallAuditActionType.ORDER_FULFILL:
+            MALL_ORDER_MANAGEMENT_LEVELS,
         MallAuditActionType.ORDER_CANCEL:
             MALL_ORDER_MANAGEMENT_LEVELS,
         MallAuditActionType.ORDER_SHIP:

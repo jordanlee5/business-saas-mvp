@@ -159,6 +159,7 @@ from .inventory_service import (
     adjust_inventory,
     assert_inventory_balance_consistent,
     audit_inventory_balance,
+    outbound_reserved_inventory_for_order,
     receive_inventory,
     reserve_inventory_for_order,
 )
@@ -173,6 +174,12 @@ from .order_cancellation_service import (
     OrderCancellationResult,
     cancel_created_order,
     execute_order_cancellation,
+)
+from .order_fulfillment_service import (
+    ORDER_FULFILL_PERMISSION_MESSAGE,
+    OrderFulfillmentResult,
+    execute_order_fulfillment,
+    fulfill_created_order,
 )
 from .inventory_admin_service import (
     INVENTORY_MOVEMENT_TYPE_LABELS,
@@ -215,7 +222,9 @@ __all__ = [
     "InventorySummary",
     "OrderLineRequest",
     "OrderCancellationResult",
+    "OrderFulfillmentResult",
     "OrderPlacementResult",
+    "ORDER_FULFILL_PERMISSION_MESSAGE",
     "PointsGrantReservation",
     "INVENTORY_MOVEMENT_TYPE_LABELS",
     "INVENTORY_STATUS_ALL",
@@ -342,8 +351,11 @@ __all__ = [
     "audit_inventory_balance",
     "receive_inventory",
     "reserve_inventory_for_order",
+    "outbound_reserved_inventory_for_order",
     "place_order_with_reservations",
     "execute_order_placement",
     "cancel_created_order",
     "execute_order_cancellation",
+    "fulfill_created_order",
+    "execute_order_fulfillment",
 ]

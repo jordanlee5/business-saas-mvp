@@ -650,6 +650,147 @@ def release_inventory_for_order(
     )
 
 
+def outbound_reserved_inventory_for_order(
+    db,
+    *,
+    actor_admin_id: int,
+    member_id: int,
+    sku_id: int,
+    quantity,
+    order_public_id,
+    idempotency_key,
+    now=None,
+) -> InventoryMutationResult:
+    """将订单预占转为实际出库；调用方负责核验订单并提交事务。"""
+    from ..models import InventoryBalance, InventoryMovement
+
+    normalized_quantity = _normalize_positive_integer(
+        quantity,
+        field_name="出库数量",
+    )
+    normalized_order_public_id = _normalize_required_text(
+        order_public_id,
+        field_name="订单编号",
+        maximum_length=32,
+    )
+    normalized_idempotency_key = _normalize_required_text(
+        idempotency_key,
+        field_name="库存幂等键",
+        maximum_length=128,
+    )
+    if (
+        isinstance(member_id, bool)
+        or not isinstance(member_id, int)
+        or member_id <= 0
+    ):
+        raise ValueError("会员无效")
+
+    actor = _require_actor(
+        db,
+        actor_admin_id=actor_admin_id,
+        action_type=MallAuditActionType.ORDER_FULFILL,
+    )
+    sku = _lock_sku(db, sku_id)
+    reserve_key = (
+        f"order:{normalized_order_public_id}:sku:{sku.id}:reserve"
+    )
+    reservation = _find_idempotent_movement(db, reserve_key)
+    valid_reservation = reservation is not None and (
+        reservation.actor_admin_id is None
+        and reservation.actor_member_id == member_id
+        and reservation.sku_id == sku.id
+        and reservation.movement_type == InventoryMovementType.RESERVE.value
+        and reservation.quantity_delta == 0
+        and reservation.reserved_quantity_delta == normalized_quantity
+        and reservation.reference_type == "ORDER"
+        and reservation.reference_id == normalized_order_public_id
+        and reservation.reason
+        == f"订单 {normalized_order_public_id} 预占库存"
+    )
+    if not valid_reservation:
+        raise ValueError("订单库存预占证据不完整")
+
+    existing = _find_idempotent_movement(db, normalized_idempotency_key)
+    if existing is not None:
+        same_request = (
+            existing.actor_admin_id == actor.id
+            and existing.actor_member_id is None
+            and existing.sku_id == sku.id
+            and existing.movement_type == InventoryMovementType.OUTBOUND.value
+            and existing.quantity_delta == -normalized_quantity
+            and existing.reserved_quantity_delta == -normalized_quantity
+            and existing.reference_type == "ORDER"
+            and existing.reference_id == normalized_order_public_id
+            and existing.reason
+            == f"订单 {normalized_order_public_id} 确认履约出库"
+        )
+        if not same_request:
+            raise ValueError("库存幂等键已用于其他操作")
+        audit = assert_inventory_balance_consistent(db, sku_id=sku.id)
+        return InventoryMutationResult(
+            snapshot=audit.snapshot,
+            movement=existing,
+            action_log=None,
+            replayed=True,
+        )
+
+    with db.no_autoflush:
+        balance = (
+            db.query(InventoryBalance)
+            .filter(InventoryBalance.sku_id == sku.id)
+            .with_for_update()
+            .populate_existing()
+            .one_or_none()
+        )
+    assert_inventory_balance_consistent(db, sku_id=sku.id)
+    if (
+        balance is None
+        or balance.on_hand_quantity < normalized_quantity
+        or balance.reserved_quantity < normalized_quantity
+    ):
+        raise ValueError("订单库存预占不足，无法出库")
+
+    operation_time = _current_time(db, now)
+    quantity_before = balance.on_hand_quantity
+    reserved_before = balance.reserved_quantity
+    version_before = balance.version
+    quantity_after = quantity_before - normalized_quantity
+    reserved_after = reserved_before - normalized_quantity
+    balance.on_hand_quantity = quantity_after
+    balance.reserved_quantity = reserved_after
+    balance.version = version_before + 1
+    balance.updated_at = operation_time
+
+    movement = InventoryMovement(
+        movement_public_id=_generate_movement_public_id(db),
+        sku_id=sku.id,
+        movement_type=InventoryMovementType.OUTBOUND.value,
+        quantity_delta=-normalized_quantity,
+        quantity_before=quantity_before,
+        quantity_after=quantity_after,
+        reserved_quantity_delta=-normalized_quantity,
+        reserved_quantity_before=reserved_before,
+        reserved_quantity_after=reserved_after,
+        balance_version=version_before + 1,
+        idempotency_key=normalized_idempotency_key,
+        reason=f"订单 {normalized_order_public_id} 确认履约出库",
+        actor_admin_id=actor.id,
+        actor_member_id=None,
+        reference_type="ORDER",
+        reference_id=normalized_order_public_id,
+        created_at=operation_time,
+    )
+    db.add(movement)
+    db.flush()
+    after_audit = assert_inventory_balance_consistent(db, sku_id=sku.id)
+    return InventoryMutationResult(
+        snapshot=after_audit.snapshot,
+        movement=movement,
+        action_log=None,
+        replayed=False,
+    )
+
+
 def receive_inventory(
     db,
     *,
