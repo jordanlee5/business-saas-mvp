@@ -12,8 +12,10 @@ from app.admin_permissions import OPERATOR
 from app.database import create_database_engine, resolve_database_url
 from app.mall import (
     OrderLineRequest,
+    execute_order_completion,
     execute_order_fulfillment,
     execute_order_placement,
+    execute_order_shipping,
     receive_inventory,
     record_initial_points_grant,
 )
@@ -69,7 +71,7 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
             resolve_database_url(),
         )
 
-    def test_place_and_concurrent_fulfill_on_disposable_database(self):
+    def test_place_and_concurrent_lifecycle_on_disposable_database(self):
         tables_before, revision_before = get_database_state(self.database_url)
         self.assertFalse(
             tables_before - {"alembic_version"},
@@ -278,9 +280,78 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+
+            shipping_barrier = Barrier(2)
+
+            def ship_once():
+                shipping_barrier.wait()
+                return execute_order_shipping(
+                    engine,
+                    actor_admin_id=operator_id,
+                    order_public_id=placed.order_public_id,
+                    shipping_carrier="顺丰速运",
+                    tracking_number="SF-PG-M5-5-001",
+                    now=NOW + timedelta(minutes=2),
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(ship_once) for _ in range(2)]
+                shipping_outcomes = [future.result() for future in futures]
+            self.assertEqual(
+                sorted(result.replayed for result in shipping_outcomes),
+                [False, True],
+            )
+
+            completion_barrier = Barrier(2)
+
+            def complete_once():
+                completion_barrier.wait()
+                return execute_order_completion(
+                    engine,
+                    actor_admin_id=operator_id,
+                    order_public_id=placed.order_public_id,
+                    now=NOW + timedelta(minutes=3),
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(complete_once) for _ in range(2)]
+                completion_outcomes = [future.result() for future in futures]
+            self.assertEqual(
+                sorted(result.replayed for result in completion_outcomes),
+                [False, True],
+            )
+            with Session() as db:
+                order = db.get(Order, placed.order_id)
+                self.assertEqual(order.status, "COMPLETED")
+                self.assertEqual(order.shipping_carrier, "顺丰速运")
+                self.assertEqual(order.tracking_number, "SF-PG-M5-5-001")
+                self.assertIsNotNone(order.shipped_at)
+                self.assertIsNotNone(order.completed_at)
+                self.assertEqual(
+                    db.query(AdminActionLog).filter_by(
+                        action_type="mall_order_ship"
+                    ).count(),
+                    1,
+                )
+                self.assertEqual(
+                    db.query(AdminActionLog).filter_by(
+                        action_type="mall_order_complete"
+                    ).count(),
+                    1,
+                )
         finally:
             if engine is not None:
                 try:
+                    with engine.begin() as connection:
+                        connection.execute(
+                            Order.__table__.update().values(
+                                status="FULFILLING",
+                                shipping_carrier=None,
+                                tracking_number=None,
+                                shipped_at=None,
+                                completed_at=None,
+                            )
+                        )
                     clear_order_reservation_movements_for_downgrade(engine)
                 finally:
                     engine.dispose()

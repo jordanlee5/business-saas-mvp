@@ -1558,6 +1558,47 @@ class Order(Base):
             "total_quantity > 0",
             name="ck_orders_total_quantity_positive",
         ),
+        CheckConstraint(
+            "(shipping_carrier IS NULL AND tracking_number IS NULL "
+            "AND shipped_at IS NULL) OR "
+            "(shipping_carrier IS NOT NULL AND "
+            "length(trim(shipping_carrier)) > 0 AND "
+            "tracking_number IS NOT NULL AND "
+            "length(trim(tracking_number)) > 0 AND "
+            "shipped_at IS NOT NULL)",
+            name="ck_orders_shipping_evidence_complete",
+        ),
+        CheckConstraint(
+            "status NOT IN ('SHIPPED', 'COMPLETED') OR "
+            "shipped_at IS NOT NULL",
+            name="ck_orders_shipped_status_has_evidence",
+        ),
+        CheckConstraint(
+            "shipping_carrier IS NULL OR "
+            "status IN ('SHIPPED', 'COMPLETED')",
+            name="ck_orders_shipping_evidence_matches_status",
+        ),
+        CheckConstraint(
+            "status != 'COMPLETED' OR completed_at IS NOT NULL",
+            name="ck_orders_completed_status_has_time",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR status = 'COMPLETED'",
+            name="ck_orders_completion_matches_status",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR shipped_at IS NOT NULL",
+            name="ck_orders_completion_requires_shipping",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= shipped_at",
+            name="ck_orders_completion_time_order",
+        ),
+        UniqueConstraint(
+            "shipping_carrier",
+            "tracking_number",
+            name="uq_orders_carrier_tracking",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -1577,6 +1618,10 @@ class Order(Base):
     total_points = Column(Numeric(18, 2), nullable=False)
     total_cost_amount = Column(Numeric(18, 2), nullable=False)
     total_quantity = Column(Integer, nullable=False)
+    shipping_carrier = Column(String(100), nullable=True)
+    tracking_number = Column(String(100), nullable=True, index=True)
+    shipped_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=utc8_now, index=True
     )

@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.5.0-M5-4 — 订单确认履约与原子消费出库**
+- 版本：**v0.5.0-M5-5 — 订单发货与完成生命周期**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`fb5f32ec6ce2a216a97fb1262858a1f2cf75afb5`
-- 基线提交：`fb5f32e feat: add M5-3 atomic order cancellation`
+- 本轮修改前稳定代码基线：`b7447c69050eac7551025a3ef07a45f916f5379a`
+- 基线提交：`b7447c6 feat: add M5-4 atomic order fulfillment`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5-1 建立订单快照基础，M5-2 新增内部订单创建及积分、库存原子预占服务，M5-3 新增 `CREATED` 订单原子取消与双资源释放服务，M5-4 新增 `CREATED → FULFILLING` 确认履约及积分消费、库存出库服务。下单/取消/履约 API、订单页面、发货、完成、退款及供应商结算仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5-1 建立订单快照基础，M5-2 新增内部订单创建及积分、库存原子预占服务，M5-3 新增 `CREATED` 订单原子取消与双资源释放服务，M5-4 新增 `CREATED → FULFILLING` 确认履约及积分消费、库存出库服务，M5-5 新增 `FULFILLING → SHIPPED → COMPLETED` 手工物流与完成服务。下单/取消/履约/发货 API、订单页面、退款、退库及供应商结算仍未开放。
 
 ## 当前产品边界与术语
 
@@ -152,7 +152,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 ## 商城核心与商品目录表结构
 
-`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单快照基础；`0008_order_reservation` 新增订单幂等及可审计的库存预占能力：
+`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单快照基础；`0008_order_reservation` 新增订单幂等及可审计的库存预占能力；`0009_order_shipping_completion` 新增手工物流与完成证据：
 
 - `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
 - 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
@@ -179,7 +179,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M5-1 新增订单、订单项快照和积分批次分配三张表；M5-2 新增订单幂等键以及同时记录现存量和预占量的库存流水字段，并提供订单、FEFO 积分预占及 SKU 库存预占的原子领域服务，完整边界见 [订单原子预占说明](docs/order-reservation.md)；
 - M5-3 新增 `CREATED` 订单原子取消服务，按原订单证据幂等追加积分和库存 `RELEASE` 流水；重复与并发取消不重复释放，到期批次不延长有效期，完整边界见 [订单原子取消说明](docs/order-cancellation.md)；
 - M5-4 新增 `CREATED → FULFILLING` 原子确认履约服务，把原积分预占追加为 `CONSUME`、原库存预占追加为 `OUTBOUND`；只有商城运营角色可以执行，重复或并发确认只产生一套消费、出库与管理员审计证据，完整边界见 [订单确认履约说明](docs/order-fulfillment.md)；
-- 商品/库存 Excel、订单 API 和页面、发货、完成、退款、退库及供应商结算仍按后续切片独立实现。
+- M5-5 新增 `FULFILLING → SHIPPED → COMPLETED` 原子生命周期服务，手工保存物流公司、运单号、操作人与时间；精确重放或并发操作不重复生成审计证据，完整边界见 [订单发货与完成说明](docs/order-lifecycle.md)；
+- 商品/库存 Excel、订单 API 和页面、退款、退库、异常恢复及供应商结算仍按后续切片独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -195,7 +196,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0008_order_reservation`，结构仍为 26 张必需应用表；本次在既有订单和库存表增加幂等、预占审计字段。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0009_order_shipping_completion`，结构仍为 26 张必需应用表；本次在订单表增加物流公司、运单号、发货时间和完成时间及对应约束。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -216,7 +217,7 @@ python -m unittest -v test_catalog_service.py test_mall_governance.py
 python -m unittest -v test_product_media_storage.py test_product_media_service.py
 python -m unittest -v test_product_media_migration.py test_catalog_routes.py
 python -m unittest -v test_inventory_service.py test_inventory_routes.py test_inventory_migration.py
-python -m unittest -v test_order_service.py test_order_reservation_migration.py
+python -m unittest -v test_order_service.py test_order_reservation_migration.py test_order_lifecycle_migration.py
 python -m unittest -v test_migration_upgrade_rehearsal.py
 python -m unittest -v test_schema_readiness.py
 python -m unittest -v test_postgresql_migration.py
@@ -250,17 +251,17 @@ python -m app.migration_rehearsal
 
 该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
 
-已经稳定停留在 `0001_current_schema_baseline`、`0002_mall_core_foundation`、`0003_member_activation_security`、`0004_catalog_foundation` 、`0005_product_media` 或 `0006_inventory_foundation` 的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
+已经稳定停留在 `0001_current_schema_baseline` 至 `0008_order_reservation` 之间任一受支持版本的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
 
 ```powershell
 python -m app.migration_upgrade_rehearsal
 ```
 
-该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0007_order_foundation`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
+该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0009_order_shipping_completion`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
 
 ## 测试基线
 
-在当前 M4-6 工作副本上，完整依赖环境中的回归命令为：
+在当前 M5-5 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -268,7 +269,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量回归基线为 `Ran 499 tests`、`OK (skipped=1)`；未配置独立 PostgreSQL 测试库时，仅跳过真实连接往返测试；
+- 全量回归基线为 `Ran 544 tests`、`OK (skipped=3)`；未配置独立 PostgreSQL 测试库时，仅跳过 3 组需要真实连接的迁移、取消及履约生命周期集成测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

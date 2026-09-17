@@ -20,6 +20,7 @@ class MallAuditActionType(str, Enum):
     ORDER_FULFILL = "mall_order_fulfill"
     ORDER_CANCEL = "mall_order_cancel"
     ORDER_SHIP = "mall_order_ship"
+    ORDER_COMPLETE = "mall_order_complete"
     ORDER_REFUND = "mall_order_refund"
     POINTS_ADJUST = "mall_points_adjust"
     MEMBER_POINTS_EXPORT = "mall_member_points_export"

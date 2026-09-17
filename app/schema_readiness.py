@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0008_order_reservation"
+CURRENT_SCHEMA_REVISION = "0009_order_shipping_completion"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -152,6 +152,8 @@ REQUIRED_MALL_CORE_COLUMNS = {
         {
             "order_public_id", "idempotency_key", "member_id", "status",
             "total_points", "total_cost_amount", "total_quantity",
+            "shipping_carrier", "tracking_number", "shipped_at",
+            "completed_at",
         }
     ),
     "order_items": frozenset(

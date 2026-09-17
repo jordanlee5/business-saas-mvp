@@ -51,6 +51,7 @@ CATALOG_FOUNDATION_REVISION = "0004_catalog_foundation"
 PRODUCT_MEDIA_REVISION = "0005_product_media"
 INVENTORY_FOUNDATION_REVISION = "0006_inventory_foundation"
 ORDER_FOUNDATION_REVISION = "0007_order_foundation"
+ORDER_RESERVATION_REVISION = "0008_order_reservation"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
@@ -60,6 +61,7 @@ SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
         PRODUCT_MEDIA_REVISION,
         INVENTORY_FOUNDATION_REVISION,
         ORDER_FOUNDATION_REVISION,
+        ORDER_RESERVATION_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -189,6 +191,28 @@ ORDER_FOUNDATION_COLUMNS = {
         {"order_id", "points_grant_id", "allocated_points"}
     ),
 }
+ORDER_RESERVATION_COLUMNS = {
+    "orders": frozenset({"idempotency_key"}),
+    "order_items": frozenset({"product_image_path_snapshot"}),
+    "inventory_movements": frozenset(
+        {
+            "reserved_quantity_delta",
+            "reserved_quantity_before",
+            "reserved_quantity_after",
+            "actor_member_id",
+            "reference_type",
+            "reference_id",
+        }
+    ),
+}
+ORDER_LIFECYCLE_COLUMNS = frozenset(
+    {
+        "shipping_carrier",
+        "tracking_number",
+        "shipped_at",
+        "completed_at",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -632,6 +656,61 @@ def validate_order_foundation_source(database_path: Path) -> None:
         connection.close()
 
 
+def validate_order_reservation_source(database_path: Path) -> None:
+    """Fail closed when a claimed 0008 source is incomplete or ahead."""
+    validate_inventory_foundation_source(database_path, allow_orders=True)
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        missing_tables = ORDER_FOUNDATION_TABLES - tables
+        if missing_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0008 源库缺少订单表："
+                + ", ".join(sorted(missing_tables))
+            )
+        missing_columns: list[str] = []
+        required_by_table = {
+            table_name: required_columns
+            | ORDER_RESERVATION_COLUMNS.get(table_name, frozenset())
+            for table_name, required_columns in ORDER_FOUNDATION_COLUMNS.items()
+        }
+        required_by_table["inventory_movements"] = (
+            INVENTORY_FOUNDATION_COLUMNS["inventory_movements"]
+            | ORDER_RESERVATION_COLUMNS["inventory_movements"]
+        )
+        for table_name, required_columns in required_by_table.items():
+            actual_columns = {
+                str(column[0])
+                for column in get_table_column_signatures(
+                    connection,
+                    table_name,
+                )
+            }
+            missing_columns.extend(
+                f"{table_name}.{column_name}"
+                for column_name in sorted(required_columns - actual_columns)
+            )
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0008 源库缺少订单预占字段："
+                + ", ".join(missing_columns)
+            )
+        order_columns = {
+            str(column[0])
+            for column in get_table_column_signatures(connection, "orders")
+        }
+        unexpected_lifecycle_columns = (
+            ORDER_LIFECYCLE_COLUMNS & order_columns
+        )
+        if unexpected_lifecycle_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0008 源库已存在未登记的发货完成字段："
+                + ", ".join(sorted(unexpected_lifecycle_columns))
+            )
+    finally:
+        connection.close()
+
+
 def rehearse_mall_core_upgrade(
     database_url: str,
     *,
@@ -669,6 +748,8 @@ def rehearse_mall_core_upgrade(
         validate_inventory_foundation_source(source_path)
     elif source_revision == ORDER_FOUNDATION_REVISION:
         validate_order_foundation_source(source_path)
+    elif source_revision == ORDER_RESERVATION_REVISION:
+        validate_order_reservation_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,

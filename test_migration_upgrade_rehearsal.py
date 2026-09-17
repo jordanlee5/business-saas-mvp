@@ -409,6 +409,38 @@ class MigrationUpgradeRehearsalTests(unittest.TestCase):
                 source_snapshot,
             )
 
+    def test_order_reservation_revision_can_rehearse_lifecycle_upgrade(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "order-reservation.db"
+            backup_directory = root / "backups"
+            create_baseline_database(source_path)
+            database_url = build_sqlite_database_url(source_path)
+            command.upgrade(
+                build_config(database_url),
+                "0008_order_reservation",
+            )
+            source_snapshot = capture_legacy_snapshot(source_path)
+
+            result = rehearse_mall_core_upgrade(
+                database_url,
+                backup_directory=backup_directory,
+            )
+
+            self.assertEqual(result.source_revision, "0008_order_reservation")
+            self.assertEqual(
+                get_current_revision(source_path),
+                "0008_order_reservation",
+            )
+            self.assertEqual(
+                get_current_revision(result.rehearsal_database),
+                CURRENT_SCHEMA_REVISION,
+            )
+            self.assertEqual(
+                capture_legacy_snapshot(result.backup_database),
+                source_snapshot,
+            )
+
     def test_already_upgraded_database_is_rejected_without_output(self):
         with TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

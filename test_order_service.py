@@ -14,8 +14,10 @@ from app.database import Base
 from app.mall import (
     OrderLineRequest,
     execute_order_cancellation,
+    execute_order_completion,
     execute_order_fulfillment,
     execute_order_placement,
+    execute_order_shipping,
     expire_points_grant,
     receive_inventory,
     record_initial_points_grant,
@@ -260,6 +262,46 @@ class OrderServiceTests(unittest.TestCase):
 
     def fulfill(self, order_public_id, *, actor_admin_id=None, now=NOW):
         return execute_order_fulfillment(
+            self.engine,
+            actor_admin_id=(
+                self.operator.id
+                if actor_admin_id is None
+                else actor_admin_id
+            ),
+            order_public_id=order_public_id,
+            now=now,
+        )
+
+    def ship(
+        self,
+        order_public_id,
+        *,
+        actor_admin_id=None,
+        carrier="顺丰速运",
+        tracking_number="SF-M5-5-0001",
+        now=NOW + timedelta(minutes=1),
+    ):
+        return execute_order_shipping(
+            self.engine,
+            actor_admin_id=(
+                self.operator.id
+                if actor_admin_id is None
+                else actor_admin_id
+            ),
+            order_public_id=order_public_id,
+            shipping_carrier=carrier,
+            tracking_number=tracking_number,
+            now=now,
+        )
+
+    def complete(
+        self,
+        order_public_id,
+        *,
+        actor_admin_id=None,
+        now=NOW + timedelta(minutes=2),
+    ):
+        return execute_order_completion(
             self.engine,
             actor_admin_id=(
                 self.operator.id
@@ -885,6 +927,199 @@ class OrderServiceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "库存出库证据不完整"):
             self.fulfill(placed.order_public_id)
+
+    def test_ships_fulfilling_order_with_manual_logistics_and_audit(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        result = self.ship(placed.order_public_id)
+
+        self.assertFalse(result.replayed)
+        self.assertEqual(result.status, "SHIPPED")
+        self.assertEqual(result.shipping_carrier, "顺丰速运")
+        self.assertEqual(result.tracking_number, "SF-M5-5-0001")
+        self.assertEqual(result.shipped_at, NOW + timedelta(minutes=1))
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "SHIPPED")
+        self.assertEqual(order.shipping_carrier, "顺丰速运")
+        self.assertEqual(order.tracking_number, "SF-M5-5-0001")
+        self.assertIsNone(order.completed_at)
+        action_log = self.db.get(AdminActionLog, result.action_log_id)
+        self.assertEqual(action_log.action_type, "mall_order_ship")
+        self.assertEqual(action_log.admin_id, self.operator.id)
+        self.assertIn("顺丰速运", action_log.description)
+        self.assertIn("SF-M5-5-0001", action_log.description)
+
+    def test_shipping_exact_replay_is_stable_and_other_details_conflict(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        first = self.ship(placed.order_public_id)
+        replay = self.ship(placed.order_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(replay.action_log_id, first.action_log_id)
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_ship"
+            ).count(),
+            1,
+        )
+        with self.assertRaisesRegex(ValueError, "其他物流信息"):
+            self.ship(
+                placed.order_public_id,
+                tracking_number="SF-M5-5-OTHER",
+            )
+
+    def test_concurrent_shipping_creates_one_audit_evidence(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        barrier = Barrier(2)
+
+        def ship_once():
+            barrier.wait()
+            return self.ship(placed.order_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(ship_once) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_ship"
+            ).count(),
+            1,
+        )
+
+    def test_shipping_rejects_unauthorized_wrong_state_and_bad_time(self):
+        placed = self.place()
+        with self.assertRaisesRegex(ValueError, "状态不允许发货"):
+            self.ship(placed.order_public_id)
+        self.fulfill(placed.order_public_id)
+        with self.assertRaisesRegex(PermissionError, "无权执行商城订单发货"):
+            self.ship(
+                placed.order_public_id,
+                actor_admin_id=self.partner.id,
+            )
+        with self.assertRaisesRegex(ValueError, "不能早于"):
+            self.ship(
+                placed.order_public_id,
+                now=NOW - timedelta(seconds=1),
+            )
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "FULFILLING")
+        self.assertIsNone(order.shipping_carrier)
+
+    def test_shipping_fails_closed_for_tampered_fulfillment_evidence(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.db.expire_all()
+        consume = self.db.query(PointsLedgerEntry).filter_by(
+            entry_type="CONSUME"
+        ).first()
+        consume.reason = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "积分消费证据不完整"):
+            self.ship(placed.order_public_id)
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "FULFILLING")
+        self.assertIsNone(order.shipped_at)
+
+    def test_completes_shipped_order_and_replays_without_duplicate_audit(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        shipping = self.ship(placed.order_public_id)
+        first = self.complete(placed.order_public_id)
+        replay = self.complete(placed.order_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(first.status, "COMPLETED")
+        self.assertEqual(first.shipping_action_log_id, shipping.action_log_id)
+        self.assertEqual(
+            replay.completion_action_log_id,
+            first.completion_action_log_id,
+        )
+        self.assertEqual(first.completed_at, NOW + timedelta(minutes=2))
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "COMPLETED")
+        self.assertEqual(order.completed_at, NOW + timedelta(minutes=2))
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_complete"
+            ).count(),
+            1,
+        )
+
+    def test_concurrent_completion_creates_one_audit_evidence(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        barrier = Barrier(2)
+
+        def complete_once():
+            barrier.wait()
+            return self.complete(placed.order_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(complete_once) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_complete"
+            ).count(),
+            1,
+        )
+
+    def test_completion_rejects_wrong_state_unauthorized_and_bad_time(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        with self.assertRaisesRegex(ValueError, "状态不允许确认完成"):
+            self.complete(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        with self.assertRaisesRegex(PermissionError, "无权确认商城订单完成"):
+            self.complete(
+                placed.order_public_id,
+                actor_admin_id=self.partner.id,
+            )
+        with self.assertRaisesRegex(ValueError, "不能早于发货时间"):
+            self.complete(
+                placed.order_public_id,
+                now=NOW + timedelta(seconds=30),
+            )
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Order, placed.order_id).status, "SHIPPED")
+
+    def test_tampered_shipping_evidence_blocks_completion_and_replay(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.db.expire_all()
+        shipping_log = self.db.query(AdminActionLog).filter_by(
+            action_type="mall_order_ship"
+        ).one()
+        shipping_log.description = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "发货审计证据不完整"):
+            self.complete(placed.order_public_id)
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "SHIPPED")
+        self.assertIsNone(order.completed_at)
 
 
 if __name__ == "__main__":

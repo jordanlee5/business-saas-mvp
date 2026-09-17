@@ -181,6 +181,16 @@ from .order_fulfillment_service import (
     execute_order_fulfillment,
     fulfill_created_order,
 )
+from .order_lifecycle_service import (
+    ORDER_COMPLETE_PERMISSION_MESSAGE,
+    ORDER_SHIP_PERMISSION_MESSAGE,
+    OrderCompletionResult,
+    OrderShippingResult,
+    complete_shipped_order,
+    execute_order_completion,
+    execute_order_shipping,
+    ship_fulfilling_order,
+)
 from .inventory_admin_service import (
     INVENTORY_MOVEMENT_TYPE_LABELS,
     INVENTORY_STATUS_ALL,
@@ -222,9 +232,13 @@ __all__ = [
     "InventorySummary",
     "OrderLineRequest",
     "OrderCancellationResult",
+    "OrderCompletionResult",
     "OrderFulfillmentResult",
     "OrderPlacementResult",
+    "OrderShippingResult",
+    "ORDER_COMPLETE_PERMISSION_MESSAGE",
     "ORDER_FULFILL_PERMISSION_MESSAGE",
+    "ORDER_SHIP_PERMISSION_MESSAGE",
     "PointsGrantReservation",
     "INVENTORY_MOVEMENT_TYPE_LABELS",
     "INVENTORY_STATUS_ALL",
@@ -358,4 +372,8 @@ __all__ = [
     "execute_order_cancellation",
     "fulfill_created_order",
     "execute_order_fulfillment",
+    "ship_fulfilling_order",
+    "execute_order_shipping",
+    "complete_shipped_order",
+    "execute_order_completion",
 ]
