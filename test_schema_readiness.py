@@ -207,6 +207,27 @@ class SchemaReadinessTests(unittest.TestCase):
             finally:
                 engine.dispose()
 
+    def test_false_head_missing_settlement_table_is_rejected(self):
+        with TemporaryDirectory() as temporary_directory:
+            database_url = build_sqlite_url(
+                Path(temporary_directory) / "missing-settlement.db"
+            )
+            upgrade(database_url, "head")
+            engine = create_engine(database_url)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(text(
+                        "DROP TABLE supplier_settlement_items"
+                    ))
+
+                with self.assertRaisesRegex(
+                    DatabaseSchemaNotReadyError,
+                    "supplier_settlement_items",
+                ):
+                    assert_database_schema_ready(engine)
+            finally:
+                engine.dispose()
+
 
 if __name__ == "__main__":
     unittest.main()

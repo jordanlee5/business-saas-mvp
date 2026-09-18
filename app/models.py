@@ -24,6 +24,7 @@ from .mall.domain import (
     PointsGrantStatus,
     ProductMediaRole,
     ProductStatus,
+    SupplierSettlementStatus,
 )
 from .time_utils import utc8_now
 
@@ -1735,6 +1736,182 @@ class OrderPointsGrantAllocation(Base):
         Integer, ForeignKey("points_grants.id"), nullable=False, index=True
     )
     allocated_points = Column(Numeric(18, 2), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now
+    )
+
+
+class SupplierSettlementBatch(Base):
+    """按供应商和完成时间区间生成的结算批次快照。"""
+
+    __tablename__ = "supplier_settlement_batches"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(settlement_public_id)) > 0",
+            name="ck_supplier_settlement_batches_public_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(supplier_public_id_snapshot)) > 0",
+            name="ck_supplier_settlement_batches_supplier_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(supplier_name_snapshot)) > 0",
+            name="ck_supplier_settlement_batches_supplier_name_nonblank",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING_CONFIRMATION', 'CONFIRMED')",
+            name="ck_supplier_settlement_batches_status",
+        ),
+        CheckConstraint(
+            "period_end > period_start",
+            name="ck_supplier_settlement_batches_period_order",
+        ),
+        CheckConstraint(
+            "generated_at >= period_end",
+            name="ck_supplier_settlement_batches_generated_after_period",
+        ),
+        CheckConstraint(
+            "order_count > 0 AND item_count > 0 AND "
+            "total_quantity > 0",
+            name="ck_supplier_settlement_batches_counts_positive",
+        ),
+        CheckConstraint(
+            "order_count <= item_count AND item_count <= total_quantity",
+            name="ck_supplier_settlement_batches_counts_consistent",
+        ),
+        CheckConstraint(
+            "total_cost_amount >= 0",
+            name="ck_supplier_settlement_batches_cost_nonnegative",
+        ),
+        CheckConstraint(
+            "(status = 'PENDING_CONFIRMATION' AND "
+            "confirmed_by_admin_id IS NULL AND confirmed_at IS NULL) OR "
+            "(status = 'CONFIRMED' AND "
+            "confirmed_by_admin_id IS NOT NULL AND confirmed_at IS NOT NULL)",
+            name="ck_supplier_settlement_batches_confirmation_evidence",
+        ),
+        CheckConstraint(
+            "confirmed_at IS NULL OR confirmed_at >= generated_at",
+            name="ck_supplier_settlement_batches_confirmation_time_order",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    settlement_public_id = Column(
+        String(32), nullable=False, unique=True, index=True
+    )
+    supplier_id = Column(
+        Integer, ForeignKey("suppliers.id"), nullable=False, index=True
+    )
+    supplier_public_id_snapshot = Column(String(32), nullable=False)
+    supplier_name_snapshot = Column(String(160), nullable=False)
+    period_start = Column(DateTime(timezone=True), nullable=False, index=True)
+    period_end = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(
+        String(30),
+        nullable=False,
+        default=SupplierSettlementStatus.PENDING_CONFIRMATION.value,
+        server_default=SupplierSettlementStatus.PENDING_CONFIRMATION.value,
+        index=True,
+    )
+    order_count = Column(Integer, nullable=False)
+    item_count = Column(Integer, nullable=False)
+    total_quantity = Column(Integer, nullable=False)
+    total_cost_amount = Column(Numeric(18, 2), nullable=False)
+    generated_by_admin_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    generated_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now, index=True
+    )
+    confirmed_by_admin_id = Column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True
+    )
+    confirmed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=utc8_now,
+        onupdate=utc8_now
+    )
+
+
+class SupplierSettlementItem(Base):
+    """结算批次中的订单项人民币成本不可变快照。"""
+
+    __tablename__ = "supplier_settlement_items"
+    __table_args__ = (
+        CheckConstraint(
+            "length(trim(order_public_id_snapshot)) > 0",
+            name="ck_supplier_settlement_items_order_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(product_public_id_snapshot)) > 0",
+            name="ck_supplier_settlement_items_product_id_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(product_name_snapshot)) > 0",
+            name="ck_supplier_settlement_items_product_name_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(sku_code_snapshot)) > 0 AND "
+            "length(trim(sku_name_snapshot)) > 0",
+            name="ck_supplier_settlement_items_sku_snapshot_nonblank",
+        ),
+        CheckConstraint(
+            "length(trim(supplier_public_id_snapshot)) > 0 AND "
+            "length(trim(supplier_name_snapshot)) > 0",
+            name="ck_supplier_settlement_items_supplier_snapshot_nonblank",
+        ),
+        CheckConstraint(
+            "unit_cost_price >= 0",
+            name="ck_supplier_settlement_items_unit_cost_nonnegative",
+        ),
+        CheckConstraint(
+            "quantity > 0",
+            name="ck_supplier_settlement_items_quantity_positive",
+        ),
+        CheckConstraint(
+            "line_cost_amount = unit_cost_price * quantity",
+            name="ck_supplier_settlement_items_cost_arithmetic",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    settlement_batch_id = Column(
+        Integer,
+        ForeignKey("supplier_settlement_batches.id"),
+        nullable=False,
+        index=True,
+    )
+    supplier_id = Column(
+        Integer, ForeignKey("suppliers.id"), nullable=False, index=True
+    )
+    order_id = Column(
+        Integer, ForeignKey("orders.id"), nullable=False, index=True
+    )
+    order_item_id = Column(
+        Integer,
+        ForeignKey("order_items.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    order_public_id_snapshot = Column(String(32), nullable=False)
+    order_completed_at = Column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    product_public_id_snapshot = Column(String(32), nullable=False)
+    product_name_snapshot = Column(String(200), nullable=False)
+    sku_code_snapshot = Column(String(64), nullable=False)
+    sku_name_snapshot = Column(String(160), nullable=False)
+    supplier_public_id_snapshot = Column(String(32), nullable=False)
+    supplier_name_snapshot = Column(String(160), nullable=False)
+    supplier_sku_code_snapshot = Column(String(100), nullable=True)
+    unit_cost_price = Column(Numeric(18, 2), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    line_cost_amount = Column(Numeric(18, 2), nullable=False)
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=utc8_now
     )

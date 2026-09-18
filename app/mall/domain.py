@@ -98,6 +98,13 @@ class InventoryStockStatus(str, Enum):
     OUT_OF_STOCK = "OUT_OF_STOCK"
 
 
+class SupplierSettlementStatus(str, Enum):
+    """供应商结算批次的确认状态。"""
+
+    PENDING_CONFIRMATION = "PENDING_CONFIRMATION"
+    CONFIRMED = "CONFIRMED"
+
+
 VALID_BUSINESS_CHANNELS = frozenset(
     channel.value
     for channel in BusinessChannel
@@ -155,6 +162,12 @@ VALID_INVENTORY_MOVEMENT_TYPES = frozenset(
 VALID_INVENTORY_STOCK_STATUSES = frozenset(
     status.value
     for status in InventoryStockStatus
+)
+
+
+VALID_SUPPLIER_SETTLEMENT_STATUSES = frozenset(
+    status.value
+    for status in SupplierSettlementStatus
 )
 
 
@@ -247,6 +260,22 @@ def normalize_inventory_movement_type(
         return InventoryMovementType(value.strip().upper())
     except ValueError as exc:
         raise ValueError("库存流水类型无效") from exc
+
+
+def normalize_supplier_settlement_status(
+    value: SupplierSettlementStatus | str,
+) -> SupplierSettlementStatus:
+    """规范供应商结算状态；未知值必须失败关闭。"""
+    if isinstance(value, SupplierSettlementStatus):
+        return value
+
+    if not isinstance(value, str):
+        raise ValueError("供应商结算状态无效")
+
+    try:
+        return SupplierSettlementStatus(value.strip().upper())
+    except ValueError as exc:
+        raise ValueError("供应商结算状态无效") from exc
 
 
 def classify_inventory_stock(

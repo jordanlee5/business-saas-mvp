@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0010_order_refund_recovery"
+CURRENT_SCHEMA_REVISION = "0011_supplier_settlement_foundation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -24,6 +24,8 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "orders",
         "order_items",
         "order_points_grant_allocations",
+        "supplier_settlement_batches",
+        "supplier_settlement_items",
     }
 )
 
@@ -170,6 +172,27 @@ REQUIRED_MALL_CORE_COLUMNS = {
     ),
     "order_points_grant_allocations": frozenset(
         {"order_id", "points_grant_id", "allocated_points"}
+    ),
+    "supplier_settlement_batches": frozenset(
+        {
+            "settlement_public_id", "supplier_id",
+            "supplier_public_id_snapshot", "supplier_name_snapshot",
+            "period_start", "period_end", "status", "order_count",
+            "item_count", "total_quantity", "total_cost_amount",
+            "generated_by_admin_id", "generated_at",
+            "confirmed_by_admin_id", "confirmed_at",
+        }
+    ),
+    "supplier_settlement_items": frozenset(
+        {
+            "settlement_batch_id", "supplier_id", "order_id",
+            "order_item_id", "order_public_id_snapshot",
+            "order_completed_at", "product_public_id_snapshot",
+            "product_name_snapshot", "sku_code_snapshot",
+            "sku_name_snapshot", "supplier_public_id_snapshot",
+            "supplier_name_snapshot", "supplier_sku_code_snapshot",
+            "unit_cost_price", "quantity", "line_cost_amount",
+        }
     ),
 }
 

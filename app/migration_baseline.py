@@ -43,6 +43,8 @@ POST_BASELINE_TABLES = frozenset(
         "orders",
         "order_items",
         "order_points_grant_allocations",
+        "supplier_settlement_batches",
+        "supplier_settlement_items",
     }
 )
 

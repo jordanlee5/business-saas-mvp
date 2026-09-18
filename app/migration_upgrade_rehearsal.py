@@ -53,6 +53,7 @@ INVENTORY_FOUNDATION_REVISION = "0006_inventory_foundation"
 ORDER_FOUNDATION_REVISION = "0007_order_foundation"
 ORDER_RESERVATION_REVISION = "0008_order_reservation"
 ORDER_LIFECYCLE_REVISION = "0009_order_shipping_completion"
+ORDER_REFUND_REVISION = "0010_order_refund_recovery"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
@@ -64,6 +65,7 @@ SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
         ORDER_FOUNDATION_REVISION,
         ORDER_RESERVATION_REVISION,
         ORDER_LIFECYCLE_REVISION,
+        ORDER_REFUND_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -220,6 +222,9 @@ ORDER_REFUND_COLUMNS = frozenset(
         "refund_reason",
         "refunded_at",
     }
+)
+SUPPLIER_SETTLEMENT_TABLES = frozenset(
+    {"supplier_settlement_batches", "supplier_settlement_items"}
 )
 
 
@@ -749,6 +754,37 @@ def validate_order_lifecycle_source(database_path: Path) -> None:
         connection.close()
 
 
+def validate_order_refund_source(database_path: Path) -> None:
+    """Fail closed when a claimed 0010 source is incomplete or ahead."""
+    validate_order_reservation_source(
+        database_path,
+        allow_lifecycle=True,
+    )
+    connection = open_read_only_database(database_path)
+    try:
+        tables = set(list_legacy_table_names(connection))
+        order_columns = {
+            str(column[0])
+            for column in get_table_column_signatures(connection, "orders")
+        }
+        missing_lifecycle_columns = ORDER_LIFECYCLE_COLUMNS - order_columns
+        missing_refund_columns = ORDER_REFUND_COLUMNS - order_columns
+        missing_columns = missing_lifecycle_columns | missing_refund_columns
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0010 源库缺少订单退款恢复字段："
+                + ", ".join(sorted(missing_columns))
+            )
+        unexpected_tables = SUPPLIER_SETTLEMENT_TABLES & tables
+        if unexpected_tables:
+            raise MigrationUpgradeRehearsalError(
+                "0010 源库已存在未登记的供应商结算表："
+                + ", ".join(sorted(unexpected_tables))
+            )
+    finally:
+        connection.close()
+
+
 def rehearse_mall_core_upgrade(
     database_url: str,
     *,
@@ -790,6 +826,8 @@ def rehearse_mall_core_upgrade(
         validate_order_reservation_source(source_path)
     elif source_revision == ORDER_LIFECYCLE_REVISION:
         validate_order_lifecycle_source(source_path)
+    elif source_revision == ORDER_REFUND_REVISION:
+        validate_order_refund_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,

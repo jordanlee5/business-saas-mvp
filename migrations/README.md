@@ -22,6 +22,8 @@
 
 `0010_order_refund_recovery` 为订单增加退款原因和退款时间，并扩展生命周期约束以保证 `REFUNDED` 必须同时具备完成与退款事实。已审计的 `0009_order_shipping_completion` SQLite 源库可先通过升级副本演练；如果源库已有无法证明积分、库存恢复的 `REFUNDED` 数据，升级会失败关闭。存在退款状态或证据时，降级到 `0009` 也会被拒绝。
 
+`0011_supplier_settlement_foundation` 新增供应商结算批次和订单项成本快照两张空表，约束结算状态、时间区间、生成/确认事实、数量成本算术以及订单项不可重复结算。已审计的 `0010_order_refund_recovery` SQLite 源库可先通过升级副本演练；迁移不自动纳入任何历史订单，也不改写订单、积分、库存或现金返现数据。存在结算批次或明细时，降级到 `0010` 会被拒绝。
+
 已有 SQLite 数据库在考虑写入版本标记前，还必须停止应用并运行 `python -m app.migration_rehearsal`。演练只修改单独副本，并保留原始快照；演练通过不等于获准修改真实数据库。历史兼容画像只接受已审计的等价类型、默认值、三个索引和三个外键差异，并要求审核人、凭证上传批次、布尔值与费率模式完整性检查全部通过。
 
-应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0010_order_refund_recovery` 且 26 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。
+应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0011_supplier_settlement_foundation` 且 28 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。

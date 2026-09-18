@@ -9,11 +9,13 @@ from app.mall import (
     InventoryMovementType,
     InventoryStockStatus,
     ProductStatus,
+    SupplierSettlementStatus,
     VALID_ACTIVATION_CREDENTIAL_STATUSES,
     VALID_ACTIVATION_SECURITY_METHODS,
     VALID_BUSINESS_CHANNELS,
     VALID_INVENTORY_MOVEMENT_TYPES,
     VALID_PRODUCT_STATUSES,
+    VALID_SUPPLIER_SETTLEMENT_STATUSES,
     calculate_points_expiry,
     classify_inventory_stock,
     is_activation_within_deadline,
@@ -22,10 +24,33 @@ from app.mall import (
     normalize_activation_security_method,
     normalize_points,
     normalize_product_status,
+    normalize_supplier_settlement_status,
 )
 
 
 class MallDomainTests(unittest.TestCase):
+    def test_supplier_settlement_status_values_are_fixed(self):
+        self.assertEqual(
+            VALID_SUPPLIER_SETTLEMENT_STATUSES,
+            {"PENDING_CONFIRMATION", "CONFIRMED"},
+        )
+        self.assertIs(
+            normalize_supplier_settlement_status(" confirmed "),
+            SupplierSettlementStatus.CONFIRMED,
+        )
+        self.assertIs(
+            normalize_supplier_settlement_status(
+                SupplierSettlementStatus.PENDING_CONFIRMATION
+            ),
+            SupplierSettlementStatus.PENDING_CONFIRMATION,
+        )
+
+    def test_unknown_supplier_settlement_status_fails_closed(self):
+        for invalid_value in ("DRAFT", "", None):
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(ValueError):
+                    normalize_supplier_settlement_status(invalid_value)
+
     def test_inventory_types_and_stock_status_are_fixed(self):
         self.assertEqual(
             VALID_INVENTORY_MOVEMENT_TYPES,
