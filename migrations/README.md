@@ -20,6 +20,8 @@
 
 `0009_order_shipping_completion` 为订单增加物流公司、运单号、发货时间和完成时间，并以完整性、状态、唯一性约束防止无物流证据的已发货/已完成订单。已审计的 `0008_order_reservation` SQLite 源库可先通过升级副本演练；如果源库已存在缺少证据的 `SHIPPED` 或 `COMPLETED` 数据，升级会失败关闭。存在任何发货或完成证据时，降级到 `0008` 也会被拒绝。
 
+`0010_order_refund_recovery` 为订单增加退款原因和退款时间，并扩展生命周期约束以保证 `REFUNDED` 必须同时具备完成与退款事实。已审计的 `0009_order_shipping_completion` SQLite 源库可先通过升级副本演练；如果源库已有无法证明积分、库存恢复的 `REFUNDED` 数据，升级会失败关闭。存在退款状态或证据时，降级到 `0009` 也会被拒绝。
+
 已有 SQLite 数据库在考虑写入版本标记前，还必须停止应用并运行 `python -m app.migration_rehearsal`。演练只修改单独副本，并保留原始快照；演练通过不等于获准修改真实数据库。历史兼容画像只接受已审计的等价类型、默认值、三个索引和三个外键差异，并要求审核人、凭证上传批次、布尔值与费率模式完整性检查全部通过。
 
-应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0009_order_shipping_completion` 且 26 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。
+应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0010_order_refund_recovery` 且 26 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。

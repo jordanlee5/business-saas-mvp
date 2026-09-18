@@ -52,6 +52,7 @@ PRODUCT_MEDIA_REVISION = "0005_product_media"
 INVENTORY_FOUNDATION_REVISION = "0006_inventory_foundation"
 ORDER_FOUNDATION_REVISION = "0007_order_foundation"
 ORDER_RESERVATION_REVISION = "0008_order_reservation"
+ORDER_LIFECYCLE_REVISION = "0009_order_shipping_completion"
 SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
     {
         BASELINE_REVISION,
@@ -62,6 +63,7 @@ SUPPORTED_UPGRADE_SOURCE_REVISIONS = frozenset(
         INVENTORY_FOUNDATION_REVISION,
         ORDER_FOUNDATION_REVISION,
         ORDER_RESERVATION_REVISION,
+        ORDER_LIFECYCLE_REVISION,
     }
 )
 MALL_CORE_FOUNDATION_TABLES = frozenset(
@@ -211,6 +213,12 @@ ORDER_LIFECYCLE_COLUMNS = frozenset(
         "tracking_number",
         "shipped_at",
         "completed_at",
+    }
+)
+ORDER_REFUND_COLUMNS = frozenset(
+    {
+        "refund_reason",
+        "refunded_at",
     }
 )
 
@@ -656,7 +664,11 @@ def validate_order_foundation_source(database_path: Path) -> None:
         connection.close()
 
 
-def validate_order_reservation_source(database_path: Path) -> None:
+def validate_order_reservation_source(
+    database_path: Path,
+    *,
+    allow_lifecycle: bool = False,
+) -> None:
     """Fail closed when a claimed 0008 source is incomplete or ahead."""
     validate_inventory_foundation_source(database_path, allow_orders=True)
     connection = open_read_only_database(database_path)
@@ -699,13 +711,39 @@ def validate_order_reservation_source(database_path: Path) -> None:
             str(column[0])
             for column in get_table_column_signatures(connection, "orders")
         }
-        unexpected_lifecycle_columns = (
-            ORDER_LIFECYCLE_COLUMNS & order_columns
-        )
-        if unexpected_lifecycle_columns:
+        unexpected_lifecycle_columns = ORDER_LIFECYCLE_COLUMNS & order_columns
+        if unexpected_lifecycle_columns and not allow_lifecycle:
             raise MigrationUpgradeRehearsalError(
                 "0008 源库已存在未登记的发货完成字段："
                 + ", ".join(sorted(unexpected_lifecycle_columns))
+            )
+    finally:
+        connection.close()
+
+
+def validate_order_lifecycle_source(database_path: Path) -> None:
+    """Fail closed when a claimed 0009 source is incomplete or ahead."""
+    validate_order_reservation_source(
+        database_path,
+        allow_lifecycle=True,
+    )
+    connection = open_read_only_database(database_path)
+    try:
+        order_columns = {
+            str(column[0])
+            for column in get_table_column_signatures(connection, "orders")
+        }
+        missing_columns = ORDER_LIFECYCLE_COLUMNS - order_columns
+        if missing_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0009 源库缺少订单发货完成字段："
+                + ", ".join(sorted(missing_columns))
+            )
+        unexpected_refund_columns = ORDER_REFUND_COLUMNS & order_columns
+        if unexpected_refund_columns:
+            raise MigrationUpgradeRehearsalError(
+                "0009 源库已存在未登记的退款恢复字段："
+                + ", ".join(sorted(unexpected_refund_columns))
             )
     finally:
         connection.close()
@@ -750,6 +788,8 @@ def rehearse_mall_core_upgrade(
         validate_order_foundation_source(source_path)
     elif source_revision == ORDER_RESERVATION_REVISION:
         validate_order_reservation_source(source_path)
+    elif source_revision == ORDER_LIFECYCLE_REVISION:
+        validate_order_lifecycle_source(source_path)
     else:
         validate_mall_core_foundation_source(
             source_path,

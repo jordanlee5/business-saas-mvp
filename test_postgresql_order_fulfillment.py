@@ -15,6 +15,7 @@ from app.mall import (
     execute_order_completion,
     execute_order_fulfillment,
     execute_order_placement,
+    execute_order_refund,
     execute_order_shipping,
     receive_inventory,
     record_initial_points_grant,
@@ -339,6 +340,60 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+
+            refund_barrier = Barrier(2)
+
+            def refund_once():
+                refund_barrier.wait()
+                return execute_order_refund(
+                    engine,
+                    actor_admin_id=operator_id,
+                    order_public_id=placed.order_public_id,
+                    reason="PostgreSQL M5-6 整单退款验收",
+                    now=NOW + timedelta(minutes=4),
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(refund_once) for _ in range(2)]
+                refund_outcomes = [future.result() for future in futures]
+            self.assertEqual(
+                sorted(result.replayed for result in refund_outcomes),
+                [False, True],
+            )
+            with Session() as db:
+                order = db.get(Order, placed.order_id)
+                account = db.get(PointsAccount, account_id)
+                balance = db.query(InventoryBalance).filter_by(
+                    sku_id=sku_id
+                ).one()
+                self.assertEqual(order.status, "REFUNDED")
+                self.assertEqual(
+                    order.refund_reason,
+                    "PostgreSQL M5-6 整单退款验收",
+                )
+                self.assertIsNotNone(order.refunded_at)
+                self.assertEqual(account.available_points, Decimal("100.00"))
+                self.assertEqual(account.reserved_points, ZERO)
+                self.assertEqual(balance.on_hand_quantity, 5)
+                self.assertEqual(balance.reserved_quantity, 0)
+                self.assertEqual(
+                    db.query(PointsLedgerEntry).filter_by(
+                        entry_type="REFUND"
+                    ).count(),
+                    1,
+                )
+                self.assertEqual(
+                    db.query(InventoryMovement).filter_by(
+                        movement_type="RETURN"
+                    ).count(),
+                    1,
+                )
+                self.assertEqual(
+                    db.query(AdminActionLog).filter_by(
+                        action_type="mall_order_refund"
+                    ).count(),
+                    1,
+                )
         finally:
             if engine is not None:
                 try:
@@ -350,6 +405,8 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                                 tracking_number=None,
                                 shipped_at=None,
                                 completed_at=None,
+                                refund_reason=None,
+                                refunded_at=None,
                             )
                         )
                     clear_order_reservation_movements_for_downgrade(engine)

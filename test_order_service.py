@@ -17,6 +17,7 @@ from app.mall import (
     execute_order_completion,
     execute_order_fulfillment,
     execute_order_placement,
+    execute_order_refund,
     execute_order_shipping,
     expire_points_grant,
     receive_inventory,
@@ -309,6 +310,26 @@ class OrderServiceTests(unittest.TestCase):
                 else actor_admin_id
             ),
             order_public_id=order_public_id,
+            now=now,
+        )
+
+    def refund(
+        self,
+        order_public_id,
+        *,
+        actor_admin_id=None,
+        reason="客户确认整单退货",
+        now=NOW + timedelta(minutes=3),
+    ):
+        return execute_order_refund(
+            self.engine,
+            actor_admin_id=(
+                self.operator.id
+                if actor_admin_id is None
+                else actor_admin_id
+            ),
+            order_public_id=order_public_id,
+            reason=reason,
             now=now,
         )
 
@@ -1120,6 +1141,211 @@ class OrderServiceTests(unittest.TestCase):
         order = self.db.get(Order, placed.order_id)
         self.assertEqual(order.status, "SHIPPED")
         self.assertIsNone(order.completed_at)
+
+    def test_refunds_completed_order_and_restores_points_and_inventory(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+
+        result = self.refund(placed.order_public_id)
+
+        self.assertFalse(result.replayed)
+        self.assertEqual(result.status, "REFUNDED")
+        self.assertEqual(result.refunded_points, Decimal("105.00"))
+        self.assertEqual(result.refund_reason, "客户确认整单退货")
+        self.assertEqual(result.refunded_at, NOW + timedelta(minutes=3))
+        self.assertEqual(len(result.points_refund_entry_ids), 2)
+        self.assertEqual(len(result.inventory_return_movement_ids), 2)
+
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        account = self.db.get(PointsAccount, self.account.id)
+        grants = self.db.query(PointsGrant).order_by(
+            PointsGrant.expires_at
+        ).all()
+        balances = self.db.query(InventoryBalance).order_by(
+            InventoryBalance.sku_id
+        ).all()
+        self.assertEqual(order.status, "REFUNDED")
+        self.assertEqual(order.refund_reason, "客户确认整单退货")
+        self.assertEqual(account.available_points, Decimal("170.00"))
+        self.assertEqual(account.reserved_points, ZERO)
+        self.assertEqual(
+            [grant.available_points for grant in grants],
+            [Decimal("70.00"), Decimal("100.00")],
+        )
+        self.assertTrue(all(grant.status == "ACTIVE" for grant in grants))
+        self.assertEqual(
+            [(row.on_hand_quantity, row.reserved_quantity) for row in balances],
+            [(5, 0), (4, 0)],
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="REFUND"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_refund"
+            ).count(),
+            1,
+        )
+
+    def test_refund_exact_replay_is_stable_and_other_reason_conflicts(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        first = self.refund(placed.order_public_id)
+        replay = self.refund(placed.order_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(replay.action_log_id, first.action_log_id)
+        self.assertEqual(
+            replay.points_refund_entry_ids,
+            first.points_refund_entry_ids,
+        )
+        self.assertEqual(
+            replay.inventory_return_movement_ids,
+            first.inventory_return_movement_ids,
+        )
+        with self.assertRaisesRegex(ValueError, "其他退款原因"):
+            self.refund(placed.order_public_id, reason="其他原因")
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="REFUND"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            2,
+        )
+
+    def test_concurrent_refund_creates_one_resource_recovery_set(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        barrier = Barrier(2)
+
+        def refund_once():
+            barrier.wait()
+            return self.refund(placed.order_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(refund_once) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="REFUND"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            self.db.query(AdminActionLog).filter_by(
+                action_type="mall_order_refund"
+            ).count(),
+            1,
+        )
+
+    def test_refund_rejects_wrong_state_unauthorized_bad_time_and_reason(self):
+        placed = self.place()
+        with self.assertRaisesRegex(ValueError, "状态不允许退款"):
+            self.refund(placed.order_public_id)
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        with self.assertRaisesRegex(PermissionError, "无权执行商城订单退款"):
+            self.refund(
+                placed.order_public_id,
+                actor_admin_id=self.partner.id,
+            )
+        with self.assertRaisesRegex(ValueError, "不能早于订单完成时间"):
+            self.refund(
+                placed.order_public_id,
+                now=NOW + timedelta(minutes=1),
+            )
+        with self.assertRaisesRegex(ValueError, "退款原因不能为空"):
+            self.refund(placed.order_public_id, reason="  ")
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "COMPLETED")
+        self.assertIsNone(order.refunded_at)
+
+    def test_expired_original_grant_blocks_automatic_refund(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        self.db.expire_all()
+        grant = self.db.get(PointsGrant, self.early_grant.id)
+        grant.expires_at = NOW + timedelta(minutes=2, seconds=30)
+        self.db.commit()
+
+        with self.assertRaisesRegex(ValueError, "已到期，不能自动退款"):
+            self.refund(placed.order_public_id)
+
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "COMPLETED")
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="REFUND"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            0,
+        )
+
+    def test_tampered_consumption_evidence_blocks_refund(self):
+        placed = self.place()
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        self.db.expire_all()
+        consume = self.db.query(PointsLedgerEntry).filter_by(
+            entry_type="CONSUME"
+        ).first()
+        consume.reason = "被篡改"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "积分消费证据不完整"):
+            self.refund(placed.order_public_id)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Order, placed.order_id).status, "COMPLETED")
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            0,
+        )
 
 
 if __name__ == "__main__":

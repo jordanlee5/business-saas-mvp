@@ -162,6 +162,7 @@ from .inventory_service import (
     outbound_reserved_inventory_for_order,
     receive_inventory,
     reserve_inventory_for_order,
+    return_outbound_inventory_for_order,
 )
 from .order_service import (
     OrderLineRequest,
@@ -190,6 +191,12 @@ from .order_lifecycle_service import (
     execute_order_completion,
     execute_order_shipping,
     ship_fulfilling_order,
+)
+from .order_refund_service import (
+    ORDER_REFUND_PERMISSION_MESSAGE,
+    OrderRefundResult,
+    execute_order_refund,
+    refund_completed_order,
 )
 from .inventory_admin_service import (
     INVENTORY_MOVEMENT_TYPE_LABELS,
@@ -235,9 +242,11 @@ __all__ = [
     "OrderCompletionResult",
     "OrderFulfillmentResult",
     "OrderPlacementResult",
+    "OrderRefundResult",
     "OrderShippingResult",
     "ORDER_COMPLETE_PERMISSION_MESSAGE",
     "ORDER_FULFILL_PERMISSION_MESSAGE",
+    "ORDER_REFUND_PERMISSION_MESSAGE",
     "ORDER_SHIP_PERMISSION_MESSAGE",
     "PointsGrantReservation",
     "INVENTORY_MOVEMENT_TYPE_LABELS",
@@ -366,6 +375,7 @@ __all__ = [
     "receive_inventory",
     "reserve_inventory_for_order",
     "outbound_reserved_inventory_for_order",
+    "return_outbound_inventory_for_order",
     "place_order_with_reservations",
     "execute_order_placement",
     "cancel_created_order",
@@ -376,4 +386,6 @@ __all__ = [
     "execute_order_shipping",
     "complete_shipped_order",
     "execute_order_completion",
+    "refund_completed_order",
+    "execute_order_refund",
 ]

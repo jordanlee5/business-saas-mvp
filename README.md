@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.5.0-M5-5 — 订单发货与完成生命周期**
+- 版本：**v0.5.0-M5-6 — 已完成订单原子退款与双资源恢复**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`b7447c69050eac7551025a3ef07a45f916f5379a`
-- 基线提交：`b7447c6 feat: add M5-4 atomic order fulfillment`
+- 本轮修改前稳定代码基线：`da888e4430269e1fdf259d65bd3c89f8f2acd04f`
+- 基线提交：`da888e4 feat: add M5-5 order shipping lifecycle`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5-1 建立订单快照基础，M5-2 新增内部订单创建及积分、库存原子预占服务，M5-3 新增 `CREATED` 订单原子取消与双资源释放服务，M5-4 新增 `CREATED → FULFILLING` 确认履约及积分消费、库存出库服务，M5-5 新增 `FULFILLING → SHIPPED → COMPLETED` 手工物流与完成服务。下单/取消/履约/发货 API、订单页面、退款、退库及供应商结算仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5-1 至 M5-5 已完成订单快照、原子预占、取消释放、确认履约、手工发货与完成；M5-6 新增 `COMPLETED → REFUNDED` 整单退款以及原积分批次、SKU 库存的原子恢复服务。订单 API、订单页面、部分退款、异常人工恢复及供应商结算仍未开放。
 
 ## 当前产品边界与术语
 
@@ -135,7 +135,7 @@ M1 已为商城后台敏感操作建立独立细权限函数和稳定审计动�
 - 超级管理员和运营管理员可查看会员积分并导出单会员对账明细；初审、复核、上传方及无效账号不能进入页面或导出；每次成功生成导出均写入稳定操作日志。
 - 超级管理员和运营管理员可进入 `/mall-inventory` 查看 SKU 库存、状态及不可变流水，并通过受控服务执行入库与人工调整；页面不接受客户端指定操作者，也不直接覆盖库存余额。
 
-`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 提供统一入账和按流水重算余额的审计能力；M3-3 新增 `EXPIRE` 到期扣减、默认只读的维护命令及即将到期查询；M3-4 新增仅限启用中超级管理员调用的 `ADJUST` 人工纠错领域服务；M3-5 新增管理员侧会员积分汇总、批次、流水及单会员 Excel 对账导出；M5-2 已实现订单积分预占，M5-4 已实现确认履约时的正式消费。退款仍在后续独立切片实现。
+`OPEN-004` 已确认一期使用由上传方安全交付的一次性激活码，并为后续短信验证码保留统一安全因子接口。`OPEN-005` 已确认同一会员可以持有多个积分批次，各批次独立记录余额与到期日。M3-1 已实现一次性码校验后的首笔 `GRANT` 入账；M3-2 提供统一入账和按流水重算余额的审计能力；M3-3 新增 `EXPIRE` 到期扣减、默认只读的维护命令及即将到期查询；M3-4 新增仅限启用中超级管理员调用的 `ADJUST` 人工纠错领域服务；M3-5 新增管理员侧会员积分汇总、批次、流水及单会员 Excel 对账导出；M5-2 已实现订单积分预占，M5-4 已实现确认履约时的正式消费，M5-6 已实现未到期原批次的整单退款恢复。
 
 会员积分页面入口为 `/member-points`。列表支持会员状态、会员公开编号、来源业务单号、姓名、手机号和车牌号检索；详情按到期时间展示独立积分批次，并同时显示账户缓存与不可变流水的一致性。页面客户信息脱敏且不显示微信 `openid/unionid`；Excel 导出不包含微信身份、激活凭据或流水幂等键，公式型文本会转义。具体运行边界见 [会员积分查看与导出说明](docs/member-points-operations.md)。
 
@@ -152,7 +152,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 ## 商城核心与商品目录表结构
 
-`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单快照基础；`0008_order_reservation` 新增订单幂等及可审计的库存预占能力；`0009_order_shipping_completion` 新增手工物流与完成证据：
+`0002_mall_core_foundation` 在初始基线之后建立会员与积分核心结构；`0003_member_activation_security` 新增激活安全基础；`0004_catalog_foundation` 新增商品目录基础；`0005_product_media` 新增商品媒体基础；`0006_inventory_foundation` 新增 SKU 库存余额与流水基础；`0007_order_foundation` 新增订单快照基础；`0008_order_reservation` 新增订单幂等及可审计的库存预占能力；`0009_order_shipping_completion` 新增手工物流与完成证据；`0010_order_refund_recovery` 新增整单退款证据：
 
 - `upload_batches` 新增渠道默认值和独立激活截止日，`business_records` 新增不可变渠道快照与商城领取状态；历史记录统一回填为 `CASH_REBATE`，领取状态保持空值；
 - 新增 `members` 与 `member_wechat_bindings`，会员公开编号不承担登录凭证职责；
@@ -180,7 +180,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M5-3 新增 `CREATED` 订单原子取消服务，按原订单证据幂等追加积分和库存 `RELEASE` 流水；重复与并发取消不重复释放，到期批次不延长有效期，完整边界见 [订单原子取消说明](docs/order-cancellation.md)；
 - M5-4 新增 `CREATED → FULFILLING` 原子确认履约服务，把原积分预占追加为 `CONSUME`、原库存预占追加为 `OUTBOUND`；只有商城运营角色可以执行，重复或并发确认只产生一套消费、出库与管理员审计证据，完整边界见 [订单确认履约说明](docs/order-fulfillment.md)；
 - M5-5 新增 `FULFILLING → SHIPPED → COMPLETED` 原子生命周期服务，手工保存物流公司、运单号、操作人与时间；精确重放或并发操作不重复生成审计证据，完整边界见 [订单发货与完成说明](docs/order-lifecycle.md)；
-- 商品/库存 Excel、订单 API 和页面、退款、退库、异常恢复及供应商结算仍按后续切片独立实现。
+- M5-6 新增 `COMPLETED → REFUNDED` 整单退款服务，按订单原积分分配追加 `REFUND`、按 SKU 原出库追加 `RETURN`，并以同一事务保存退款原因、时间和管理员审计；原批次到期时失败关闭，完整边界见 [订单原子退款说明](docs/order-refund.md)；
+- 商品/库存 Excel、订单 API 和页面、部分退款、异常人工恢复及供应商结算仍按后续切片独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -196,7 +197,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0009_order_shipping_completion`，结构仍为 26 张必需应用表；本次在订单表增加物流公司、运单号、发货时间和完成时间及对应约束。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0010_order_refund_recovery`，结构仍为 26 张必需应用表；本次在订单表增加退款原因、退款时间及退款状态完整性约束。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -251,17 +252,17 @@ python -m app.migration_rehearsal
 
 该命令只支持本地 SQLite：它会在 `database_backups/migration_baseline_rehearsals/` 中分别保存未改动的原始快照和仅用于写入基线标记的演练副本，校验 SQLite 完整性，并比较排除 `alembic_version` 后的业务结构与数据指纹。源数据库不会写入版本标记；演练通过也不代表已经获准操作真实数据库。应用运行中或业务指纹发生变化时，本次结果无效。
 
-已经稳定停留在 `0001_current_schema_baseline` 至 `0008_order_reservation` 之间任一受支持版本的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
+已经稳定停留在 `0001_current_schema_baseline` 至 `0009_order_shipping_completion` 之间任一受支持版本的 SQLite 数据库，在升级到当前结构前必须停止应用，并运行：
 
 ```powershell
 python -m app.migration_upgrade_rehearsal
 ```
 
-该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0009_order_shipping_completion`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
+该命令会在 `database_backups/mall_core_upgrade_rehearsals/` 保存升级前快照和独立演练副本，只对演练副本重复执行 `upgrade head` 与结构漂移检查。它逐表记录源版本的原字段定义、行数和字段值指纹，确认升级后全部不变，并核验演练副本真实处于 `0010_order_refund_recovery`。源库版本和业务指纹保持不变才会通过。审阅输出并按需使用演练副本完成验证后，才可另行批准对真实库执行 `python -m alembic -c alembic.ini upgrade head`；数据库文件与 `uploads/` 备份必须继续保留。
 
 ## 测试基线
 
-在当前 M5-5 工作副本上，完整依赖环境中的回归命令为：
+在当前 M5-6 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -269,7 +270,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- 全量回归基线为 `Ran 544 tests`、`OK (skipped=3)`；未配置独立 PostgreSQL 测试库时，仅跳过 3 组需要真实连接的迁移、取消及履约生命周期集成测试；
+- 全量回归基线为 `Ran 555 tests`、`OK (skipped=3)`；未配置独立 PostgreSQL 测试库时，仅跳过 3 组需要真实连接的迁移、取消及履约退款生命周期集成测试；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

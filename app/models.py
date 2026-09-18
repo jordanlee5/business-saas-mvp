@@ -1569,21 +1569,22 @@ class Order(Base):
             name="ck_orders_shipping_evidence_complete",
         ),
         CheckConstraint(
-            "status NOT IN ('SHIPPED', 'COMPLETED') OR "
+            "status NOT IN ('SHIPPED', 'COMPLETED', 'REFUNDED') OR "
             "shipped_at IS NOT NULL",
             name="ck_orders_shipped_status_has_evidence",
         ),
         CheckConstraint(
             "shipping_carrier IS NULL OR "
-            "status IN ('SHIPPED', 'COMPLETED')",
+            "status IN ('SHIPPED', 'COMPLETED', 'REFUNDED')",
             name="ck_orders_shipping_evidence_matches_status",
         ),
         CheckConstraint(
-            "status != 'COMPLETED' OR completed_at IS NOT NULL",
+            "status NOT IN ('COMPLETED', 'REFUNDED') OR "
+            "completed_at IS NOT NULL",
             name="ck_orders_completed_status_has_time",
         ),
         CheckConstraint(
-            "completed_at IS NULL OR status = 'COMPLETED'",
+            "completed_at IS NULL OR status IN ('COMPLETED', 'REFUNDED')",
             name="ck_orders_completion_matches_status",
         ),
         CheckConstraint(
@@ -1593,6 +1594,28 @@ class Order(Base):
         CheckConstraint(
             "completed_at IS NULL OR completed_at >= shipped_at",
             name="ck_orders_completion_time_order",
+        ),
+        CheckConstraint(
+            "(refund_reason IS NULL AND refunded_at IS NULL) OR "
+            "(refund_reason IS NOT NULL AND "
+            "length(trim(refund_reason)) > 0 AND refunded_at IS NOT NULL)",
+            name="ck_orders_refund_evidence_complete",
+        ),
+        CheckConstraint(
+            "status != 'REFUNDED' OR refunded_at IS NOT NULL",
+            name="ck_orders_refunded_status_has_time",
+        ),
+        CheckConstraint(
+            "refund_reason IS NULL OR status = 'REFUNDED'",
+            name="ck_orders_refund_evidence_matches_status",
+        ),
+        CheckConstraint(
+            "refunded_at IS NULL OR completed_at IS NOT NULL",
+            name="ck_orders_refund_requires_completion",
+        ),
+        CheckConstraint(
+            "refunded_at IS NULL OR refunded_at >= completed_at",
+            name="ck_orders_refund_time_order",
         ),
         UniqueConstraint(
             "shipping_carrier",
@@ -1622,6 +1645,8 @@ class Order(Base):
     tracking_number = Column(String(100), nullable=True, index=True)
     shipped_at = Column(DateTime(timezone=True), nullable=True, index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    refund_reason = Column(String(500), nullable=True)
+    refunded_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=utc8_now, index=True
     )
