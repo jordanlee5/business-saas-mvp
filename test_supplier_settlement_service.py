@@ -1,0 +1,504 @@
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+from unittest.mock import patch
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER
+from app.database import Base
+from app.mall import (
+    SETTLEMENT_GENERATE_PERMISSION_MESSAGE,
+    execute_supplier_settlement_generation,
+)
+import app.mall.supplier_settlement_service as settlement_service
+from app.models import (
+    AdminActionLog,
+    Member,
+    Order,
+    OrderItem,
+    Product,
+    ProductCategory,
+    ProductSku,
+    Supplier,
+    SupplierSettlementBatch,
+    SupplierSettlementItem,
+    User,
+)
+from app.time_utils import UTC8_TIMEZONE
+
+
+NOW = datetime(2026, 9, 21, 12, 0, 0)
+PERIOD_START = datetime(2026, 9, 1, 0, 0, 0)
+PERIOD_END = datetime(2026, 9, 8, 0, 0, 0)
+
+
+class SupplierSettlementServiceTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name) / "supplier-settlement.db"
+        self.engine = create_engine(f"sqlite:///{self.path}")
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(
+            bind=self.engine,
+            autoflush=False,
+            expire_on_commit=False,
+        )
+        self.db = self.Session()
+
+        self.operator = User(
+            username="settlement-operator",
+            password_hash="test-only",
+            role="admin",
+            admin_level=OPERATOR,
+            is_active=True,
+        )
+        self.reviewer = User(
+            username="settlement-reviewer",
+            password_hash="test-only",
+            role="admin",
+            admin_level=PRIMARY_REVIEWER,
+            is_active=True,
+        )
+        self.inactive_operator = User(
+            username="inactive-settlement-operator",
+            password_hash="test-only",
+            role="admin",
+            admin_level=OPERATOR,
+            is_active=False,
+        )
+        self.member = Member(
+            member_public_id="MEM-SETTLEMENT-001",
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.category = ProductCategory(
+            name="结算测试分类",
+            slug="settlement-test",
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.supplier = Supplier(
+            supplier_public_id="SUP-SETTLEMENT-001",
+            name="结算测试供应商",
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.other_supplier = Supplier(
+            supplier_public_id="SUP-SETTLEMENT-002",
+            name="其他结算供应商",
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.db.add_all([
+            self.operator,
+            self.reviewer,
+            self.inactive_operator,
+            self.member,
+            self.category,
+            self.supplier,
+            self.other_supplier,
+        ])
+        self.db.flush()
+        self.product = Product(
+            product_public_id="PRD-SETTLEMENT-001",
+            category_id=self.category.id,
+            name="结算测试商品",
+            status="PUBLISHED",
+            published_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.other_product = Product(
+            product_public_id="PRD-SETTLEMENT-002",
+            category_id=self.category.id,
+            name="其他供应商商品",
+            status="PUBLISHED",
+            published_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.db.add_all([self.product, self.other_product])
+        self.db.flush()
+        self.sku_one = self.add_sku(
+            supplier=self.supplier,
+            product=self.product,
+            code="SETTLEMENT-SKU-001",
+            name="标准款",
+            cost="12.50",
+        )
+        self.sku_two = self.add_sku(
+            supplier=self.supplier,
+            product=self.product,
+            code="SETTLEMENT-SKU-002",
+            name="轻量款",
+            cost="7.25",
+        )
+        self.other_sku = self.add_sku(
+            supplier=self.other_supplier,
+            product=self.other_product,
+            code="SETTLEMENT-SKU-003",
+            name="其他款",
+            cost="9.00",
+        )
+        self.db.commit()
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+        self.temp.cleanup()
+
+    def add_sku(self, *, supplier, product, code, name, cost):
+        sku = ProductSku(
+            product_id=product.id,
+            supplier_id=supplier.id,
+            sku_code=code,
+            name=name,
+            points_price=Decimal("50.00"),
+            cost_price=Decimal(cost),
+            low_stock_threshold=1,
+            is_active=True,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        self.db.add(sku)
+        self.db.flush()
+        return sku
+
+    def add_order(
+        self,
+        *,
+        suffix,
+        completed_at,
+        lines,
+        status="COMPLETED",
+    ):
+        total_points = sum(
+            (Decimal("50.00") * quantity for _sku, quantity in lines),
+            Decimal("0.00"),
+        )
+        total_cost = sum(
+            (Decimal(sku.cost_price) * quantity for sku, quantity in lines),
+            Decimal("0.00"),
+        )
+        total_quantity = sum(quantity for _sku, quantity in lines)
+        shipped_at = None
+        order_completed_at = None
+        refund_reason = None
+        refunded_at = None
+        if status in ("SHIPPED", "COMPLETED", "REFUNDED"):
+            base_time = completed_at or NOW
+            shipped_at = base_time - timedelta(hours=1)
+        if status in ("COMPLETED", "REFUNDED"):
+            order_completed_at = completed_at
+        if status == "REFUNDED":
+            refund_reason = "结算排除退款订单"
+            refunded_at = completed_at + timedelta(hours=1)
+
+        order = Order(
+            order_public_id=f"ORD-SETTLEMENT-{suffix}",
+            idempotency_key=f"settlement-order-{suffix}",
+            member_id=self.member.id,
+            status=status,
+            total_points=total_points,
+            total_cost_amount=total_cost,
+            total_quantity=total_quantity,
+            shipping_carrier=("顺丰速运" if shipped_at else None),
+            tracking_number=(f"SF-{suffix}" if shipped_at else None),
+            shipped_at=shipped_at,
+            completed_at=order_completed_at,
+            refund_reason=refund_reason,
+            refunded_at=refunded_at,
+            created_at=NOW - timedelta(days=30),
+            updated_at=NOW,
+        )
+        self.db.add(order)
+        self.db.flush()
+        items = []
+        for sku, quantity in lines:
+            supplier = (
+                self.supplier
+                if sku.supplier_id == self.supplier.id
+                else self.other_supplier
+            )
+            product = (
+                self.product
+                if sku.product_id == self.product.id
+                else self.other_product
+            )
+            unit_cost = Decimal(sku.cost_price)
+            item = OrderItem(
+                order_id=order.id,
+                product_id=product.id,
+                sku_id=sku.id,
+                supplier_id=supplier.id,
+                product_public_id_snapshot=product.product_public_id,
+                product_name_snapshot=product.name,
+                sku_code_snapshot=sku.sku_code,
+                sku_name_snapshot=sku.name,
+                supplier_public_id_snapshot=supplier.supplier_public_id,
+                supplier_name_snapshot=supplier.name,
+                supplier_sku_code_snapshot=f"SUP-{sku.sku_code}",
+                product_image_path_snapshot=None,
+                unit_points_price=Decimal("50.00"),
+                unit_cost_price=unit_cost,
+                quantity=quantity,
+                line_points=Decimal("50.00") * quantity,
+                line_cost_amount=unit_cost * quantity,
+                created_at=NOW - timedelta(days=30),
+            )
+            self.db.add(item)
+            items.append(item)
+        self.db.flush()
+        return order, tuple(items)
+
+    def generate(self, **overrides):
+        request = {
+            "actor_admin_id": self.operator.id,
+            "supplier_id": self.supplier.id,
+            "period_start": PERIOD_START,
+            "period_end": PERIOD_END,
+            "now": NOW,
+        }
+        request.update(overrides)
+        return execute_supplier_settlement_generation(
+            self.engine,
+            **request,
+        )
+
+    def test_generates_only_unsettled_completed_items_in_half_open_period(self):
+        start_order, start_items = self.add_order(
+            suffix="START",
+            completed_at=PERIOD_START,
+            lines=((self.sku_one, 2), (self.sku_two, 1)),
+        )
+        middle_order, middle_items = self.add_order(
+            suffix="MIDDLE",
+            completed_at=PERIOD_START + timedelta(days=3),
+            lines=((self.sku_one, 1), (self.other_sku, 1)),
+        )
+        self.add_order(
+            suffix="END",
+            completed_at=PERIOD_END,
+            lines=((self.sku_one, 1),),
+        )
+        self.add_order(
+            suffix="BEFORE",
+            completed_at=PERIOD_START - timedelta(seconds=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.add_order(
+            suffix="REFUNDED",
+            completed_at=PERIOD_START + timedelta(days=2),
+            lines=((self.sku_one, 1),),
+            status="REFUNDED",
+        )
+        self.add_order(
+            suffix="SHIPPED",
+            completed_at=PERIOD_START + timedelta(days=2),
+            lines=((self.sku_one, 1),),
+            status="SHIPPED",
+        )
+        self.db.commit()
+
+        original_supplier_name = self.supplier.name
+        self.supplier.name = "结算时供应商名称"
+        self.supplier.is_active = False
+        self.db.commit()
+
+        result = self.generate()
+
+        self.assertEqual(result.status, "PENDING_CONFIRMATION")
+        self.assertEqual(result.order_count, 2)
+        self.assertEqual(result.item_count, 3)
+        self.assertEqual(result.total_quantity, 4)
+        self.assertEqual(result.total_cost_amount, Decimal("44.75"))
+        self.assertEqual(result.supplier_name_snapshot, "结算时供应商名称")
+        self.assertEqual(len(result.settlement_item_ids), 3)
+
+        with self.Session() as db:
+            stored_items = (
+                db.query(SupplierSettlementItem)
+                .order_by(SupplierSettlementItem.order_item_id.asc())
+                .all()
+            )
+            self.assertEqual(
+                {item.order_item_id for item in stored_items},
+                {
+                    start_items[0].id,
+                    start_items[1].id,
+                    middle_items[0].id,
+                },
+            )
+            self.assertEqual(
+                {item.order_id for item in stored_items},
+                {start_order.id, middle_order.id},
+            )
+            self.assertEqual(
+                {item.supplier_name_snapshot for item in stored_items},
+                {original_supplier_name},
+            )
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_generate",
+                    target_type="supplier_settlement_batch",
+                    target_id=result.batch_id,
+                ).count(),
+                1,
+            )
+
+    def test_generated_snapshots_do_not_follow_later_source_changes(self):
+        order, items = self.add_order(
+            suffix="IMMUTABLE",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        result = self.generate()
+
+        self.db.expire_all()
+        source_item = self.db.get(OrderItem, items[0].id)
+        source_item.product_name_snapshot = "订单源快照后续被纠正"
+        source_item.unit_cost_price = Decimal("20.00")
+        source_item.line_cost_amount = Decimal("20.00")
+        order = self.db.get(Order, order.id)
+        order.order_public_id = "ORD-SOURCE-CHANGED"
+        self.db.commit()
+
+        with self.Session() as db:
+            stored = db.query(SupplierSettlementItem).filter_by(
+                settlement_batch_id=result.batch_id
+            ).one()
+            self.assertEqual(
+                stored.order_public_id_snapshot,
+                "ORD-SETTLEMENT-IMMUTABLE",
+            )
+            self.assertEqual(stored.product_name_snapshot, "结算测试商品")
+            self.assertEqual(stored.unit_cost_price, Decimal("12.50"))
+            self.assertEqual(stored.line_cost_amount, Decimal("12.50"))
+
+    def test_repeated_generation_never_settles_an_order_item_twice(self):
+        _order, first_items = self.add_order(
+            suffix="FIRST",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        first = self.generate()
+
+        with self.assertRaisesRegex(ValueError, "没有未结算"):
+            self.generate()
+
+        _order, second_items = self.add_order(
+            suffix="SECOND",
+            completed_at=PERIOD_START + timedelta(days=2),
+            lines=((self.sku_two, 2),),
+        )
+        self.db.commit()
+        second = self.generate()
+
+        self.assertNotEqual(first.batch_id, second.batch_id)
+        with self.Session() as db:
+            stored = db.query(SupplierSettlementItem).all()
+            self.assertEqual(len(stored), 2)
+            self.assertEqual(
+                {item.order_item_id for item in stored},
+                {first_items[0].id, second_items[0].id},
+            )
+
+    def test_rejects_unauthorized_or_inactive_actor_without_writes(self):
+        self.add_order(
+            suffix="PERMISSION",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+
+        for actor_id in (self.reviewer.id, self.inactive_operator.id, 0):
+            with self.subTest(actor_id=actor_id):
+                with self.assertRaisesRegex(
+                    PermissionError,
+                    SETTLEMENT_GENERATE_PERMISSION_MESSAGE,
+                ):
+                    self.generate(actor_admin_id=actor_id)
+        with self.Session() as db:
+            self.assertEqual(db.query(SupplierSettlementBatch).count(), 0)
+            self.assertEqual(db.query(SupplierSettlementItem).count(), 0)
+
+    def test_rejects_invalid_period_generation_time_and_supplier(self):
+        self.add_order(
+            suffix="VALIDATION",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+
+        invalid_requests = (
+            (
+                {"period_start": PERIOD_END, "period_end": PERIOD_START},
+                "必须晚于",
+            ),
+            ({"now": PERIOD_END - timedelta(seconds=1)}, "不能早于"),
+            ({"supplier_id": 999999}, "供应商不存在"),
+            ({"period_start": "2026-09-01"}, "开始时间无效"),
+        )
+        for overrides, message in invalid_requests:
+            with self.subTest(overrides=overrides):
+                with self.assertRaisesRegex(ValueError, message):
+                    self.generate(**overrides)
+
+    def test_accepts_aware_utc8_period_and_normalizes_for_sqlite(self):
+        self.add_order(
+            suffix="AWARE",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+
+        result = self.generate(
+            period_start=PERIOD_START.replace(tzinfo=UTC8_TIMEZONE),
+            period_end=PERIOD_END.replace(tzinfo=UTC8_TIMEZONE),
+            now=NOW.replace(tzinfo=UTC8_TIMEZONE),
+        )
+
+        self.assertIsNone(result.period_start.tzinfo)
+        self.assertIsNone(result.period_end.tzinfo)
+        self.assertEqual(result.period_start, PERIOD_START)
+        self.assertEqual(result.period_end, PERIOD_END)
+
+    def test_transaction_rolls_back_batch_items_and_log_on_late_failure(self):
+        self.add_order(
+            suffix="ROLLBACK",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+
+        with patch.object(
+            settlement_service,
+            "_validate_generation_evidence",
+            side_effect=RuntimeError("模拟结算证据核验失败"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "模拟结算"):
+                self.generate()
+
+        with self.Session() as db:
+            self.assertEqual(db.query(SupplierSettlementBatch).count(), 0)
+            self.assertEqual(db.query(SupplierSettlementItem).count(), 0)
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_generate"
+                ).count(),
+                0,
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
