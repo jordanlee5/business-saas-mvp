@@ -1,17 +1,21 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from threading import Barrier
 from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER
+from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER, SUPER_ADMIN
 from app.database import Base
 from app.mall import (
+    SETTLEMENT_CONFIRM_PERMISSION_MESSAGE,
     SETTLEMENT_GENERATE_PERMISSION_MESSAGE,
+    execute_supplier_settlement_confirmation,
     execute_supplier_settlement_generation,
 )
 import app.mall.supplier_settlement_service as settlement_service
@@ -56,6 +60,13 @@ class SupplierSettlementServiceTests(unittest.TestCase):
             admin_level=OPERATOR,
             is_active=True,
         )
+        self.super_admin = User(
+            username="settlement-super-admin",
+            password_hash="test-only",
+            role="admin",
+            admin_level=SUPER_ADMIN,
+            is_active=True,
+        )
         self.reviewer = User(
             username="settlement-reviewer",
             password_hash="test-only",
@@ -68,6 +79,13 @@ class SupplierSettlementServiceTests(unittest.TestCase):
             password_hash="test-only",
             role="admin",
             admin_level=OPERATOR,
+            is_active=False,
+        )
+        self.inactive_super_admin = User(
+            username="inactive-settlement-super-admin",
+            password_hash="test-only",
+            role="admin",
+            admin_level=SUPER_ADMIN,
             is_active=False,
         )
         self.member = Member(
@@ -99,8 +117,10 @@ class SupplierSettlementServiceTests(unittest.TestCase):
         )
         self.db.add_all([
             self.operator,
+            self.super_admin,
             self.reviewer,
             self.inactive_operator,
+            self.inactive_super_admin,
             self.member,
             self.category,
             self.supplier,
@@ -269,6 +289,18 @@ class SupplierSettlementServiceTests(unittest.TestCase):
         }
         request.update(overrides)
         return execute_supplier_settlement_generation(
+            self.engine,
+            **request,
+        )
+
+    def confirm(self, settlement_public_id, **overrides):
+        request = {
+            "actor_admin_id": self.super_admin.id,
+            "settlement_public_id": settlement_public_id,
+            "now": NOW + timedelta(minutes=1),
+        }
+        request.update(overrides)
+        return execute_supplier_settlement_confirmation(
             self.engine,
             **request,
         )
@@ -495,6 +527,190 @@ class SupplierSettlementServiceTests(unittest.TestCase):
             self.assertEqual(
                 db.query(AdminActionLog).filter_by(
                     action_type="mall_supplier_settlement_generate"
+                ).count(),
+                0,
+            )
+
+    def test_confirms_batch_once_and_exact_replay_is_stable(self):
+        self.add_order(
+            suffix="CONFIRM",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 2),),
+        )
+        self.db.commit()
+        generated = self.generate()
+
+        first = self.confirm(generated.settlement_public_id)
+        replay = self.confirm(generated.settlement_public_id)
+
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(first.status, "CONFIRMED")
+        self.assertEqual(first.confirmed_by_admin_id, self.super_admin.id)
+        self.assertEqual(first.confirmed_at, NOW + timedelta(minutes=1))
+        self.assertEqual(replay.action_log_id, first.action_log_id)
+        self.assertEqual(replay.confirmed_at, first.confirmed_at)
+        with self.Session() as db:
+            batch = db.get(SupplierSettlementBatch, generated.batch_id)
+            self.assertEqual(batch.status, "CONFIRMED")
+            self.assertEqual(batch.confirmed_by_admin_id, self.super_admin.id)
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_confirm",
+                    target_type="supplier_settlement_batch",
+                    target_id=batch.id,
+                ).count(),
+                1,
+            )
+
+    def test_concurrent_confirmation_creates_one_audit_evidence(self):
+        self.add_order(
+            suffix="CONCURRENT-CONFIRM",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        barrier = Barrier(2)
+
+        def confirm_once():
+            barrier.wait()
+            return self.confirm(generated.settlement_public_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(confirm_once) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+
+        self.assertEqual(
+            sorted(result.replayed for result in outcomes),
+            [False, True],
+        )
+        with self.Session() as db:
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_confirm"
+                ).count(),
+                1,
+            )
+
+    def test_confirmation_requires_active_super_admin(self):
+        self.add_order(
+            suffix="CONFIRM-PERMISSION",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+
+        for actor_id in (
+            self.operator.id,
+            self.reviewer.id,
+            self.inactive_super_admin.id,
+            0,
+        ):
+            with self.subTest(actor_id=actor_id):
+                with self.assertRaisesRegex(
+                    PermissionError,
+                    SETTLEMENT_CONFIRM_PERMISSION_MESSAGE,
+                ):
+                    self.confirm(
+                        generated.settlement_public_id,
+                        actor_admin_id=actor_id,
+                    )
+        with self.Session() as db:
+            batch = db.get(SupplierSettlementBatch, generated.batch_id)
+            self.assertEqual(batch.status, "PENDING_CONFIRMATION")
+            self.assertIsNone(batch.confirmed_at)
+
+    def test_confirmation_rejects_invalid_time_missing_and_refunded_source(self):
+        order, _items = self.add_order(
+            suffix="CONFIRM-VALIDATION",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+
+        with self.assertRaisesRegex(ValueError, "不能早于生成时间"):
+            self.confirm(
+                generated.settlement_public_id,
+                now=NOW - timedelta(seconds=1),
+            )
+        with self.assertRaisesRegex(ValueError, "批次不存在"):
+            self.confirm("STL-NOT-FOUND")
+
+        self.db.expire_all()
+        stored_order = self.db.get(Order, order.id)
+        stored_order.status = "REFUNDED"
+        stored_order.refund_reason = "结算确认前发生退款"
+        stored_order.refunded_at = NOW + timedelta(seconds=30)
+        self.db.commit()
+        with self.assertRaisesRegex(RuntimeError, "退款证据异常"):
+            self.confirm(generated.settlement_public_id)
+        with self.Session() as db:
+            batch = db.get(SupplierSettlementBatch, generated.batch_id)
+            self.assertEqual(batch.status, "PENDING_CONFIRMATION")
+
+    def test_confirmation_fails_closed_for_tampered_batch_evidence(self):
+        self.add_order(
+            suffix="CONFIRM-TAMPER",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        self.db.expire_all()
+        batch = self.db.get(SupplierSettlementBatch, generated.batch_id)
+        batch.total_cost_amount = Decimal("999.00")
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "合计或状态证据不完整"):
+            self.confirm(generated.settlement_public_id)
+        with self.Session() as db:
+            batch = db.get(SupplierSettlementBatch, generated.batch_id)
+            self.assertEqual(batch.status, "PENDING_CONFIRMATION")
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_confirm"
+                ).count(),
+                0,
+            )
+
+    def test_confirmation_rolls_back_status_and_log_on_late_failure(self):
+        self.add_order(
+            suffix="CONFIRM-ROLLBACK",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        original_validator = settlement_service._validate_confirmation_evidence
+
+        def fail_after_write(db, *, batch, expect_confirmed):
+            if expect_confirmed:
+                raise RuntimeError("模拟确认后证据核验失败")
+            return original_validator(
+                db,
+                batch=batch,
+                expect_confirmed=expect_confirmed,
+            )
+
+        with patch.object(
+            settlement_service,
+            "_validate_confirmation_evidence",
+            side_effect=fail_after_write,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "模拟确认后"):
+                self.confirm(generated.settlement_public_id)
+
+        with self.Session() as db:
+            batch = db.get(SupplierSettlementBatch, generated.batch_id)
+            self.assertEqual(batch.status, "PENDING_CONFIRMATION")
+            self.assertIsNone(batch.confirmed_by_admin_id)
+            self.assertIsNone(batch.confirmed_at)
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_confirm"
                 ).count(),
                 0,
             )

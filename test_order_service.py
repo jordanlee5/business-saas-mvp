@@ -19,6 +19,7 @@ from app.mall import (
     execute_order_placement,
     execute_order_refund,
     execute_order_shipping,
+    execute_supplier_settlement_generation,
     expire_points_grant,
     receive_inventory,
     record_initial_points_grant,
@@ -1197,6 +1198,40 @@ class OrderServiceTests(unittest.TestCase):
                 action_type="mall_order_refund"
             ).count(),
             1,
+        )
+
+    def test_order_in_supplier_settlement_cannot_be_automatically_refunded(self):
+        placed = self.place(key="settled-order-refund-guard")
+        self.fulfill(placed.order_public_id)
+        self.ship(placed.order_public_id)
+        self.complete(placed.order_public_id)
+        execute_supplier_settlement_generation(
+            self.engine,
+            actor_admin_id=self.operator.id,
+            supplier_id=self.supplier.id,
+            period_start=NOW,
+            period_end=NOW + timedelta(days=1),
+            now=NOW + timedelta(days=2),
+        )
+
+        with self.assertRaisesRegex(ValueError, "已进入供应商结算"):
+            self.refund(placed.order_public_id)
+
+        self.db.expire_all()
+        order = self.db.get(Order, placed.order_id)
+        self.assertEqual(order.status, "COMPLETED")
+        self.assertIsNone(order.refund_reason)
+        self.assertEqual(
+            self.db.query(PointsLedgerEntry).filter_by(
+                entry_type="REFUND"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            self.db.query(InventoryMovement).filter_by(
+                movement_type="RETURN"
+            ).count(),
+            0,
         )
 
     def test_refund_exact_replay_is_stable_and_other_reason_conflicts(self):

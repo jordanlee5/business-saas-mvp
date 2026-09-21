@@ -202,8 +202,12 @@ from .order_refund_service import (
     refund_completed_order,
 )
 from .supplier_settlement_service import (
+    SETTLEMENT_CONFIRM_PERMISSION_MESSAGE,
     SETTLEMENT_GENERATE_PERMISSION_MESSAGE,
+    SupplierSettlementConfirmationResult,
     SupplierSettlementGenerationResult,
+    confirm_supplier_settlement,
+    execute_supplier_settlement_confirmation,
     execute_supplier_settlement_generation,
     generate_supplier_settlement,
 )
@@ -303,7 +307,9 @@ __all__ = [
     "ProductStatus",
     "ProductMediaRole",
     "SupplierSettlementStatus",
+    "SupplierSettlementConfirmationResult",
     "SupplierSettlementGenerationResult",
+    "SETTLEMENT_CONFIRM_PERMISSION_MESSAGE",
     "SETTLEMENT_GENERATE_PERMISSION_MESSAGE",
     "ProductMediaMutationResult",
     "SUPPLIER_PERMISSION_MESSAGE",
@@ -404,4 +410,6 @@ __all__ = [
     "execute_order_refund",
     "generate_supplier_settlement",
     "execute_supplier_settlement_generation",
+    "confirm_supplier_settlement",
+    "execute_supplier_settlement_confirmation",
 ]

@@ -8,9 +8,12 @@ from threading import Barrier
 from alembic import command
 from sqlalchemy.orm import sessionmaker
 
-from app.admin_permissions import OPERATOR
+from app.admin_permissions import OPERATOR, SUPER_ADMIN
 from app.database import create_database_engine, resolve_database_url
-from app.mall import execute_supplier_settlement_generation
+from app.mall import (
+    execute_supplier_settlement_confirmation,
+    execute_supplier_settlement_generation,
+)
 from app.models import (
     AdminActionLog,
     Member,
@@ -88,6 +91,13 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     admin_level=OPERATOR,
                     is_active=True,
                 )
+                super_admin = User(
+                    username="pg-settlement-super-admin",
+                    password_hash="test-only",
+                    role="admin",
+                    admin_level=SUPER_ADMIN,
+                    is_active=True,
+                )
                 member = Member(
                     member_public_id="MEM-PG-SETTLEMENT-001",
                     is_active=True,
@@ -108,7 +118,13 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     created_at=NOW,
                     updated_at=NOW,
                 )
-                db.add_all([operator, member, category, supplier])
+                db.add_all([
+                    operator,
+                    super_admin,
+                    member,
+                    category,
+                    supplier,
+                ])
                 db.flush()
                 product = Product(
                     product_public_id="PRD-PG-SETTLEMENT-001",
@@ -176,6 +192,7 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                 db.add(order_item)
                 db.commit()
                 operator_id = operator.id
+                super_admin_id = super_admin.id
                 supplier_id = supplier.id
                 order_item_id = order_item.id
 
@@ -230,14 +247,50 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+                settlement_public_id = batch.settlement_public_id
+
+            confirmation_barrier = Barrier(2)
+
+            def confirm_once():
+                confirmation_barrier.wait()
+                return execute_supplier_settlement_confirmation(
+                    engine,
+                    actor_admin_id=super_admin_id,
+                    settlement_public_id=settlement_public_id,
+                    now=NOW + timedelta(minutes=1),
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                confirmation_outcomes = [
+                    future.result()
+                    for future in (
+                        pool.submit(confirm_once),
+                        pool.submit(confirm_once),
+                    )
+                ]
+            self.assertEqual(
+                sorted(result.replayed for result in confirmation_outcomes),
+                [False, True],
+            )
+            with Session() as db:
+                batch = db.query(SupplierSettlementBatch).one()
+                self.assertEqual(batch.status, "CONFIRMED")
+                self.assertEqual(
+                    db.query(AdminActionLog).filter_by(
+                        action_type="mall_supplier_settlement_confirm"
+                    ).count(),
+                    1,
+                )
         finally:
             if engine is not None:
                 try:
                     with engine.begin() as connection:
                         connection.execute(
                             AdminActionLog.__table__.delete().where(
-                                AdminActionLog.action_type
-                                == "mall_supplier_settlement_generate"
+                                AdminActionLog.action_type.in_((
+                                    "mall_supplier_settlement_generate",
+                                    "mall_supplier_settlement_confirm",
+                                ))
                             )
                         )
                         connection.execute(

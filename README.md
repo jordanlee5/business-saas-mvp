@@ -6,12 +6,12 @@
 
 ## 当前版本
 
-- 版本：**v0.5.0-M6-2 — 已实现供应商结算批次原子生成**
+- 版本：**v0.5.0-M6-3 — 已实现供应商结算原子确认**
 - M0/v0.3.0 收口日期：2026-08-27
-- 本轮修改前稳定代码基线：`a8ede6f9e7a90d8676f0a1f73f4ae989485d6fd8`
-- 基线提交：`a8ede6f feat: add M6-1 supplier settlement foundation`
+- 本轮修改前稳定代码基线：`c630f55853981323d9523149f9c83aa3e10347fd`
+- 基线提交：`c630f55 feat: add M6-2 atomic supplier settlement generation`
 
-M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5 已完成订单快照、原子预占、取消释放、确认履约、手工发货与完成，以及 `COMPLETED → REFUNDED` 整单退款与双资源恢复。M6-1 建立供应商结算持久化边界；M6-2 已实现按供应商和完成时间区间原子生成待确认结算批次，排除取消、未完成、已退款及已结算订单项。订单 API、订单页面、结算确认页面与 Excel 仍未开放。
+M0/v0.3.0 已完成现有版本、文档和商城规划收口，收口变化见 [CHANGELOG.md](CHANGELOG.md)。M1 已建立商城领域规则、迁移机制、PostgreSQL 验证、小程序 API 路由骨架、商城权限审计以及会员与积分核心表结构。M2 在上传时拆分现金返现和商城积分渠道，并保证商城记录不进入原有凭证链路。M3 已建立一次性激活码、微信会员绑定、积分账本、到期维护、人工纠错及管理员只读查询导出。M4 已完成商品目录、媒体、SKU 库存流水和受控后台；M5 已完成订单快照、原子预占、取消释放、确认履约、手工发货与完成，以及 `COMPLETED → REFUNDED` 整单退款与双资源恢复。M6-1 建立供应商结算持久化边界，M6-2 实现待确认批次原子生成，M6-3 已实现仅限超级管理员的原子确认、幂等并发控制及结算后退款保护。订单 API、订单页面、结算后台与 Excel 仍未开放。
 
 ## 当前产品边界与术语
 
@@ -183,7 +183,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M5-6 新增 `COMPLETED → REFUNDED` 整单退款服务，按订单原积分分配追加 `REFUND`、按 SKU 原出库追加 `RETURN`，并以同一事务保存退款原因、时间和管理员审计；原批次到期时失败关闭，完整边界见 [订单原子退款说明](docs/order-refund.md)；
 - M6-1 新增 `supplier_settlement_batches` 与 `supplier_settlement_items`，固化供应商、完成订单项、人民币成本、数量、结算区间和生成/确认操作者快照；每个订单项最多进入一个结算明细，存在结算事实时禁止降级丢失，完整边界见 [供应商结算持久化基础说明](docs/supplier-settlement-foundation.md)；
 - M6-2 新增供应商结算批次原子生成服务：按单一供应商与 `[period_start, period_end)` 选择仍为 `COMPLETED`、无退款事实且尚未结算的订单项，批次、明细、合计和管理员审计同事务保存；重复或并发生成不得重复纳入订单项，完整边界见 [供应商结算批次生成说明](docs/supplier-settlement-generation.md)；
-- 商品/库存 Excel、订单 API 和页面、部分退款、异常人工恢复，以及结算确认、撤销、支付和 Excel 仍按后续切片独立实现。
+- M6-3 新增供应商结算原子确认服务：只有启用中的超级管理员可确认，确认前复核批次、来源订单、未退款事实、成本快照与生成审计；重复或并发确认不重复写入，订单进入任一结算批次后自动退款失败关闭，完整边界见 [供应商结算确认说明](docs/supplier-settlement-confirmation.md)；
+- 商品/库存 Excel、订单 API 和页面、部分退款、异常人工恢复，以及结算后台、撤销、支付、冲销和 Excel 仍按后续切片独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -199,7 +200,7 @@ python -m app.points_expiry_task --upcoming-days 30
 
 进入商城订单、库存和积分并发扣减阶段前，需要建立可重复迁移机制和 PostgreSQL 集成测试。当前 SQLite 与本地文件目录只适合开发、演示和小规模业务验证；生产部署还需要数据库备份恢复、对象存储、访问控制、HTTPS、监控和并发验证。
 
-M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0011_supplier_settlement_foundation`，结构为 28 张必需应用表；M6-2 直接复用 M6-1 已建立的两张结算表，不新增迁移，也不自动扫描或改写既有订单、积分、库存或现金返现数据。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
+M1 已建立数据库 URL 配置入口、Alembic 迁移环境、现有结构基线和商城核心 revision。迁移链已线性推进至 `0011_supplier_settlement_foundation`，结构为 28 张必需应用表；M6-2 与 M6-3 直接复用 M6-1 已建立的两张结算表，不新增迁移，也不自动扫描或改写既有订单、积分、库存或现金返现数据。迁移开发依赖包含 Psycopg 3 二进制驱动；PostgreSQL 离线迁移 SQL 纳入默认测试，真实连接验证则必须使用独立、可清空且名称以 `_test` 结尾的测试数据库。
 
 迁移开发环境使用单独的依赖入口：
 
@@ -267,7 +268,7 @@ python -m app.migration_upgrade_rehearsal
 
 ## 测试基线
 
-在当前 M6-2 工作副本上，完整依赖环境中的回归命令为：
+在当前 M6-3 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -275,7 +276,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- M6-2 全量回归基线为 `Ran 570 tests`、`OK (skipped=4)`；4 个跳过项均为当前环境未配置的独立 PostgreSQL 实连接集成类，需在专用测试数据库中另行验收；
+- M6-3 全量回归基线为 `Ran 577 tests`、`OK (skipped=4)`；4 个跳过项均为当前环境未配置的独立 PostgreSQL 实连接集成类，需在专用测试数据库中另行验收；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。
@@ -309,6 +310,7 @@ business-saas-mvp/
 │  ├─ inventory-foundation.md       # M4-5 SKU 库存余额与流水边界
 │  ├─ inventory-admin.md            # M4-6 库存管理页面与路由边界
 │  ├─ supplier-settlement-generation.md # M6-2 结算批次原子生成边界
+│  ├─ supplier-settlement-confirmation.md # M6-3 结算原子确认边界
 │  └─ mall-business-rules-decisions.md
 ├─ migrations/                     # Alembic 环境与后续迁移版本
 ├─ alembic.ini                     # Alembic 项目配置

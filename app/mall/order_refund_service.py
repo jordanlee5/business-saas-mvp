@@ -105,6 +105,18 @@ def _require_actor(db, *, actor_admin_id):
     return actor
 
 
+def _assert_order_not_in_supplier_settlement(db, *, order_id):
+    from ..models import SupplierSettlementItem
+
+    settlement_item = (
+        db.query(SupplierSettlementItem.id)
+        .filter(SupplierSettlementItem.order_id == order_id)
+        .first()
+    )
+    if settlement_item is not None:
+        raise ValueError("订单已进入供应商结算，不能自动退款")
+
+
 def _refund_description(order):
     return (
         f"订单 {order.order_public_id} 整单退款；"
@@ -329,6 +341,7 @@ def refund_completed_order(
         raise ValueError("当前订单状态不允许退款")
 
     actor = _require_actor(db, actor_admin_id=actor_admin_id)
+    _assert_order_not_in_supplier_settlement(db, order_id=order.id)
     items, allocations, account, grants = _load_locked_resources(
         db,
         order=order,

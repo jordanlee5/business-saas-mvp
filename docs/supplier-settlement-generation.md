@@ -6,6 +6,8 @@ M6-2 在 M6-1 的 `supplier_settlement_batches` 与 `supplier_settlement_items` 
 
 本切片不新增数据库迁移，不开放 HTTP API、后台页面、结算确认或 Excel，也不改变订单退款与现金返现链路。
 
+> 后续 M6-3 已增加内部原子确认服务，并规定订单任一明细进入结算批次后整单自动退款失败关闭。当前行为以 [供应商结算确认说明](supplier-settlement-confirmation.md) 为准。
+
 ## 2. 生成口径
 
 调用方必须提供供应商、左闭右开区间 `[period_start, period_end)`、生成管理员和生成时间。生成时间不得早于区间结束。
