@@ -117,6 +117,11 @@ from .mall import (
     save_product_media_record,
     record_member_points_export,
     receive_inventory,
+    SETTLEMENT_STATUS_ALL,
+    SupplierSettlementStatus,
+    execute_supplier_settlement_export,
+    get_supplier_settlement_detail,
+    list_supplier_settlements,
     unpublish_product,
     update_product,
     update_product_category,
@@ -166,6 +171,8 @@ from .admin_permissions import (
     can_manage_mall_inventory,
     can_export_mall_member_points,
     can_view_mall_member_points,
+    can_export_mall_supplier_settlements,
+    can_view_mall_supplier_settlements,
 )
 
 from .match_review_workflow import (
@@ -380,6 +387,9 @@ def admin_navigation_context(
         ),
         "can_export_mall_member_points": (
             can_export_mall_member_points(user)
+        ),
+        "can_view_mall_supplier_settlements": (
+            can_view_mall_supplier_settlements(user)
         ),
     }
 
@@ -609,6 +619,9 @@ def add_base_context(request: Request, context: dict):
         context["can_export_mall_member_points"] = (
             can_export_mall_member_points(user)
         )
+        context["can_view_mall_supplier_settlements"] = (
+            can_view_mall_supplier_settlements(user)
+        )
         context["topbar_username"] = user.username
         context["topbar_role"] = user.role
     else:
@@ -629,6 +642,7 @@ def add_base_context(request: Request, context: dict):
         context["can_export_business_records"] = False
         context["can_view_mall_member_points"] = False
         context["can_export_mall_member_points"] = False
+        context["can_view_mall_supplier_settlements"] = False
         context["topbar_username"] = ""
         context["topbar_role"] = ""
 
@@ -8947,6 +8961,139 @@ def export_member_points(
         raise
     finally:
         db.close()
+
+
+@app.get("/mall-settlements", response_class=HTMLResponse)
+def mall_settlements_page(
+    request: Request,
+    keyword: str = Query(""),
+    status: str = Query(SETTLEMENT_STATUS_ALL),
+    page: int = Query(1),
+    page_size: int = Query(20),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_view_mall_supplier_settlements(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            result = list_supplier_settlements(
+                db,
+                keyword=keyword,
+                status=status,
+                page=page,
+                page_size=page_size,
+            )
+        except ValueError as exc:
+            error = str(exc)
+            result = list_supplier_settlements(db)
+        return templates.TemplateResponse(
+            request=request,
+            name="mall_settlements.html",
+            context=add_base_context(request, {
+                "request": request,
+                "page_title": "供应商结算",
+                "active_page": "mall_settlements",
+                "result": result,
+                "status_all": SETTLEMENT_STATUS_ALL,
+                "status_pending": (
+                    SupplierSettlementStatus.PENDING_CONFIRMATION.value
+                ),
+                "status_confirmed": SupplierSettlementStatus.CONFIRMED.value,
+                "allowed_page_sizes": (10, 20, 50),
+                "error": error or None,
+            }),
+        )
+    finally:
+        db.close()
+
+
+@app.get(
+    "/mall-settlements/{settlement_public_id}",
+    response_class=HTMLResponse,
+)
+def mall_settlement_detail_page(
+    request: Request,
+    settlement_public_id: str,
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if not can_view_mall_supplier_settlements(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    db = SessionLocal()
+    try:
+        try:
+            detail = get_supplier_settlement_detail(
+                db,
+                settlement_public_id=settlement_public_id,
+            )
+        except ValueError as exc:
+            return RedirectResponse(
+                url=f"/mall-settlements?{urlencode({'error': str(exc)})}",
+                status_code=302,
+            )
+        return templates.TemplateResponse(
+            request=request,
+            name="mall_settlement_detail.html",
+            context=add_base_context(request, {
+                "request": request,
+                "page_title": "供应商结算详情",
+                "active_page": "mall_settlements",
+                "detail": detail,
+                "can_export_settlement": (
+                    can_export_mall_supplier_settlements(user)
+                    and detail.status
+                    == SupplierSettlementStatus.CONFIRMED.value
+                ),
+            }),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/mall-settlements/{settlement_public_id}/export")
+def export_mall_settlement(
+    request: Request,
+    settlement_public_id: str,
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        not can_view_mall_supplier_settlements(user)
+        or not can_export_mall_supplier_settlements(user)
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    try:
+        exported = execute_supplier_settlement_export(
+            engine,
+            actor_admin_id=user.id,
+            settlement_public_id=settlement_public_id,
+        )
+    except (ValueError, PermissionError) as exc:
+        return RedirectResponse(
+            url=f"/mall-settlements?{urlencode({'error': str(exc)})}",
+            status_code=302,
+        )
+    filename = (
+        f"supplier_settlement_{exported.batch_id}_"
+        f"{exported.exported_at:%Y%m%d%H%M%S}.xlsx"
+    )
+    return StreamingResponse(
+        io.BytesIO(exported.content),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/logout")

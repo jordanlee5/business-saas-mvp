@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .settlement-detail { max-width: 1420px; margin: 0 auto; }
+    .settlement-detail .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0 26px; }
+    .settlement-detail .summary > div { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+    .settlement-detail dt { color: #64748b; font-size: 13px; margin-bottom: 7px; }
+    .settlement-detail dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+    .settlement-detail .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .settlement-detail .table-wrap { overflow-x: auto; }
+    .settlement-detail table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .settlement-detail th, .settlement-detail td { text-align: left; white-space: nowrap; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
+    .settlement-detail th { background: #f8fafc; color: #475569; }
+</style>
+
+<div class="settlement-detail page-card">
+    <div class="page-header"><div><h1 class="page-title">结算详情</h1><p>{{ detail.settlement_public_id }}</p></div>
+        <div class="actions"><a class="btn btn-secondary" href="/mall-settlements">返回列表</a>
+            {% if can_export_settlement %}<a class="btn btn-primary" href="/mall-settlements/{{ detail.settlement_public_id | urlencode }}/export">下载结算 Excel</a>{% endif %}
+        </div>
+    </div>
+    <dl class="summary">
+        <div><dt>供应商</dt><dd>{{ detail.supplier_name_snapshot }}（{{ detail.supplier_public_id_snapshot }}）</dd></div>
+        <div><dt>状态</dt><dd>{{ detail.status_label }}</dd></div>
+        <div><dt>结算区间（左闭右开）</dt><dd>{{ detail.period_start | format_utc8 }} 至 {{ detail.period_end | format_utc8 }}</dd></div>
+        <div><dt>订单 / 明细 / 数量</dt><dd>{{ detail.order_count }} / {{ detail.item_count }} / {{ detail.total_quantity }}</dd></div>
+        <div><dt>人民币成本总额</dt><dd>¥ {{ '%.2f' | format(detail.total_cost_amount) }}</dd></div>
+        <div><dt>生成记录</dt><dd>{{ detail.generated_by_username }} · {{ detail.generated_at | format_utc8 }}</dd></div>
+        <div><dt>确认记录</dt><dd>{% if detail.confirmed_at %}{{ detail.confirmed_by_username }} · {{ detail.confirmed_at | format_utc8 }}{% else %}尚未确认{% endif %}</dd></div>
+    </dl>
+    <div class="table-wrap"><table>
+        <thead><tr><th>订单编号</th><th>完成时间</th><th>商品 / SKU</th><th>供应商货号</th><th>单位成本（元）</th><th>数量</th><th>行成本（元）</th></tr></thead>
+        <tbody>{% for item in detail.items %}<tr>
+            <td>{{ item.order_public_id_snapshot }}</td>
+            <td>{{ item.order_completed_at | format_utc8 }}</td>
+            <td>{{ item.product_name_snapshot }}（{{ item.product_public_id_snapshot }}）<br>{{ item.sku_name_snapshot }}（{{ item.sku_code_snapshot }}）</td>
+            <td>{{ item.supplier_sku_code_snapshot or '—' }}</td>
+            <td>{{ '%.2f' | format(item.unit_cost_price) }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ '%.2f' | format(item.line_cost_amount) }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endblock %}

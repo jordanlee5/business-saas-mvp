@@ -303,7 +303,7 @@
             </div>
             {% endif %}
 
-            {% if (can_view_mall_member_points | default(false)) or (can_manage_mall_catalog | default(false)) or (can_manage_mall_inventory | default(false)) %}
+            {% if (can_view_mall_member_points | default(false)) or (can_manage_mall_catalog | default(false)) or (can_manage_mall_inventory | default(false)) or (can_view_mall_supplier_settlements | default(false)) %}
             <div class="side-section">
                 <div class="side-title">积分商城</div>
                 {% if can_manage_mall_catalog | default(false) %}
@@ -332,6 +332,11 @@
                     <span class="side-icon">🪙</span>
                     <span>会员积分</span>
                 </a >
+                {% endif %}
+                {% if can_view_mall_supplier_settlements | default(false) %}
+                <a class="side-link {% if active_page == 'mall_settlements' %}active{% endif %}" href="/mall-settlements">
+                    <span class="side-icon">📋</span><span>供应商结算</span>
+                </a>
                 {% endif %}
             </div>
             {% endif %}

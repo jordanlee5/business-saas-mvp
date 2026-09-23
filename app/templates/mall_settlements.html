@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .settlement-page { max-width: 1420px; margin: 0 auto; }
+    .settlement-note, .settlement-error { margin: 14px 0 20px; padding: 12px 14px; border-radius: 10px; }
+    .settlement-note { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .settlement-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+    .settlement-filter { display: grid; grid-template-columns: minmax(240px, 1fr) 190px 120px 120px; gap: 12px; align-items: end; margin-bottom: 22px; }
+    .settlement-filter label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
+    .settlement-filter input, .settlement-filter select { width: 100%; height: 40px; border: 1px solid #cbd5e1; border-radius: 9px; padding: 0 11px; background: white; }
+    .settlement-table-wrap { overflow-x: auto; }
+    .settlement-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .settlement-table th, .settlement-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    .settlement-table th { background: #f8fafc; color: #475569; }
+    .settlement-status { display: inline-block; padding: 4px 9px; border-radius: 999px; font-weight: 700; background: #fef3c7; color: #92400e; }
+    .settlement-status.confirmed { background: #d1fae5; color: #047857; }
+    .settlement-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+    .settlement-footer a { padding: 7px 10px; border-radius: 8px; background: #e2e8f0; color: #334155; text-decoration: none; font-weight: 700; }
+    .settlement-detail-link { color: #2563eb; font-weight: 800; }
+    @media (max-width: 900px) { .settlement-filter { grid-template-columns: 1fr; } }
+</style>
+
+<div class="settlement-page page-card">
+    <div class="page-header"><h1 class="page-title">供应商结算</h1></div>
+    <div class="settlement-note">查看结算批次和订单成本快照。只有证据完整的已确认批次可下载 Excel；下载会留下管理员审计记录。</div>
+    {% if error %}<div class="settlement-error" role="alert">{{ error }}</div>{% endif %}
+    <form class="settlement-filter" method="get" action="/mall-settlements">
+        <label>关键词<input name="keyword" value="{{ result.keyword }}" placeholder="结算编号 / 供应商编号或名称"></label>
+        <label>状态<select name="status">
+            <option value="{{ status_all }}" {% if result.status == status_all %}selected{% endif %}>全部</option>
+            <option value="{{ status_pending }}" {% if result.status == status_pending %}selected{% endif %}>待确认</option>
+            <option value="{{ status_confirmed }}" {% if result.status == status_confirmed %}selected{% endif %}>已确认</option>
+        </select></label>
+        <label>每页<select name="page_size">{% for size in allowed_page_sizes %}<option value="{{ size }}" {% if result.page_size == size %}selected{% endif %}>{{ size }} 条</option>{% endfor %}</select></label>
+        <button class="btn btn-primary" type="submit">筛选</button>
+    </form>
+    <div class="settlement-table-wrap"><table class="settlement-table">
+        <thead><tr><th>结算编号</th><th>供应商</th><th>状态</th><th>结算区间</th><th>订单 / 明细 / 数量</th><th>成本总额（元）</th><th>生成时间</th><th>操作</th></tr></thead>
+        <tbody>{% for item in result.items %}<tr>
+            <td>{{ item.settlement_public_id }}</td>
+            <td>{{ item.supplier_name_snapshot }}<br><small>{{ item.supplier_public_id_snapshot }}</small></td>
+            <td><span class="settlement-status {% if item.status == status_confirmed %}confirmed{% endif %}">{{ item.status_label }}</span></td>
+            <td>{{ item.period_start | format_utc8 }}<br>至 {{ item.period_end | format_utc8 }}</td>
+            <td>{{ item.order_count }} / {{ item.item_count }} / {{ item.total_quantity }}</td>
+            <td>{{ '%.2f' | format(item.total_cost_amount) }}</td>
+            <td>{{ item.generated_at | format_utc8 }}</td>
+            <td><a class="settlement-detail-link" href="/mall-settlements/{{ item.settlement_public_id | urlencode }}">查看详情</a></td>
+        </tr>{% else %}<tr><td colspan="8">暂无符合条件的供应商结算批次。</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="settlement-footer"><span>共 {{ result.total }} 个批次，当前第 {{ result.page }} / {{ result.total_pages }} 页</span><div>
+        {% if result.page > 1 %}<a href="/mall-settlements?page={{ result.page - 1 }}&page_size={{ result.page_size }}&status={{ result.status }}&keyword={{ result.keyword | urlencode }}">上一页</a>{% endif %}
+        {% if result.page < result.total_pages %}<a href="/mall-settlements?page={{ result.page + 1 }}&page_size={{ result.page_size }}&status={{ result.status }}&keyword={{ result.keyword | urlencode }}">下一页</a>{% endif %}
+    </div></div>
+</div>
+{% endblock %}

@@ -227,6 +227,14 @@ MALL_SUPPLIER_SETTLEMENT_EXPORT_LEVELS = frozenset(
 )
 
 
+MALL_SUPPLIER_SETTLEMENT_VIEW_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 # 每个审计动作都必须显式分级。新增枚举但未加入此映射时，
 # can_perform_mall_audit_action 会失败关闭，而不是默认放行。
 MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
@@ -572,6 +580,16 @@ def can_export_mall_supplier_settlements(
     return has_admin_level(
         user,
         MALL_SUPPLIER_SETTLEMENT_EXPORT_LEVELS,
+    )
+
+
+def can_view_mall_supplier_settlements(
+    user: object | None,
+) -> bool:
+    """是否可以查看供应商结算批次及成本快照。"""
+    return (
+        getattr(user, "is_active", False) is True
+        and has_admin_level(user, MALL_SUPPLIER_SETTLEMENT_VIEW_LEVELS)
     )
 
 
