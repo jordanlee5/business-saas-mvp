@@ -12,6 +12,7 @@ from app.admin_permissions import OPERATOR, SUPER_ADMIN
 from app.database import create_database_engine, resolve_database_url
 from app.mall import (
     execute_supplier_settlement_confirmation,
+    execute_supplier_settlement_export,
     execute_supplier_settlement_generation,
 )
 from app.models import (
@@ -281,6 +282,23 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+
+            export = execute_supplier_settlement_export(
+                engine,
+                actor_admin_id=operator_id,
+                settlement_public_id=settlement_public_id,
+                now=NOW + timedelta(minutes=2),
+            )
+            self.assertEqual(export.status, "CONFIRMED")
+            self.assertEqual(export.total_cost_amount, Decimal("24.00"))
+            self.assertTrue(export.content.startswith(b"PK"))
+            with Session() as db:
+                self.assertEqual(
+                    db.query(AdminActionLog).filter_by(
+                        action_type="mall_supplier_settlement_export"
+                    ).count(),
+                    1,
+                )
         finally:
             if engine is not None:
                 try:
@@ -290,6 +308,7 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                                 AdminActionLog.action_type.in_((
                                     "mall_supplier_settlement_generate",
                                     "mall_supplier_settlement_confirm",
+                                    "mall_supplier_settlement_export",
                                 ))
                             )
                         )

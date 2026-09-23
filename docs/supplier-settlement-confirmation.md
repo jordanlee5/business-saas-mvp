@@ -4,7 +4,7 @@
 
 M6-3 在 M6-2 待确认批次生成能力上增加内部领域服务，把证据完整的 `PENDING_CONFIRMATION` 供应商结算原子推进到 `CONFIRMED`。
 
-本切片继续复用 `0011_supplier_settlement_foundation`，不新增数据库迁移，不开放 HTTP API、后台页面、Excel、支付、撤销或冲销。
+本切片继续复用 `0011_supplier_settlement_foundation`，不新增数据库迁移，不开放 HTTP API、后台页面、支付、撤销或冲销。M6-4 已在此确认边界之上新增只读查询与已确认批次 Excel 审计导出，详见 [供应商结算查询与导出说明](supplier-settlement-export.md)。
 
 ## 2. 权限与状态
 
@@ -39,7 +39,7 @@ SQLite 独立执行入口先取得写事务；PostgreSQL 对批次及来源行�
 ## 6. 当前明确不做
 
 - 不开放结算 HTTP API 或后台页面；
-- 不生成或下载供应商结算 Excel；
+- 本服务本身不生成 Excel；M6-4 由独立报告服务只导出已确认批次；
 - 不标记付款、转账或开票状态；
 - 不撤销、删除或冲销结算批次；
 - 不实现已进入结算订单的自动退款或人工异常恢复；

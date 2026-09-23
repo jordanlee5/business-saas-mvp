@@ -218,6 +218,15 @@ MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS = (
 )
 
 
+# 已确认供应商结算导出供商城运营角色执行；每次导出仍须留痕。
+MALL_SUPPLIER_SETTLEMENT_EXPORT_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 # 每个审计动作都必须显式分级。新增枚举但未加入此映射时，
 # can_perform_mall_audit_action 会失败关闭，而不是默认放行。
 MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
@@ -270,6 +279,8 @@ MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
             MALL_SUPPLIER_MANAGEMENT_LEVELS,
         MallAuditActionType.SUPPLIER_SETTLEMENT_CONFIRM:
             MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS,
+        MallAuditActionType.SUPPLIER_SETTLEMENT_EXPORT:
+            MALL_SUPPLIER_SETTLEMENT_EXPORT_LEVELS,
     }
 )
 
@@ -551,6 +562,16 @@ def can_confirm_mall_supplier_settlements(
     return has_admin_level(
         user,
         MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS,
+    )
+
+
+def can_export_mall_supplier_settlements(
+    user: object | None,
+) -> bool:
+    """是否可以导出已经确认的供应商结算。"""
+    return has_admin_level(
+        user,
+        MALL_SUPPLIER_SETTLEMENT_EXPORT_LEVELS,
     )
 
 

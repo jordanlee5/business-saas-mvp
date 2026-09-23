@@ -9,6 +9,7 @@ from app.admin_permissions import (
     SUPER_ADMIN,
     can_adjust_mall_points,
     can_confirm_mall_supplier_settlements,
+    can_export_mall_supplier_settlements,
     can_manage_mall_catalog,
     can_manage_mall_inventory,
     can_manage_mall_orders,
@@ -63,6 +64,7 @@ class MallPermissionTests(unittest.TestCase):
             can_manage_mall_inventory,
             can_manage_mall_orders,
             can_manage_mall_suppliers,
+            can_export_mall_supplier_settlements,
         )
 
         for permission_function in permission_functions:

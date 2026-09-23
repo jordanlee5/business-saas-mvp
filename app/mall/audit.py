@@ -32,6 +32,9 @@ class MallAuditActionType(str, Enum):
     SUPPLIER_SETTLEMENT_CONFIRM = (
         "mall_supplier_settlement_confirm"
     )
+    SUPPLIER_SETTLEMENT_EXPORT = (
+        "mall_supplier_settlement_export"
+    )
 
 
 VALID_MALL_AUDIT_ACTION_TYPES = frozenset(

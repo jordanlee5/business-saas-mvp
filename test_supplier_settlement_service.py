@@ -3,10 +3,12 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 from threading import Barrier
 from unittest.mock import patch
 
+from openpyxl import load_workbook
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -14,11 +16,18 @@ from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER, SUPER_ADMIN
 from app.database import Base
 from app.mall import (
     SETTLEMENT_CONFIRM_PERMISSION_MESSAGE,
+    SETTLEMENT_EXPORT_PERMISSION_MESSAGE,
+    SETTLEMENT_EXPORT_STATE_MESSAGE,
     SETTLEMENT_GENERATE_PERMISSION_MESSAGE,
+    build_supplier_settlement_workbook,
     execute_supplier_settlement_confirmation,
+    execute_supplier_settlement_export,
     execute_supplier_settlement_generation,
+    get_supplier_settlement_detail,
+    list_supplier_settlements,
 )
 import app.mall.supplier_settlement_service as settlement_service
+import app.mall.supplier_settlement_reporting_service as reporting_service
 from app.models import (
     AdminActionLog,
     Member,
@@ -711,6 +720,275 @@ class SupplierSettlementServiceTests(unittest.TestCase):
             self.assertEqual(
                 db.query(AdminActionLog).filter_by(
                     action_type="mall_supplier_settlement_confirm"
+                ).count(),
+                0,
+            )
+
+    def test_lists_settlements_with_keyword_status_and_pagination(self):
+        self.add_order(
+            suffix="REPORT-LIST-CONFIRMED",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        confirmed = self.generate()
+        self.confirm(confirmed.settlement_public_id)
+
+        self.add_order(
+            suffix="REPORT-LIST-PENDING",
+            completed_at=PERIOD_START + timedelta(days=2),
+            lines=((self.sku_two, 2),),
+        )
+        self.db.commit()
+        pending = self.generate(now=NOW + timedelta(minutes=2))
+
+        with self.Session() as db:
+            page = list_supplier_settlements(db, page=1, page_size=1)
+            self.assertEqual(page.total, 2)
+            self.assertEqual(page.total_pages, 2)
+            self.assertEqual(page.items[0].batch_id, pending.batch_id)
+            self.assertEqual(page.items[0].status_label, "待确认")
+            self.assertEqual(
+                page.items[0].generated_by_username,
+                self.operator.username,
+            )
+
+            confirmed_page = list_supplier_settlements(
+                db,
+                status="CONFIRMED",
+            )
+            self.assertEqual(confirmed_page.total, 1)
+            self.assertEqual(
+                confirmed_page.items[0].settlement_public_id,
+                confirmed.settlement_public_id,
+            )
+            self.assertEqual(
+                confirmed_page.items[0].confirmed_by_username,
+                self.super_admin.username,
+            )
+
+            keyword_page = list_supplier_settlements(
+                db,
+                keyword=confirmed.settlement_public_id,
+            )
+            self.assertEqual(keyword_page.total, 1)
+            supplier_page = list_supplier_settlements(
+                db,
+                keyword=self.supplier.name,
+            )
+            self.assertEqual(supplier_page.total, 2)
+
+            for request in (
+                {"status": "UNKNOWN"},
+                {"page": 0},
+                {"page_size": 101},
+                {"keyword": "x" * 101},
+            ):
+                with self.subTest(request=request):
+                    with self.assertRaises(ValueError):
+                        list_supplier_settlements(db, **request)
+
+    def test_detail_revalidates_source_and_returns_snapshots(self):
+        _order, order_items = self.add_order(
+            suffix="REPORT-DETAIL",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 2), (self.sku_two, 1)),
+        )
+        self.db.commit()
+        generated = self.generate()
+        self.confirm(generated.settlement_public_id)
+
+        with self.Session() as db:
+            detail = get_supplier_settlement_detail(
+                db,
+                settlement_public_id=generated.settlement_public_id,
+            )
+            self.assertEqual(detail.status, "CONFIRMED")
+            self.assertEqual(detail.status_label, "已确认")
+            self.assertEqual(detail.order_count, 1)
+            self.assertEqual(detail.item_count, 2)
+            self.assertEqual(detail.total_quantity, 3)
+            self.assertEqual(detail.total_cost_amount, Decimal("32.25"))
+            self.assertEqual(len(detail.items), 2)
+            self.assertEqual(
+                detail.generated_by_username,
+                self.operator.username,
+            )
+            self.assertEqual(
+                detail.confirmed_by_username,
+                self.super_admin.username,
+            )
+
+        self.db.expire_all()
+        source_item = self.db.get(OrderItem, order_items[0].id)
+        source_item.unit_cost_price = Decimal("13.00")
+        source_item.line_cost_amount = Decimal("26.00")
+        self.db.commit()
+        with self.Session() as db:
+            with self.assertRaisesRegex(RuntimeError, "来源订单项不一致"):
+                get_supplier_settlement_detail(
+                    db,
+                    settlement_public_id=generated.settlement_public_id,
+                )
+
+    def test_builds_confirmed_workbook_from_safe_snapshots(self):
+        self.supplier.name = "=测试供应商"
+        self.product.name = "@测试商品"
+        self.db.commit()
+        self.add_order(
+            suffix="REPORT-WORKBOOK",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 2),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        self.confirm(generated.settlement_public_id)
+
+        with self.Session() as db:
+            detail = get_supplier_settlement_detail(
+                db,
+                settlement_public_id=generated.settlement_public_id,
+            )
+        workbook_stream = build_supplier_settlement_workbook(
+            detail,
+            exported_at=NOW + timedelta(minutes=2),
+        )
+        workbook = load_workbook(BytesIO(workbook_stream.getvalue()))
+
+        self.assertEqual(workbook.sheetnames, ["结算汇总", "结算明细"])
+        summary = workbook["结算汇总"]
+        items = workbook["结算明细"]
+        self.assertEqual(summary["B2"].value, generated.settlement_public_id)
+        self.assertEqual(summary["B4"].value, "'=测试供应商")
+        self.assertEqual(summary["B11"].value, 25)
+        self.assertEqual(items.max_row, 2)
+        self.assertEqual(items["B2"].value, "ORD-SETTLEMENT-REPORT-WORKBOOK")
+        self.assertEqual(items["E2"].value, "'@测试商品")
+        self.assertEqual(items["I2"].value, 12.5)
+        self.assertEqual(items["J2"].value, 2)
+        self.assertEqual(items["K2"].value, 25)
+
+    def test_export_requires_confirmation_and_active_operations_role(self):
+        self.add_order(
+            suffix="REPORT-EXPORT",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+
+        with self.assertRaisesRegex(
+            ValueError,
+            SETTLEMENT_EXPORT_STATE_MESSAGE,
+        ):
+            execute_supplier_settlement_export(
+                self.engine,
+                actor_admin_id=self.operator.id,
+                settlement_public_id=generated.settlement_public_id,
+                now=NOW + timedelta(minutes=2),
+            )
+        self.confirm(generated.settlement_public_id)
+
+        for actor_id in (
+            self.reviewer.id,
+            self.inactive_operator.id,
+            0,
+        ):
+            with self.subTest(actor_id=actor_id):
+                with self.assertRaisesRegex(
+                    PermissionError,
+                    SETTLEMENT_EXPORT_PERMISSION_MESSAGE,
+                ):
+                    execute_supplier_settlement_export(
+                        self.engine,
+                        actor_admin_id=actor_id,
+                        settlement_public_id=generated.settlement_public_id,
+                        now=NOW + timedelta(minutes=2),
+                    )
+
+        exported = execute_supplier_settlement_export(
+            self.engine,
+            actor_admin_id=self.operator.id,
+            settlement_public_id=generated.settlement_public_id,
+            now=NOW + timedelta(minutes=2),
+        )
+        self.assertEqual(exported.status, "CONFIRMED")
+        self.assertEqual(exported.total_cost_amount, Decimal("12.50"))
+        self.assertTrue(exported.filename.endswith(".xlsx"))
+        self.assertTrue(exported.content.startswith(b"PK"))
+        with self.Session() as db:
+            logs = db.query(AdminActionLog).filter_by(
+                action_type="mall_supplier_settlement_export",
+                target_id=generated.batch_id,
+            ).all()
+            self.assertEqual(len(logs), 1)
+            self.assertEqual(logs[0].admin_id, self.operator.id)
+            self.assertIn(generated.settlement_public_id, logs[0].description)
+            self.assertIn("成本 12.50", logs[0].description)
+
+    def test_export_fails_closed_for_tampered_confirmation_audit(self):
+        self.add_order(
+            suffix="REPORT-TAMPER",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        self.confirm(generated.settlement_public_id)
+        self.db.expire_all()
+        confirmation_log = self.db.query(AdminActionLog).filter_by(
+            action_type="mall_supplier_settlement_confirm",
+            target_id=generated.batch_id,
+        ).one()
+        confirmation_log.description = "篡改确认审计"
+        self.db.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "确认审计证据不完整"):
+            execute_supplier_settlement_export(
+                self.engine,
+                actor_admin_id=self.operator.id,
+                settlement_public_id=generated.settlement_public_id,
+                now=NOW + timedelta(minutes=2),
+            )
+        with self.Session() as db:
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_export"
+                ).count(),
+                0,
+            )
+
+    def test_export_rolls_back_audit_on_late_failure(self):
+        self.add_order(
+            suffix="REPORT-ROLLBACK",
+            completed_at=PERIOD_START + timedelta(days=1),
+            lines=((self.sku_one, 1),),
+        )
+        self.db.commit()
+        generated = self.generate()
+        self.confirm(generated.settlement_public_id)
+        original_recorder = reporting_service.record_supplier_settlement_export
+
+        def fail_after_audit(db, **request):
+            original_recorder(db, **request)
+            raise RuntimeError("模拟结算导出后失败")
+
+        with patch.object(
+            reporting_service,
+            "record_supplier_settlement_export",
+            side_effect=fail_after_audit,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "模拟结算导出后失败"):
+                execute_supplier_settlement_export(
+                    self.engine,
+                    actor_admin_id=self.operator.id,
+                    settlement_public_id=generated.settlement_public_id,
+                    now=NOW + timedelta(minutes=2),
+                )
+        with self.Session() as db:
+            self.assertEqual(
+                db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_export"
                 ).count(),
                 0,
             )
