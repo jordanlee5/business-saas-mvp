@@ -13,6 +13,7 @@ from starlette.requests import Request
 from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER, SUPER_ADMIN
 from app.main import (
     admin_navigation_context,
+    confirm_mall_settlement_route,
     export_mall_settlement,
     generate_mall_settlement_route,
     mall_settlement_detail_page,
@@ -272,6 +273,142 @@ class SupplierSettlementRouteTests(unittest.TestCase):
             response = mall_settlement_detail_page(request(), "SETTLEMENT-001")
             self.assertEqual(response.status_code, 302)
             self.assertIn("error=", response.headers["location"])
+
+    def test_confirmation_form_only_for_pending_super_admin(self):
+        for user, status, allowed in (
+            (actor(SUPER_ADMIN), "PENDING_CONFIRMATION", True),
+            (actor(SUPER_ADMIN), "CONFIRMED", False),
+            (actor(OPERATOR), "PENDING_CONFIRMATION", False),
+        ):
+            with (
+                self.subTest(user=user.admin_level, status=status),
+                patch("app.main.get_current_user", return_value=user),
+                patch("app.main.SessionLocal"),
+                patch("app.main.get_supplier_settlement_detail",
+                      return_value=detail(status)),
+            ):
+                response = mall_settlement_detail_page(
+                    request("/mall-settlements/SETTLEMENT-001"),
+                    "SETTLEMENT-001",
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    b"/mall-settlements/SETTLEMENT-001/confirm" in response.body,
+                    allowed,
+                )
+                self.assertEqual(
+                    "mall_settlement_confirm_csrf=" in
+                    response.headers.get("set-cookie", ""), allowed,
+                )
+
+    def test_confirmation_route_checks_role_csrf_and_delegates(self):
+        token = "c" * 43
+        incoming = request(
+            "/mall-settlements/SETTLEMENT-001/confirm", method="POST",
+            cookie=f"mall_settlement_confirm_csrf={token}",
+        )
+        with patch("app.main.execute_supplier_settlement_confirmation") as confirm:
+            for user, destination in (
+                (None, "/login"),
+                (actor(OPERATOR), "/dashboard"),
+                (actor(PRIMARY_REVIEWER), "/dashboard"),
+                (actor(SUPER_ADMIN, active=False), "/dashboard"),
+            ):
+                with patch("app.main.get_current_user", return_value=user):
+                    response = confirm_mall_settlement_route(
+                        incoming, "SETTLEMENT-001", token
+                    )
+                self.assertEqual(response.headers["location"], destination)
+                confirm.assert_not_called()
+            with patch("app.main.get_current_user",
+                       return_value=actor(SUPER_ADMIN)):
+                for bad_token in ("", "b" * 43):
+                    response = confirm_mall_settlement_route(
+                        incoming, "SETTLEMENT-001", bad_token
+                    )
+                    self.assertEqual(response.status_code, 303)
+                    self.assertIn("error=", response.headers["location"])
+                confirm.assert_not_called()
+                response = confirm_mall_settlement_route(
+                    incoming, "SETTLEMENT-001", token
+                )
+                self.assertEqual(response.status_code, 303)
+                self.assertEqual(
+                    response.headers["location"],
+                    "/mall-settlements/SETTLEMENT-001",
+                )
+                self.assertEqual(confirm.call_args.kwargs, {
+                    "actor_admin_id": 10,
+                    "settlement_public_id": "SETTLEMENT-001",
+                })
+                confirm.side_effect = ValueError("批次证据不完整")
+                response = confirm_mall_settlement_route(
+                    incoming, "SETTLEMENT-001", token
+                )
+                self.assertIn("error=", response.headers["location"])
+
+    def test_real_confirmation_from_detail_is_atomic_and_replayable(self):
+        from datetime import timedelta
+        from app.models import AdminActionLog, SupplierSettlementBatch
+        from test_supplier_settlement_service import (
+            SupplierSettlementServiceTests, PERIOD_START,
+        )
+
+        fixture = SupplierSettlementServiceTests(
+            "test_confirms_batch_once_and_exact_replay_is_stable"
+        )
+        fixture.setUp()
+        try:
+            fixture.add_order(
+                suffix="ROUTE-CONFIRM",
+                completed_at=PERIOD_START + timedelta(days=1),
+                lines=((fixture.sku_one, 1),),
+            )
+            fixture.db.commit()
+            generated = fixture.generate()
+            settlement_id = generated.settlement_public_id
+            with (
+                patch("app.main.get_current_user",
+                      return_value=fixture.super_admin),
+                patch("app.main.SessionLocal", side_effect=fixture.Session),
+                patch("app.main.engine", fixture.engine),
+            ):
+                page = mall_settlement_detail_page(
+                    request(f"/mall-settlements/{settlement_id}"),
+                    settlement_id,
+                )
+                self.assertIn(b"/confirm", page.body)
+                cookie = SimpleCookie()
+                cookie.load(page.headers["set-cookie"])
+                token = cookie["mall_settlement_confirm_csrf"].value
+                incoming = request(
+                    f"/mall-settlements/{settlement_id}/confirm",
+                    method="POST",
+                    cookie=f"mall_settlement_confirm_csrf={token}",
+                )
+                for _ in range(2):
+                    response = confirm_mall_settlement_route(
+                        incoming, settlement_id, token
+                    )
+                    self.assertEqual(response.status_code, 303)
+                    self.assertEqual(
+                        response.headers["location"],
+                        f"/mall-settlements/{settlement_id}",
+                    )
+                confirmed_page = mall_settlement_detail_page(
+                    request(f"/mall-settlements/{settlement_id}"),
+                    settlement_id,
+                )
+                self.assertNotIn(b"/confirm", confirmed_page.body)
+                self.assertIn(b"/export", confirmed_page.body)
+            with fixture.Session() as db:
+                batch = db.get(SupplierSettlementBatch, generated.batch_id)
+                self.assertEqual(batch.status, "CONFIRMED")
+                self.assertEqual(db.query(AdminActionLog).filter_by(
+                    action_type="mall_supplier_settlement_confirm"
+                ).count(), 1)
+        finally:
+            fixture.tearDown()
 
     def test_export_delegates_atomic_audit_and_returns_workbook(self):
         exported = SupplierSettlementExportResult(

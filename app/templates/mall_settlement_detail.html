@@ -8,6 +8,9 @@
     .settlement-detail dt { color: #64748b; font-size: 13px; margin-bottom: 7px; }
     .settlement-detail dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
     .settlement-detail .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .settlement-detail .actions form { margin: 0; }
+    .settlement-detail .notice { margin: 14px 0; padding: 12px 14px; border: 1px solid #fde68a; border-radius: 10px; background: #fffbeb; color: #78350f; }
+    .settlement-detail .error { margin: 14px 0; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b91c1c; }
     .settlement-detail .table-wrap { overflow-x: auto; }
     .settlement-detail table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .settlement-detail th, .settlement-detail td { text-align: left; white-space: nowrap; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
@@ -17,9 +20,17 @@
 <div class="settlement-detail page-card">
     <div class="page-header"><div><h1 class="page-title">结算详情</h1><p>{{ detail.settlement_public_id }}</p></div>
         <div class="actions"><a class="btn btn-secondary" href="/mall-settlements">返回列表</a>
+            {% if can_confirm_settlement %}
+            <form method="post" action="/mall-settlements/{{ detail.settlement_public_id | urlencode }}/confirm" onsubmit="return confirm('确认后本批次将进入已确认状态，且无法在当前系统撤销。确定继续吗？')">
+                <input type="hidden" name="csrf_token" value="{{ settlement_confirm_csrf_token }}">
+                <button class="btn btn-primary" type="submit">确认结算批次</button>
+            </form>
+            {% endif %}
             {% if can_export_settlement %}<a class="btn btn-primary" href="/mall-settlements/{{ detail.settlement_public_id | urlencode }}/export">下载结算 Excel</a>{% endif %}
         </div>
     </div>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    {% if can_confirm_settlement %}<p class="notice">确认前请核对供应商、结算区间、订单明细及人民币成本总额。确认操作仅限超级管理员，提交时会重新复核原始证据并记录审计；确认后不可在当前系统撤销。</p>{% endif %}
     <dl class="summary">
         <div><dt>供应商</dt><dd>{{ detail.supplier_name_snapshot }}（{{ detail.supplier_public_id_snapshot }}）</dd></div>
         <div><dt>状态</dt><dd>{{ detail.status_label }}</dd></div>

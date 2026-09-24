@@ -19,7 +19,7 @@ import secrets
 import zipfile
 from datetime import datetime, date, time
 from decimal import Decimal, ROUND_HALF_UP
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 import pandas as pd
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -120,6 +120,7 @@ from .mall import (
     receive_inventory,
     SETTLEMENT_STATUS_ALL,
     SupplierSettlementStatus,
+    execute_supplier_settlement_confirmation,
     execute_supplier_settlement_export,
     execute_supplier_settlement_generation,
     get_supplier_settlement_detail,
@@ -174,6 +175,7 @@ from .admin_permissions import (
     can_export_mall_member_points,
     can_view_mall_member_points,
     can_export_mall_supplier_settlements,
+    can_confirm_mall_supplier_settlements,
     can_perform_mall_audit_action,
     can_view_mall_supplier_settlements,
 )
@@ -9108,6 +9110,7 @@ def generate_mall_settlement_route(
 def mall_settlement_detail_page(
     request: Request,
     settlement_public_id: str,
+    error: str = "",
 ):
     user = get_current_user(request)
     if user is None:
@@ -9127,7 +9130,16 @@ def mall_settlement_detail_page(
                 url=f"/mall-settlements?{urlencode({'error': str(exc)})}",
                 status_code=302,
             )
-        return templates.TemplateResponse(
+        can_confirm = (
+            can_confirm_mall_supplier_settlements(user)
+            and can_perform_mall_audit_action(
+                user, MallAuditActionType.SUPPLIER_SETTLEMENT_CONFIRM
+            )
+            and detail.status
+            == SupplierSettlementStatus.PENDING_CONFIRMATION.value
+        )
+        csrf_token = secrets.token_urlsafe(32) if can_confirm else ""
+        response = templates.TemplateResponse(
             request=request,
             name="mall_settlement_detail.html",
             context=add_base_context(request, {
@@ -9135,6 +9147,9 @@ def mall_settlement_detail_page(
                 "page_title": "供应商结算详情",
                 "active_page": "mall_settlements",
                 "detail": detail,
+                "error": error or None,
+                "can_confirm_settlement": can_confirm,
+                "settlement_confirm_csrf_token": csrf_token,
                 "can_export_settlement": (
                     can_export_mall_supplier_settlements(user)
                     and detail.status
@@ -9142,8 +9157,63 @@ def mall_settlement_detail_page(
                 ),
             }),
         )
+        if can_confirm:
+            response.set_cookie(
+                "mall_settlement_confirm_csrf", csrf_token,
+                httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+                path="/mall-settlements",
+            )
+        return response
     finally:
         db.close()
+
+
+@app.post("/mall-settlements/{settlement_public_id}/confirm")
+def confirm_mall_settlement_route(
+    request: Request,
+    settlement_public_id: str,
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        not can_view_mall_supplier_settlements(user)
+        or not can_confirm_mall_supplier_settlements(user)
+        or not can_perform_mall_audit_action(
+            user, MallAuditActionType.SUPPLIER_SETTLEMENT_CONFIRM
+        )
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    cookie_token = request.cookies.get("mall_settlement_confirm_csrf", "")
+    if (
+        len(cookie_token) < 32
+        or not secrets.compare_digest(cookie_token, csrf_token)
+    ):
+        return RedirectResponse(
+            url=(
+                f"/mall-settlements/{quote(settlement_public_id, safe='')}?"
+                + urlencode({"error": "表单已失效，请刷新详情重试"})
+            ),
+            status_code=303,
+        )
+    try:
+        execute_supplier_settlement_confirmation(
+            engine,
+            actor_admin_id=user.id,
+            settlement_public_id=settlement_public_id,
+        )
+    except (ValueError, PermissionError, RuntimeError) as exc:
+        return RedirectResponse(
+            url=f"/mall-settlements?{urlencode({'error': str(exc)})}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/mall-settlements/{quote(settlement_public_id, safe='')}",
+        status_code=303,
+    )
 
 
 @app.get("/mall-settlements/{settlement_public_id}/export")
