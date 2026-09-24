@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .mall-order-detail { max-width: 1420px; margin: 0 auto; }
+  .mall-order-detail .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 20px 0; }
+  .mall-order-detail .facts > div { padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; overflow-wrap: anywhere; }
+  .mall-order-detail dt { color: #64748b; font-size: 13px; }
+  .mall-order-detail dd { margin: 7px 0 0; font-weight: 700; }
+  .mall-order-detail .table-wrap { overflow-x: auto; }
+  .mall-order-detail table { width: 100%; border-collapse: collapse; }
+  .mall-order-detail th, .mall-order-detail td { padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+  .mall-order-detail th { background: #f8fafc; }
+</style>
+<div class="mall-order-detail page-card">
+  <div class="page-header"><h1 class="page-title">订单详情</h1><a class="btn btn-secondary" href="/mall-orders">返回订单列表</a></div>
+  <p>下单快照与状态信息仅供核对；此页面不执行订单操作。</p>
+  <dl class="facts">
+    <div><dt>订单编号</dt><dd>{{ detail.order.order_public_id }}</dd></div>
+    <div><dt>会员编号</dt><dd>{{ detail.order.member_public_id }}</dd></div>
+    <div><dt>状态</dt><dd>{{ detail.order.status_label }}</dd></div>
+    <div><dt>积分 / 数量</dt><dd>{{ '%.2f' | format(detail.order.total_points) }} / {{ detail.order.total_quantity }}</dd></div>
+    <div><dt>商品成本（元）</dt><dd>{{ '%.2f' | format(detail.order.total_cost_amount) }}</dd></div>
+    <div><dt>创建时间</dt><dd>{{ detail.order.created_at | format_utc8 }}</dd></div>
+    <div><dt>物流</dt><dd>{% if detail.shipped_at %}{{ detail.shipping_carrier }} · {{ detail.tracking_number }} · {{ detail.shipped_at | format_utc8 }}{% else %}尚未发货{% endif %}</dd></div>
+    <div><dt>完成时间</dt><dd>{% if detail.completed_at %}{{ detail.completed_at | format_utc8 }}{% else %}—{% endif %}</dd></div>
+    <div><dt>退款记录</dt><dd>{% if detail.refunded_at %}{{ detail.refunded_at | format_utc8 }} · {{ detail.refund_reason }}{% else %}—{% endif %}</dd></div>
+  </dl>
+  <div class="table-wrap"><table>
+    <thead><tr><th>商品 / SKU</th><th>供应商</th><th>积分单价</th><th>成本单价（元）</th><th>数量</th><th>积分小计</th><th>成本小计（元）</th></tr></thead>
+    <tbody>{% for item in detail.items %}<tr>
+      <td>{{ item.product_name }}（{{ item.product_public_id }}）<br>{{ item.sku_name }}（{{ item.sku_code }}）</td>
+      <td>{{ item.supplier_name }}（{{ item.supplier_public_id }}）</td>
+      <td>{{ '%.2f' | format(item.unit_points_price) }}</td>
+      <td>{{ '%.2f' | format(item.unit_cost_price) }}</td><td>{{ item.quantity }}</td>
+      <td>{{ '%.2f' | format(item.line_points) }}</td><td>{{ '%.2f' | format(item.line_cost_amount) }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

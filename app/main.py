@@ -132,6 +132,12 @@ from .mall import (
     update_product_media_record,
     update_supplier,
 )
+from .mall.order_reporting_service import (
+    ORDER_STATUS_ALL,
+    ORDER_STATUS_LABELS,
+    get_mall_order_detail,
+    list_mall_orders,
+)
 from .notification_service import (
     create_business_batch_uploaded_notifications,
     get_unread_business_batch_notifications,
@@ -172,6 +178,7 @@ from .admin_permissions import (
     can_manage_promotion_pages,
     can_manage_mall_catalog,
     can_manage_mall_inventory,
+    can_manage_mall_orders,
     can_export_mall_member_points,
     can_view_mall_member_points,
     can_export_mall_supplier_settlements,
@@ -365,6 +372,10 @@ def admin_navigation_context(
         ),
         "can_manage_mall_inventory": (
             can_manage_mall_inventory(user)
+        ),
+        "can_view_mall_orders": (
+            user is not None and getattr(user, "is_active", False) is True
+            and can_manage_mall_orders(user)
         ),
         "can_view_business_records": bool(
             user
@@ -607,6 +618,10 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_mall_inventory"] = (
             can_manage_mall_inventory(user)
         )
+        context["can_view_mall_orders"] = (
+            getattr(user, "is_active", False) is True
+            and can_manage_mall_orders(user)
+        )
         context["can_view_business_records"] = (
             user.role == "partner"
             or can_view_business_records(user)
@@ -642,6 +657,7 @@ def add_base_context(request: Request, context: dict):
         context["can_manage_promotion_pages"] = False
         context["can_manage_mall_catalog"] = False
         context["can_manage_mall_inventory"] = False
+        context["can_view_mall_orders"] = False
         context["can_view_business_records"] = False
         context["can_manage_business_batches"] = False
         context["can_export_business_records"] = False
@@ -8964,6 +8980,71 @@ def export_member_points(
     except Exception:
         db.rollback()
         raise
+    finally:
+        db.close()
+
+
+@app.get("/mall-orders", response_class=HTMLResponse)
+def mall_orders_page(
+    request: Request,
+    keyword: str = Query(""),
+    status: str = Query(ORDER_STATUS_ALL),
+    page: int = Query(1),
+    page_size: int = Query(20),
+    error: str = Query(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if getattr(user, "is_active", False) is not True or not can_manage_mall_orders(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    db = SessionLocal()
+    try:
+        try:
+            result = list_mall_orders(
+                db, keyword=keyword, status=status, page=page,
+                page_size=page_size,
+            )
+            error = error or None
+        except ValueError as exc:
+            error = str(exc)
+            result = list_mall_orders(db)
+        return templates.TemplateResponse(
+            request=request, name="mall_orders.html",
+            context=add_base_context(request, {
+                "request": request, "page_title": "商城订单",
+                "active_page": "mall_orders", "result": result,
+                "status_labels": ORDER_STATUS_LABELS,
+                "error": error,
+            }),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/mall-orders/{order_public_id}", response_class=HTMLResponse)
+def mall_order_detail_page(request: Request, order_public_id: str):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if getattr(user, "is_active", False) is not True or not can_manage_mall_orders(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    db = SessionLocal()
+    try:
+        try:
+            detail = get_mall_order_detail(db, order_public_id=order_public_id)
+        except ValueError as exc:
+            return RedirectResponse(
+                url=f"/mall-orders?{urlencode({'error': str(exc)})}",
+                status_code=302,
+            )
+        return templates.TemplateResponse(
+            request=request, name="mall_order_detail.html",
+            context=add_base_context(request, {
+                "request": request, "page_title": "商城订单详情",
+                "active_page": "mall_orders", "detail": detail,
+            }),
+        )
     finally:
         db.close()
 
