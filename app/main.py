@@ -77,6 +77,7 @@ from .mall import (
     ACCEPTED_BATCH_STATUS,
     BUSINESS_CHANNEL_ALL,
     BUSINESS_CHANNEL_LABELS,
+    MallAuditActionType,
     PENDING_BATCH_STATUS,
     REJECTED_BATCH_STATUS,
     BusinessChannel,
@@ -120,6 +121,7 @@ from .mall import (
     SETTLEMENT_STATUS_ALL,
     SupplierSettlementStatus,
     execute_supplier_settlement_export,
+    execute_supplier_settlement_generation,
     get_supplier_settlement_detail,
     list_supplier_settlements,
     unpublish_product,
@@ -172,6 +174,7 @@ from .admin_permissions import (
     can_export_mall_member_points,
     can_view_mall_member_points,
     can_export_mall_supplier_settlements,
+    can_perform_mall_audit_action,
     can_view_mall_supplier_settlements,
 )
 
@@ -8991,7 +8994,25 @@ def mall_settlements_page(
         except ValueError as exc:
             error = str(exc)
             result = list_supplier_settlements(db)
-        return templates.TemplateResponse(
+        can_generate = (
+            can_view_mall_supplier_settlements(user)
+            and can_perform_mall_audit_action(
+                user, MallAuditActionType.SUPPLIER_SETTLEMENT_GENERATE
+            )
+        )
+        suppliers = ()
+        if can_generate:
+            suppliers = tuple(
+                db.query(
+                    models.Supplier.id,
+                    models.Supplier.supplier_public_id,
+                    models.Supplier.name,
+                )
+                .order_by(models.Supplier.name.asc(), models.Supplier.id.asc())
+                .all()
+            )
+        csrf_token = secrets.token_urlsafe(32) if can_generate else ""
+        response = templates.TemplateResponse(
             request=request,
             name="mall_settlements.html",
             context=add_base_context(request, {
@@ -9006,10 +9027,78 @@ def mall_settlements_page(
                 "status_confirmed": SupplierSettlementStatus.CONFIRMED.value,
                 "allowed_page_sizes": (10, 20, 50),
                 "error": error or None,
+                "can_generate_settlement": can_generate,
+                "settlement_suppliers": suppliers,
+                "settlement_csrf_token": csrf_token,
             }),
         )
+        if can_generate:
+            response.set_cookie(
+                "mall_settlement_csrf", csrf_token,
+                httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+                path="/mall-settlements",
+            )
+        return response
     finally:
         db.close()
+
+
+@app.post("/mall-settlements/generate")
+def generate_mall_settlement_route(
+    request: Request,
+    supplier_id: int = Form(...),
+    period_start: str = Form(...),
+    period_end: str = Form(...),
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        not can_view_mall_supplier_settlements(user)
+        or not can_perform_mall_audit_action(
+            user, MallAuditActionType.SUPPLIER_SETTLEMENT_GENERATE
+        )
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    cookie_token = request.cookies.get("mall_settlement_csrf", "")
+    if (
+        len(cookie_token) < 32
+        or not secrets.compare_digest(cookie_token, csrf_token)
+    ):
+        return RedirectResponse(
+            url=(
+                "/mall-settlements?"
+                + urlencode({"error": "表单已失效，请刷新页面重试"})
+            ),
+            status_code=303,
+        )
+    try:
+        start = datetime.strptime(period_start, "%Y-%m-%dT%H:%M")
+        end = datetime.strptime(period_end, "%Y-%m-%dT%H:%M")
+        if (
+            start.strftime("%Y-%m-%dT%H:%M") != period_start
+            or end.strftime("%Y-%m-%dT%H:%M") != period_end
+        ):
+            raise ValueError("结算时间格式无效")
+        generated = execute_supplier_settlement_generation(
+            engine,
+            actor_admin_id=user.id,
+            supplier_id=supplier_id,
+            period_start=start,
+            period_end=end,
+        )
+    except (ValueError, PermissionError) as exc:
+        return RedirectResponse(
+            url=f"/mall-settlements?{urlencode({'error': str(exc)})}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/mall-settlements/{generated.settlement_public_id}",
+        status_code=303,
+    )
 
 
 @app.get(
