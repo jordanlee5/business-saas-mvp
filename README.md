@@ -189,7 +189,8 @@ python -m app.points_expiry_task --upcoming-days 30
 - M6-6 在同一列表页为启用中的运营管理员提供结算生成表单，提交时先验证账号与表单令牌，再调用 M6-2 原子生成服务；无合格订单项不创建空批次，成功后跳转详情，边界见 [结算生成后台入口说明](docs/supplier-settlement-generation-admin.md)；
 - M6-7 在待确认批次详情页仅对启用中的超级管理员显示确认按钮，提交时校验账号与表单令牌，调用 M6-3 原子确认服务复核来源并写入唯一确认审计，边界见 [结算确认后台入口说明](docs/supplier-settlement-confirmation-admin.md)；
 - M6-8 在 `/mall-orders` 增加仅限启用中的超级管理员和运营管理员查看的订单只读列表与快照详情，核对订单项、积分分配与主订单合计，见 [订单后台只读入口说明](docs/mall-orders-admin-readonly.md)；
-- 商品/库存 Excel、订单写操作页面、小程序下单 API、部分退款、异常人工恢复，以及结算撤销、支付和冲销仍按后续切片独立实现。
+- M6-9 在待处理订单详情加入确认履约表单，仅允许启用中的超级管理员和运营管理员提交，复用原子履约服务完成积分消费、库存出库和审计，见 [订单确认履约后台入口说明](docs/mall-order-fulfillment-admin.md)；
+- 商品/库存 Excel、订单发货/完成/退款页面、小程序下单 API、部分退款、异常人工恢复，以及结算撤销、支付和冲销仍按后续切片独立实现。
 
 ## 数据库、上传目录与迁移边界
 
@@ -273,7 +274,7 @@ python -m app.migration_upgrade_rehearsal
 
 ## 测试基线
 
-在当前 M6-8 工作副本上，完整依赖环境中的回归命令为：
+在当前 M6-9 工作副本上，完整依赖环境中的回归命令为：
 
 ```powershell
 python -m compileall app migrations
@@ -281,7 +282,7 @@ python -m unittest discover -v
 ```
 
 - Python 静态编译：通过；
-- M6-8 专项及关联回归 `Ran 70 tests`、`OK`，全量回归 `Ran 600 tests`、`OK (skipped=4)`；4 个 PostgreSQL 实连接集成类需在独立测试数据库中另行验收；
+- M6-9 专项及关联回归 `Ran 74 tests`、`OK`，全量回归 `Ran 604 tests`、`OK (skipped=4)`；4 个 PostgreSQL 实连接集成类需在独立测试数据库中另行验收；
 - `test_ocr_env.py` 还会检查本机 OCR 依赖；若没有测试图片，只会提示文件不存在；
 - 每轮功能提交仍需执行相关专项测试、全量测试和对应页面冒烟测试；
 - 现金返现链路的回归测试必须长期保留，商城开发不得减少或绕过现有测试。

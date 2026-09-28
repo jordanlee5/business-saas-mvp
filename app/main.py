@@ -138,6 +138,7 @@ from .mall.order_reporting_service import (
     get_mall_order_detail,
     list_mall_orders,
 )
+from .mall.order_fulfillment_service import execute_order_fulfillment
 from .notification_service import (
     create_business_batch_uploaded_notifications,
     get_unread_business_batch_notifications,
@@ -9023,7 +9024,12 @@ def mall_orders_page(
 
 
 @app.get("/mall-orders/{order_public_id}", response_class=HTMLResponse)
-def mall_order_detail_page(request: Request, order_public_id: str):
+def mall_order_detail_page(
+    request: Request,
+    order_public_id: str,
+    error: str = Query(""),
+    message: str = Query(""),
+):
     user = get_current_user(request)
     if user is None:
         return RedirectResponse(url="/login", status_code=302)
@@ -9038,15 +9044,78 @@ def mall_order_detail_page(request: Request, order_public_id: str):
                 url=f"/mall-orders?{urlencode({'error': str(exc)})}",
                 status_code=302,
             )
-        return templates.TemplateResponse(
+        can_fulfill = (
+            detail.order.status == "CREATED"
+            and can_perform_mall_audit_action(
+                user, MallAuditActionType.ORDER_FULFILL
+            )
+        )
+        csrf_token = secrets.token_urlsafe(32) if can_fulfill else ""
+        response = templates.TemplateResponse(
             request=request, name="mall_order_detail.html",
             context=add_base_context(request, {
                 "request": request, "page_title": "商城订单详情",
                 "active_page": "mall_orders", "detail": detail,
+                "can_fulfill_order": can_fulfill,
+                "order_fulfill_csrf_token": csrf_token,
+                "error": error or None,
+                "message": message or None,
             }),
         )
+        if can_fulfill:
+            response.set_cookie(
+                "mall_order_fulfill_csrf", csrf_token,
+                httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+                path="/mall-orders",
+            )
+        return response
     finally:
         db.close()
+
+
+@app.post("/mall-orders/{order_public_id}/fulfill")
+def fulfill_mall_order_route(
+    request: Request,
+    order_public_id: str,
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        getattr(user, "is_active", False) is not True
+        or not can_manage_mall_orders(user)
+        or not can_perform_mall_audit_action(
+            user, MallAuditActionType.ORDER_FULFILL
+        )
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    detail_url = f"/mall-orders/{quote(order_public_id, safe='')}"
+    cookie_token = request.cookies.get("mall_order_fulfill_csrf", "")
+    if (
+        len(cookie_token) < 32
+        or not secrets.compare_digest(cookie_token, csrf_token)
+    ):
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': '表单已失效，请刷新详情重试'})}",
+            status_code=303,
+        )
+    try:
+        execute_order_fulfillment(
+            engine,
+            actor_admin_id=user.id,
+            order_public_id=order_public_id,
+        )
+    except (ValueError, PermissionError, RuntimeError) as exc:
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': str(exc)})}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"{detail_url}?{urlencode({'message': '订单已确认履约，等待发货'})}",
+        status_code=303,
+    )
 
 
 @app.get("/mall-settlements", response_class=HTMLResponse)

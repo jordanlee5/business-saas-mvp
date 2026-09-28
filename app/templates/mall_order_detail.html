@@ -10,10 +10,15 @@
   .mall-order-detail table { width: 100%; border-collapse: collapse; }
   .mall-order-detail th, .mall-order-detail td { padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
   .mall-order-detail th { background: #f8fafc; }
+  .mall-order-detail .notice { padding: 12px 14px; margin: 14px 0; border-radius: 8px; background: #eff6ff; color: #1e40af; }
+  .mall-order-detail .notice.error { background: #fef2f2; color: #b91c1c; }
+  .mall-order-detail .fulfill { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
 </style>
 <div class="mall-order-detail page-card">
   <div class="page-header"><h1 class="page-title">订单详情</h1><a class="btn btn-secondary" href="/mall-orders">返回订单列表</a></div>
-  <p>下单快照与状态信息仅供核对；此页面不执行订单操作。</p>
+  <p>下单快照与状态信息供履约核对；其他订单操作后续开放。</p>
+  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+  {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
   <dl class="facts">
     <div><dt>订单编号</dt><dd>{{ detail.order.order_public_id }}</dd></div>
     <div><dt>会员编号</dt><dd>{{ detail.order.member_public_id }}</dd></div>
@@ -25,6 +30,16 @@
     <div><dt>完成时间</dt><dd>{% if detail.completed_at %}{{ detail.completed_at | format_utc8 }}{% else %}—{% endif %}</dd></div>
     <div><dt>退款记录</dt><dd>{% if detail.refunded_at %}{{ detail.refunded_at | format_utc8 }} · {{ detail.refund_reason }}{% else %}—{% endif %}</dd></div>
   </dl>
+  {% if can_fulfill_order %}
+  <div class="fulfill">
+    <h2>确认订单履约</h2>
+    <p>确认后将原子消费本单预占的积分并出库，订单转为待发货；请先核对商品和数量。确认后不能在本页撤回。</p>
+    <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/fulfill">
+      <input type="hidden" name="csrf_token" value="{{ order_fulfill_csrf_token }}">
+      <button class="btn btn-primary" type="submit">确认履约</button>
+    </form>
+  </div>
+  {% endif %}
   <div class="table-wrap"><table>
     <thead><tr><th>商品 / SKU</th><th>供应商</th><th>积分单价</th><th>成本单价（元）</th><th>数量</th><th>积分小计</th><th>成本小计（元）</th></tr></thead>
     <tbody>{% for item in detail.items %}<tr>
