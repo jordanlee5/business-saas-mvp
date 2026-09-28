@@ -12,11 +12,14 @@
   .mall-order-detail th { background: #f8fafc; }
   .mall-order-detail .notice { padding: 12px 14px; margin: 14px 0; border-radius: 8px; background: #eff6ff; color: #1e40af; }
   .mall-order-detail .notice.error { background: #fef2f2; color: #b91c1c; }
-  .mall-order-detail .fulfill { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+  .mall-order-detail .fulfill, .mall-order-detail .ship { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+  .mall-order-detail .ship-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .mall-order-detail .ship-fields label { display: grid; gap: 5px; min-width: 220px; }
+  .mall-order-detail .ship-fields input { padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; }
 </style>
 <div class="mall-order-detail page-card">
   <div class="page-header"><h1 class="page-title">订单详情</h1><a class="btn btn-secondary" href="/mall-orders">返回订单列表</a></div>
-  <p>下单快照与状态信息供履约核对；其他订单操作后续开放。</p>
+  <p>下单快照与状态信息供履约及发货核对；其他订单操作后续开放。</p>
   {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
   {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
   <dl class="facts">
@@ -37,6 +40,20 @@
     <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/fulfill">
       <input type="hidden" name="csrf_token" value="{{ order_fulfill_csrf_token }}">
       <button class="btn btn-primary" type="submit">确认履约</button>
+    </form>
+  </div>
+  {% endif %}
+  {% if can_ship_order %}
+  <div class="ship">
+    <h2>录入物流并发货</h2>
+    <p>请核对商品和数量后填写物流公司、运单号。提交后订单转为已发货；物流事实与管理员审计会一同保存。</p>
+    <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/ship">
+      <input type="hidden" name="csrf_token" value="{{ order_ship_csrf_token }}">
+      <div class="ship-fields">
+        <label>物流公司<input name="shipping_carrier" type="text" required maxlength="100" autocomplete="off"></label>
+        <label>运单号<input name="tracking_number" type="text" required maxlength="100" autocomplete="off"></label>
+        <button class="btn btn-primary" type="submit">确认发货</button>
+      </div>
     </form>
   </div>
   {% endif %}

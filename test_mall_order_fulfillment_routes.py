@@ -91,7 +91,7 @@ class MallOrderFulfillmentRouteTests(unittest.TestCase):
         ):
             detail = mall_order_detail_page(request(self.path), self.placed.order_public_id)
         self.assertNotIn("确认订单履约".encode(), detail.body)
-        self.assertNotIn("set-cookie", detail.headers)
+        self.assertNotIn("mall_order_fulfill_csrf", detail.headers.get("set-cookie", ""))
 
     def test_missing_and_mismatched_form_tokens_cannot_mutate(self):
         token = self._form()
