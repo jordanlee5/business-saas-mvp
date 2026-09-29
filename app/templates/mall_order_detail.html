@@ -12,14 +12,15 @@
   .mall-order-detail th { background: #f8fafc; }
   .mall-order-detail .notice { padding: 12px 14px; margin: 14px 0; border-radius: 8px; background: #eff6ff; color: #1e40af; }
   .mall-order-detail .notice.error { background: #fef2f2; color: #b91c1c; }
-  .mall-order-detail .fulfill, .mall-order-detail .ship, .mall-order-detail .complete { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+  .mall-order-detail .fulfill, .mall-order-detail .ship, .mall-order-detail .complete, .mall-order-detail .refund { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
   .mall-order-detail .ship-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
   .mall-order-detail .ship-fields label { display: grid; gap: 5px; min-width: 220px; }
   .mall-order-detail .ship-fields input { padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .mall-order-detail .refund textarea { display: block; width: min(100%, 640px); min-height: 80px; margin: 8px 0 12px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
 </style>
 <div class="mall-order-detail page-card">
   <div class="page-header"><h1 class="page-title">订单详情</h1><a class="btn btn-secondary" href="/mall-orders">返回订单列表</a></div>
-  <p>下单快照与状态信息供履约、发货及完成核对；退款等其他订单操作后续开放。</p>
+  <p>下单快照与状态信息供履约、发货、完成及整单退款核对。</p>
   {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
   {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
   <dl class="facts">
@@ -64,6 +65,18 @@
     <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/complete">
       <input type="hidden" name="csrf_token" value="{{ order_complete_csrf_token }}">
       <button class="btn btn-primary" type="submit">确认完成</button>
+    </form>
+  </div>
+  {% endif %}
+  {% if can_refund_order %}
+  <div class="refund">
+    <h2>整单退款</h2>
+    <p>退款将按原积分批次退回积分并退回商品库存。已进入供应商结算批次、原积分批次已到期或证据异常的订单不能自动退款；提交后不能在本页撤回。</p>
+    <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/refund">
+      <input type="hidden" name="csrf_token" value="{{ order_refund_csrf_token }}">
+      <label for="refund-reason">退款原因（必填，最多 500 字）</label>
+      <textarea id="refund-reason" name="reason" required maxlength="500"></textarea>
+      <button class="btn btn-primary" type="submit">确认整单退款</button>
     </form>
   </div>
   {% endif %}

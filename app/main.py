@@ -140,6 +140,7 @@ from .mall.order_reporting_service import (
 )
 from .mall.order_fulfillment_service import execute_order_fulfillment
 from .mall.order_lifecycle_service import execute_order_completion, execute_order_shipping
+from .mall.order_refund_service import execute_order_refund
 from .notification_service import (
     create_business_batch_uploaded_notifications,
     get_unread_business_batch_notifications,
@@ -9063,9 +9064,16 @@ def mall_order_detail_page(
                 user, MallAuditActionType.ORDER_COMPLETE
             )
         )
+        can_refund = (
+            detail.order.status == "COMPLETED"
+            and can_perform_mall_audit_action(
+                user, MallAuditActionType.ORDER_REFUND
+            )
+        )
         csrf_token = secrets.token_urlsafe(32) if can_fulfill else ""
         ship_csrf_token = secrets.token_urlsafe(32) if can_ship else ""
         complete_csrf_token = secrets.token_urlsafe(32) if can_complete else ""
+        refund_csrf_token = secrets.token_urlsafe(32) if can_refund else ""
         response = templates.TemplateResponse(
             request=request, name="mall_order_detail.html",
             context=add_base_context(request, {
@@ -9077,6 +9085,8 @@ def mall_order_detail_page(
                 "order_ship_csrf_token": ship_csrf_token,
                 "can_complete_order": can_complete,
                 "order_complete_csrf_token": complete_csrf_token,
+                "can_refund_order": can_refund,
+                "order_refund_csrf_token": refund_csrf_token,
                 "error": error or None,
                 "message": message or None,
             }),
@@ -9098,6 +9108,13 @@ def mall_order_detail_page(
         if can_complete:
             response.set_cookie(
                 "mall_order_complete_csrf", complete_csrf_token,
+                httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+                path="/mall-orders",
+            )
+        if can_refund:
+            response.set_cookie(
+                "mall_order_refund_csrf", refund_csrf_token,
                 httponly=True, samesite="strict",
                 secure=request.url.scheme == "https",
                 path="/mall-orders",
@@ -9239,6 +9256,52 @@ def complete_mall_order_route(
         )
     return RedirectResponse(
         url=f"{detail_url}?{urlencode({'message': '订单已确认完成'})}",
+        status_code=303,
+    )
+
+
+@app.post("/mall-orders/{order_public_id}/refund")
+def refund_mall_order_route(
+    request: Request,
+    order_public_id: str,
+    reason: str = Form(""),
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        getattr(user, "is_active", False) is not True
+        or not can_manage_mall_orders(user)
+        or not can_perform_mall_audit_action(
+            user, MallAuditActionType.ORDER_REFUND
+        )
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    detail_url = f"/mall-orders/{quote(order_public_id, safe='')}"
+    cookie_token = request.cookies.get("mall_order_refund_csrf", "")
+    if (
+        len(cookie_token) < 32
+        or not secrets.compare_digest(cookie_token, csrf_token)
+    ):
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': '表单已失效，请刷新详情重试'})}",
+            status_code=303,
+        )
+    try:
+        execute_order_refund(
+            engine,
+            actor_admin_id=user.id,
+            order_public_id=order_public_id,
+            reason=reason,
+        )
+    except (ValueError, PermissionError, RuntimeError) as exc:
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': str(exc)})}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"{detail_url}?{urlencode({'message': '整单退款已完成'})}",
         status_code=303,
     )
 
