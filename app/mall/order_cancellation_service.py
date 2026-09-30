@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from ..time_utils import UTC8_TIMEZONE, utc8_now
+from .audit import MallAuditActionType
 from .domain import PointsGrantStatus, PointsLedgerEntryType
 from .inventory_service import (
     assert_inventory_balance_consistent,
@@ -86,6 +87,7 @@ def _validate_inventory_evidence(
     order,
     items,
     expect_released,
+    actor_admin_id=None,
 ):
     from ..models import InventoryMovement
 
@@ -138,8 +140,8 @@ def _validate_inventory_evidence(
             and release.movement_type == "RELEASE"
             and release.quantity_delta == 0
             and release.reserved_quantity_delta == -item.quantity
-            and release.actor_admin_id is None
-            and release.actor_member_id == order.member_id
+            and release.actor_admin_id == actor_admin_id
+            and release.actor_member_id == (None if actor_admin_id else order.member_id)
             and release.reason
             == f"订单 {order.order_public_id} 取消释放库存"
         )
@@ -155,6 +157,7 @@ def _validate_points_evidence(
     order,
     allocations,
     expect_released,
+    actor_admin_id=None,
 ):
     from ..models import PointsLedgerEntry
 
@@ -208,7 +211,7 @@ def _validate_points_evidence(
             and release.entry_type == PointsLedgerEntryType.RELEASE.value
             and Decimal(release.available_points_delta) == points
             and Decimal(release.reserved_points_delta) == -points
-            and release.actor_admin_id is None
+            and release.actor_admin_id == actor_admin_id
             and release.reason == POINTS_RELEASE_REASON
         )
         if not valid_release:
@@ -295,17 +298,26 @@ def _load_locked_resources(db, *, order):
 def cancel_created_order(
     db,
     *,
-    member_id: int,
+    member_id: int | None = None,
     order_public_id,
+    actor_admin_id: int | None = None,
+    reason: str | None = None,
     now=None,
 ) -> OrderCancellationResult:
     """取消 CREATED 订单并原子释放库存、积分预占；调用方负责提交。"""
-    from ..models import Member, Order, PointsLedgerEntry
+    from ..admin_permissions import can_perform_mall_audit_action
+    from ..models import AdminActionLog, Member, Order, PointsLedgerEntry, User
 
-    normalized_member_id = _normalize_positive_integer(
-        member_id,
-        field_name="会员",
-    )
+    admin_mode = actor_admin_id is not None
+    if admin_mode:
+        if member_id is not None:
+            raise ValueError("取消操作者不能同时为会员和管理员")
+        actor_id = _normalize_positive_integer(actor_admin_id, field_name="管理员")
+        reason = _normalize_required_text(reason, field_name="取消原因", maximum_length=500)
+    else:
+        normalized_member_id = _normalize_positive_integer(member_id, field_name="会员")
+        if reason is not None:
+            raise ValueError("会员取消不接受管理员原因")
     normalized_order_public_id = _normalize_required_text(
         order_public_id,
         field_name="订单编号",
@@ -320,22 +332,47 @@ def cancel_created_order(
         .populate_existing()
         .one_or_none()
     )
-    if order is None or order.member_id != normalized_member_id:
+    if order is None or (not admin_mode and order.member_id != normalized_member_id):
         raise ValueError("订单不存在")
     if order.status not in (ORDER_CREATED_STATUS, ORDER_CANCELLED_STATUS):
         raise ValueError("当前订单状态不允许取消")
+    if admin_mode:
+        actor = (
+            db.query(User).filter(User.id == actor_id)
+            .with_for_update().populate_existing().one_or_none()
+        )
+        if (actor is None or actor.is_active is not True
+                or not can_perform_mall_audit_action(actor, MallAuditActionType.ORDER_CANCEL)):
+            raise PermissionError("无商城订单取消权限")
 
     member = (
         db.query(Member)
-        .filter(Member.id == normalized_member_id)
+        .filter(Member.id == order.member_id)
         .with_for_update()
         .populate_existing()
         .one_or_none()
     )
     if member is None:
         raise ValueError("会员不存在")
-    if order.status == ORDER_CREATED_STATUS and member.is_active is not True:
+    if order.status == ORDER_CREATED_STATUS and not admin_mode and member.is_active is not True:
         raise ValueError("会员不存在或已停用")
+
+    logs = (
+        db.query(AdminActionLog).filter_by(
+            action_type=MallAuditActionType.ORDER_CANCEL.value,
+            target_type="mall_order", target_id=order.id,
+        ).all()
+    )
+    if len(logs) > 1 or (order.status == ORDER_CREATED_STATUS and logs):
+        raise RuntimeError("订单取消审计证据异常")
+    if order.status == ORDER_CANCELLED_STATUS:
+        if admin_mode:
+            if (len(logs) != 1 or logs[0].admin_id != actor.id
+                    or logs[0].description != f"订单 {order.order_public_id} 取消：{reason}"):
+                raise ValueError("订单已取消，取消原因或操作者不一致")
+        elif logs:
+            raise ValueError("订单已由管理员取消")
+    evidence_actor_id = logs[0].admin_id if logs else None
 
     items, allocations, account, grants = _load_locked_resources(
         db,
@@ -347,12 +384,14 @@ def cancel_created_order(
         order=order,
         items=items,
         expect_released=replayed,
+        actor_admin_id=evidence_actor_id,
     )
     points_release_ids = _validate_points_evidence(
         db,
         order=order,
         allocations=allocations,
         expect_released=replayed,
+        actor_admin_id=evidence_actor_id,
     )
     if replayed:
         return OrderCancellationResult(
@@ -370,6 +409,7 @@ def cancel_created_order(
         result = release_inventory_for_order(
             db,
             member_id=member.id,
+            actor_admin_id=actor.id if admin_mode else None,
             sku_id=item.sku_id,
             quantity=item.quantity,
             order_public_id=order.order_public_id,
@@ -409,7 +449,7 @@ def cancel_created_order(
             ),
             reference_type=ORDER_REFERENCE_TYPE,
             reference_id=order.order_public_id,
-            actor_admin_id=None,
+            actor_admin_id=actor.id if admin_mode else None,
             reason=POINTS_RELEASE_REASON,
             created_at=operation_time,
         )
@@ -428,6 +468,15 @@ def cancel_created_order(
     order.status = ORDER_CANCELLED_STATUS
     order.updated_at = operation_time
     db.flush()
+    if admin_mode:
+        db.add(AdminActionLog(
+            admin_id=actor.id,
+            action_type=MallAuditActionType.ORDER_CANCEL.value,
+            target_type="mall_order", target_id=order.id,
+            description=f"订单 {order.order_public_id} 取消：{reason}",
+            created_at=operation_time,
+        ))
+        db.flush()
     assert_points_account_balance_consistent(db, account_id=account.id)
 
     verified_inventory_ids = _validate_inventory_evidence(
@@ -435,12 +484,14 @@ def cancel_created_order(
         order=order,
         items=items,
         expect_released=True,
+        actor_admin_id=actor.id if admin_mode else None,
     )
     verified_points_ids = _validate_points_evidence(
         db,
         order=order,
         allocations=allocations,
         expect_released=True,
+        actor_admin_id=actor.id if admin_mode else None,
     )
     if (
         verified_inventory_ids != tuple(inventory_release_ids)

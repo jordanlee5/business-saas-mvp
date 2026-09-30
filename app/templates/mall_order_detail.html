@@ -12,15 +12,15 @@
   .mall-order-detail th { background: #f8fafc; }
   .mall-order-detail .notice { padding: 12px 14px; margin: 14px 0; border-radius: 8px; background: #eff6ff; color: #1e40af; }
   .mall-order-detail .notice.error { background: #fef2f2; color: #b91c1c; }
-  .mall-order-detail .fulfill, .mall-order-detail .ship, .mall-order-detail .complete, .mall-order-detail .refund { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+  .mall-order-detail .fulfill, .mall-order-detail .cancel, .mall-order-detail .ship, .mall-order-detail .complete, .mall-order-detail .refund { padding: 16px; margin: 20px 0; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
   .mall-order-detail .ship-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
   .mall-order-detail .ship-fields label { display: grid; gap: 5px; min-width: 220px; }
   .mall-order-detail .ship-fields input { padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; }
-  .mall-order-detail .refund textarea { display: block; width: min(100%, 640px); min-height: 80px; margin: 8px 0 12px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+  .mall-order-detail .refund textarea, .mall-order-detail .cancel textarea { display: block; width: min(100%, 640px); min-height: 80px; margin: 8px 0 12px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
 </style>
 <div class="mall-order-detail page-card">
   <div class="page-header"><h1 class="page-title">订单详情</h1><a class="btn btn-secondary" href="/mall-orders">返回订单列表</a></div>
-  <p>下单快照与状态信息供履约、发货、完成及整单退款核对。</p>
+  <p>下单快照与状态信息供取消、履约、发货、完成及整单退款核对。</p>
   {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
   {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
   <dl class="facts">
@@ -34,6 +34,18 @@
     <div><dt>完成时间</dt><dd>{% if detail.completed_at %}{{ detail.completed_at | format_utc8 }}{% else %}—{% endif %}</dd></div>
     <div><dt>退款记录</dt><dd>{% if detail.refunded_at %}{{ detail.refunded_at | format_utc8 }} · {{ detail.refund_reason }}{% else %}—{% endif %}</dd></div>
   </dl>
+  {% if can_cancel_order %}
+  <div class="cancel">
+    <h2>取消待处理订单</h2>
+    <p>取消后将原子释放本单预占的积分和库存。请核对订单与商品；已进入履约的订单不能取消。</p>
+    <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/cancel">
+      <input type="hidden" name="csrf_token" value="{{ order_cancel_csrf_token }}">
+      <label for="cancel-reason">取消原因（必填，最多 500 字）</label>
+      <textarea id="cancel-reason" name="reason" required maxlength="500"></textarea>
+      <button class="btn btn-secondary" type="submit">确认取消订单</button>
+    </form>
+  </div>
+  {% endif %}
   {% if can_fulfill_order %}
   <div class="fulfill">
     <h2>确认订单履约</h2>

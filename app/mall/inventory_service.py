@@ -511,6 +511,7 @@ def release_inventory_for_order(
     db,
     *,
     member_id: int,
+    actor_admin_id: int | None = None,
     sku_id: int,
     quantity,
     order_public_id,
@@ -545,6 +546,12 @@ def release_inventory_for_order(
     ):
         raise ValueError("会员无效")
 
+    actor = (
+        _require_actor(
+            db, actor_admin_id=actor_admin_id,
+            action_type=MallAuditActionType.ORDER_CANCEL,
+        ) if actor_admin_id is not None else None
+    )
     member = (
         db.query(Member)
         .filter(Member.id == member_id)
@@ -578,8 +585,8 @@ def release_inventory_for_order(
     existing = _find_idempotent_movement(db, normalized_idempotency_key)
     if existing is not None:
         same_request = (
-            existing.actor_admin_id is None
-            and existing.actor_member_id == member.id
+            existing.actor_admin_id == (actor.id if actor else None)
+            and existing.actor_member_id == (None if actor else member.id)
             and existing.sku_id == sku.id
             and existing.movement_type == InventoryMovementType.RELEASE.value
             and existing.quantity_delta == 0
@@ -633,8 +640,8 @@ def release_inventory_for_order(
         balance_version=version_before + 1,
         idempotency_key=normalized_idempotency_key,
         reason=f"订单 {normalized_order_public_id} 取消释放库存",
-        actor_admin_id=None,
-        actor_member_id=member.id,
+        actor_admin_id=actor.id if actor else None,
+        actor_member_id=None if actor else member.id,
         reference_type="ORDER",
         reference_id=normalized_order_public_id,
         created_at=operation_time,

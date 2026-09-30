@@ -19,6 +19,7 @@ from app.mall import (
     record_initial_points_grant,
 )
 from app.models import (
+    AdminActionLog,
     BusinessRecord,
     InventoryBalance,
     InventoryMovement,
@@ -232,6 +233,7 @@ class PostgreSQLOrderCancellationIntegrationTests(unittest.TestCase):
                 )
                 db.commit()
                 member_id = member.id
+                operator_id = operator.id
                 account_id = account.id
                 sku_id = sku.id
 
@@ -284,6 +286,32 @@ class PostgreSQLOrderCancellationIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+            admin_order = execute_order_placement(
+                engine,
+                member_id=member_id,
+                lines=(OrderLineRequest(sku_id, 1),),
+                idempotency_key="pg-order-admin-placement",
+                now=NOW + timedelta(minutes=2),
+            )
+            first = execute_order_cancellation(
+                engine, actor_admin_id=operator_id,
+                order_public_id=admin_order.order_public_id,
+                reason="运营核对后取消", now=NOW + timedelta(minutes=3),
+            )
+            replay = execute_order_cancellation(
+                engine, actor_admin_id=operator_id,
+                order_public_id=admin_order.order_public_id,
+                reason="运营核对后取消", now=NOW + timedelta(minutes=4),
+            )
+            self.assertFalse(first.replayed)
+            self.assertTrue(replay.replayed)
+            with Session() as db:
+                log = db.query(AdminActionLog).filter_by(
+                    action_type="mall_order_cancel", target_id=admin_order.order_id,
+                ).one()
+                self.assertEqual(log.admin_id, operator_id)
+                self.assertEqual(db.query(PointsLedgerEntry).filter_by(entry_type="RELEASE").count(), 2)
+                self.assertEqual(db.query(InventoryMovement).filter_by(movement_type="RELEASE").count(), 2)
         finally:
             if engine is not None:
                 try:

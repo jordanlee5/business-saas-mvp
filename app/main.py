@@ -141,6 +141,7 @@ from .mall.order_reporting_service import (
 from .mall.order_fulfillment_service import execute_order_fulfillment
 from .mall.order_lifecycle_service import execute_order_completion, execute_order_shipping
 from .mall.order_refund_service import execute_order_refund
+from .mall.order_cancellation_service import execute_order_cancellation
 from .notification_service import (
     create_business_batch_uploaded_notifications,
     get_unread_business_batch_notifications,
@@ -9052,6 +9053,10 @@ def mall_order_detail_page(
                 user, MallAuditActionType.ORDER_FULFILL
             )
         )
+        can_cancel = (
+            detail.order.status == "CREATED"
+            and can_perform_mall_audit_action(user, MallAuditActionType.ORDER_CANCEL)
+        )
         can_ship = (
             detail.order.status == "FULFILLING"
             and can_perform_mall_audit_action(
@@ -9071,6 +9076,7 @@ def mall_order_detail_page(
             )
         )
         csrf_token = secrets.token_urlsafe(32) if can_fulfill else ""
+        cancel_csrf_token = secrets.token_urlsafe(32) if can_cancel else ""
         ship_csrf_token = secrets.token_urlsafe(32) if can_ship else ""
         complete_csrf_token = secrets.token_urlsafe(32) if can_complete else ""
         refund_csrf_token = secrets.token_urlsafe(32) if can_refund else ""
@@ -9080,6 +9086,8 @@ def mall_order_detail_page(
                 "request": request, "page_title": "商城订单详情",
                 "active_page": "mall_orders", "detail": detail,
                 "can_fulfill_order": can_fulfill,
+                "can_cancel_order": can_cancel,
+                "order_cancel_csrf_token": cancel_csrf_token,
                 "order_fulfill_csrf_token": csrf_token,
                 "can_ship_order": can_ship,
                 "order_ship_csrf_token": ship_csrf_token,
@@ -9097,6 +9105,12 @@ def mall_order_detail_page(
                 httponly=True, samesite="strict",
                 secure=request.url.scheme == "https",
                 path="/mall-orders",
+            )
+        if can_cancel:
+            response.set_cookie(
+                "mall_order_cancel_csrf", cancel_csrf_token,
+                httponly=True, samesite="strict",
+                secure=request.url.scheme == "https", path="/mall-orders",
             )
         if can_ship:
             response.set_cookie(
@@ -9302,6 +9316,45 @@ def refund_mall_order_route(
         )
     return RedirectResponse(
         url=f"{detail_url}?{urlencode({'message': '整单退款已完成'})}",
+        status_code=303,
+    )
+
+
+@app.post("/mall-orders/{order_public_id}/cancel")
+def cancel_mall_order_route(
+    request: Request,
+    order_public_id: str,
+    reason: str = Form(""),
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        getattr(user, "is_active", False) is not True
+        or not can_manage_mall_orders(user)
+        or not can_perform_mall_audit_action(user, MallAuditActionType.ORDER_CANCEL)
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    detail_url = f"/mall-orders/{quote(order_public_id, safe='')}"
+    cookie_token = request.cookies.get("mall_order_cancel_csrf", "")
+    if len(cookie_token) < 32 or not secrets.compare_digest(cookie_token, csrf_token):
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': '表单已失效，请刷新详情重试'})}",
+            status_code=303,
+        )
+    try:
+        execute_order_cancellation(
+            engine, actor_admin_id=user.id,
+            order_public_id=order_public_id, reason=reason,
+        )
+    except (ValueError, PermissionError, RuntimeError) as exc:
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'error': str(exc)})}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"{detail_url}?{urlencode({'message': '订单已取消，预占积分与库存已释放'})}",
         status_code=303,
     )
 
