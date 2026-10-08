@@ -9,6 +9,7 @@ from ..time_utils import UTC8_TIMEZONE, utc8_now
 from .domain import PointsGrantStatus, PointsLedgerEntryType, ProductStatus
 from .inventory_service import reserve_inventory_for_order
 from .points_ledger_service import assert_points_account_balance_consistent
+from .order_state_machine import initial_order_status
 
 
 ORDER_PUBLIC_ID_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -329,7 +330,7 @@ def place_order_with_reservations(
         order_public_id=_generate_order_public_id(db),
         idempotency_key=normalized_key,
         member_id=member.id,
-        status="CREATED",
+        status=initial_order_status(),
         total_points=total_points,
         total_cost_amount=total_cost,
         total_quantity=total_quantity,

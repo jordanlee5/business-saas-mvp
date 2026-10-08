@@ -12,7 +12,9 @@ from .inventory_service import (
     outbound_reserved_inventory_for_order,
 )
 from .points_ledger_service import assert_points_account_balance_consistent
-from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
+from .order_state_machine import (
+    OrderAction, OrderStatus, apply_order_transition, resolve_order_transition,
+)
 
 
 ORDER_REFERENCE_TYPE = "ORDER"
@@ -483,7 +485,7 @@ def fulfill_created_order(
     )
     account.version = (account.version or 0) + 1
     account.updated_at = operation_time
-    order.status = transition.status
+    apply_order_transition(order, OrderAction.FULFILL, expected=transition)
     order.updated_at = operation_time
     db.flush()
     fulfillment_log = AdminActionLog(

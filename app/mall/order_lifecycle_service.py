@@ -11,7 +11,9 @@ from .order_fulfillment_service import (
     _validate_order_totals,
     _validate_points_evidence,
 )
-from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
+from .order_state_machine import (
+    OrderAction, OrderStatus, apply_order_transition, resolve_order_transition,
+)
 
 
 ORDER_FULFILLING_STATUS = OrderStatus.FULFILLING.value
@@ -331,7 +333,7 @@ def ship_fulfilling_order(
     order.shipping_carrier = normalized_carrier
     order.tracking_number = normalized_tracking_number
     order.shipped_at = operation_time
-    order.status = transition.status
+    apply_order_transition(order, OrderAction.SHIP, expected=transition)
     order.updated_at = operation_time
     db.flush()
     shipping_log = AdminActionLog(
@@ -430,7 +432,7 @@ def complete_shipped_order(
     if _time_key(operation_time) < _time_key(order.shipped_at):
         raise ValueError("完成时间不能早于发货时间")
     order.completed_at = operation_time
-    order.status = transition.status
+    apply_order_transition(order, OrderAction.COMPLETE, expected=transition)
     order.updated_at = operation_time
     db.flush()
     completion_log = AdminActionLog(

@@ -21,7 +21,9 @@ from .order_lifecycle_service import (
     _validate_shipping_evidence,
 )
 from .points_ledger_service import assert_points_account_balance_consistent
-from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
+from .order_state_machine import (
+    OrderAction, OrderStatus, apply_order_transition, resolve_order_transition,
+)
 
 
 ORDER_COMPLETED_STATUS = OrderStatus.COMPLETED.value
@@ -482,7 +484,7 @@ def refund_completed_order(
     )
     account.version = (account.version or 0) + 1
     account.updated_at = operation_time
-    order.status = transition.status
+    apply_order_transition(order, OrderAction.REFUND, expected=transition)
     order.refund_reason = normalized_reason
     order.refunded_at = operation_time
     order.updated_at = operation_time

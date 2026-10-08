@@ -47,3 +47,20 @@ def resolve_order_transition(status: str, action: OrderAction) -> OrderTransitio
     if status == target.value:
         return OrderTransition(status=target.value, replayed=True)
     raise ValueError(f"当前订单状态不允许{label}")
+
+
+def initial_order_status() -> str:
+    """创建订单时使用的唯一初始持久化状态。"""
+    return OrderStatus.CREATED.value
+
+
+def apply_order_transition(order, action: OrderAction, *, expected: OrderTransition) -> None:
+    """在领域服务完成证据验证后，只写入已核对的首次状态转换。"""
+    if not isinstance(expected, OrderTransition):
+        raise ValueError("订单状态转换证据无效")
+    current = resolve_order_transition(order.status, action)
+    if current != expected:
+        raise ValueError("订单状态在验证后发生变化")
+    if current.replayed:
+        raise ValueError("订单状态重放不得再次写入")
+    order.status = current.status

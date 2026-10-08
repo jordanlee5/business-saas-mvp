@@ -1,15 +1,58 @@
 """现有订单状态机的允许流转、拒绝和重放约束。"""
 
 import unittest
+from types import SimpleNamespace
 
 from app.mall.order_state_machine import (
     OrderAction,
     OrderStatus,
+    apply_order_transition,
+    initial_order_status,
     resolve_order_transition,
 )
 
 
 class OrderStateMachineTests(unittest.TestCase):
+    def test_order_creation_uses_created_state(self):
+        self.assertEqual(initial_order_status(), OrderStatus.CREATED.value)
+
+    def test_each_first_transition_mutates_only_to_its_target(self):
+        sources = {
+            OrderAction.CANCEL: OrderStatus.CREATED,
+            OrderAction.FULFILL: OrderStatus.CREATED,
+            OrderAction.SHIP: OrderStatus.FULFILLING,
+            OrderAction.COMPLETE: OrderStatus.SHIPPED,
+            OrderAction.REFUND: OrderStatus.COMPLETED,
+        }
+        for action, source in sources.items():
+            with self.subTest(action=action.value):
+                order = SimpleNamespace(status=source.value)
+                transition = resolve_order_transition(order.status, action)
+                apply_order_transition(order, action, expected=transition)
+                self.assertEqual(order.status, transition.status)
+
+    def test_apply_rejects_replay_and_invalid_status_without_mutation(self):
+        for status in (OrderStatus.CANCELLED.value, OrderStatus.REFUNDED.value, "PAID"):
+            with self.subTest(status=status):
+                order = SimpleNamespace(status=status)
+                with self.assertRaises(ValueError):
+                    apply_order_transition(
+                        order, OrderAction.CANCEL,
+                        expected=resolve_order_transition(OrderStatus.CREATED.value, OrderAction.CANCEL),
+                    )
+                self.assertEqual(order.status, status)
+
+    def test_apply_rejects_stale_or_invalid_transition_evidence(self):
+        order = SimpleNamespace(status=OrderStatus.CREATED.value)
+        expected = resolve_order_transition(order.status, OrderAction.CANCEL)
+        order.status = OrderStatus.FULFILLING.value
+        with self.assertRaises(ValueError):
+            apply_order_transition(order, OrderAction.CANCEL, expected=expected)
+        self.assertEqual(order.status, OrderStatus.FULFILLING.value)
+        with self.assertRaises(ValueError):
+            apply_order_transition(order, OrderAction.SHIP, expected=None)
+        self.assertEqual(order.status, OrderStatus.FULFILLING.value)
+
     def test_every_action_accepts_only_source_and_exact_target_replay(self):
         transitions = {
             OrderAction.CANCEL: (OrderStatus.CREATED, OrderStatus.CANCELLED),
