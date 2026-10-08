@@ -12,11 +12,12 @@ from .inventory_service import (
     release_inventory_for_order,
 )
 from .points_ledger_service import assert_points_account_balance_consistent
+from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
 
 
 ORDER_REFERENCE_TYPE = "ORDER"
-ORDER_CREATED_STATUS = "CREATED"
-ORDER_CANCELLED_STATUS = "CANCELLED"
+ORDER_CREATED_STATUS = OrderStatus.CREATED.value
+ORDER_CANCELLED_STATUS = OrderStatus.CANCELLED.value
 POINTS_RELEASE_REASON = "订单取消释放积分"
 ZERO = Decimal("0.00")
 
@@ -334,8 +335,7 @@ def cancel_created_order(
     )
     if order is None or (not admin_mode and order.member_id != normalized_member_id):
         raise ValueError("订单不存在")
-    if order.status not in (ORDER_CREATED_STATUS, ORDER_CANCELLED_STATUS):
-        raise ValueError("当前订单状态不允许取消")
+    transition = resolve_order_transition(order.status, OrderAction.CANCEL)
     if admin_mode:
         actor = (
             db.query(User).filter(User.id == actor_id)
@@ -378,7 +378,7 @@ def cancel_created_order(
         db,
         order=order,
     )
-    replayed = order.status == ORDER_CANCELLED_STATUS
+    replayed = transition.replayed
     inventory_release_ids = _validate_inventory_evidence(
         db,
         order=order,
@@ -465,7 +465,7 @@ def cancel_created_order(
     )
     account.version = (account.version or 0) + 1
     account.updated_at = operation_time
-    order.status = ORDER_CANCELLED_STATUS
+    order.status = transition.status
     order.updated_at = operation_time
     db.flush()
     if admin_mode:

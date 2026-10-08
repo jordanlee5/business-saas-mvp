@@ -21,10 +21,11 @@ from .order_lifecycle_service import (
     _validate_shipping_evidence,
 )
 from .points_ledger_service import assert_points_account_balance_consistent
+from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
 
 
-ORDER_COMPLETED_STATUS = "COMPLETED"
-ORDER_REFUNDED_STATUS = "REFUNDED"
+ORDER_COMPLETED_STATUS = OrderStatus.COMPLETED.value
+ORDER_REFUNDED_STATUS = OrderStatus.REFUNDED.value
 ORDER_REFUND_PERMISSION_MESSAGE = "当前账号无权执行商城订单退款"
 POINTS_REFUND_REASON = "订单退款退回积分"
 ZERO = Decimal("0.00")
@@ -337,8 +338,7 @@ def refund_completed_order(
     )
     if order is None:
         raise ValueError("订单不存在")
-    if order.status not in (ORDER_COMPLETED_STATUS, ORDER_REFUNDED_STATUS):
-        raise ValueError("当前订单状态不允许退款")
+    transition = resolve_order_transition(order.status, OrderAction.REFUND)
 
     actor = _require_actor(db, actor_admin_id=actor_admin_id)
     _assert_order_not_in_supplier_settlement(db, order_id=order.id)
@@ -354,7 +354,7 @@ def refund_completed_order(
     _validate_shipping_evidence(db, order=order, expect_shipped=True)
     _validate_completion_evidence(db, order=order, expect_completed=True)
 
-    if order.status == ORDER_REFUNDED_STATUS:
+    if transition.replayed:
         refund_log = _validate_refund_evidence(
             db,
             order=order,
@@ -482,7 +482,7 @@ def refund_completed_order(
     )
     account.version = (account.version or 0) + 1
     account.updated_at = operation_time
-    order.status = ORDER_REFUNDED_STATUS
+    order.status = transition.status
     order.refund_reason = normalized_reason
     order.refunded_at = operation_time
     order.updated_at = operation_time

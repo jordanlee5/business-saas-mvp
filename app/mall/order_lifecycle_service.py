@@ -11,11 +11,12 @@ from .order_fulfillment_service import (
     _validate_order_totals,
     _validate_points_evidence,
 )
+from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
 
 
-ORDER_FULFILLING_STATUS = "FULFILLING"
-ORDER_SHIPPED_STATUS = "SHIPPED"
-ORDER_COMPLETED_STATUS = "COMPLETED"
+ORDER_FULFILLING_STATUS = OrderStatus.FULFILLING.value
+ORDER_SHIPPED_STATUS = OrderStatus.SHIPPED.value
+ORDER_COMPLETED_STATUS = OrderStatus.COMPLETED.value
 ORDER_SHIP_PERMISSION_MESSAGE = "当前账号无权执行商城订单发货"
 ORDER_COMPLETE_PERMISSION_MESSAGE = "当前账号无权确认商城订单完成"
 
@@ -273,8 +274,7 @@ def ship_fulfilling_order(
     )
     if order is None:
         raise ValueError("订单不存在")
-    if order.status not in (ORDER_FULFILLING_STATUS, ORDER_SHIPPED_STATUS):
-        raise ValueError("当前订单状态不允许发货")
+    transition = resolve_order_transition(order.status, OrderAction.SHIP)
     actor = _require_actor(
         db,
         actor_admin_id=actor_admin_id,
@@ -290,7 +290,7 @@ def ship_fulfilling_order(
         order=order,
         expect_completed=False,
     )
-    if order.status == ORDER_SHIPPED_STATUS:
+    if transition.replayed:
         shipping_log = _validate_shipping_evidence(
             db,
             order=order,
@@ -331,7 +331,7 @@ def ship_fulfilling_order(
     order.shipping_carrier = normalized_carrier
     order.tracking_number = normalized_tracking_number
     order.shipped_at = operation_time
-    order.status = ORDER_SHIPPED_STATUS
+    order.status = transition.status
     order.updated_at = operation_time
     db.flush()
     shipping_log = AdminActionLog(
@@ -390,8 +390,7 @@ def complete_shipped_order(
     )
     if order is None:
         raise ValueError("订单不存在")
-    if order.status not in (ORDER_SHIPPED_STATUS, ORDER_COMPLETED_STATUS):
-        raise ValueError("当前订单状态不允许确认完成")
+    transition = resolve_order_transition(order.status, OrderAction.COMPLETE)
     actor = _require_actor(
         db,
         actor_admin_id=actor_admin_id,
@@ -404,7 +403,7 @@ def complete_shipped_order(
         order=order,
         expect_shipped=True,
     )
-    if order.status == ORDER_COMPLETED_STATUS:
+    if transition.replayed:
         completion_log = _validate_completion_evidence(
             db,
             order=order,
@@ -431,7 +430,7 @@ def complete_shipped_order(
     if _time_key(operation_time) < _time_key(order.shipped_at):
         raise ValueError("完成时间不能早于发货时间")
     order.completed_at = operation_time
-    order.status = ORDER_COMPLETED_STATUS
+    order.status = transition.status
     order.updated_at = operation_time
     db.flush()
     completion_log = AdminActionLog(

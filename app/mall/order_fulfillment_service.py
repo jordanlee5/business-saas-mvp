@@ -12,11 +12,12 @@ from .inventory_service import (
     outbound_reserved_inventory_for_order,
 )
 from .points_ledger_service import assert_points_account_balance_consistent
+from .order_state_machine import OrderAction, OrderStatus, resolve_order_transition
 
 
 ORDER_REFERENCE_TYPE = "ORDER"
-ORDER_CREATED_STATUS = "CREATED"
-ORDER_FULFILLING_STATUS = "FULFILLING"
+ORDER_CREATED_STATUS = OrderStatus.CREATED.value
+ORDER_FULFILLING_STATUS = OrderStatus.FULFILLING.value
 ORDER_FULFILL_PERMISSION_MESSAGE = "当前账号无权确认商城订单履约"
 POINTS_CONSUME_REASON = "订单确认履约消费积分"
 ZERO = Decimal("0.00")
@@ -383,15 +384,14 @@ def fulfill_created_order(
     )
     if order is None:
         raise ValueError("订单不存在")
-    if order.status not in (ORDER_CREATED_STATUS, ORDER_FULFILLING_STATUS):
-        raise ValueError("当前订单状态不允许确认履约")
+    transition = resolve_order_transition(order.status, OrderAction.FULFILL)
 
     actor = _require_actor(db, actor_admin_id=actor_admin_id)
     items, allocations, account, grants = _load_locked_resources(
         db,
         order=order,
     )
-    replayed = order.status == ORDER_FULFILLING_STATUS
+    replayed = transition.replayed
     fulfillment_log = _validate_fulfillment_audit(
         db,
         order=order,
@@ -483,7 +483,7 @@ def fulfill_created_order(
     )
     account.version = (account.version or 0) + 1
     account.updated_at = operation_time
-    order.status = ORDER_FULFILLING_STATUS
+    order.status = transition.status
     order.updated_at = operation_time
     db.flush()
     fulfillment_log = AdminActionLog(
