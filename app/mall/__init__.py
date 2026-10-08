@@ -195,6 +195,11 @@ from .order_lifecycle_service import (
     execute_order_shipping,
     ship_fulfilling_order,
 )
+from .order_reconciliation_service import (
+    CompletedOrderReconciliation,
+    CompletedOrderReconciliationLine,
+    reconcile_completed_order,
+)
 from .order_refund_service import (
     ORDER_REFUND_PERMISSION_MESSAGE,
     OrderRefundResult,
@@ -433,6 +438,9 @@ __all__ = [
     "execute_order_shipping",
     "complete_shipped_order",
     "execute_order_completion",
+    "CompletedOrderReconciliation",
+    "CompletedOrderReconciliationLine",
+    "reconcile_completed_order",
     "refund_completed_order",
     "execute_order_refund",
     "generate_supplier_settlement",

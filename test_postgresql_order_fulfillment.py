@@ -6,6 +6,7 @@ from decimal import Decimal
 from threading import Barrier
 
 from alembic import command
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from app.admin_permissions import OPERATOR
@@ -17,6 +18,7 @@ from app.mall import (
     execute_order_placement,
     execute_order_refund,
     execute_order_shipping,
+    reconcile_completed_order,
     receive_inventory,
     record_initial_points_grant,
 )
@@ -340,6 +342,17 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+
+            with Session() as db:
+                db.execute(text(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+                ))
+                reconciliation = reconcile_completed_order(
+                    db, order_public_id=placed.order_public_id
+                )
+                self.assertEqual(reconciliation.total_points, Decimal("80.00"))
+                self.assertEqual(reconciliation.unbatched_cost_amount, Decimal("24.00"))
+                self.assertEqual(len(reconciliation.lines), 1)
 
             refund_barrier = Barrier(2)
 
