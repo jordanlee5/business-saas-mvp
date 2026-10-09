@@ -64,7 +64,7 @@ class MiniprogramApiTests(unittest.TestCase):
             },
         )
 
-    def test_application_registers_only_status_route(self):
+    def test_application_registers_public_catalog_routes(self):
         routes = [
             route
             for route in app.routes
@@ -74,9 +74,12 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 1)
-        self.assertEqual(routes[0].path, STATUS_PATH)
-        self.assertEqual(routes[0].methods, {"GET"})
+        self.assertEqual(len(routes), 3)
+        self.assertEqual({route.path for route in routes}, {
+            STATUS_PATH, f"{MINIPROGRAM_API_PREFIX}/categories",
+            f"{MINIPROGRAM_API_PREFIX}/products",
+        })
+        self.assertTrue(all(route.methods == {"GET"} for route in routes))
         self.assertEqual(
             routes[0].operation_id,
             "get_miniprogram_api_status",

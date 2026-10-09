@@ -2,8 +2,11 @@
 
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+
+from ..database import SessionLocal
+from ..mall.public_catalog_service import list_public_categories, list_public_products
 
 
 MINIPROGRAM_API_PREFIX = "/api/miniprogram/v1"
@@ -34,3 +37,55 @@ miniprogram_v1_router = APIRouter(
 def get_miniprogram_api_status() -> MiniprogramApiStatus:
     """返回不包含业务数据的公开 API 版本状态。"""
     return MiniprogramApiStatus()
+
+
+def public_catalog_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.rollback()
+        db.close()
+
+
+class PublicCategory(BaseModel):
+    name: str
+    slug: str
+
+
+class PublicProduct(BaseModel):
+    product_public_id: str
+    name: str
+    subtitle: str | None
+    category_slug: str
+    min_points_price: str
+    in_stock: bool
+    main_image_url: str | None
+
+
+class PublicProductPage(BaseModel):
+    items: list[PublicProduct]
+    page: int
+    page_size: int
+    total: int
+
+
+@miniprogram_v1_router.get(
+    "/categories", response_model=list[PublicCategory],
+    operation_id="list_miniprogram_categories", summary="读取上架商品分类",
+)
+def get_public_categories(db=Depends(public_catalog_session)):
+    return list_public_categories(db)
+
+
+@miniprogram_v1_router.get(
+    "/products", response_model=PublicProductPage,
+    operation_id="list_miniprogram_products", summary="读取上架商品列表",
+)
+def get_public_products(
+    category: str | None = Query(None, min_length=1, max_length=80),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    db=Depends(public_catalog_session),
+):
+    return list_public_products(db, category_slug=category, page=page, page_size=page_size)
