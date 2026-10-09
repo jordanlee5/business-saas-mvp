@@ -22,6 +22,7 @@ from app.mall import (
     receive_inventory,
     record_initial_points_grant,
 )
+from app.mall.order_state_preflight_service import inspect_in_progress_order_state
 from app.models import (
     AdminActionLog,
     BusinessRecord,
@@ -284,6 +285,17 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                     1,
                 )
 
+            with Session() as db:
+                db.execute(text(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+                ))
+                preflight = inspect_in_progress_order_state(
+                    db, order_public_id=placed.order_public_id
+                )
+                self.assertEqual(preflight.status, "FULFILLING")
+                self.assertEqual(len(preflight.points_consume_entry_ids), 1)
+                self.assertEqual(len(preflight.inventory_outbound_movement_ids), 1)
+
             shipping_barrier = Barrier(2)
 
             def ship_once():
@@ -304,6 +316,16 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                 sorted(result.replayed for result in shipping_outcomes),
                 [False, True],
             )
+
+            with Session() as db:
+                db.execute(text(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+                ))
+                preflight = inspect_in_progress_order_state(
+                    db, order_public_id=placed.order_public_id
+                )
+                self.assertEqual(preflight.status, "SHIPPED")
+                self.assertIsNotNone(preflight.shipping_action_log_id)
 
             completion_barrier = Barrier(2)
 
