@@ -18,6 +18,7 @@ from app.mall import (
     receive_inventory,
     record_initial_points_grant,
 )
+from app.mall.order_state_preflight_service import inspect_unfulfilled_order_state
 from app.models import (
     AdminActionLog,
     BusinessRecord,
@@ -244,6 +245,12 @@ class PostgreSQLOrderCancellationIntegrationTests(unittest.TestCase):
                 idempotency_key="pg-order-placement",
                 now=NOW,
             )
+            with Session() as db:
+                preflight = inspect_unfulfilled_order_state(
+                    db, order_public_id=placed.order_public_id,
+                )
+                self.assertEqual(preflight.status, "CREATED")
+                self.assertEqual(preflight.points_release_entry_ids, ())
             barrier = Barrier(2)
 
             def cancel_once():
@@ -264,6 +271,12 @@ class PostgreSQLOrderCancellationIntegrationTests(unittest.TestCase):
                 [False, True],
             )
             with Session() as db:
+                preflight = inspect_unfulfilled_order_state(
+                    db, order_public_id=placed.order_public_id,
+                )
+                self.assertEqual(preflight.status, "CANCELLED")
+                self.assertIsNone(preflight.cancellation_actor_admin_id)
+                self.assertEqual(len(preflight.points_release_entry_ids), 1)
                 order = db.get(Order, placed.order_id)
                 account = db.get(PointsAccount, account_id)
                 balance = db.query(InventoryBalance).filter_by(
@@ -306,6 +319,10 @@ class PostgreSQLOrderCancellationIntegrationTests(unittest.TestCase):
             self.assertFalse(first.replayed)
             self.assertTrue(replay.replayed)
             with Session() as db:
+                preflight = inspect_unfulfilled_order_state(
+                    db, order_public_id=admin_order.order_public_id,
+                )
+                self.assertEqual(preflight.cancellation_actor_admin_id, operator_id)
                 log = db.query(AdminActionLog).filter_by(
                     action_type="mall_order_cancel", target_id=admin_order.order_id,
                 ).one()
