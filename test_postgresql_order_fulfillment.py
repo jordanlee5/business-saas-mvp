@@ -22,7 +22,10 @@ from app.mall import (
     receive_inventory,
     record_initial_points_grant,
 )
-from app.mall.order_state_preflight_service import inspect_in_progress_order_state
+from app.mall.order_state_preflight_service import (
+    inspect_in_progress_order_state,
+    inspect_refunded_order_state,
+)
 from app.models import (
     AdminActionLog,
     BusinessRecord,
@@ -429,6 +432,18 @@ class PostgreSQLOrderFulfillmentIntegrationTests(unittest.TestCase):
                     ).count(),
                     1,
                 )
+
+            with Session() as db:
+                db.execute(text(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+                ))
+                preflight = inspect_refunded_order_state(
+                    db, order_public_id=placed.order_public_id
+                )
+                self.assertEqual(preflight.status, "REFUNDED")
+                self.assertEqual(preflight.refund_actor_admin_id, operator_id)
+                self.assertEqual(len(preflight.points_refund_entry_ids), 1)
+                self.assertEqual(len(preflight.inventory_return_movement_ids), 1)
         finally:
             if engine is not None:
                 try:

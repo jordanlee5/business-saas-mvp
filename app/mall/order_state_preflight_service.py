@@ -21,7 +21,11 @@ from .order_lifecycle_service import (
     _validate_completion_evidence,
     _validate_shipping_evidence,
 )
-from .order_refund_service import _validate_refund_evidence
+from .order_refund_service import (
+    _validate_refund_evidence,
+    _validate_refunded_inventory_evidence,
+    _validate_refunded_points_evidence,
+)
 from .order_state_machine import OrderStatus
 from .points_ledger_service import assert_points_account_balance_consistent
 
@@ -50,6 +54,22 @@ class InProgressOrderPreflight:
     shipping_action_log_id: int | None
     points_consume_entry_ids: tuple[int, ...]
     inventory_outbound_movement_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class RefundedOrderPreflight:
+    order_id: int
+    order_public_id: str
+    status: str
+    item_count: int
+    allocation_count: int
+    fulfillment_action_log_id: int
+    shipping_action_log_id: int
+    completion_action_log_id: int
+    refund_actor_admin_id: int
+    refund_action_log_id: int
+    points_refund_entry_ids: tuple[int, ...]
+    inventory_return_movement_ids: tuple[int, ...]
 
 
 def inspect_unfulfilled_order_state(db, *, order_public_id) -> UnfulfilledOrderPreflight:
@@ -248,4 +268,109 @@ def inspect_in_progress_order_state(db, *, order_public_id) -> InProgressOrderPr
             shipping_action_log_id=shipping_log.id if shipping_log else None,
             points_consume_entry_ids=points_ids,
             inventory_outbound_movement_ids=inventory_ids,
+        )
+
+
+def inspect_refunded_order_state(db, *, order_public_id) -> RefundedOrderPreflight:
+    """只读核对整单退款及完整前序证据，异常时失败关闭。"""
+    from ..models import (
+        AdminActionLog,
+        Order,
+        OrderItem,
+        OrderPointsGrantAllocation,
+        PointsAccount,
+        PointsGrant,
+        SupplierSettlementItem,
+    )
+
+    if not isinstance(order_public_id, str) or not order_public_id.strip():
+        raise ValueError("订单编号不能为空")
+    normalized_id = order_public_id.strip()
+    if len(normalized_id) > 32:
+        raise ValueError("订单编号不能超过 32 个字符")
+    if db.new or db.dirty or db.deleted:
+        raise ValueError("订单预检需要无待写入变更的数据库会话")
+
+    with db.no_autoflush:
+        order = db.query(Order).filter(Order.order_public_id == normalized_id).one_or_none()
+        if order is None:
+            raise ValueError("订单不存在")
+        if order.status != OrderStatus.REFUNDED.value:
+            raise ValueError("仅支持已退款订单的只读预检")
+
+        items = tuple(
+            db.query(OrderItem).filter(OrderItem.order_id == order.id)
+            .order_by(OrderItem.sku_id.asc()).all()
+        )
+        allocations = tuple(
+            db.query(OrderPointsGrantAllocation)
+            .filter(OrderPointsGrantAllocation.order_id == order.id)
+            .order_by(OrderPointsGrantAllocation.points_grant_id.asc()).all()
+        )
+        _validate_order_totals(order, items, allocations)
+
+        account = db.query(PointsAccount).filter(
+            PointsAccount.member_id == order.member_id
+        ).one_or_none()
+        if account is None:
+            raise RuntimeError("订单会员积分账户不存在")
+        grant_ids = {allocation.points_grant_id for allocation in allocations}
+        grants = tuple(db.query(PointsGrant).filter(PointsGrant.id.in_(grant_ids)).all())
+        if len(grants) != len(grant_ids) or any(
+            grant.account_id != account.id for grant in grants
+        ):
+            raise RuntimeError("订单积分批次证据不完整")
+        assert_points_account_balance_consistent(db, account_id=account.id)
+        for sku_id in sorted({item.sku_id for item in items}):
+            assert_inventory_balance_consistent(db, sku_id=sku_id)
+
+        if db.query(AdminActionLog.id).filter(
+            AdminActionLog.action_type == MallAuditActionType.ORDER_CANCEL.value,
+            AdminActionLog.target_type == "mall_order",
+            AdminActionLog.target_id == order.id,
+        ).first():
+            raise RuntimeError("已退款订单存在取消审计")
+        if db.query(SupplierSettlementItem.id).filter(or_(
+            SupplierSettlementItem.order_id == order.id,
+            SupplierSettlementItem.order_item_id.in_(item.id for item in items),
+        )).first():
+            raise RuntimeError("已退款订单存在供应商结算项")
+
+        fulfillment_log = _validate_fulfillment_audit(
+            db, order=order, expect_fulfilled=True,
+        )
+        shipping_log = _validate_shipping_evidence(
+            db, order=order, expect_shipped=True,
+        )
+        if _time_key(order.shipped_at) < _time_key(fulfillment_log.created_at):
+            raise RuntimeError("订单发货时间早于确认履约时间")
+        completion_log = _validate_completion_evidence(
+            db, order=order, expect_completed=True,
+        )
+        refund_log = _validate_refund_evidence(
+            db, order=order, expect_refunded=True,
+        )
+        inventory_ids = _validate_refunded_inventory_evidence(
+            db, order=order, items=items,
+            fulfillment_actor_admin_id=fulfillment_log.admin_id,
+            refund_actor_admin_id=refund_log.admin_id,
+        )
+        points_ids = _validate_refunded_points_evidence(
+            db, order=order, allocations=allocations,
+            fulfillment_actor_admin_id=fulfillment_log.admin_id,
+            refund_actor_admin_id=refund_log.admin_id,
+        )
+        return RefundedOrderPreflight(
+            order_id=order.id,
+            order_public_id=order.order_public_id,
+            status=order.status,
+            item_count=len(items),
+            allocation_count=len(allocations),
+            fulfillment_action_log_id=fulfillment_log.id,
+            shipping_action_log_id=shipping_log.id,
+            completion_action_log_id=completion_log.id,
+            refund_actor_admin_id=refund_log.admin_id,
+            refund_action_log_id=refund_log.id,
+            points_refund_entry_ids=points_ids,
+            inventory_return_movement_ids=inventory_ids,
         )
