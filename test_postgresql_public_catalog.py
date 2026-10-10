@@ -61,7 +61,8 @@ class PostgreSQLPublicCatalogTests(unittest.TestCase):
                 db.flush()
                 sku = ProductSku(product_id=product.id, supplier_id=supplier.id,
                                  sku_code="SKU-PUBLIC", name="标准",
-                                 points_price=Decimal("12.50"), cost_price=Decimal("7.00"))
+                                 points_price=Decimal("12.50"), cost_price=Decimal("7.00"),
+                                 low_stock_threshold=2)
                 db.add(sku)
                 db.flush()
                 db.add(InventoryBalance(sku_id=sku.id, on_hand_quantity=2,
@@ -82,6 +83,7 @@ class PostgreSQLPublicCatalogTests(unittest.TestCase):
                 detail = get_public_product_detail(db, product_public_id="PRD-PUBLIC")
                 self.assertEqual(detail["min_points_price"], "12.50")
                 self.assertTrue(detail["skus"][0]["in_stock"])
+                self.assertEqual(detail["skus"][0]["stock_status"], "LOW_STOCK")
                 self.assertEqual(detail["images"][0]["role"], "main")
                 self.assertNotIn("cost_price", repr(detail))
                 self.assertIsNone(get_public_product_detail(

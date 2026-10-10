@@ -213,6 +213,8 @@ class PublicCatalogTests(unittest.TestCase):
         self.assertEqual([sku["sku_code"] for sku in detail["skus"]],
                          ["SKU-B", "SKU-A"])
         self.assertEqual([sku["in_stock"] for sku in detail["skus"]], [False, True])
+        self.assertEqual([sku["stock_status"] for sku in detail["skus"]],
+                         ["OUT_OF_STOCK", "IN_STOCK"])
         self.assertEqual([image["role"] for image in detail["images"]],
                          ["main", "carousel"])
         self.assertEqual(detail["main_image_url"], detail["images"][0]["url"])
@@ -233,6 +235,38 @@ class PublicCatalogTests(unittest.TestCase):
             with self.subTest(public_id=public_id), self.assertRaises(HTTPException) as error:
                 get_public_product(public_id, db=self.db)
             self.assertEqual(error.exception.status_code, 404)
+
+    def test_detail_stock_status_uses_available_stock_and_sku_threshold(self):
+        category = self.category("在售", "active")
+        supplier = Supplier(supplier_public_id="SUP-A", name="供应商A")
+        self.db.add(supplier)
+        self.db.flush()
+        product = self.product(category, "STOCK")
+        healthy = self.sku(product, supplier, "HEALTHY", stock=5)
+        low = self.sku(product, supplier, "LOW", stock=3)
+        zero = self.sku(product, supplier, "ZERO", stock=0)
+        missing = self.sku(product, supplier, "MISSING", stock=5)
+        self.db.flush()
+        healthy.low_stock_threshold = 2
+        low.low_stock_threshold = 2
+        zero.low_stock_threshold = 2
+        self.db.query(InventoryBalance).filter_by(sku_id=low.id).one().reserved_quantity = 1
+        self.db.query(InventoryBalance).filter_by(sku_id=missing.id).delete()
+        self.db.commit()
+
+        detail = get_public_product_detail(self.db, product_public_id="PRD-STOCK")
+        statuses = {sku["sku_code"]: (sku["stock_status"], sku["in_stock"])
+                    for sku in detail["skus"]}
+        self.assertEqual(statuses, {
+            "SKU-HEALTHY": ("IN_STOCK", True),
+            "SKU-LOW": ("LOW_STOCK", True),
+            "SKU-ZERO": ("OUT_OF_STOCK", False),
+            "SKU-MISSING": ("OUT_OF_STOCK", False),
+        })
+        self.assertNotIn("quantity", repr(detail))
+        self.assertNotIn("threshold", repr(detail))
+        self.assertEqual(PublicProductDetail.model_validate(detail).model_dump(), detail)
+        self.assertFalse(self.db.new or self.db.dirty or self.db.deleted)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,9 @@
 
 from sqlalchemy import func, or_
 
-from .domain import ProductStatus
+from .domain import (
+    InventoryStockStatus, ProductStatus, classify_inventory_stock,
+)
 
 
 def list_public_categories(db):
@@ -139,13 +141,22 @@ def get_public_product_detail(db, *, product_public_id):
         if not sku_rows:
             return None
 
-        skus = [dict(
-            sku_code=sku.sku_code,
-            name=sku.name,
-            points_price=f"{sku.points_price:.2f}",
-            in_stock=(balance is not None
-                      and balance.on_hand_quantity > balance.reserved_quantity),
-        ) for sku, balance in sku_rows]
+        skus = []
+        for sku, balance in sku_rows:
+            stock_status = (
+                classify_inventory_stock(
+                    on_hand_quantity=balance.on_hand_quantity,
+                    reserved_quantity=balance.reserved_quantity,
+                    low_stock_threshold=sku.low_stock_threshold,
+                ) if balance is not None else InventoryStockStatus.OUT_OF_STOCK
+            )
+            skus.append(dict(
+                sku_code=sku.sku_code,
+                name=sku.name,
+                points_price=f"{sku.points_price:.2f}",
+                in_stock=stock_status is not InventoryStockStatus.OUT_OF_STOCK,
+                stock_status=stock_status.value,
+            ))
 
         media_rows = (db.query(ProductMedia)
                       .filter(ProductMedia.product_id == product.id,

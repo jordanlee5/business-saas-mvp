@@ -77,6 +77,7 @@ class PublicProductSku(BaseModel):
     name: str
     points_price: str
     in_stock: bool
+    stock_status: Literal["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK"]
 
 
 class PublicProductImage(BaseModel):
