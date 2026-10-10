@@ -1,0 +1,32 @@
+.screen { padding: 28rpx 28rpx 80rpx; }
+.hero { background: #153d39; color: #fff; border-radius: 30rpx; padding: 50rpx 38rpx 44rpx; min-height: 260rpx; display: flex; flex-direction: column; justify-content: space-between; }
+.eyebrow { color: #bddfc6; font-size: 20rpx; letter-spacing: 3rpx; }
+.headline { font-size: 43rpx; font-weight: 600; line-height: 1.42; margin-top: 22rpx; }
+.headline-second { margin-top: 0; }
+.hero-note { color: #cce4d3; font-size: 23rpx; margin-top: 25rpx; }
+.section-title { font-size: 36rpx; font-weight: 600; margin: 42rpx 0 22rpx; }
+.tabs { white-space: nowrap; margin-bottom: 30rpx; }
+.tabs-inner { display: flex; gap: 16rpx; }
+.tab { display: inline-flex; flex-shrink: 0; border-radius: 36rpx; padding: 17rpx 30rpx; background: #fff; color: #49615b; font-size: 25rpx; }
+.tab-active { background: #153d39; color: #fff; }
+.grid { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.card { width: 48%; margin-bottom: 20rpx; overflow: hidden; background: #fff; border-radius: 23rpx; box-shadow: 0 10rpx 26rpx rgba(27, 58, 50, .04); }
+.photo { display: flex; align-items: center; justify-content: center; width: 100%; height: 290rpx; background: #e1ece5; }
+.photo-empty { color: #87a18e; font-size: 24rpx; letter-spacing: 3rpx; }
+.card-body { min-height: 135rpx; padding: 22rpx; display: flex; flex-direction: column; }
+.name { font-size: 28rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subtitle { color: #81928c; font-size: 22rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 9rpx; }
+.card-footer { display: flex; align-items: baseline; justify-content: space-between; gap: 6rpx; margin-top: auto; padding-top: 18rpx; }
+.price { color: #a46827; font-weight: 600; font-size: 30rpx; }
+.unit { font-size: 19rpx; font-weight: 400; }
+.stock { color: #206f53; font-size: 20rpx; white-space: nowrap; }
+.sold-out { color: #9baba5; }
+.state { min-height: 300rpx; background: #fff; border-radius: 22rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30rpx; text-align: center; }
+.state-small { min-height: 140rpx; margin-top: 20rpx; }
+.state-title { font-size: 31rpx; font-weight: 600; }
+.state-copy { font-size: 24rpx; color: #84958d; margin-top: 14rpx; }
+.retry, .load-more { background: #153d39; color: #fff; font-size: 25rpx; border-radius: 40rpx; margin-top: 28rpx; }
+.load-more { margin: 32rpx 10rpx; }
+.page-end { text-align: center; color: #9eaaa4; font-size: 22rpx; padding: 35rpx; }
+.skeleton { display: flex; gap: 20rpx; }
+.skeleton-card { flex: 1; height: 410rpx; border-radius: 23rpx; background: #e8eee9; }

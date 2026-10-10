@@ -1,0 +1,12 @@
+{
+  "description": "积分商城小程序开发壳体",
+  "miniprogramRoot": "src/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "postcss": true,
+    "useCompilerPlugins": ["typescript"]
+  }
+}

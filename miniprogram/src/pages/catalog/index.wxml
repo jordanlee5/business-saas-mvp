@@ -1,0 +1,49 @@
+<view class="screen">
+  <view class="hero">
+    <text class="eyebrow">POINTS MALL / 积分商城</text>
+    <text class="headline">把每一份积分，</text>
+    <text class="headline headline-second">换成喜欢的生活。</text>
+    <text class="hero-note">精选好物 · 积分兑换</text>
+  </view>
+  <view class="section-title">探索好物</view>
+  <scroll-view class="tabs" scroll-x="true" show-scrollbar="false" wx:if="{{categories.length}}">
+    <view class="tabs-inner">
+      <view wx:for="{{categories}}" wx:key="slug"
+            class="tab {{item.selected ? 'tab-active' : ''}}"
+            data-slug="{{item.slug}}" bindtap="onCategoryTap">{{item.name}}</view>
+    </view>
+  </scroll-view>
+  <view class="skeleton" wx:if="{{loading}}" aria-label="商品加载中">
+    <view class="skeleton-card"></view><view class="skeleton-card"></view>
+  </view>
+  <view class="state" wx:elif="{{error && !items.length}}">
+    <text class="state-title">暂时无法加载商品</text>
+    <text class="state-copy">{{error}}</text>
+    <button class="retry" bindtap="onRetry">重新加载</button>
+  </view>
+  <view class="state" wx:elif="{{!items.length}}">
+    <text class="state-title">好物即将上架</text>
+    <text class="state-copy">当前分类暂无商品，稍后再来看看。</text>
+  </view>
+  <view class="grid" wx:else>
+    <view class="card" wx:for="{{items}}" wx:key="product_public_id">
+      <image wx:if="{{item.imageUrl}}" class="photo" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true" />
+      <view wx:else class="photo photo-empty">积分好物</view>
+      <view class="card-body">
+        <text class="name">{{item.name}}</text>
+        <text class="subtitle" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
+        <view class="card-footer">
+          <text class="price">{{item.min_points_price}} <text class="unit">积分起</text></text>
+          <text class="stock {{item.in_stock ? '' : 'sold-out'}}">{{item.in_stock ? '可兑换' : '暂时无货'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="state state-small" wx:if="{{error && items.length}}">
+    <text class="state-copy">{{error}}</text>
+    <button class="retry" bindtap="onLoadMore">重试加载更多</button>
+  </view>
+  <button class="load-more" wx:if="{{hasMore && !error}}" loading="{{moreLoading}}"
+          disabled="{{moreLoading}}" bindtap="onLoadMore">加载更多</button>
+  <view class="page-end" wx:if="{{items.length && !hasMore}}">已经看到全部商品</view>
+</view>

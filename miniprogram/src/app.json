@@ -1,0 +1,10 @@
+{
+  "pages": ["pages/catalog/index"],
+  "window": {
+    "navigationBarTitleText": "积分商城",
+    "navigationBarBackgroundColor": "#153d39",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f7f5",
+    "backgroundTextStyle": "dark"
+  }
+}
