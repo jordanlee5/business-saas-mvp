@@ -74,10 +74,11 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 3)
+        self.assertEqual(len(routes), 4)
         self.assertEqual({route.path for route in routes}, {
             STATUS_PATH, f"{MINIPROGRAM_API_PREFIX}/categories",
             f"{MINIPROGRAM_API_PREFIX}/products",
+            f"{MINIPROGRAM_API_PREFIX}/products/{{product_public_id}}",
         })
         self.assertTrue(all(route.methods == {"GET"} for route in routes))
         self.assertEqual(
@@ -102,6 +103,14 @@ class MiniprogramApiTests(unittest.TestCase):
             "application/json",
             operation["responses"]["200"]["content"],
         )
+
+    def test_product_detail_contract_is_read_only(self):
+        operation = app.openapi()["paths"][
+            f"{MINIPROGRAM_API_PREFIX}/products/{{product_public_id}}"
+        ]["get"]
+        self.assertEqual(operation["operationId"], "get_miniprogram_product_detail")
+        self.assertIn("200", operation["responses"])
+        self.assertIn("422", operation["responses"])
 
     def test_status_route_ignores_legacy_admin_cookie(self):
         request = build_request(

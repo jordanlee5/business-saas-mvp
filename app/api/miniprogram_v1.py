@@ -2,11 +2,13 @@
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
 
 from ..database import SessionLocal
-from ..mall.public_catalog_service import list_public_categories, list_public_products
+from ..mall.public_catalog_service import (
+    get_public_product_detail, list_public_categories, list_public_products,
+)
 
 
 MINIPROGRAM_API_PREFIX = "/api/miniprogram/v1"
@@ -70,6 +72,25 @@ class PublicProductPage(BaseModel):
     total: int
 
 
+class PublicProductSku(BaseModel):
+    sku_code: str
+    name: str
+    points_price: str
+    in_stock: bool
+
+
+class PublicProductImage(BaseModel):
+    role: Literal["main", "carousel", "detail"]
+    url: str
+    alt_text: str | None
+
+
+class PublicProductDetail(PublicProduct):
+    description: str | None
+    images: list[PublicProductImage]
+    skus: list[PublicProductSku]
+
+
 @miniprogram_v1_router.get(
     "/categories", response_model=list[PublicCategory],
     operation_id="list_miniprogram_categories", summary="读取上架商品分类",
@@ -89,3 +110,18 @@ def get_public_products(
     db=Depends(public_catalog_session),
 ):
     return list_public_products(db, category_slug=category, page=page, page_size=page_size)
+
+
+@miniprogram_v1_router.get(
+    "/products/{product_public_id}", response_model=PublicProductDetail,
+    operation_id="get_miniprogram_product_detail", summary="读取上架商品详情",
+)
+def get_public_product(
+    product_public_id: str = Path(..., min_length=1, max_length=32,
+                                  pattern=r"^[A-Z0-9-]+$"),
+    db=Depends(public_catalog_session),
+):
+    detail = get_public_product_detail(db, product_public_id=product_public_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="商品不存在")
+    return detail

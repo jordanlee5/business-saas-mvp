@@ -9,8 +9,13 @@ from alembic import command
 from sqlalchemy.orm import sessionmaker
 
 from app.database import create_database_engine, resolve_database_url
-from app.mall.public_catalog_service import list_public_categories, list_public_products
-from app.models import InventoryBalance, Product, ProductCategory, ProductSku, Supplier
+from app.mall.public_catalog_service import (
+    get_public_product_detail, list_public_categories, list_public_products,
+)
+from app.models import (
+    InventoryBalance, Product, ProductCategory, ProductMedia, ProductSku,
+    Supplier, User,
+)
 from test_postgresql_migration import (
     POSTGRES_TEST_ALLOW_RESET_ENV_NAME, POSTGRES_TEST_DATABASE_URL_ENV_NAME,
     build_alembic_config, get_database_state, validate_postgresql_test_database_url,
@@ -42,6 +47,8 @@ class PostgreSQLPublicCatalogTests(unittest.TestCase):
             engine = create_database_engine(self.database_url)
             Session = sessionmaker(bind=engine, autoflush=False)
             with Session() as db:
+                user = User(username="public-catalog-test", password_hash="test", role="admin")
+                db.add(user)
                 category = ProductCategory(name="公开分类", slug="public")
                 supplier = Supplier(supplier_public_id="SUP-PUBLIC", name="公开供应商")
                 db.add_all([category, supplier])
@@ -59,6 +66,9 @@ class PostgreSQLPublicCatalogTests(unittest.TestCase):
                 db.flush()
                 db.add(InventoryBalance(sku_id=sku.id, on_hand_quantity=2,
                                         reserved_quantity=0))
+                db.add(ProductMedia(product_id=product.id, media_role="MAIN",
+                                    image_path="/uploads/mall_products/PRD-PUBLIC/main.webp",
+                                    uploaded_by_id=user.id))
                 db.commit()
                 self.assertEqual(list_public_categories(db)[0]["slug"], "public")
                 page = list_public_products(db, category_slug="public")
@@ -66,6 +76,13 @@ class PostgreSQLPublicCatalogTests(unittest.TestCase):
                 self.assertEqual(page["items"][0]["min_points_price"], "12.50")
                 self.assertTrue(page["items"][0]["in_stock"])
                 self.assertNotIn("cost_price", repr(page))
+                detail = get_public_product_detail(db, product_public_id="PRD-PUBLIC")
+                self.assertEqual(detail["min_points_price"], "12.50")
+                self.assertTrue(detail["skus"][0]["in_stock"])
+                self.assertEqual(detail["images"][0]["role"], "main")
+                self.assertNotIn("cost_price", repr(detail))
+                self.assertIsNone(get_public_product_detail(
+                    db, product_public_id="PRD-NONE"))
         finally:
             if engine is not None:
                 engine.dispose()

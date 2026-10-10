@@ -6,10 +6,13 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from fastapi import HTTPException
 
-from app.api.miniprogram_v1 import get_public_products
+from app.api.miniprogram_v1 import PublicProductDetail, get_public_product
 from app.database import Base
-from app.mall.public_catalog_service import list_public_categories, list_public_products
+from app.mall.public_catalog_service import (
+    get_public_product_detail, list_public_categories, list_public_products,
+)
 from app.models import (
     InventoryBalance, Product, ProductCategory, ProductMedia, ProductSku,
     Supplier, User,
@@ -108,6 +111,72 @@ class PublicCatalogTests(unittest.TestCase):
         for kwargs in ({"page": 0}, {"page_size": 51}, {"category_slug": ""}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 list_public_products(self.db, **kwargs)
+
+    def test_detail_filters_visibility_and_uses_only_public_fields(self):
+        category = self.category("在售", "active")
+        hidden_category = self.category("停用", "hidden", active=False)
+        supplier = Supplier(supplier_public_id="SUP-A", name="供应商A")
+        hidden_supplier = Supplier(supplier_public_id="SUP-B", name="供应商B",
+                                   is_active=False)
+        self.db.add_all((supplier, hidden_supplier))
+        self.db.flush()
+        product = self.product(category, "DETAIL")
+        product.subtitle = "副标题"
+        product.description = "商品说明"
+        self.sku(product, supplier, "B", price="23.00", stock=0)
+        self.sku(product, supplier, "A", price="12.50", stock=5)
+        self.sku(product, hidden_supplier, "H", price="1.00", stock=9)
+        self.sku(product, supplier, "I", active=False, price="2.00", stock=9)
+        self.db.add_all([
+            ProductMedia(product_id=product.id, media_role="MAIN",
+                         image_path="/uploads/mall_products/PRD-DETAIL/main.webp",
+                         uploaded_by_id=self.user.id),
+            ProductMedia(product_id=product.id, media_role="CAROUSEL",
+                         image_path="/uploads/mall_products/PRD-DETAIL/slide.webp",
+                         uploaded_by_id=self.user.id),
+            ProductMedia(product_id=product.id, media_role="DETAIL",
+                         image_path="/uploads/mall_products/PRD-DETAIL/hidden.webp",
+                         is_active=False, uploaded_by_id=self.user.id),
+            ProductMedia(product_id=product.id, media_role="DETAIL",
+                         image_path="/uploads/mall_products/OTHER/wrong.webp",
+                         uploaded_by_id=self.user.id),
+        ])
+        draft = self.product(category, "DRAFT", status="DRAFT")
+        self.sku(draft, supplier, "D", stock=2)
+        hidden = self.product(hidden_category, "HIDDEN")
+        self.sku(hidden, supplier, "HC", stock=2)
+        no_sku = self.product(category, "NO-SKU")
+        self.sku(no_sku, hidden_supplier, "NS", stock=2)
+        self.db.commit()
+
+        detail = get_public_product_detail(self.db, product_public_id="PRD-DETAIL")
+        self.assertEqual(detail["category_slug"], "active")
+        self.assertEqual(detail["description"], "商品说明")
+        self.assertEqual(detail["min_points_price"], "12.50")
+        self.assertTrue(detail["in_stock"])
+        self.assertEqual([sku["sku_code"] for sku in detail["skus"]],
+                         ["SKU-B", "SKU-A"])
+        self.assertEqual([sku["in_stock"] for sku in detail["skus"]], [False, True])
+        self.assertEqual([image["role"] for image in detail["images"]],
+                         ["main", "carousel"])
+        self.assertEqual(detail["main_image_url"], detail["images"][0]["url"])
+        self.assertNotIn("cost_price", repr(detail))
+        self.assertNotIn("supplier", repr(detail))
+        self.assertNotIn("quantity", repr(detail))
+        self.assertFalse(self.db.new or self.db.dirty or self.db.deleted)
+        for public_id in ("PRD-DRAFT", "PRD-HIDDEN", "PRD-NO-SKU", "PRD-NONE"):
+            with self.subTest(public_id=public_id):
+                self.assertIsNone(get_public_product_detail(
+                    self.db, product_public_id=public_id))
+        with self.assertRaises(ValueError):
+            get_public_product_detail(self.db, product_public_id="../PRD-DETAIL")
+
+        routed = get_public_product("PRD-DETAIL", db=self.db)
+        self.assertEqual(PublicProductDetail.model_validate(routed).model_dump(), detail)
+        for public_id in ("PRD-DRAFT", "PRD-HIDDEN", "PRD-NO-SKU", "PRD-NONE"):
+            with self.subTest(public_id=public_id), self.assertRaises(HTTPException) as error:
+                get_public_product(public_id, db=self.db)
+            self.assertEqual(error.exception.status_code, 404)
 
 
 if __name__ == "__main__":

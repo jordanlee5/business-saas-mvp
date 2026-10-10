@@ -88,3 +88,71 @@ def list_public_products(db, *, category_slug=None, page=1, page_size=20):
                 main_image_url=images.get(product.id),
             ))
         return dict(items=items, page=page, page_size=page_size, total=total)
+
+
+def get_public_product_detail(db, *, product_public_id):
+    """Return an on-sale product's public SKU and media projection, or None."""
+    from ..models import (
+        InventoryBalance, Product, ProductCategory, ProductMedia,
+        ProductSku, Supplier,
+    )
+
+    if (not isinstance(product_public_id, str)
+            or not 1 <= len(product_public_id) <= 32
+            or not all(char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
+                       for char in product_public_id)):
+        raise ValueError("商品公开编号无效")
+
+    with db.no_autoflush:
+        row = (db.query(Product, ProductCategory)
+               .join(ProductCategory, ProductCategory.id == Product.category_id)
+               .filter(Product.product_public_id == product_public_id,
+                       Product.status == ProductStatus.PUBLISHED.value,
+                       ProductCategory.is_active.is_(True)).first())
+        if row is None:
+            return None
+        product, category = row
+
+        sku_rows = (db.query(ProductSku, InventoryBalance)
+                    .join(Supplier, Supplier.id == ProductSku.supplier_id)
+                    .outerjoin(InventoryBalance, InventoryBalance.sku_id == ProductSku.id)
+                    .filter(ProductSku.product_id == product.id,
+                            ProductSku.is_active.is_(True),
+                            Supplier.is_active.is_(True))
+                    .order_by(ProductSku.sort_order, ProductSku.id).all())
+        if not sku_rows:
+            return None
+
+        skus = [dict(
+            sku_code=sku.sku_code,
+            name=sku.name,
+            points_price=f"{sku.points_price:.2f}",
+            in_stock=(balance is not None
+                      and balance.on_hand_quantity > balance.reserved_quantity),
+        ) for sku, balance in sku_rows]
+
+        media_rows = (db.query(ProductMedia)
+                      .filter(ProductMedia.product_id == product.id,
+                              ProductMedia.is_active.is_(True))
+                      .order_by(ProductMedia.sort_order, ProductMedia.id).all())
+        image_prefix = f"/uploads/mall_products/{product_public_id}/"
+        images = [dict(role=media.media_role.lower(), url=media.image_path,
+                       alt_text=media.alt_text)
+                  for media in media_rows
+                  if media.image_path.startswith(image_prefix)
+                  and media.media_role in ("MAIN", "CAROUSEL", "DETAIL")]
+        main_image_url = next((image["url"] for image in images
+                               if image["role"] == "main"), None)
+
+        return dict(
+            product_public_id=product.product_public_id,
+            name=product.name,
+            subtitle=product.subtitle,
+            description=product.description,
+            category_slug=category.slug,
+            min_points_price=f"{min(sku.points_price for sku, _ in sku_rows):.2f}",
+            in_stock=any(sku["in_stock"] for sku in skus),
+            main_image_url=main_image_url,
+            images=images,
+            skus=skus,
+        )
