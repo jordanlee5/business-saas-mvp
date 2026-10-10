@@ -112,6 +112,18 @@ class MiniprogramApiTests(unittest.TestCase):
         self.assertIn("200", operation["responses"])
         self.assertIn("422", operation["responses"])
 
+    def test_product_list_search_query_contract(self):
+        operation = app.openapi()["paths"][
+            f"{MINIPROGRAM_API_PREFIX}/products"
+        ]["get"]
+        query = next(param for param in operation["parameters"]
+                     if param["name"] == "q")
+        self.assertFalse(query["required"])
+        schema = next(option for option in query["schema"]["anyOf"]
+                      if option["type"] == "string")
+        self.assertEqual(schema["maxLength"], 80)
+        self.assertEqual(schema["pattern"], r"\S")
+
     def test_status_route_ignores_legacy_admin_cookie(self):
         request = build_request(
             STATUS_PATH,

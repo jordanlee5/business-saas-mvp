@@ -105,11 +105,13 @@ def get_public_categories(db=Depends(public_catalog_session)):
 )
 def get_public_products(
     category: str | None = Query(None, min_length=1, max_length=80),
+    q: str | None = Query(None, min_length=1, max_length=80, pattern=r"\S"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
     db=Depends(public_catalog_session),
 ):
-    return list_public_products(db, category_slug=category, page=page, page_size=page_size)
+    return list_public_products(db, category_slug=category, search_term=q,
+                                page=page, page_size=page_size)
 
 
 @miniprogram_v1_router.get(

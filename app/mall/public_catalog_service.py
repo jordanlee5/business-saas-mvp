@@ -1,6 +1,6 @@
 """小程序公开目录的只读投影；不暴露供应商和采购成本。"""
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from .domain import ProductStatus
 
@@ -15,7 +15,8 @@ def list_public_categories(db):
         return [dict(name=row.name, slug=row.slug) for row in rows]
 
 
-def list_public_products(db, *, category_slug=None, page=1, page_size=20):
+def list_public_products(db, *, category_slug=None, search_term=None,
+                         page=1, page_size=20):
     from ..models import (
         InventoryBalance, Product, ProductCategory, ProductMedia,
         ProductSku, Supplier,
@@ -30,6 +31,12 @@ def list_public_products(db, *, category_slug=None, page=1, page_size=20):
         or len(category_slug) > 80
     ):
         raise ValueError("分类标识无效")
+    if search_term is not None:
+        if not isinstance(search_term, str) or len(search_term) > 80:
+            raise ValueError("搜索词无效")
+        search_term = search_term.strip()
+        if not search_term:
+            raise ValueError("搜索词无效")
 
     with db.no_autoflush:
         valid_skus = (db.query(ProductSku.product_id)
@@ -42,6 +49,15 @@ def list_public_products(db, *, category_slug=None, page=1, page_size=20):
                          Product.id.in_(valid_skus)))
         if category_slug is not None:
             query = query.filter(ProductCategory.slug == category_slug)
+        if search_term is not None:
+            # Escape LIKE wildcards; a user's '%' or '_' is literal text.
+            escaped = (search_term.lower().replace("/", "//")
+                       .replace("%", "/%").replace("_", "/_"))
+            pattern = f"%{escaped}%"
+            query = query.filter(or_(
+                func.lower(Product.name).like(pattern, escape="/"),
+                func.lower(Product.subtitle).like(pattern, escape="/"),
+            ))
         total = query.with_entities(func.count(Product.id)).scalar() or 0
         products = (query.order_by(Product.sort_order, Product.id)
                     .offset((page - 1) * page_size).limit(page_size).all())

@@ -8,7 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi import HTTPException
 
-from app.api.miniprogram_v1 import PublicProductDetail, get_public_product
+from app.api.miniprogram_v1 import (
+    PublicProductDetail, get_public_product, get_public_products,
+)
 from app.database import Base
 from app.mall.public_catalog_service import (
     get_public_product_detail, list_public_categories, list_public_products,
@@ -111,6 +113,60 @@ class PublicCatalogTests(unittest.TestCase):
         for kwargs in ({"page": 0}, {"page_size": 51}, {"category_slug": ""}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 list_public_products(self.db, **kwargs)
+
+    def test_search_respects_visibility_category_pagination_and_literal_wildcards(self):
+        car = self.category("汽车", "car")
+        home = self.category("家居", "home")
+        hidden = self.category("停用", "hidden", active=False)
+        supplier = Supplier(supplier_public_id="SUP-A", name="供应商A")
+        inactive_supplier = Supplier(supplier_public_id="SUP-B", name="供应商B",
+                                     is_active=False)
+        self.db.add_all((supplier, inactive_supplier))
+        self.db.flush()
+        first = self.product(car, "FIRST", order=1)
+        first.name = "Basic Wash"
+        second = self.product(car, "SECOND", order=2)
+        second.name = "Other"
+        second.subtitle = "BASIC wash"
+        literal = self.product(home, "LITERAL")
+        literal.name = "10%_off / pack"
+        for product, number in ((first, "F"), (second, "S"), (literal, "L")):
+            self.sku(product, supplier, number, stock=1)
+        draft = self.product(car, "DRAFT", status="DRAFT")
+        draft.name = "Basic draft"
+        self.sku(draft, supplier, "D")
+        hidden_product = self.product(hidden, "HIDDEN")
+        hidden_product.name = "Basic hidden"
+        self.sku(hidden_product, supplier, "H")
+        no_sku = self.product(car, "NO-SKU")
+        no_sku.name = "Basic no sku"
+        self.sku(no_sku, inactive_supplier, "N")
+        self.db.commit()
+
+        page = list_public_products(self.db, search_term="  bAsIc  ",
+                                    category_slug="car", page_size=1)
+        self.assertEqual(page["total"], 2)
+        self.assertEqual([item["product_public_id"] for item in page["items"]],
+                         ["PRD-FIRST"])
+        second_page = get_public_products(category="car", q="BASIC", page=2,
+                                          page_size=1, db=self.db)
+        self.assertEqual(second_page["total"], 2)
+        self.assertEqual(second_page["items"][0]["product_public_id"], "PRD-SECOND")
+        for query in ("%_", "/", "10%_OFF / PACK"):
+            with self.subTest(query=query):
+                result = list_public_products(self.db, search_term=query)
+                self.assertEqual(result["total"], 1)
+                self.assertEqual(result["items"][0]["product_public_id"],
+                                 "PRD-LITERAL")
+        self.assertEqual(list_public_products(self.db, search_term="%")["total"], 1)
+        self.assertEqual(list_public_products(self.db, search_term="missing")["total"], 0)
+        self.assertEqual(list_public_products(self.db, search_term="Basic",
+                                              category_slug="home")["items"], [])
+        self.assertEqual(list_public_products(self.db)["total"], 3)
+        self.assertFalse(self.db.new or self.db.dirty or self.db.deleted)
+        for query in ("", "  ", "x" * 81, 1):
+            with self.subTest(invalid=query), self.assertRaises(ValueError):
+                list_public_products(self.db, search_term=query)
 
     def test_detail_filters_visibility_and_uses_only_public_fields(self):
         category = self.category("在售", "active")
