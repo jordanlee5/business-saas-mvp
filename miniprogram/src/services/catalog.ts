@@ -58,9 +58,12 @@ export async function getCategories(): Promise<Category[]> {
   return data as Category[];
 }
 
-export async function getProducts(category: string, page: number): Promise<ProductPage> {
+export async function getProducts(category: string, page: number, searchTerm = ''): Promise<ProductPage> {
+  const queryText = searchTerm.trim();
+  if (queryText.length > 80) throw new Error('搜索词不能超过80个字符');
   const query = `?page=${page}&page_size=20` +
-    (category ? `&category=${encodeURIComponent(category)}` : '');
+    (category ? `&category=${encodeURIComponent(category)}` : '') +
+    (queryText ? `&q=${encodeURIComponent(queryText)}` : '');
   const data = await request('/api/miniprogram/v1/products' + query);
   if (!isRecord(data) || !Array.isArray(data.items) ||
       data.page !== page || data.page_size !== 20 ||

@@ -4,6 +4,14 @@
 .headline { font-size: 43rpx; font-weight: 600; line-height: 1.42; margin-top: 22rpx; }
 .headline-second { margin-top: 0; }
 .hero-note { color: #cce4d3; font-size: 23rpx; margin-top: 25rpx; }
+.search-area { display: flex; align-items: center; gap: 14rpx; margin-top: 28rpx; }
+.search-field { display: flex; align-items: center; flex: 1; min-width: 0; height: 82rpx; border-radius: 42rpx; background: #fff; padding: 0 24rpx; }
+.search-mark { color: #5d7870; font-size: 38rpx; margin-right: 10rpx; }
+.search-input { flex: 1; min-width: 0; color: #19322e; font-size: 27rpx; }
+.search-clear { padding: 15rpx 0 15rpx 18rpx; color: #5a756b; font-size: 24rpx; }
+.search-button { flex-shrink: 0; margin: 0; padding: 0 32rpx; height: 82rpx; line-height: 82rpx; border-radius: 42rpx; background: #153d39; color: #fff; font-size: 26rpx; }
+.search-hint { display: block; margin: 14rpx 10rpx 0; color: #a34334; font-size: 23rpx; }
+.query-heading { color: #53746c; font-size: 24rpx; margin-top: 25rpx; }
 .section-title { font-size: 36rpx; font-weight: 600; margin: 42rpx 0 22rpx; }
 .tabs { white-space: nowrap; margin-bottom: 30rpx; }
 .tabs-inner { display: flex; gap: 16rpx; }

@@ -10,6 +10,9 @@ Page({
   data: {
     categories: [{ name: '全部', slug: '', selected: true }] as CategoryTab[],
     activeSlug: '',
+    draftQuery: '',
+    activeQuery: '',
+    searchError: '',
     items: [] as ProductCard[],
     total: 0,
     page: 0,
@@ -36,7 +39,7 @@ Page({
         }));
         this.setData({ categories: tabs });
       }
-      const result = await getProducts(this.data.activeSlug, 1);
+      const result = await getProducts(this.data.activeSlug, 1, this.data.activeQuery);
       if (current !== generation) return;
       this.setData({
         items: result.items.map((item: Product) => ({
@@ -52,11 +55,30 @@ Page({
       if (current === generation) this.setData({ loading: false });
     }
   },
+  onSearchInput(event: { detail: { value: string } }) {
+    this.setData({ draftQuery: event.detail.value, searchError: '' });
+  },
+  onSearchSubmit() {
+    const query = this.data.draftQuery.trim();
+    if (query.length > 80) {
+      this.setData({ searchError: '搜索词不能超过80个字符' });
+      return;
+    }
+    this.setData({ draftQuery: query, activeQuery: query, searchError: '' });
+    this.refresh(false);
+  },
+  onClearSearch() {
+    const hadSearch = Boolean(this.data.activeQuery);
+    this.setData({ draftQuery: '', activeQuery: '', searchError: '' });
+    if (hadSearch) this.refresh(false);
+  },
   onCategoryTap(event: { currentTarget: { dataset: { slug: string } } }) {
     const slug = event.currentTarget.dataset.slug;
     if (slug === this.data.activeSlug) return;
     this.setData({
       activeSlug: slug,
+      draftQuery: this.data.activeQuery,
+      searchError: '',
       categories: this.data.categories.map((item: CategoryTab) => ({
         ...item, selected: item.slug === slug,
       })),
@@ -74,7 +96,7 @@ Page({
     const nextPage = this.data.page + 1;
     this.setData({ moreLoading: true, error: '' });
     try {
-      const result = await getProducts(this.data.activeSlug, nextPage);
+      const result = await getProducts(this.data.activeSlug, nextPage, this.data.activeQuery);
       if (current !== generation) return;
       const items = this.data.items.concat(result.items.map((item: Product) => ({
         ...item, imageUrl: publicImageUrl(item.main_image_url),

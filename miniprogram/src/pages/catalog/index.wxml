@@ -5,6 +5,19 @@
     <text class="headline headline-second">换成喜欢的生活。</text>
     <text class="hero-note">精选好物 · 积分兑换</text>
   </view>
+  <view class="search-area">
+    <view class="search-field">
+      <text class="search-mark">⌕</text>
+      <input class="search-input" type="text" value="{{draftQuery}}" maxlength="81"
+             placeholder="搜索好物" confirm-type="search"
+             bindinput="onSearchInput" bindconfirm="onSearchSubmit" />
+      <text class="search-clear" wx:if="{{draftQuery || activeQuery}}"
+            bindtap="onClearSearch" aria-label="清除搜索">清除</text>
+    </view>
+    <button class="search-button" bindtap="onSearchSubmit">搜索</button>
+  </view>
+  <text class="search-hint" wx:if="{{searchError}}">{{searchError}}</text>
+  <view class="query-heading" wx:if="{{activeQuery}}">搜索“{{activeQuery}}”的结果</view>
   <view class="section-title">探索好物</view>
   <scroll-view class="tabs" scroll-x="true" show-scrollbar="false" wx:if="{{categories.length}}">
     <view class="tabs-inner">
@@ -22,8 +35,8 @@
     <button class="retry" bindtap="onRetry">重新加载</button>
   </view>
   <view class="state" wx:elif="{{!items.length}}">
-    <text class="state-title">好物即将上架</text>
-    <text class="state-copy">当前分类暂无商品，稍后再来看看。</text>
+    <text class="state-title">{{activeQuery ? '未找到相关商品' : '好物即将上架'}}</text>
+    <text class="state-copy">{{activeQuery ? '试试其他关键词，或清除搜索查看全部好物。' : '当前分类暂无商品，稍后再来看看。'}}</text>
   </view>
   <view class="grid" wx:else>
     <view class="card" wx:for="{{items}}" wx:key="product_public_id"
