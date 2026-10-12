@@ -26,7 +26,8 @@
     <text class="state-copy">当前分类暂无商品，稍后再来看看。</text>
   </view>
   <view class="grid" wx:else>
-    <view class="card" wx:for="{{items}}" wx:key="product_public_id">
+    <view class="card" wx:for="{{items}}" wx:key="product_public_id"
+          data-id="{{item.product_public_id}}" bindtap="onProductTap">
       <image wx:if="{{item.imageUrl}}" class="photo" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true" />
       <view wx:else class="photo photo-empty">积分好物</view>
       <view class="card-body">

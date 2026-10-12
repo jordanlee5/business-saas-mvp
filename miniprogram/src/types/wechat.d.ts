@@ -8,7 +8,11 @@ declare const wx: {
     fail(error: unknown): void;
   }): void;
   stopPullDownRefresh(): void;
+  navigateTo(options: { url: string }): void;
+  navigateBack(options: { delta: number }): void;
+  reLaunch(options: { url: string }): void;
 };
 
 declare function App(options: object): void;
 declare function Page(options: object): void;
+declare function getCurrentPages(): object[];

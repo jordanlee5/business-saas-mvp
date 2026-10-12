@@ -1,0 +1,51 @@
+<view class="screen">
+  <view class="skeleton" wx:if="{{loading}}" aria-label="商品详情加载中">
+    <view class="skeleton-photo"></view>
+    <view class="skeleton-line"></view>
+    <view class="skeleton-line short"></view>
+  </view>
+  <view class="state" wx:elif="{{notFound}}">
+    <text class="state-title">商品暂不可查看</text>
+    <text class="state-copy">商品可能已下架或不存在，请返回目录浏览。</text>
+    <button class="action" bindtap="onBack">返回商品目录</button>
+  </view>
+  <view class="state" wx:elif="{{error}}">
+    <text class="state-title">暂时无法加载商品详情</text>
+    <text class="state-copy">{{error}}</text>
+    <button class="action" bindtap="onRetry">重新加载</button>
+  </view>
+  <view wx:elif="{{product}}">
+    <swiper class="gallery" indicator-dots="{{gallery.length > 1}}" circular="{{gallery.length > 1}}" wx:if="{{gallery.length}}">
+      <swiper-item wx:for="{{gallery}}" wx:key="url">
+        <image class="gallery-photo" src="{{item.url}}" mode="aspectFit" aria-label="{{item.alt}}" />
+      </swiper-item>
+    </swiper>
+    <view class="gallery gallery-empty" wx:else>积分好物</view>
+    <view class="card heading">
+      <text class="eyebrow">POINTS MALL / 商品详情</text>
+      <text class="name">{{product.name}}</text>
+      <text class="subtitle" wx:if="{{product.subtitle}}">{{product.subtitle}}</text>
+      <view class="price-row">
+        <text class="price">{{product.min_points_price}} <text class="unit">积分起</text></text>
+        <text class="stock {{product.in_stock ? 'available' : 'out'}}">{{product.in_stock ? '有货' : '暂时无货'}}</text>
+      </view>
+    </view>
+    <view class="card">
+      <text class="section-title">商品规格</text>
+      <view class="sku" wx:for="{{skus}}" wx:key="sku_code">
+        <view class="sku-info">
+          <text class="sku-name">{{item.name}}</text>
+          <text class="sku-stock {{item.stockClass}}">{{item.stockLabel}}</text>
+        </view>
+        <text class="sku-price">{{item.points_price}} 积分</text>
+      </view>
+    </view>
+    <view class="card" wx:if="{{product.description || detailImages.length}}">
+      <text class="section-title">商品介绍</text>
+      <text class="description" wx:if="{{product.description}}">{{product.description}}</text>
+      <image class="detail-photo" wx:for="{{detailImages}}" wx:key="url"
+             src="{{item.url}}" mode="widthFix" aria-label="{{item.alt}}" />
+    </view>
+    <view class="footer-note">积分兑换将在后续阶段开放</view>
+  </view>
+</view>

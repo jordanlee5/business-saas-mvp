@@ -1,0 +1,31 @@
+.screen { padding: 24rpx 24rpx 76rpx; }
+.gallery { width: 100%; height: 600rpx; border-radius: 26rpx; overflow: hidden; background: #e5ede7; }
+.gallery-photo { width: 100%; height: 100%; }
+.gallery-empty { display: flex; align-items: center; justify-content: center; color: #87a18e; letter-spacing: 4rpx; }
+.card { background: #fff; border-radius: 24rpx; padding: 32rpx; margin-top: 22rpx; }
+.heading { display: flex; flex-direction: column; }
+.eyebrow { color: #608579; font-size: 20rpx; letter-spacing: 2rpx; }
+.name { font-size: 40rpx; font-weight: 600; line-height: 1.45; margin-top: 18rpx; }
+.subtitle { color: #758a80; font-size: 26rpx; margin-top: 10rpx; }
+.price-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 30rpx; }
+.price { color: #a46827; font-size: 40rpx; font-weight: 600; }
+.unit { font-size: 22rpx; font-weight: 400; }
+.stock, .sku-stock { font-size: 22rpx; }
+.available { color: #206f53; }
+.low { color: #a46827; }
+.out { color: #9baba5; }
+.section-title { display: block; font-size: 32rpx; font-weight: 600; margin-bottom: 20rpx; }
+.sku { display: flex; justify-content: space-between; align-items: center; padding: 22rpx 0; border-top: 1rpx solid #eef2ee; gap: 16rpx; }
+.sku-info { display: flex; flex-direction: column; gap: 10rpx; }
+.sku-name { font-size: 27rpx; }
+.sku-price { color: #a46827; font-size: 27rpx; white-space: nowrap; }
+.description { display: block; white-space: pre-wrap; line-height: 1.7; color: #546b60; font-size: 26rpx; }
+.detail-photo { width: 100%; margin-top: 18rpx; border-radius: 12rpx; }
+.footer-note { color: #84958d; font-size: 22rpx; text-align: center; padding: 38rpx 0; }
+.state { min-height: 430rpx; background: #fff; border-radius: 24rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36rpx; text-align: center; }
+.state-title { font-size: 31rpx; font-weight: 600; }
+.state-copy { font-size: 24rpx; color: #84958d; margin-top: 16rpx; }
+.action { background: #153d39; color: #fff; border-radius: 40rpx; font-size: 25rpx; margin-top: 30rpx; }
+.skeleton-photo { height: 570rpx; background: #e5ede7; border-radius: 24rpx; }
+.skeleton-line { width: 85%; height: 42rpx; background: #e5ede7; border-radius: 12rpx; margin-top: 32rpx; }
+.skeleton-line.short { width: 52%; }
