@@ -1,4 +1,6 @@
 declare const wx: {
+  getAccountInfoSync(): { miniProgram: { envVersion: string } };
+  getSystemInfoSync(): { platform: string };
   request(options: {
     url: string;
     method: 'GET';

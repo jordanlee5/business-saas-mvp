@@ -1,4 +1,4 @@
-import { API_ORIGIN } from '../config';
+import { getApiOrigin } from '../config';
 
 export interface Category { name: string; slug: string }
 export interface Product {
@@ -29,24 +29,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function request(path: string, detail = false): Promise<unknown> {
-  return new Promise((resolve, reject) => wx.request({
-    url: API_ORIGIN + path,
-    method: 'GET',
-    timeout: 8000,
-    header: { Accept: 'application/json' },
-    success(response) {
-      if (response.statusCode !== 200) {
-        if (detail && response.statusCode === 404) {
-          reject(new ProductNotFoundError('商品已下架或不存在'));
+  return new Promise((resolve, reject) => {
+    let origin: string;
+    try { origin = getApiOrigin(); }
+    catch (error) { reject(error); return; }
+    wx.request({
+      url: origin + path,
+      method: 'GET',
+      timeout: 8000,
+      header: { Accept: 'application/json' },
+      success(response) {
+        if (response.statusCode !== 200) {
+          if (detail && response.statusCode === 404) {
+            reject(new ProductNotFoundError('商品已下架或不存在'));
+            return;
+          }
+          reject(new Error('目录服务暂不可用'));
           return;
         }
-        reject(new Error('目录服务暂不可用'));
-        return;
-      }
-      resolve(response.data);
-    },
-    fail() { reject(new Error('网络连接失败，请稍后重试')); },
-  }));
+        resolve(response.data);
+      },
+      fail() { reject(new Error('网络连接失败，请稍后重试')); },
+    });
+  });
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -81,7 +86,7 @@ export async function getProducts(category: string, page: number, searchTerm = '
 export function publicImageUrl(path: string | null): string {
   if (!path || !/^\/uploads\/mall_products\/[A-Za-z0-9_./-]+$/.test(path) ||
       path.includes('..') || path.includes('//')) return '';
-  return API_ORIGIN + path;
+  return getApiOrigin() + path;
 }
 
 export function productImageUrl(path: string | null, id: string): string {
