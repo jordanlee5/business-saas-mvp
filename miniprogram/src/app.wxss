@@ -5,3 +5,9 @@ page {
 }
 
 button::after { border: 0; }
+
+/* Shared mall surfaces and semantic colors for catalog and detail. */
+.mall-surface { background: #fff; border-radius: 24rpx; }
+.mall-primary-action { background: #153d39; color: #fff; border-radius: 40rpx; }
+.mall-points { color: #a46827; font-weight: 600; }
+.mall-muted { color: #84958d; }

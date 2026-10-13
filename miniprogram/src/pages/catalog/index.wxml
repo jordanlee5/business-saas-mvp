@@ -29,17 +29,17 @@
   <view class="skeleton" wx:if="{{loading}}" aria-label="商品加载中">
     <view class="skeleton-card"></view><view class="skeleton-card"></view>
   </view>
-  <view class="state" wx:elif="{{error && !items.length}}">
+  <view class="state mall-surface" wx:elif="{{error && !items.length}}">
     <text class="state-title">暂时无法加载商品</text>
-    <text class="state-copy">{{error}}</text>
-    <button class="retry" bindtap="onRetry">重新加载</button>
+    <text class="state-copy mall-muted">{{error}}</text>
+    <button class="retry mall-primary-action" bindtap="onRetry">重新加载</button>
   </view>
-  <view class="state" wx:elif="{{!items.length}}">
+  <view class="state mall-surface" wx:elif="{{!items.length}}">
     <text class="state-title">{{activeQuery ? '未找到相关商品' : '好物即将上架'}}</text>
-    <text class="state-copy">{{activeQuery ? '试试其他关键词，或清除搜索查看全部好物。' : '当前分类暂无商品，稍后再来看看。'}}</text>
+    <text class="state-copy mall-muted">{{activeQuery ? '试试其他关键词，或清除搜索查看全部好物。' : '当前分类暂无商品，稍后再来看看。'}}</text>
   </view>
   <view class="grid" wx:else>
-    <view class="card" wx:for="{{items}}" wx:key="product_public_id"
+    <view class="card mall-surface" wx:for="{{items}}" wx:key="product_public_id"
           data-id="{{item.product_public_id}}" bindtap="onProductTap">
       <image wx:if="{{item.imageUrl}}" class="photo" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true" />
       <view wx:else class="photo photo-empty">积分好物</view>
@@ -47,17 +47,17 @@
         <text class="name">{{item.name}}</text>
         <text class="subtitle" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
         <view class="card-footer">
-          <text class="price">{{item.min_points_price}} <text class="unit">积分起</text></text>
+          <text class="price mall-points">{{item.min_points_price}} <text class="unit">积分起</text></text>
           <text class="stock {{item.in_stock ? '' : 'sold-out'}}">{{item.in_stock ? '可兑换' : '暂时无货'}}</text>
         </view>
       </view>
     </view>
   </view>
-  <view class="state state-small" wx:if="{{error && items.length}}">
-    <text class="state-copy">{{error}}</text>
-    <button class="retry" bindtap="onLoadMore">重试加载更多</button>
+  <view class="state state-small mall-surface" wx:if="{{error && items.length}}">
+    <text class="state-copy mall-muted">{{error}}</text>
+    <button class="retry mall-primary-action" bindtap="onLoadMore">重试加载更多</button>
   </view>
-  <button class="load-more" wx:if="{{hasMore && !error}}" loading="{{moreLoading}}"
+  <button class="load-more mall-primary-action" wx:if="{{hasMore && !error}}" loading="{{moreLoading}}"
           disabled="{{moreLoading}}" bindtap="onLoadMore">加载更多</button>
-  <view class="page-end" wx:if="{{items.length && !hasMore}}">已经看到全部商品</view>
+  <view class="page-end mall-muted" wx:if="{{items.length && !hasMore}}">已经看到全部商品</view>
 </view>

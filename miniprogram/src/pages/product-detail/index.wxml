@@ -4,15 +4,15 @@
     <view class="skeleton-line"></view>
     <view class="skeleton-line short"></view>
   </view>
-  <view class="state" wx:elif="{{notFound}}">
+  <view class="state mall-surface" wx:elif="{{notFound}}">
     <text class="state-title">商品暂不可查看</text>
-    <text class="state-copy">商品可能已下架或不存在，请返回目录浏览。</text>
-    <button class="action" bindtap="onBack">返回商品目录</button>
+    <text class="state-copy mall-muted">商品可能已下架或不存在，请返回目录浏览。</text>
+    <button class="action mall-primary-action" bindtap="onBack">返回商品目录</button>
   </view>
-  <view class="state" wx:elif="{{error}}">
+  <view class="state mall-surface" wx:elif="{{error}}">
     <text class="state-title">暂时无法加载商品详情</text>
-    <text class="state-copy">{{error}}</text>
-    <button class="action" bindtap="onRetry">重新加载</button>
+    <text class="state-copy mall-muted">{{error}}</text>
+    <button class="action mall-primary-action" bindtap="onRetry">重新加载</button>
   </view>
   <view wx:elif="{{product}}">
     <swiper class="gallery" indicator-dots="{{gallery.length > 1}}" circular="{{gallery.length > 1}}" wx:if="{{gallery.length}}">
@@ -21,17 +21,17 @@
       </swiper-item>
     </swiper>
     <view class="gallery gallery-empty" wx:else>积分好物</view>
-    <view class="card heading">
+    <view class="card heading mall-surface">
       <text class="eyebrow">POINTS MALL / 商品详情</text>
       <text class="name">{{product.name}}</text>
       <text class="subtitle" wx:if="{{product.subtitle}}">{{product.subtitle}}</text>
       <view class="price-row">
-        <text class="price">{{selectedSku ? selectedSku.points_price : product.min_points_price}} <text class="unit">{{selectedSku ? '积分' : '积分起'}}</text></text>
+        <text class="price mall-points">{{selectedSku ? selectedSku.points_price : product.min_points_price}} <text class="unit">{{selectedSku ? '积分' : '积分起'}}</text></text>
         <text class="stock {{selectedSku.stockClass}}" wx:if="{{selectedSku}}">{{selectedSku.stockLabel}}</text>
         <text class="stock {{product.in_stock ? 'available' : 'out'}}" wx:else>{{product.in_stock ? '有货' : '暂时无货'}}</text>
       </view>
     </view>
-    <view class="card">
+    <view class="card mall-surface">
       <text class="section-title">商品规格</text>
       <text class="sku-note" wx:if="{{selectedSku}}">已选：{{selectedSku.name}}</text>
       <text class="sku-note" wx:else>请选择规格查看对应积分价与库存状态</text>
@@ -42,17 +42,17 @@
           <text class="sku-stock {{item.stockClass}}">{{item.stockLabel}}</text>
         </view>
         <view class="sku-end">
-          <text class="sku-price">{{item.points_price}} 积分</text>
+          <text class="sku-price mall-points">{{item.points_price}} 积分</text>
           <text class="sku-check" wx:if="{{item.selected}}">已选</text>
         </view>
       </button>
     </view>
-    <view class="card" wx:if="{{product.description || detailImages.length}}">
+    <view class="card mall-surface" wx:if="{{product.description || detailImages.length}}">
       <text class="section-title">商品介绍</text>
       <text class="description" wx:if="{{product.description}}">{{product.description}}</text>
       <image class="detail-photo" wx:for="{{detailImages}}" wx:key="url"
              src="{{item.url}}" mode="widthFix" aria-label="{{item.alt}}" />
     </view>
-    <view class="footer-note">积分兑换将在后续阶段开放</view>
+    <view class="footer-note mall-muted">积分兑换将在后续阶段开放</view>
   </view>
 </view>
