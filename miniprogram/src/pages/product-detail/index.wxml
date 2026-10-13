@@ -26,19 +26,26 @@
       <text class="name">{{product.name}}</text>
       <text class="subtitle" wx:if="{{product.subtitle}}">{{product.subtitle}}</text>
       <view class="price-row">
-        <text class="price">{{product.min_points_price}} <text class="unit">积分起</text></text>
-        <text class="stock {{product.in_stock ? 'available' : 'out'}}">{{product.in_stock ? '有货' : '暂时无货'}}</text>
+        <text class="price">{{selectedSku ? selectedSku.points_price : product.min_points_price}} <text class="unit">{{selectedSku ? '积分' : '积分起'}}</text></text>
+        <text class="stock {{selectedSku.stockClass}}" wx:if="{{selectedSku}}">{{selectedSku.stockLabel}}</text>
+        <text class="stock {{product.in_stock ? 'available' : 'out'}}" wx:else>{{product.in_stock ? '有货' : '暂时无货'}}</text>
       </view>
     </view>
     <view class="card">
       <text class="section-title">商品规格</text>
-      <view class="sku" wx:for="{{skus}}" wx:key="sku_code">
+      <text class="sku-note" wx:if="{{selectedSku}}">已选：{{selectedSku.name}}</text>
+      <text class="sku-note" wx:else>请选择规格查看对应积分价与库存状态</text>
+      <button class="sku {{item.selected ? 'sku-selected' : ''}}" wx:for="{{skus}}" wx:key="sku_code"
+              data-code="{{item.sku_code}}" bindtap="onSkuTap" aria-label="选择规格 {{item.name}}">
         <view class="sku-info">
           <text class="sku-name">{{item.name}}</text>
           <text class="sku-stock {{item.stockClass}}">{{item.stockLabel}}</text>
         </view>
-        <text class="sku-price">{{item.points_price}} 积分</text>
-      </view>
+        <view class="sku-end">
+          <text class="sku-price">{{item.points_price}} 积分</text>
+          <text class="sku-check" wx:if="{{item.selected}}">已选</text>
+        </view>
+      </button>
     </view>
     <view class="card" wx:if="{{product.description || detailImages.length}}">
       <text class="section-title">商品介绍</text>

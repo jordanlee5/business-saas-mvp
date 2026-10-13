@@ -1,7 +1,7 @@
 import { getProductDetail, ProductNotFoundError, productImageUrl } from '../../services/catalog';
 import type { ProductDetail, ProductSku } from '../../services/catalog';
 
-interface DisplaySku extends ProductSku { stockLabel: string; stockClass: string }
+interface DisplaySku extends ProductSku { stockLabel: string; stockClass: string; selected: boolean }
 interface DisplayImage { url: string; alt: string }
 
 let generation = 0;
@@ -16,6 +16,8 @@ Page({
     gallery: [] as DisplayImage[],
     detailImages: [] as DisplayImage[],
     skus: [] as DisplaySku[],
+    selectedSkuCode: '',
+    selectedSku: null as DisplaySku | null,
   },
   onLoad(options: { id?: string }) {
     const id = options.id || '';
@@ -31,9 +33,21 @@ Page({
     if (getCurrentPages().length > 1) wx.navigateBack({ delta: 1 });
     else wx.reLaunch({ url: '/pages/catalog/index' });
   },
+  onSkuTap(event: { currentTarget: { dataset: { code: string } } }) {
+    const code = event.currentTarget.dataset.code;
+    const selected = this.data.skus.find((sku: DisplaySku) => sku.sku_code === code);
+    if (!selected) return;
+    this.setData({
+      selectedSkuCode: code,
+      selectedSku: { ...selected, selected: true },
+      skus: this.data.skus.map((sku: DisplaySku) => ({
+        ...sku, selected: sku.sku_code === code,
+      })),
+    });
+  },
   async refresh() {
     const current = ++generation;
-    this.setData({ loading: true, error: '', notFound: false, product: null, gallery: [], detailImages: [], skus: [] });
+    this.setData({ loading: true, error: '', notFound: false, product: null, gallery: [], detailImages: [], skus: [], selectedSku: null });
     try {
       const product = await getProductDetail(this.data.id);
       if (current !== generation) return;
@@ -44,21 +58,26 @@ Page({
       })).filter((item) => item.url);
       const gallery = images.filter((item) => item.role !== 'detail');
       const detailImages = images.filter((item) => item.role === 'detail');
+      const skus = product.skus.map((sku: ProductSku) => ({
+        ...sku,
+        stockLabel: sku.stock_status === 'OUT_OF_STOCK' ? '暂时无货' :
+          sku.stock_status === 'LOW_STOCK' ? '库存紧张' : '有货',
+        stockClass: sku.stock_status === 'OUT_OF_STOCK' ? 'out' :
+          sku.stock_status === 'LOW_STOCK' ? 'low' : 'available',
+        selected: sku.sku_code === this.data.selectedSkuCode,
+      }));
+      const selectedSku = skus.find((sku: DisplaySku) => sku.selected) || null;
       this.setData({
         product,
         gallery,
         detailImages,
-        skus: product.skus.map((sku: ProductSku) => ({
-          ...sku,
-          stockLabel: sku.stock_status === 'OUT_OF_STOCK' ? '暂时无货' :
-            sku.stock_status === 'LOW_STOCK' ? '库存紧张' : '有货',
-          stockClass: sku.stock_status === 'OUT_OF_STOCK' ? 'out' :
-            sku.stock_status === 'LOW_STOCK' ? 'low' : 'available',
-        })),
+        skus,
+        selectedSku,
+        selectedSkuCode: selectedSku ? selectedSku.sku_code : '',
       });
     } catch (error) {
       if (current !== generation) return;
-      if (error instanceof ProductNotFoundError) this.setData({ notFound: true });
+      if (error instanceof ProductNotFoundError) this.setData({ notFound: true, selectedSkuCode: '' });
       else this.setData({ error: String(error instanceof Error ? error.message : '加载失败') });
     } finally {
       if (current === generation) this.setData({ loading: false });
