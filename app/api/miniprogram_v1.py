@@ -1,11 +1,21 @@
 """微信小程序 v1 API 路由骨架。"""
 
+import os
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
 from pydantic import BaseModel
 
 from ..database import SessionLocal
+from ..models import Member, MemberWechatBinding
+from ..mall.wechat_identity_service import (
+    WechatCodeError, WechatConfigurationError, WechatExchangeUnavailable,
+    exchange_wechat_code,
+)
+from ..mall.miniprogram_session_service import (
+    InvalidSession, SessionConfigurationError, assert_session_configured,
+    issue_session, session_matches_binding, verify_session,
+)
 from ..mall.public_catalog_service import (
     get_public_product_detail, list_public_categories, list_public_products,
 )
@@ -48,6 +58,97 @@ def public_catalog_session():
     finally:
         db.rollback()
         db.close()
+
+
+class WechatLoginRequest(BaseModel):
+    code: str
+
+
+class MemberSessionResponse(BaseModel):
+    token: str
+    token_type: Literal["Bearer"] = "Bearer"
+    expires_in: int
+
+
+class CurrentMemberResponse(BaseModel):
+    member_public_id: str
+
+
+@miniprogram_v1_router.post(
+    "/auth/wechat-session", response_model=MemberSessionResponse,
+    operation_id="create_miniprogram_member_session",
+    summary="使用微信登录 code 创建已绑定会员短期会话",
+)
+def create_member_session(
+    body: WechatLoginRequest, response: Response,
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        assert_session_configured()
+    except SessionConfigurationError:
+        raise HTTPException(status_code=503, detail="会员会话暂不可用") from None
+    try:
+        identity = exchange_wechat_code(body.code)
+    except WechatConfigurationError:
+        raise HTTPException(status_code=503, detail="微信登录暂不可用") from None
+    except WechatCodeError:
+        raise HTTPException(status_code=401, detail="微信登录凭证无效") from None
+    except WechatExchangeUnavailable:
+        raise HTTPException(status_code=502, detail="微信登录暂不可用") from None
+
+    binding = db.query(MemberWechatBinding).filter(
+        MemberWechatBinding.wechat_app_id == identity.app_id,
+        MemberWechatBinding.openid == identity.openid,
+    ).one_or_none()
+    if binding is None:
+        raise HTTPException(status_code=403, detail="会员身份尚未激活")
+    member = db.query(Member).filter(Member.id == binding.member_id).one_or_none()
+    if member is None or not member.is_active:
+        raise HTTPException(status_code=403, detail="会员身份尚未激活")
+    try:
+        token, ttl = issue_session(binding.id, identity.app_id, identity.openid)
+    except SessionConfigurationError:
+        raise HTTPException(status_code=503, detail="会员会话暂不可用") from None
+    return MemberSessionResponse(token=token, expires_in=ttl)
+
+
+@miniprogram_v1_router.get(
+    "/auth/me", response_model=CurrentMemberResponse,
+    operation_id="get_miniprogram_current_member",
+    summary="读取当前有效会话所绑定的会员身份",
+)
+def get_current_member(
+    response: Response, authorization: str | None = Header(None),
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="会员会话无效")
+    try:
+        claims = verify_session(authorization[7:])
+    except SessionConfigurationError:
+        raise HTTPException(status_code=503, detail="会员会话暂不可用") from None
+    except InvalidSession:
+        raise HTTPException(status_code=401, detail="会员会话无效") from None
+    if claims.app_id != os.environ.get("WECHAT_MINIPROGRAM_APP_ID", "").strip():
+        raise HTTPException(status_code=401, detail="会员会话无效")
+    binding = db.query(MemberWechatBinding).filter(
+        MemberWechatBinding.id == claims.binding_id,
+        MemberWechatBinding.wechat_app_id == claims.app_id,
+    ).one_or_none()
+    if binding is None:
+        raise HTTPException(status_code=401, detail="会员会话无效")
+    try:
+        matches = session_matches_binding(claims, binding.wechat_app_id, binding.openid)
+    except SessionConfigurationError:
+        raise HTTPException(status_code=503, detail="会员会话暂不可用") from None
+    if not matches:
+        raise HTTPException(status_code=401, detail="会员会话无效")
+    member = db.query(Member).filter(Member.id == binding.member_id).one_or_none()
+    if member is None or not member.is_active:
+        raise HTTPException(status_code=401, detail="会员会话无效")
+    return CurrentMemberResponse(member_public_id=member.member_public_id)
 
 
 class PublicCategory(BaseModel):
