@@ -5,6 +5,10 @@
     <text class="headline headline-second">换成喜欢的生活。</text>
     <text class="hero-note">精选好物 · 积分兑换</text>
   </view>
+  <view class="member-links">
+    <button class="member-link mall-surface" bindtap="onPointsTap">我的积分<text class="member-link-note">登录后查看</text></button>
+    <button class="member-link mall-surface" bindtap="onProfileTap">个人中心<text class="member-link-note">当前为访客</text></button>
+  </view>
   <view class="search-area">
     <view class="search-field">
       <text class="search-mark">⌕</text>

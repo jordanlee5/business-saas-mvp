@@ -1,0 +1,13 @@
+<view class="screen">
+  <view class="intro mall-surface">
+    <text class="eyebrow">MY POINTS / 我的积分</text>
+    <text class="title">你的积分，等你开启。</text>
+    <text class="copy">当前为访客。完成微信身份绑定与权益激活后，才能安全查看属于你的积分。</text>
+  </view>
+  <view class="guest-card mall-surface">
+    <text class="card-title">尚未登录</text>
+    <text class="card-copy mall-muted">暂不能展示余额、积分批次与流水。此页不会把访客积分记为 0，也不会请求其他会员的数据。</text>
+    <button class="mall-primary-action action" bindtap="onProfileTap">前往个人中心</button>
+  </view>
+  <button class="back-link" bindtap="onCatalogTap">返回商城选好物</button>
+</view>

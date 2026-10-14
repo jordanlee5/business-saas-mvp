@@ -1,0 +1,17 @@
+<view class="screen">
+  <view class="hero mall-surface">
+    <view class="avatar">访</view>
+    <view class="identity">
+      <text class="identity-title">访客模式</text>
+      <text class="identity-copy mall-muted">尚未绑定微信身份</text>
+    </view>
+  </view>
+  <view class="notice mall-surface">
+    <text class="notice-title">会员服务正在接入</text>
+    <text class="notice-copy mall-muted">微信登录、权益激活和个人积分查询将在安全会话接通后开放。当前不采集头像、昵称或手机号，也不会显示模拟的会员信息。</text>
+  </view>
+  <view class="actions mall-surface">
+    <button class="action" bindtap="onPointsTap">我的积分<text class="arrow">›</text></button>
+    <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
+  </view>
+</view>

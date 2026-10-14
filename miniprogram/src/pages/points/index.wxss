@@ -1,0 +1,10 @@
+.screen { padding: 30rpx 28rpx 80rpx; }
+.intro { padding: 44rpx 34rpx; }
+.eyebrow { display: block; color: #38735b; font-size: 21rpx; letter-spacing: 2rpx; }
+.title { display: block; margin-top: 22rpx; color: #19322e; font-size: 39rpx; font-weight: 600; }
+.copy { display: block; margin-top: 18rpx; color: #5d746c; font-size: 25rpx; line-height: 1.65; }
+.guest-card { margin-top: 24rpx; padding: 42rpx 34rpx; }
+.card-title { display: block; font-size: 32rpx; font-weight: 600; }
+.card-copy { display: block; margin-top: 16rpx; font-size: 24rpx; line-height: 1.65; }
+.action { margin: 36rpx 0 0; font-size: 26rpx; }
+.back-link { margin-top: 28rpx; background: transparent; color: #23664f; font-size: 25rpx; }

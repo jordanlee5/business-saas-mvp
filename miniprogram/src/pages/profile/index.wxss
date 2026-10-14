@@ -1,0 +1,13 @@
+.screen { padding: 30rpx 28rpx 80rpx; }
+.hero { display: flex; align-items: center; gap: 24rpx; padding: 45rpx 34rpx; }
+.avatar { display: flex; align-items: center; justify-content: center; width: 100rpx; height: 100rpx; border-radius: 50%; background: #e3eee6; color: #286149; font-size: 37rpx; }
+.identity { display: flex; flex-direction: column; gap: 9rpx; }
+.identity-title { font-size: 34rpx; font-weight: 600; }
+.identity-copy { font-size: 23rpx; }
+.notice { margin-top: 24rpx; padding: 38rpx 34rpx; }
+.notice-title { display: block; font-size: 29rpx; font-weight: 600; }
+.notice-copy { display: block; margin-top: 15rpx; font-size: 24rpx; line-height: 1.7; }
+.actions { margin-top: 24rpx; padding: 0 26rpx; }
+.action { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 104rpx; padding: 0 8rpx; border-radius: 0; background: transparent; color: #19322e; font-size: 27rpx; text-align: left; }
+.action + .action { border-top: 1rpx solid #edf1ed; }
+.arrow { color: #81958a; font-size: 38rpx; }
