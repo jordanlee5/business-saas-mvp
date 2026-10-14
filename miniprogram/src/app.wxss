@@ -11,3 +11,48 @@ button::after { border: 0; }
 .mall-primary-action { background: #153d39; color: #fff; border-radius: 40rpx; }
 .mall-points { color: #a46827; font-weight: 600; }
 .mall-muted { color: #84958d; }
+
+/* Three real destinations; the fixed dock stays clear of the device home indicator. */
+.mall-nav {
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: stretch;
+  padding: 10rpx 22rpx;
+  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid #e3eae5;
+  box-shadow: 0 -8rpx 28rpx rgba(22, 61, 57, .06);
+}
+.mall-nav-item {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 86rpx;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 8rpx;
+  border-radius: 0;
+  background: transparent;
+  color: #64776f;
+  font-size: 25rpx;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.mall-nav-current { color: #153d39; font-weight: 700; }
+.mall-nav-current::before {
+  position: absolute;
+  top: 0;
+  left: 32%;
+  right: 32%;
+  height: 5rpx;
+  border-radius: 5rpx;
+  background: #c68f53;
+  content: '';
+}

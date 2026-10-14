@@ -15,3 +15,8 @@
     <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
   </view>
 </view>
+<view class="mall-nav" aria-label="积分商城导航">
+  <button class="mall-nav-item" bindtap="onCatalogTap" aria-label="打开逛好物">逛好物</button>
+  <button class="mall-nav-item" bindtap="onPointsTap" aria-label="打开我的积分">我的积分</button>
+  <view class="mall-nav-item mall-nav-current" aria-label="当前：个人中心"><text>个人中心</text></view>
+</view>

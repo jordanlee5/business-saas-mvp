@@ -1,4 +1,4 @@
-.screen { padding: 30rpx 28rpx 80rpx; }
+.screen { padding: 30rpx 28rpx 160rpx; padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 .hero { display: flex; align-items: center; gap: 24rpx; padding: 45rpx 34rpx; }
 .avatar { display: flex; align-items: center; justify-content: center; width: 100rpx; height: 100rpx; border-radius: 50%; background: #e3eee6; color: #286149; font-size: 37rpx; }
 .identity { display: flex; flex-direction: column; gap: 9rpx; }

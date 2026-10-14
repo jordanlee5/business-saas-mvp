@@ -1,4 +1,4 @@
-.screen { padding: 30rpx 28rpx 80rpx; }
+.screen { padding: 30rpx 28rpx 160rpx; padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 .intro { padding: 44rpx 34rpx; }
 .eyebrow { display: block; color: #38735b; font-size: 21rpx; letter-spacing: 2rpx; }
 .title { display: block; margin-top: 22rpx; color: #19322e; font-size: 39rpx; font-weight: 600; }

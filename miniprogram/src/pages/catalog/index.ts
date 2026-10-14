@@ -90,8 +90,8 @@ Page({
     if (!/^[A-Z0-9-]{1,32}$/.test(id)) return;
     wx.navigateTo({ url: '/pages/product-detail/index?id=' + encodeURIComponent(id) });
   },
-  onPointsTap() { wx.navigateTo({ url: '/pages/points/index' }); },
-  onProfileTap() { wx.navigateTo({ url: '/pages/profile/index' }); },
+  onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
+  onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
   async onLoadMore() {
     if (this.data.loading || this.data.moreLoading || !this.data.hasMore) return;
     const current = generation;
