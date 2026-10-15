@@ -85,6 +85,22 @@ class MemberPointsSummaryResponse(BaseModel):
     nearest_expires_at: str | None
 
 
+class MemberPointsGrant(BaseModel):
+    granted_points: str
+    available_points: str
+    reserved_points: str
+    activated_at: str
+    expires_at: str
+    status: Literal["ACTIVE", "EXHAUSTED", "EXPIRED", "FROZEN"]
+
+
+class MemberPointsGrantPage(BaseModel):
+    items: list[MemberPointsGrant]
+    page: int
+    page_size: int
+    total: int
+
+
 @miniprogram_v1_router.post(
     "/auth/wechat-session", response_model=MemberSessionResponse,
     operation_id="create_miniprogram_member_session",
@@ -216,6 +232,51 @@ def get_member_points_summary(
                 format_utc8(nearest, "%Y-%m-%dT%H:%M:%S+08:00")
                 if nearest is not None else None
             ),
+        )
+
+
+@miniprogram_v1_router.get(
+    "/points/grants", response_model=MemberPointsGrantPage,
+    operation_id="list_miniprogram_member_points_grants",
+    summary="分页读取当前会员的积分批次",
+)
+def get_member_points_grants(
+    response: Response, authorization: str | None = Header(None),
+    page: int = Query(1, ge=1, le=1000000),
+    page_size: int = Query(20, ge=1, le=50),
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    member = _require_current_member(authorization, db)
+    with db.no_autoflush:
+        account = db.query(PointsAccount.id).filter(
+            PointsAccount.member_id == member.id,
+        ).one_or_none()
+        if account is None:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        try:
+            audit = audit_points_account_balance(db, account_id=account.id)
+        except ValueError:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用") from None
+        if not audit.is_consistent:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        grants = db.query(PointsGrant).filter(
+            PointsGrant.account_id == account.id,
+        )
+        total = grants.count()
+        rows = grants.order_by(
+            PointsGrant.activated_at.desc(), PointsGrant.id.desc(),
+        ).offset((page - 1) * page_size).limit(page_size).all()
+        return MemberPointsGrantPage(
+            items=[MemberPointsGrant(
+                granted_points=f"{row.granted_points:.2f}",
+                available_points=f"{row.available_points:.2f}",
+                reserved_points=f"{row.reserved_points:.2f}",
+                activated_at=format_utc8(row.activated_at, "%Y-%m-%dT%H:%M:%S+08:00"),
+                expires_at=format_utc8(row.expires_at, "%Y-%m-%dT%H:%M:%S+08:00"),
+                status=row.status,
+            ) for row in rows],
+            page=page, page_size=page_size, total=total,
         )
 
 

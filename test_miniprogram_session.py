@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.miniprogram_v1 import (
     WechatLoginRequest, create_member_session, get_current_member,
-    get_member_points_summary,
+    get_member_points_summary, get_member_points_grants,
 )
 from app.database import Base
 from app.mall.wechat_identity_service import WechatIdentity, WechatCodeError
@@ -269,6 +269,102 @@ class MiniprogramSessionTests(unittest.TestCase):
         self.db.commit()
         with self.assertRaises(HTTPException) as revoked:
             get_member_points_summary(Response(), "Bearer " + token, self.db)
+        self.assertEqual(revoked.exception.status_code, 401)
+
+    def _grant_page(self, token=None, page=1, page_size=20):
+        response = Response()
+        result = get_member_points_grants(
+            response, "Bearer " + (token or self._login().token),
+            page=page, page_size=page_size, db=self.db,
+        )
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        return result
+
+    def test_grant_page_rejects_missing_token_and_account(self):
+        with self.assertRaises(HTTPException) as missing_token:
+            get_member_points_grants(Response(), None, page=1, page_size=20,
+                                     db=self.db)
+        self.assertEqual(missing_token.exception.status_code, 401)
+        with self.assertRaises(HTTPException) as missing_account:
+            self._grant_page()
+        self.assertEqual(missing_account.exception.status_code, 503)
+
+    def test_grant_page_empty_account_and_out_of_range_page(self):
+        self.db.add(PointsAccount(member_id=self.member.id))
+        self.db.commit()
+        result = self._grant_page(page=4, page_size=2)
+        self.assertEqual(result.model_dump(), {
+            "items": [], "page": 4, "page_size": 2, "total": 0,
+        })
+
+    def test_grant_page_is_sorted_and_never_discloses_business_identity(self):
+        account, first = self._points_grant()
+        first_business = self.db.query(BusinessRecord).filter(
+            BusinessRecord.id == first.business_record_id).one()
+        later = first.activated_at + timedelta(minutes=1)
+        business = BusinessRecord(
+            user_id=first_business.user_id, batch_id=first_business.batch_id,
+            business_no="BR-SESSION-002", public_business_no="BR-SESSION-002",
+            name="敏感姓名", phone="13900000000", plate_number="京B00002",
+            points_amount=Decimal("3.25"), bank_card="",
+            redemption_mode="MALL_REDEMPTION", claim_status="ACTIVATED",
+        )
+        self.db.add(business)
+        self.db.flush()
+        second = PointsGrant(
+            account_id=account.id, business_record_id=business.id,
+            granted_points=Decimal("3.25"), available_points=Decimal("0.00"),
+            reserved_points=Decimal("0.00"), activated_at=later,
+            expires_at=later + timedelta(days=20), status="ACTIVE",
+        )
+        self.db.add(second)
+        self.db.flush()
+        record_initial_points_grant(
+            self.db, grant=second, idempotency_key="session-points-grant-2",
+            reference_type="BUSINESS_RECORD", reference_id="BR-SESSION-002",
+            now=later,
+        )
+        self.db.commit()
+        newest = self._grant_page(page=1, page_size=1)
+        oldest = self._grant_page(page=2, page_size=1)
+        self.assertEqual((newest.total, oldest.total), (2, 2))
+        self.assertEqual(newest.items[0].granted_points, "3.25")
+        self.assertEqual(oldest.items[0].granted_points, "12.50")
+        self.assertEqual(newest.items[0].status, "ACTIVE")
+        self.assertTrue(newest.items[0].expires_at.endswith("+08:00"))
+        self.assertEqual(self._grant_page(page=3, page_size=1).items, [])
+        self.assertEqual(set(newest.items[0].model_dump()), {
+            "granted_points", "available_points", "reserved_points",
+            "activated_at", "expires_at", "status",
+        })
+
+    def test_grant_page_isolated_and_rejects_balance_drift(self):
+        account, _grant = self._points_grant()
+        other = Member(member_public_id="MEMBER-SESSION-002", is_active=True)
+        self.db.add(other)
+        self.db.flush()
+        binding = MemberWechatBinding(member_id=other.id,
+                                      wechat_app_id=APP_ID, openid="other-openid")
+        self.db.add(binding)
+        self.db.add(PointsAccount(member_id=other.id))
+        self.db.commit()
+        other_token, _ = issue_session(binding.id, APP_ID, binding.openid)
+        self.assertEqual(self._grant_page(other_token).total, 0)
+        self.assertEqual(self._grant_page().total, 1)
+        account.available_points = Decimal("99.00")
+        self.db.commit()
+        with self.assertRaises(HTTPException) as drift:
+            self._grant_page()
+        self.assertEqual(drift.exception.status_code, 503)
+        self.assertNotIn("99.00", str(drift.exception.detail))
+
+    def test_grant_page_rejects_revoked_member(self):
+        self._points_grant()
+        token = self._login().token
+        self.member.is_active = False
+        self.db.commit()
+        with self.assertRaises(HTTPException) as revoked:
+            self._grant_page(token)
         self.assertEqual(revoked.exception.status_code, 401)
 
 
