@@ -1,11 +1,16 @@
 declare const wx: {
   getAccountInfoSync(): { miniProgram: { envVersion: string } };
   getSystemInfoSync(): { platform: string };
+  login(options: {
+    success(result: { code: string }): void;
+    fail(error: unknown): void;
+  }): void;
   request(options: {
     url: string;
-    method: 'GET';
+    method: 'GET' | 'POST';
     timeout: number;
-    header: { Accept: string };
+    header: { Accept: string; 'Content-Type'?: string; Authorization?: string };
+    data?: { code: string };
     success(result: { statusCode: number; data: unknown }): void;
     fail(error: unknown): void;
   }): void;
