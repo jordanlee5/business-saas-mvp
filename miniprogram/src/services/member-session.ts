@@ -1,6 +1,12 @@
 import { getApiOrigin } from '../config';
 
 export interface MemberIdentity { member_public_id: string }
+export interface MemberPointsSummary {
+  available_points: string;
+  reserved_points: string;
+  grant_count: number;
+  nearest_expires_at: string | null;
+}
 
 let token = '';
 let expiresAt = 0;
@@ -105,9 +111,45 @@ export async function loginMember(): Promise<MemberIdentity> {
 export async function getSignedInMember(): Promise<MemberIdentity | null> {
   const activeToken = currentToken();
   if (!activeToken) return null;
-  try { return await verifyMember(activeToken); }
+  const current = generation;
+  try {
+    const member = await verifyMember(activeToken);
+    if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+    return member;
+  }
   catch (error) {
-    if (error instanceof MemberSessionError && error.status === 401) clearMemberSession();
+    if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
     throw error;
   }
+}
+
+export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSummary | null> {
+  const activeToken = currentToken();
+  if (!activeToken) return null;
+  const current = generation;
+  let data: unknown;
+  try {
+    data = await request('/api/miniprogram/v1/points/summary', 'GET', activeToken);
+  } catch (error) {
+    if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
+    throw error;
+  }
+  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  const points = (value: unknown): value is string =>
+    typeof value === 'string' && /^\d+\.\d{2}$/.test(value);
+  if (!isRecord(data) || !points(data.available_points) || !points(data.reserved_points) ||
+      typeof data.grant_count !== 'number' || !Number.isSafeInteger(data.grant_count) ||
+      data.grant_count < 0 ||
+      !(data.nearest_expires_at === null ||
+        (typeof data.nearest_expires_at === 'string' &&
+         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/.test(data.nearest_expires_at) &&
+         Number.isFinite(Date.parse(data.nearest_expires_at))))) {
+    throw new MemberSessionError('积分数据暂不可用');
+  }
+  return {
+    available_points: data.available_points,
+    reserved_points: data.reserved_points,
+    grant_count: data.grant_count,
+    nearest_expires_at: data.nearest_expires_at as string | null,
+  };
 }

@@ -8,3 +8,6 @@
 .card-copy { display: block; margin-top: 16rpx; font-size: 24rpx; line-height: 1.65; }
 .action { margin: 36rpx 0 0; font-size: 26rpx; }
 .back-link { margin-top: 28rpx; background: transparent; color: #23664f; font-size: 25rpx; }
+.balance { display: block; margin: 12rpx 0 28rpx; color: #153d39; font-size: 58rpx; font-weight: 600; }
+.summary-row { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; padding: 20rpx 0; border-top: 1rpx solid #edf1ed; color: #5d746c; font-size: 24rpx; }
+.summary-row text:last-child { color: #19322e; text-align: right; }
