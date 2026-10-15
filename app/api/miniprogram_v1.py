@@ -5,9 +5,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
 from pydantic import BaseModel
+from sqlalchemy import func
 
 from ..database import SessionLocal
-from ..models import Member, MemberWechatBinding
+from ..models import Member, MemberWechatBinding, PointsAccount, PointsGrant
+from ..time_utils import format_utc8, utc8_now
+from ..mall.points_ledger_service import audit_points_account_balance
+from ..mall.domain import _to_utc8_wall_time
 from ..mall.wechat_identity_service import (
     WechatCodeError, WechatConfigurationError, WechatExchangeUnavailable,
     exchange_wechat_code,
@@ -74,6 +78,13 @@ class CurrentMemberResponse(BaseModel):
     member_public_id: str
 
 
+class MemberPointsSummaryResponse(BaseModel):
+    available_points: str
+    reserved_points: str
+    grant_count: int
+    nearest_expires_at: str | None
+
+
 @miniprogram_v1_router.post(
     "/auth/wechat-session", response_model=MemberSessionResponse,
     operation_id="create_miniprogram_member_session",
@@ -123,6 +134,11 @@ def get_current_member(
     db=Depends(public_catalog_session),
 ):
     response.headers["Cache-Control"] = "no-store"
+    member = _require_current_member(authorization, db)
+    return CurrentMemberResponse(member_public_id=member.member_public_id)
+
+
+def _require_current_member(authorization, db) -> Member:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="会员会话无效")
     try:
@@ -148,7 +164,59 @@ def get_current_member(
     member = db.query(Member).filter(Member.id == binding.member_id).one_or_none()
     if member is None or not member.is_active:
         raise HTTPException(status_code=401, detail="会员会话无效")
-    return CurrentMemberResponse(member_public_id=member.member_public_id)
+    return member
+
+
+@miniprogram_v1_router.get(
+    "/points/summary", response_model=MemberPointsSummaryResponse,
+    operation_id="get_miniprogram_member_points_summary",
+    summary="读取当前会员积分汇总",
+)
+def get_member_points_summary(
+    response: Response, authorization: str | None = Header(None),
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    member = _require_current_member(authorization, db)
+    with db.no_autoflush:
+        account = db.query(PointsAccount.id).filter(
+            PointsAccount.member_id == member.id,
+        ).one_or_none()
+        if account is None:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        try:
+            audit = audit_points_account_balance(db, account_id=account.id)
+        except ValueError:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用") from None
+        if not audit.is_consistent:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        now = utc8_now()
+        grant_count = db.query(func.count(PointsGrant.id)).filter(
+            PointsGrant.account_id == account.id,
+        ).scalar()
+        active_expiry = [
+            _to_utc8_wall_time(grant.expires_at, "积分到期时间")
+            for grant in db.query(
+                PointsGrant.expires_at,
+            ).filter(
+                PointsGrant.account_id == account.id,
+                PointsGrant.status == "ACTIVE",
+                PointsGrant.available_points > 0,
+            ).all()
+            if grant.expires_at is not None and _to_utc8_wall_time(
+                grant.expires_at, "积分到期时间",
+            ) > now
+        ]
+        nearest = min(active_expiry) if active_expiry else None
+        return MemberPointsSummaryResponse(
+            available_points=f"{audit.cached_available_points:.2f}",
+            reserved_points=f"{audit.cached_reserved_points:.2f}",
+            grant_count=grant_count,
+            nearest_expires_at=(
+                format_utc8(nearest, "%Y-%m-%dT%H:%M:%S+08:00")
+                if nearest is not None else None
+            ),
+        )
 
 
 class PublicCategory(BaseModel):

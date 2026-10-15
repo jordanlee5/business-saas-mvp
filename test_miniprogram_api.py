@@ -74,13 +74,14 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 6)
+        self.assertEqual(len(routes), 7)
         self.assertEqual({route.path for route in routes}, {
             STATUS_PATH, f"{MINIPROGRAM_API_PREFIX}/categories",
             f"{MINIPROGRAM_API_PREFIX}/products",
             f"{MINIPROGRAM_API_PREFIX}/products/{{product_public_id}}",
             f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session",
             f"{MINIPROGRAM_API_PREFIX}/auth/me",
+            f"{MINIPROGRAM_API_PREFIX}/points/summary",
         })
         self.assertEqual({route.path: route.methods for route in routes}[
             f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session"], {"POST"})
