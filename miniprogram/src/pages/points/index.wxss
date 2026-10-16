@@ -21,3 +21,7 @@
 .grant-item .summary-row:first-of-type { margin-top: 16rpx; }
 .grant-date { display: block; color: #5d746c; font-size: 21rpx; line-height: 1.55; overflow-wrap: anywhere; }
 .more-action { margin-top: 28rpx; color: #23664f; background: #f0f6f2; font-size: 25rpx; }
+.ledger-section { margin-top: 24rpx; padding: 36rpx 34rpx; }
+.ledger-item { margin-top: 26rpx; padding: 26rpx 22rpx; border: 1rpx solid #e5ede8; border-radius: 18rpx; background: #f9fbf9; }
+.ledger-item .summary-row { padding: 14rpx 0; }
+.ledger-date { color: #5d746c; font-size: 21rpx; text-align: right; overflow-wrap: anywhere; }

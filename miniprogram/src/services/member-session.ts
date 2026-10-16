@@ -21,6 +21,18 @@ export interface MemberPointsGrantPage {
   page_size: number;
   total: number;
 }
+export interface MemberPointsLedgerEntry {
+  entry_type: 'GRANT' | 'RESERVE' | 'RELEASE' | 'CONSUME' | 'REFUND' | 'EXPIRE' | 'ADJUST';
+  available_points_delta: string;
+  reserved_points_delta: string;
+  created_at: string;
+}
+export interface MemberPointsLedgerPage {
+  items: MemberPointsLedgerEntry[];
+  page: number;
+  page_size: number;
+  total: number;
+}
 
 let token = '';
 let expiresAt = 0;
@@ -36,6 +48,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isPoints(value: unknown): value is string {
   return typeof value === 'string' && /^\d+\.\d{2}$/.test(value);
+}
+
+function isPointsDelta(value: unknown): value is string {
+  return typeof value === 'string' && /^-?\d+\.\d{2}$/.test(value);
 }
 
 function isUtc8Timestamp(value: unknown): value is string {
@@ -203,4 +219,34 @@ export async function getCurrentMemberPointsGrants(page: number): Promise<Member
     ['ACTIVE', 'EXHAUSTED', 'EXPIRED', 'FROZEN'].includes(String(item.status)));
   if (!valid) throw new MemberSessionError('积分批次数据暂不可用');
   return data as unknown as MemberPointsGrantPage;
+}
+
+export async function getCurrentMemberPointsLedger(page: number): Promise<MemberPointsLedgerPage | null> {
+  if (!Number.isSafeInteger(page) || page < 1 || page > 1000000) {
+    throw new MemberSessionError('积分流水页码无效');
+  }
+  const activeToken = currentToken();
+  if (!activeToken) return null;
+  const current = generation;
+  let data: unknown;
+  try {
+    data = await request(`/api/miniprogram/v1/points/ledger?page=${page}&page_size=20`, 'GET', activeToken);
+  } catch (error) {
+    if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
+    throw error;
+  }
+  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  if (!isRecord(data) || !Array.isArray(data.items) || data.items.length > 20 ||
+      data.page !== page || data.page_size !== 20 ||
+      !Number.isSafeInteger(data.total) || (data.total as number) < 0 ||
+      (data.total as number) < (page - 1) * 20 + data.items.length ||
+      ((data.total as number) > (page - 1) * 20 && data.items.length === 0)) {
+    throw new MemberSessionError('积分流水数据暂不可用');
+  }
+  const valid = data.items.every((item: unknown) => isRecord(item) &&
+    ['GRANT', 'RESERVE', 'RELEASE', 'CONSUME', 'REFUND', 'EXPIRE', 'ADJUST'].includes(String(item.entry_type)) &&
+    isPointsDelta(item.available_points_delta) && isPointsDelta(item.reserved_points_delta) &&
+    isUtc8Timestamp(item.created_at));
+  if (!valid) throw new MemberSessionError('积分流水数据暂不可用');
+  return data as unknown as MemberPointsLedgerPage;
 }
