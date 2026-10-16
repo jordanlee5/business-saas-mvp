@@ -11,3 +11,13 @@
 .balance { display: block; margin: 12rpx 0 28rpx; color: #153d39; font-size: 58rpx; font-weight: 600; }
 .summary-row { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; padding: 20rpx 0; border-top: 1rpx solid #edf1ed; color: #5d746c; font-size: 24rpx; }
 .summary-row text:last-child { color: #19322e; text-align: right; }
+.grant-section { margin-top: 24rpx; padding: 36rpx 34rpx; }
+.grant-heading { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
+.grant-total { color: #5d746c; font-size: 23rpx; }
+.grant-item { margin-top: 26rpx; padding: 26rpx 22rpx; border: 1rpx solid #e5ede8; border-radius: 18rpx; background: #f9fbf9; }
+.grant-amount { color: #193d35; font-size: 27rpx; font-weight: 600; }
+.grant-status { color: #23664f; font-size: 22rpx; flex-shrink: 0; }
+.grant-item .summary-row { padding: 14rpx 0; }
+.grant-item .summary-row:first-of-type { margin-top: 16rpx; }
+.grant-date { display: block; color: #5d746c; font-size: 21rpx; line-height: 1.55; overflow-wrap: anywhere; }
+.more-action { margin-top: 28rpx; color: #23664f; background: #f0f6f2; font-size: 25rpx; }

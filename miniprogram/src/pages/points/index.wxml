@@ -15,7 +15,7 @@
     <view class="summary-row"><text>已预占积分</text><text>{{reservedPoints}}</text></view>
     <view class="summary-row"><text>积分批次数</text><text>{{grantCount}}</text></view>
     <view class="summary-row"><text>最近到期</text><text>{{nearestExpiry || '暂无'}}</text></view>
-    <text class="card-copy mall-muted">积分批次明细与权益激活将在后续阶段接入。</text>
+    <text class="card-copy mall-muted">积分批次按激活时间由近到远展示。权益激活将在后续阶段接入。</text>
   </view>
   <view wx:elif="{{error}}" class="guest-card mall-surface" role="alert">
     <text class="card-title">暂时无法读取积分</text>
@@ -27,6 +27,24 @@
     <text class="card-title">尚未登录</text>
     <text class="card-copy mall-muted">暂不能展示余额与积分批次。此页不会把访客积分记为 0，也不会请求其他会员的数据。</text>
     <button class="mall-primary-action action" bindtap="onProfileTap">前往个人中心</button>
+  </view>
+  <view wx:if="{{signedIn}}" class="grant-section mall-surface">
+    <view class="grant-heading">
+      <text class="card-title">积分批次</text>
+      <text class="grant-total">共 {{grantTotal}} 批</text>
+    </view>
+    <text wx:if="{{grantTotal === 0}}" class="card-copy mall-muted">当前没有积分批次。</text>
+    <view wx:for="{{grantItems}}" wx:key="key" class="grant-item">
+      <view class="grant-heading">
+        <text class="grant-amount">初始 {{item.granted}} 积分</text>
+        <text class="grant-status">{{item.status}}</text>
+      </view>
+      <view class="summary-row"><text>可用</text><text>{{item.available}}</text></view>
+      <view class="summary-row"><text>已预占</text><text>{{item.reserved}}</text></view>
+      <text class="grant-date">激活：{{item.activated}}</text>
+      <text class="grant-date">到期：{{item.expires}}</text>
+    </view>
+    <button wx:if="{{hasMore}}" class="more-action" bindtap="onMoreTap" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在读取…' : '加载更多批次'}}</button>
   </view>
   <button class="back-link" bindtap="onCatalogTap">返回商城选好物</button>
 </view>

@@ -7,6 +7,20 @@ export interface MemberPointsSummary {
   grant_count: number;
   nearest_expires_at: string | null;
 }
+export interface MemberPointsGrant {
+  granted_points: string;
+  available_points: string;
+  reserved_points: string;
+  activated_at: string;
+  expires_at: string;
+  status: 'ACTIVE' | 'EXHAUSTED' | 'EXPIRED' | 'FROZEN';
+}
+export interface MemberPointsGrantPage {
+  items: MemberPointsGrant[];
+  page: number;
+  page_size: number;
+  total: number;
+}
 
 let token = '';
 let expiresAt = 0;
@@ -18,6 +32,16 @@ export class MemberSessionError extends Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isPoints(value: unknown): value is string {
+  return typeof value === 'string' && /^\d+\.\d{2}$/.test(value);
+}
+
+function isUtc8Timestamp(value: unknown): value is string {
+  return typeof value === 'string' &&
+    /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d\+08:00$/.test(value) &&
+    Number.isFinite(Date.parse(value));
 }
 
 function currentToken(): string {
@@ -135,15 +159,10 @@ export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSumma
     throw error;
   }
   if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
-  const points = (value: unknown): value is string =>
-    typeof value === 'string' && /^\d+\.\d{2}$/.test(value);
-  if (!isRecord(data) || !points(data.available_points) || !points(data.reserved_points) ||
+  if (!isRecord(data) || !isPoints(data.available_points) || !isPoints(data.reserved_points) ||
       typeof data.grant_count !== 'number' || !Number.isSafeInteger(data.grant_count) ||
       data.grant_count < 0 ||
-      !(data.nearest_expires_at === null ||
-        (typeof data.nearest_expires_at === 'string' &&
-         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/.test(data.nearest_expires_at) &&
-         Number.isFinite(Date.parse(data.nearest_expires_at))))) {
+      !(data.nearest_expires_at === null || isUtc8Timestamp(data.nearest_expires_at))) {
     throw new MemberSessionError('积分数据暂不可用');
   }
   return {
@@ -152,4 +171,36 @@ export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSumma
     grant_count: data.grant_count,
     nearest_expires_at: data.nearest_expires_at as string | null,
   };
+}
+
+
+export async function getCurrentMemberPointsGrants(page: number): Promise<MemberPointsGrantPage | null> {
+  if (!Number.isSafeInteger(page) || page < 1 || page > 1000000) {
+    throw new MemberSessionError('积分批次页码无效');
+  }
+  const activeToken = currentToken();
+  if (!activeToken) return null;
+  const current = generation;
+  let data: unknown;
+  try {
+    data = await request(`/api/miniprogram/v1/points/grants?page=${page}&page_size=20`, 'GET', activeToken);
+  } catch (error) {
+    if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
+    throw error;
+  }
+  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  if (!isRecord(data) || !Array.isArray(data.items) || data.items.length > 20 ||
+      data.page !== page || data.page_size !== 20 ||
+      !Number.isSafeInteger(data.total) || (data.total as number) < 0 ||
+      (data.total as number) < (page - 1) * 20 + data.items.length ||
+      ((data.total as number) > (page - 1) * 20 && data.items.length === 0)) {
+    throw new MemberSessionError('积分批次数据暂不可用');
+  }
+  const valid = data.items.every((item: unknown) => isRecord(item) &&
+    isPoints(item.granted_points) && isPoints(item.available_points) &&
+    isPoints(item.reserved_points) && isUtc8Timestamp(item.activated_at) &&
+    isUtc8Timestamp(item.expires_at) &&
+    ['ACTIVE', 'EXHAUSTED', 'EXPIRED', 'FROZEN'].includes(String(item.status)));
+  if (!valid) throw new MemberSessionError('积分批次数据暂不可用');
+  return data as unknown as MemberPointsGrantPage;
 }
