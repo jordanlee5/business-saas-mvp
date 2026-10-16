@@ -74,7 +74,7 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 8)
+        self.assertEqual(len(routes), 9)
         self.assertEqual({route.path for route in routes}, {
             STATUS_PATH, f"{MINIPROGRAM_API_PREFIX}/categories",
             f"{MINIPROGRAM_API_PREFIX}/products",
@@ -83,6 +83,7 @@ class MiniprogramApiTests(unittest.TestCase):
             f"{MINIPROGRAM_API_PREFIX}/auth/me",
             f"{MINIPROGRAM_API_PREFIX}/points/summary",
             f"{MINIPROGRAM_API_PREFIX}/points/grants",
+            f"{MINIPROGRAM_API_PREFIX}/points/ledger",
         })
         self.assertEqual({route.path: route.methods for route in routes}[
             f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session"], {"POST"})
@@ -139,6 +140,18 @@ class MiniprogramApiTests(unittest.TestCase):
                          "list_miniprogram_member_points_grants")
         params = {p["name"]: p["schema"] for p in operation["parameters"]}
         self.assertEqual(params["page"]["minimum"], 1)
+        self.assertEqual(params["page_size"]["maximum"], 50)
+
+    def test_private_ledger_page_bounds_are_published(self):
+        operation = app.openapi()["paths"][
+            f"{MINIPROGRAM_API_PREFIX}/points/ledger"
+        ]["get"]
+        self.assertEqual(operation["operationId"],
+                         "list_miniprogram_member_points_ledger")
+        params = {p["name"]: p["schema"] for p in operation["parameters"]}
+        self.assertEqual(params["page"]["minimum"], 1)
+        self.assertEqual(params["page"]["maximum"], 1000000)
+        self.assertEqual(params["page_size"]["minimum"], 1)
         self.assertEqual(params["page_size"]["maximum"], 50)
 
     def test_status_route_ignores_legacy_admin_cookie(self):

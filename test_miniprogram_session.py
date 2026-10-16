@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from app.api.miniprogram_v1 import (
     WechatLoginRequest, create_member_session, get_current_member,
     get_member_points_summary, get_member_points_grants,
+    get_member_points_ledger,
 )
 from app.database import Base
 from app.mall.wechat_identity_service import WechatIdentity, WechatCodeError
@@ -27,7 +28,7 @@ from app.mall.points_ledger_service import record_initial_points_grant
 from app.time_utils import utc8_now
 from app.models import (
     BusinessRecord, Member, MemberWechatBinding, PointsAccount, PointsGrant,
-    UploadBatch, User,
+    PointsLedgerEntry, UploadBatch, User,
 )
 
 
@@ -365,6 +366,95 @@ class MiniprogramSessionTests(unittest.TestCase):
         self.db.commit()
         with self.assertRaises(HTTPException) as revoked:
             self._grant_page(token)
+        self.assertEqual(revoked.exception.status_code, 401)
+
+    def _ledger_page(self, token=None, page=1, page_size=20):
+        response = Response()
+        result = get_member_points_ledger(
+            response, "Bearer " + (token or self._login().token),
+            page=page, page_size=page_size, db=self.db,
+        )
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        return result
+
+    def test_ledger_page_requires_bound_member_and_account(self):
+        with self.assertRaises(HTTPException) as missing_token:
+            get_member_points_ledger(Response(), None, page=1, page_size=20,
+                                     db=self.db)
+        self.assertEqual(missing_token.exception.status_code, 401)
+        with self.assertRaises(HTTPException) as missing_account:
+            self._ledger_page()
+        self.assertEqual(missing_account.exception.status_code, 503)
+
+    def test_ledger_page_empty_and_out_of_range(self):
+        self.db.add(PointsAccount(member_id=self.member.id))
+        self.db.commit()
+        self.assertEqual(self._ledger_page(page=3, page_size=2).model_dump(), {
+            "items": [], "page": 3, "page_size": 2, "total": 0,
+        })
+
+    def test_ledger_page_stable_pagination_and_restricted_fields(self):
+        account, grant = self._points_grant()
+        first = self.db.query(PointsLedgerEntry).filter(
+            PointsLedgerEntry.grant_id == grant.id,
+        ).one()
+        second = PointsLedgerEntry(
+            grant_id=grant.id, entry_type="ADJUST",
+            available_points_delta=Decimal("-2.25"),
+            reserved_points_delta=Decimal("0.00"),
+            idempotency_key="session-ledger-adjust-2",
+            actor_admin_id=self.db.query(User.id).first().id,
+            reason="私密运营备注", reference_type="SENSITIVE",
+            reference_id="PRIVATE-123", created_at=first.created_at,
+        )
+        self.db.add(second)
+        grant.available_points = Decimal("10.25")
+        account.available_points = Decimal("10.25")
+        self.db.commit()
+        newer = self._ledger_page(page=1, page_size=1)
+        older = self._ledger_page(page=2, page_size=1)
+        self.assertEqual((newer.total, older.total), (2, 2))
+        self.assertEqual(newer.items[0].entry_type, "ADJUST")
+        self.assertEqual(newer.items[0].available_points_delta, "-2.25")
+        self.assertEqual(older.items[0].entry_type, "GRANT")
+        self.assertEqual(older.items[0].available_points_delta, "12.50")
+        self.assertEqual(self._ledger_page(page=3, page_size=1).items, [])
+        self.assertTrue(newer.items[0].created_at.endswith("+08:00"))
+        self.assertEqual(set(newer.items[0].model_dump()), {
+            "entry_type", "available_points_delta", "reserved_points_delta",
+            "created_at",
+        })
+        self.assertNotIn("私密运营备注", str(newer.model_dump()))
+        self.assertNotIn("PRIVATE-123", str(newer.model_dump()))
+        self.assertEqual(self.db.query(PointsLedgerEntry).count(), 2)
+
+    def test_ledger_page_isolated_and_rejects_drift(self):
+        account, _grant = self._points_grant()
+        other = Member(member_public_id="MEMBER-SESSION-002", is_active=True)
+        self.db.add(other)
+        self.db.flush()
+        binding = MemberWechatBinding(member_id=other.id,
+                                      wechat_app_id=APP_ID, openid="other-openid")
+        self.db.add(binding)
+        self.db.add(PointsAccount(member_id=other.id))
+        self.db.commit()
+        other_token, _ = issue_session(binding.id, APP_ID, binding.openid)
+        self.assertEqual(self._ledger_page(other_token).total, 0)
+        self.assertEqual(self._ledger_page().total, 1)
+        account.available_points = Decimal("99.00")
+        self.db.commit()
+        with self.assertRaises(HTTPException) as drift:
+            self._ledger_page()
+        self.assertEqual(drift.exception.status_code, 503)
+        self.assertNotIn("99.00", str(drift.exception.detail))
+
+    def test_ledger_page_rejects_revoked_member(self):
+        self._points_grant()
+        token = self._login().token
+        self.member.is_active = False
+        self.db.commit()
+        with self.assertRaises(HTTPException) as revoked:
+            self._ledger_page(token)
         self.assertEqual(revoked.exception.status_code, 401)
 
 

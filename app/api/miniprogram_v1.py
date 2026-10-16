@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from ..database import SessionLocal
-from ..models import Member, MemberWechatBinding, PointsAccount, PointsGrant
+from ..models import (
+    Member, MemberWechatBinding, PointsAccount, PointsGrant, PointsLedgerEntry,
+)
 from ..time_utils import format_utc8, utc8_now
 from ..mall.points_ledger_service import audit_points_account_balance
 from ..mall.domain import _to_utc8_wall_time
@@ -96,6 +98,22 @@ class MemberPointsGrant(BaseModel):
 
 class MemberPointsGrantPage(BaseModel):
     items: list[MemberPointsGrant]
+    page: int
+    page_size: int
+    total: int
+
+
+class MemberPointsLedgerEntry(BaseModel):
+    entry_type: Literal[
+        "GRANT", "RESERVE", "RELEASE", "CONSUME", "REFUND", "EXPIRE", "ADJUST",
+    ]
+    available_points_delta: str
+    reserved_points_delta: str
+    created_at: str
+
+
+class MemberPointsLedgerPage(BaseModel):
+    items: list[MemberPointsLedgerEntry]
     page: int
     page_size: int
     total: int
@@ -275,6 +293,49 @@ def get_member_points_grants(
                 activated_at=format_utc8(row.activated_at, "%Y-%m-%dT%H:%M:%S+08:00"),
                 expires_at=format_utc8(row.expires_at, "%Y-%m-%dT%H:%M:%S+08:00"),
                 status=row.status,
+            ) for row in rows],
+            page=page, page_size=page_size, total=total,
+        )
+
+
+@miniprogram_v1_router.get(
+    "/points/ledger", response_model=MemberPointsLedgerPage,
+    operation_id="list_miniprogram_member_points_ledger",
+    summary="分页读取当前会员积分流水",
+)
+def get_member_points_ledger(
+    response: Response, authorization: str | None = Header(None),
+    page: int = Query(1, ge=1, le=1000000),
+    page_size: int = Query(20, ge=1, le=50),
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    member = _require_current_member(authorization, db)
+    with db.no_autoflush:
+        account = db.query(PointsAccount.id).filter(
+            PointsAccount.member_id == member.id,
+        ).one_or_none()
+        if account is None:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        try:
+            audit = audit_points_account_balance(db, account_id=account.id)
+        except ValueError:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用") from None
+        if not audit.is_consistent:
+            raise HTTPException(status_code=503, detail="积分数据暂不可用")
+        entries = db.query(PointsLedgerEntry).join(
+            PointsGrant, PointsGrant.id == PointsLedgerEntry.grant_id,
+        ).filter(PointsGrant.account_id == account.id)
+        total = entries.count()
+        rows = entries.order_by(
+            PointsLedgerEntry.created_at.desc(), PointsLedgerEntry.id.desc(),
+        ).offset((page - 1) * page_size).limit(page_size).all()
+        return MemberPointsLedgerPage(
+            items=[MemberPointsLedgerEntry(
+                entry_type=row.entry_type,
+                available_points_delta=f"{row.available_points_delta:.2f}",
+                reserved_points_delta=f"{row.reserved_points_delta:.2f}",
+                created_at=format_utc8(row.created_at, "%Y-%m-%dT%H:%M:%S+08:00"),
             ) for row in rows],
             page=page, page_size=page_size, total=total,
         )
