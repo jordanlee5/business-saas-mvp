@@ -4,8 +4,9 @@ import os
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..database import SessionLocal
 from ..models import (
@@ -13,6 +14,9 @@ from ..models import (
 )
 from ..time_utils import format_utc8, utc8_now
 from ..mall.points_ledger_service import audit_points_account_balance
+from ..mall.activation_service import (
+    ACTIVATION_FAILURE_MESSAGE, activate_mall_business,
+)
 from ..mall.domain import _to_utc8_wall_time
 from ..mall.wechat_identity_service import (
     WechatCodeError, WechatConfigurationError, WechatExchangeUnavailable,
@@ -70,6 +74,18 @@ class WechatLoginRequest(BaseModel):
     code: str
 
 
+class MemberActivationRequest(BaseModel):
+    wechat_code: str = Field(min_length=1, max_length=512)
+    business_public_no: str = Field(min_length=1, max_length=80)
+    phone: str = Field(min_length=1, max_length=32)
+    plate_number: str = Field(min_length=1, max_length=32)
+    activation_code: str = Field(min_length=1, max_length=32)
+
+
+class MemberActivationResponse(BaseModel):
+    status: Literal["activated"] = "activated"
+
+
 class MemberSessionResponse(BaseModel):
     token: str
     token_type: Literal["Bearer"] = "Bearer"
@@ -117,6 +133,49 @@ class MemberPointsLedgerPage(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+@miniprogram_v1_router.post(
+    "/activation/redeem", response_model=MemberActivationResponse,
+    operation_id="redeem_miniprogram_member_activation",
+    summary="使用一次性激活码与微信身份领取商城积分权益",
+)
+def redeem_member_activation(
+    body: MemberActivationRequest, response: Response,
+    db=Depends(public_catalog_session),
+):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        assert_session_configured()
+    except SessionConfigurationError:
+        raise HTTPException(status_code=503, detail="会员会话暂不可用") from None
+    try:
+        identity = exchange_wechat_code(body.wechat_code)
+    except WechatConfigurationError:
+        raise HTTPException(status_code=503, detail="微信登录暂不可用") from None
+    except WechatCodeError:
+        raise HTTPException(status_code=401, detail="微信登录凭证无效") from None
+    except WechatExchangeUnavailable:
+        raise HTTPException(status_code=502, detail="微信登录暂不可用") from None
+
+    try:
+        result = activate_mall_business(
+            db, business_public_no=body.business_public_no,
+            phone=body.phone, plate_number=body.plate_number,
+            activation_code=body.activation_code,
+            wechat_app_id=identity.app_id, openid=identity.openid,
+            unionid=identity.unionid,
+        )
+        # Wrong attempts and lockout are committed just like a successful grant.
+        db.commit()
+    except (SQLAlchemyError, ValueError):
+        db.rollback()
+        raise HTTPException(status_code=503, detail="权益激活暂不可用") from None
+    if not result.success:
+        raise HTTPException(status_code=400, detail=ACTIVATION_FAILURE_MESSAGE)
+    # The one-use WeChat code is consumed. The client obtains a fresh code
+    # for the existing short-lived session endpoint after activation.
+    return MemberActivationResponse()
 
 
 @miniprogram_v1_router.post(

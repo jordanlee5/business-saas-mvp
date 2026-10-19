@@ -21,7 +21,7 @@ from .domain import (
     normalize_points,
 )
 from .points_ledger_service import record_initial_points_grant
-from ..time_utils import utc8_now
+from ..time_utils import UTC8_TIMEZONE, utc8_now
 
 
 ACTIVATION_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -161,6 +161,22 @@ def _failure_result(
     )
 
 
+def _database_time(db, value: datetime) -> datetime:
+    """Normalize database timestamps to the project's UTC+8 time convention."""
+    if value.tzinfo is not None and value.utcoffset() is not None:
+        value = value.astimezone(UTC8_TIMEZONE).replace(tzinfo=None)
+    if db.get_bind().dialect.name == "postgresql":
+        return value.replace(tzinfo=UTC8_TIMEZONE)
+    return value
+
+
+def _current_time(db, now: datetime | None) -> datetime:
+    current = utc8_now() if now is None else now
+    if not isinstance(current, datetime):
+        raise ValueError("激活时间无效")
+    return _database_time(db, current)
+
+
 def _register_failed_attempt(
     credential,
     current_time: datetime,
@@ -208,7 +224,7 @@ def issue_activation_credential(
         UploadBatch,
     )
 
-    current_time = now or utc8_now()
+    current_time = _current_time(db, now)
     record = (
         db.query(BusinessRecord)
         .filter(BusinessRecord.id == business_record.id)
@@ -241,7 +257,7 @@ def issue_activation_credential(
         raise ValueError("只有待激活商城业务可以签发激活凭据")
     if (
         batch.claim_deadline is None
-        or current_time >= batch.claim_deadline
+        or current_time >= _database_time(db, batch.claim_deadline)
     ):
         raise ValueError("商城业务已到或超过激活截止时间")
     if not record.public_business_no:
@@ -305,7 +321,7 @@ def issue_activation_credential(
     credential.issue_version = issue_version
     credential.status = ActivationCredentialStatus.ACTIVE.value
     credential.issued_at = current_time
-    credential.expires_at = batch.claim_deadline
+    credential.expires_at = _database_time(db, batch.claim_deadline)
     credential.used_at = None
     credential.locked_at = None
     credential.revoked_at = None
@@ -367,7 +383,7 @@ def activate_mall_business(
         UploadBatch,
     )
 
-    current_time = now or utc8_now()
+    current_time = _current_time(db, now)
     public_no = (
         business_public_no.strip()
         if isinstance(business_public_no, str)
@@ -450,7 +466,7 @@ def activate_mall_business(
 
     if (
         batch.claim_deadline is None
-        or credential.expires_at < current_time
+        or _database_time(db, credential.expires_at) < current_time
         or not is_activation_within_deadline(
             current_time,
             batch.claim_deadline,
@@ -581,7 +597,9 @@ def activate_mall_business(
         db.add(account)
         db.flush()
 
-    grant_expires_at = calculate_points_expiry(current_time)
+    grant_expires_at = _database_time(
+        db, calculate_points_expiry(current_time),
+    )
     grant = PointsGrant(
         account_id=account.id,
         business_record_id=business.id,

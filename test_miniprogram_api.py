@@ -74,12 +74,13 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 9)
+        self.assertEqual(len(routes), 10)
         self.assertEqual({route.path for route in routes}, {
             STATUS_PATH, f"{MINIPROGRAM_API_PREFIX}/categories",
             f"{MINIPROGRAM_API_PREFIX}/products",
             f"{MINIPROGRAM_API_PREFIX}/products/{{product_public_id}}",
             f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session",
+            f"{MINIPROGRAM_API_PREFIX}/activation/redeem",
             f"{MINIPROGRAM_API_PREFIX}/auth/me",
             f"{MINIPROGRAM_API_PREFIX}/points/summary",
             f"{MINIPROGRAM_API_PREFIX}/points/grants",
@@ -87,8 +88,13 @@ class MiniprogramApiTests(unittest.TestCase):
         })
         self.assertEqual({route.path: route.methods for route in routes}[
             f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session"], {"POST"})
+        self.assertEqual({route.path: route.methods for route in routes}[
+            f"{MINIPROGRAM_API_PREFIX}/activation/redeem"], {"POST"})
         self.assertTrue(all(route.methods == {"GET"} for route in routes
-                            if route.path != f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session"))
+                            if route.path not in {
+                                f"{MINIPROGRAM_API_PREFIX}/auth/wechat-session",
+                                f"{MINIPROGRAM_API_PREFIX}/activation/redeem",
+                            }))
         self.assertEqual(
             routes[0].operation_id,
             "get_miniprogram_api_status",
