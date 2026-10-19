@@ -50,5 +50,6 @@ Page({
     this.setData({ signedIn: false, memberPublicId: '', error: '', signingIn: false, loading: false });
   },
   onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
+  onActivationTap() { wx.navigateTo({ url: '/pages/activation/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },
 });

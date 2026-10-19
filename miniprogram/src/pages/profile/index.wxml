@@ -9,14 +9,15 @@
   </view>
   <view class="notice mall-surface">
     <text class="notice-title">{{signedIn ? '身份验证完成' : '会员身份验证'}}</text>
-    <text wx:if="{{signedIn}}" class="notice-copy mall-muted">此处只显示服务端确认的会员编号。积分查询与权益激活将分别接入。</text>
-    <text wx:else class="notice-copy mall-muted">已有绑定的会员可主动使用微信登录。当前不会采集头像、昵称或手机号，也不会显示模拟会员信息。</text>
+    <text wx:if="{{signedIn}}" class="notice-copy mall-muted">此处只显示服务端确认的会员编号。可前往“我的积分”查看权益。</text>
+    <text wx:else class="notice-copy mall-muted">已有绑定的会员可主动使用微信登录。持有上传方安全交付的激活码时，可先领取积分权益。</text>
     <text wx:if="{{loading}}" class="notice-copy mall-muted">正在验证会员身份…</text>
     <text wx:if="{{error}}" class="notice-copy error" role="alert">{{error}}</text>
     <button wx:if="{{!signedIn}}" class="mall-primary-action login-action" bindtap="onLoginTap" loading="{{signingIn}}" disabled="{{signingIn || loading}}">{{signingIn ? '正在验证…' : '微信登录'}}</button>
     <button wx:else class="clear-action" bindtap="onClearSessionTap">清除本机登录</button>
   </view>
   <view class="actions mall-surface">
+    <button wx:if="{{!signedIn}}" class="action" bindtap="onActivationTap">激活积分权益<text class="arrow">›</text></button>
     <button class="action" bindtap="onPointsTap">我的积分<text class="arrow">›</text></button>
     <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
   </view>

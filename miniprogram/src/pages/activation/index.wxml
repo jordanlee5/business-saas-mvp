@@ -1,0 +1,24 @@
+<view class="screen">
+  <view class="intro mall-surface">
+    <text class="heading">领取积分权益</text>
+    <text class="copy mall-muted">请使用已承接的商城业务信息，以及上传方安全交付的一次性激活码。只在本人微信中提交。</text>
+  </view>
+  <view wx:if="{{activated}}" class="result mall-surface">
+    <text class="heading">激活成功</text>
+    <text class="copy mall-muted">请返回个人中心，重新点击“微信登录”建立会员会话，然后查看我的积分。</text>
+    <button class="mall-primary-action action" bindtap="onProfileTap">返回个人中心</button>
+  </view>
+  <view wx:else class="form mall-surface">
+    <text class="label">公开业务单号</text>
+    <input class="field" value="{{businessPublicNo}}" maxlength="80" placeholder="请输入业务单号" disabled="{{submitting}}" bindinput="onBusinessInput" />
+    <text class="label">业务登记手机号</text>
+    <input class="field" value="{{phone}}" maxlength="32" type="number" placeholder="请输入登记手机号" disabled="{{submitting}}" bindinput="onPhoneInput" />
+    <text class="label">业务登记车牌号</text>
+    <input class="field" value="{{plateNumber}}" maxlength="32" placeholder="请输入登记车牌号" disabled="{{submitting}}" bindinput="onPlateInput" />
+    <text class="label">一次性激活码</text>
+    <input class="field" value="{{activationCode}}" maxlength="32" password="{{true}}" placeholder="请输入激活码" disabled="{{submitting}}" bindinput="onCodeInput" />
+    <text class="hint mall-muted">激活码最多允许有限次错误尝试。网络中断后请先确认是否已激活，再决定是否重试。</text>
+    <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
+    <button class="mall-primary-action action" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmitTap">{{submitting ? '正在提交…' : '确认激活'}}</button>
+  </view>
+</view>

@@ -10,7 +10,13 @@ declare const wx: {
     method: 'GET' | 'POST';
     timeout: number;
     header: { Accept: string; 'Content-Type'?: string; Authorization?: string };
-    data?: { code: string };
+    data?: { code: string } | {
+      wechat_code: string;
+      business_public_no: string;
+      phone: string;
+      plate_number: string;
+      activation_code: string;
+    };
     success(result: { statusCode: number; data: unknown }): void;
     fail(error: unknown): void;
   }): void;
