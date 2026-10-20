@@ -14,3 +14,6 @@
 .login-action { margin-top: 28rpx; font-size: 25rpx; }
 .clear-action { margin-top: 18rpx; background: transparent; color: #5d746c; font-size: 24rpx; }
 .error { color: #aa4033; }
+.privacy-backdrop { position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; padding: 30rpx; background: rgba(10, 27, 24, .67); }
+.privacy-panel { box-sizing: border-box; width: 100%; max-width: 650rpx; padding: 38rpx 34rpx; }
+.privacy-link { margin-top: 20rpx; background: transparent; color: #315e54; font-size: 24rpx; }

@@ -1,4 +1,5 @@
 import { getApiOrigin } from '../config';
+import { assertPrivacyAuthorized } from './privacy';
 
 export interface MemberIdentity { member_public_id: string }
 export interface MemberPointsSummary {
@@ -74,7 +75,8 @@ export function clearMemberSession(): void {
 
 export function hasMemberSession(): boolean { return Boolean(currentToken()); }
 
-function loginCode(): Promise<string> {
+async function loginCode(): Promise<string> {
+  await assertPrivacyAuthorized();
   return new Promise((resolve, reject) => wx.login({
     success(result) {
       if (typeof result.code === 'string' && result.code.length > 0 && result.code.length <= 512) {

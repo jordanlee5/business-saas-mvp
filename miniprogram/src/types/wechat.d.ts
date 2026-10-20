@@ -1,6 +1,14 @@
 declare const wx: {
-  getAccountInfoSync(): { miniProgram: { envVersion: string } };
+  getAccountInfoSync(): { miniProgram: { appId: string; envVersion: string } };
   getSystemInfoSync(): { platform: string };
+  getPrivacySetting(options: {
+    success(result: { needAuthorization: boolean; privacyContractName: string }): void;
+    fail(error: unknown): void;
+  }): void;
+  openPrivacyContract(options: {
+    success(): void;
+    fail(error: unknown): void;
+  }): void;
   login(options: {
     success(result: { code: string }): void;
     fail(error: unknown): void;

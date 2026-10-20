@@ -1,4 +1,5 @@
 import { getApiOrigin } from '../config';
+import { assertPrivacyAuthorized } from './privacy';
 
 export interface ActivationInput {
   businessPublicNo: string;
@@ -23,7 +24,8 @@ export function validateActivationInput(input: ActivationInput): ActivationInput
   return { businessPublicNo, phone, plateNumber, activationCode };
 }
 
-function freshWechatCode(): Promise<string> {
+async function freshWechatCode(): Promise<string> {
+  await assertPrivacyAuthorized();
   return new Promise((resolve, reject) => wx.login({
     success(result) {
       if (typeof result.code === 'string' && result.code.length > 0 && result.code.length <= 512) {

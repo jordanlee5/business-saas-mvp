@@ -9,6 +9,7 @@
     <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
     <button class="mall-primary-action action" bindtap="onLoginAndPointsTap" loading="{{signingIn}}" disabled="{{signingIn}}">{{signingIn ? '正在验证…' : '微信登录并查看积分'}}</button>
     <button class="action" bindtap="onProfileTap" disabled="{{signingIn}}">返回个人中心</button>
+    <button class="action privacy-action" bindtap="onPrivacyTap">查看微信隐私保护指引</button>
   </view>
   <view wx:else class="form mall-surface">
     <text class="label">公开业务单号</text>
@@ -22,5 +23,16 @@
     <text class="hint mall-muted">激活码最多允许有限次错误尝试。网络中断后请先确认是否已激活，再决定是否重试。</text>
     <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
     <button class="mall-primary-action action" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmitTap">{{submitting ? '正在提交…' : '确认激活'}}</button>
+    <button class="action privacy-action" bindtap="onPrivacyTap">查看微信隐私保护指引</button>
+  </view>
+</view>
+<view wx:if="{{privacyVisible}}" class="privacy-backdrop">
+  <view class="privacy-panel mall-surface" role="dialog" aria-label="微信隐私授权">
+    <text class="heading">使用会员服务前</text>
+    <text class="copy mall-muted">请先阅读并同意微信平台的 {{privacyContractName}}。拒绝后不会提交激活或登录请求。</text>
+    <text wx:if="{{privacyError}}" class="error" role="alert">{{privacyError}}</text>
+    <button class="action privacy-action" bindtap="onPrivacyTap">查看完整指引</button>
+    <button id="activation-privacy-agree" class="mall-primary-action action" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgree">同意并继续</button>
+    <button class="action privacy-action" bindtap="onPrivacyDecline">暂不使用会员服务</button>
   </view>
 </view>

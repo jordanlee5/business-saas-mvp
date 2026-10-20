@@ -19,7 +19,18 @@
   <view class="actions mall-surface">
     <button class="action" bindtap="onActivationTap">{{signedIn ? '继续领取积分权益' : '激活积分权益'}}<text class="arrow">›</text></button>
     <button class="action" bindtap="onPointsTap">我的积分<text class="arrow">›</text></button>
+    <button class="action" bindtap="onPrivacyTap">微信隐私保护指引<text class="arrow">›</text></button>
     <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
+  </view>
+</view>
+<view wx:if="{{privacyVisible}}" class="privacy-backdrop">
+  <view class="privacy-panel mall-surface" role="dialog" aria-label="微信隐私授权">
+    <text class="notice-title">使用会员服务前</text>
+    <text class="notice-copy mall-muted">请先阅读并同意微信平台的 {{privacyContractName}}。拒绝后仍可浏览公开商品。</text>
+    <text wx:if="{{privacyError}}" class="notice-copy error" role="alert">{{privacyError}}</text>
+    <button class="privacy-link" bindtap="onPrivacyTap">查看完整指引</button>
+    <button id="profile-privacy-agree" class="mall-primary-action login-action" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgree">同意并继续登录</button>
+    <button class="clear-action" bindtap="onPrivacyDecline">暂不使用会员服务</button>
   </view>
 </view>
 <view class="mall-nav" aria-label="积分商城导航">
