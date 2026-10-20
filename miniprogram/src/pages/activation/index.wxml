@@ -5,8 +5,10 @@
   </view>
   <view wx:if="{{activated}}" class="result mall-surface">
     <text class="heading">激活成功</text>
-    <text class="copy mall-muted">请返回个人中心，重新点击“微信登录”建立会员会话，然后查看我的积分。</text>
-    <button class="mall-primary-action action" bindtap="onProfileTap">返回个人中心</button>
+    <text class="copy mall-muted">权益已入账。点击下方按钮后，将重新验证本机微信身份，再进入我的积分。</text>
+    <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
+    <button class="mall-primary-action action" bindtap="onLoginAndPointsTap" loading="{{signingIn}}" disabled="{{signingIn}}">{{signingIn ? '正在验证…' : '微信登录并查看积分'}}</button>
+    <button class="action" bindtap="onProfileTap" disabled="{{signingIn}}">返回个人中心</button>
   </view>
   <view wx:else class="form mall-surface">
     <text class="label">公开业务单号</text>

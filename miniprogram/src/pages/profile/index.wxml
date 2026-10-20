@@ -17,7 +17,7 @@
     <button wx:else class="clear-action" bindtap="onClearSessionTap">清除本机登录</button>
   </view>
   <view class="actions mall-surface">
-    <button wx:if="{{!signedIn}}" class="action" bindtap="onActivationTap">激活积分权益<text class="arrow">›</text></button>
+    <button class="action" bindtap="onActivationTap">{{signedIn ? '继续领取积分权益' : '激活积分权益'}}<text class="arrow">›</text></button>
     <button class="action" bindtap="onPointsTap">我的积分<text class="arrow">›</text></button>
     <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
   </view>
