@@ -176,6 +176,24 @@ class MemberActivationServiceTests(unittest.TestCase):
         self.assertFalse(old_result.success)
         self.assertEqual(old_result.message, ACTIVATION_FAILURE_MESSAGE)
 
+    def test_initial_only_issue_rejects_existing_credential_without_change(self):
+        first = issue_one_time_activation_code(
+            self.db, business_record=self.business, now=NOW,
+        )
+        self.db.commit()
+        original = self.db.query(MemberActivationCredential).one()
+        digest = original.secret_digest
+        with self.assertRaisesRegex(ValueError, "不能重新签发"):
+            issue_one_time_activation_code(
+                self.db, business_record=self.business,
+                allow_reissue=False, now=NOW + timedelta(minutes=1),
+            )
+        self.db.rollback()
+        credential = self.db.query(MemberActivationCredential).one()
+        self.assertEqual(credential.issue_version, 1)
+        self.assertEqual(credential.secret_digest, digest)
+        self.assertNotIn(first.activation_code, repr(credential))
+
     def test_sms_method_is_reserved_but_fails_closed(self):
         with self.assertRaisesRegex(
             NotImplementedError,

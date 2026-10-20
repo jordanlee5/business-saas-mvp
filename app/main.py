@@ -34,6 +34,7 @@ from .schema_readiness import assert_database_schema_ready
 from .models import (
     AdminActionLog,
     BusinessRecord,
+    MemberActivationCredential,
     MatchReview,
     PromotionPage,
     PromotionPageImage,
@@ -81,6 +82,7 @@ from .mall import (
     PENDING_BATCH_STATUS,
     REJECTED_BATCH_STATUS,
     BusinessChannel,
+    BusinessClaimStatus,
     MAX_PRODUCT_IMAGE_BYTES,
     batch_revert_block_reason,
     build_upload_channel_snapshot,
@@ -99,6 +101,7 @@ from .mall import (
     INVENTORY_BALANCE_MISMATCH_MESSAGE,
     INVENTORY_STATUS_ALL,
     InventoryStockStatus,
+    issue_one_time_activation_code,
     adjust_inventory,
     build_member_points_workbook,
     create_product,
@@ -4509,6 +4512,7 @@ def business_record_detail_page(
     request: Request,
     record_id: int,
     return_url: str = Query("/business-records"),
+    activation_error: str = Query(""),
 ):
     user = get_current_user(request)
 
@@ -4548,6 +4552,27 @@ def business_record_detail_page(
         batch = db.query(UploadBatch).filter(UploadBatch.id == record.batch_id).first()
 
     acceptance_status = batch.acceptance_status if batch and batch.acceptance_status else "待承接"
+    activation_credential = None
+    can_issue_activation = (
+        getattr(user, "is_active", False) is True
+        and can_perform_mall_audit_action(
+            user, MallAuditActionType.ACTIVATION_ISSUE
+        )
+        and record.redemption_mode == BusinessChannel.MALL_REDEMPTION.value
+    )
+    if can_issue_activation:
+        activation_credential = (
+            db.query(MemberActivationCredential)
+            .filter(MemberActivationCredential.business_record_id == record.id)
+            .one_or_none()
+        )
+        can_issue_activation = (
+            activation_credential is None
+            and batch is not None
+            and batch.redemption_mode == BusinessChannel.MALL_REDEMPTION.value
+            and batch.acceptance_status == ACCEPTED_BATCH_STATUS
+            and record.claim_status == BusinessClaimStatus.PENDING_ACTIVATION.value
+        )
 
     reviews = (
         db.query(MatchReview)
@@ -4713,7 +4738,8 @@ def business_record_detail_page(
 
     db.close()
 
-    return templates.TemplateResponse(
+    csrf_token = secrets.token_urlsafe(32) if can_issue_activation else ""
+    response = templates.TemplateResponse(
         "business_record_detail.html",
         add_base_context(request, {
             "request": request,
@@ -4721,8 +4747,102 @@ def business_record_detail_page(
             "detail": detail,
             "voucher_items": voucher_items,
             "return_url": return_url,
+            "can_issue_activation": can_issue_activation,
+            "activation_credential_status": (
+                activation_credential.status if activation_credential else None
+            ),
+            "activation_issue_csrf_token": csrf_token,
+            "activation_error": activation_error or None,
         }),
     )
+    if can_issue_activation:
+        response.set_cookie(
+            "mall_activation_issue_csrf", csrf_token,
+            httponly=True, samesite="strict",
+            secure=request.url.scheme == "https",
+            path=f"/business-records/{record_id}",
+        )
+    return response
+
+
+@app.post("/business-records/{record_id}/activation-issue", response_class=HTMLResponse)
+def issue_business_activation_code(
+    request: Request,
+    record_id: int,
+    csrf_token: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if (
+        getattr(user, "is_active", False) is not True
+        or not can_perform_mall_audit_action(
+            user, MallAuditActionType.ACTIVATION_ISSUE
+        )
+    ):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    detail_url = f"/business-records/{record_id}"
+    cookie_token = request.cookies.get("mall_activation_issue_csrf", "")
+    if (
+        len(cookie_token) < 32
+        or len(csrf_token) < 32
+        or not secrets.compare_digest(cookie_token, csrf_token)
+    ):
+        return RedirectResponse(
+            url=f"{detail_url}?{urlencode({'activation_error': '表单已失效，请刷新详情重试'})}",
+            status_code=303,
+        )
+    db = SessionLocal()
+    try:
+        record = db.query(BusinessRecord).filter(BusinessRecord.id == record_id).one_or_none()
+        if record is None:
+            return RedirectResponse(url="/business-records", status_code=303)
+        try:
+            issued = issue_one_time_activation_code(
+                db, business_record=record, allow_reissue=False,
+            )
+            db.add(AdminActionLog(
+                admin_id=user.id,
+                action_type=MallAuditActionType.ACTIVATION_ISSUE.value,
+                target_type="business_record", target_id=record.id,
+                description=(
+                    f"签发商城业务 #{record.id} 的一次性激活码；"
+                    f"签发版本 {issued.issue_version}；明文仅显示一次"
+                ),
+            ))
+        except ValueError:
+            db.rollback()
+            return RedirectResponse(
+                url=f"{detail_url}?{urlencode({'activation_error': '业务不符合首次签发条件，请核对领取状态和截止时间'})}",
+                status_code=303,
+            )
+        response = templates.TemplateResponse(
+            "mall_activation_issued.html",
+            add_base_context(request, {
+                "request": request,
+                "active_page": "business_records",
+                "business_public_no": issued.business_public_no,
+                "activation_code": issued.activation_code,
+                "expires_at": issued.expires_at,
+                "record_id": record_id,
+            }),
+        )
+        response.headers["Cache-Control"] = "no-store, private"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        response.delete_cookie(
+            "mall_activation_issue_csrf",
+            path=f"/business-records/{record_id}",
+        )
+        # 先确认一次性明文页面可渲染，再提交无法找回明文的签发事务。
+        db.commit()
+        return response
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 @app.get("/login", response_class=HTMLResponse)

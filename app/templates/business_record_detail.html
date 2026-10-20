@@ -759,6 +759,25 @@
             {% endif %}
         </div>
 
+        {% if activation_error and can_issue_activation %}
+            <div class="ui-hint" role="alert" style="color: #b91c1c; border-color: #fecaca; background: #fef2f2;">
+                {{ activation_error }}
+            </div>
+        {% endif %}
+
+        {% if can_issue_activation %}
+            <div class="ui-card" style="margin-top: 14px; padding: 18px 20px;">
+                <h2 style="margin: 0 0 8px; font-size: 18px;">首次签发积分权益激活码</h2>
+                <p class="ui-hint">签发后明文只显示一次。请按已确认的安全渠道交给上传方，再由上传方交付客户；不要在普通聊天、截图或日志中保存激活码。</p>
+                <form method="post" action="/business-records/{{ detail.id }}/activation-issue">
+                    <input type="hidden" name="csrf_token" value="{{ activation_issue_csrf_token }}">
+                    <button class="ui-button-primary" type="submit">确认首次签发</button>
+                </form>
+            </div>
+        {% elif activation_credential_status %}
+            <div class="ui-hint">该业务已有激活凭据（状态：{{ activation_credential_status }}）。此处不显示明文，也不提供重新签发。</div>
+        {% endif %}
+
         {% if detail.is_cash_rebate and detail.allocation_amount_error %}
             <div class="ui-hint" style="color: #b91c1c; border-color: #fecaca; background: #fef2f2;">
                 核销金额校验异常：{{ detail.allocation_amount_error }}

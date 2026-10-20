@@ -24,6 +24,7 @@ class MallAuditActionType(str, Enum):
     ORDER_REFUND = "mall_order_refund"
     POINTS_ADJUST = "mall_points_adjust"
     MEMBER_POINTS_EXPORT = "mall_member_points_export"
+    ACTIVATION_ISSUE = "mall_activation_issue"
     SUPPLIER_CREATE = "mall_supplier_create"
     SUPPLIER_UPDATE = "mall_supplier_update"
     SUPPLIER_SETTLEMENT_GENERATE = (

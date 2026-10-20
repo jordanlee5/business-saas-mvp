@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}一次性激活码已签发{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 760px; margin: 32px auto; padding: 0 24px;">
+    <div class="ui-card" style="padding: 28px;">
+        <h1>一次性激活码已签发</h1>
+        <p class="ui-hint">此页只显示一次。离开或刷新后无法再查看明文；请立即通过已确认的安全渠道交给上传方，并由上传方安全交付客户。不要截图、粘贴到普通聊天或写入日志。</p>
+        <p>公开业务单号：<strong>{{ business_public_no }}</strong></p>
+        <p>激活码：<strong style="font-size: 28px; letter-spacing: 2px;">{{ activation_code }}</strong></p>
+        <p>领取截止时间：{{ expires_at | format_utc8 }}</p>
+        <p>客户须在本人微信中提交业务信息和激活码。签发本身不会生成积分；成功激活时才由服务端入账。</p>
+        <a class="ui-button-secondary" href="/business-records/{{ record_id }}">返回业务详情</a>
+    </div>
+</div>
+{% endblock %}

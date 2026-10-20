@@ -200,6 +200,7 @@ def issue_activation_credential(
         ActivationSecurityMethod.ONE_TIME_CODE.value
     ),
     max_attempts: int = ACTIVATION_CODE_MAX_ATTEMPTS,
+    allow_reissue: bool = True,
     now: datetime | None = None,
 ) -> IssuedActivationCredential:
     """
@@ -283,13 +284,6 @@ def issue_activation_credential(
     if existing_grant is not None:
         raise ValueError("商城业务已经生成积分权益")
 
-    normalized_code, display_code = _generate_activation_code()
-    salt_hex = secrets.token_bytes(16).hex()
-    digest = _derive_activation_digest(
-        normalized_code,
-        salt_hex,
-        ACTIVATION_CODE_HASH_ITERATIONS,
-    )
     credential = (
         db.query(MemberActivationCredential)
         .filter(
@@ -302,14 +296,25 @@ def issue_activation_credential(
 
     if credential is None:
         issue_version = 1
+    else:
+        if not allow_reissue:
+            raise ValueError("激活凭据已签发，本入口不能重新签发")
+        if credential.status == ActivationCredentialStatus.USED.value:
+            raise ValueError("已使用的激活凭据不能重新签发")
+        issue_version = credential.issue_version + 1
+
+    normalized_code, display_code = _generate_activation_code()
+    salt_hex = secrets.token_bytes(16).hex()
+    digest = _derive_activation_digest(
+        normalized_code,
+        salt_hex,
+        ACTIVATION_CODE_HASH_ITERATIONS,
+    )
+    if credential is None:
         credential = MemberActivationCredential(
             business_record_id=record.id,
         )
         db.add(credential)
-    else:
-        if credential.status == ActivationCredentialStatus.USED.value:
-            raise ValueError("已使用的激活凭据不能重新签发")
-        issue_version = credential.issue_version + 1
 
     credential.security_method = method.value
     credential.secret_algorithm = ACTIVATION_CODE_HASH_ALGORITHM
@@ -342,6 +347,7 @@ def issue_one_time_activation_code(
     *,
     business_record,
     max_attempts: int = ACTIVATION_CODE_MAX_ATTEMPTS,
+    allow_reissue: bool = True,
     now: datetime | None = None,
 ) -> IssuedActivationCredential:
     """一期一次性激活码签发入口。"""
@@ -350,6 +356,7 @@ def issue_one_time_activation_code(
         business_record=business_record,
         security_method=ActivationSecurityMethod.ONE_TIME_CODE,
         max_attempts=max_attempts,
+        allow_reissue=allow_reissue,
         now=now,
     )
 

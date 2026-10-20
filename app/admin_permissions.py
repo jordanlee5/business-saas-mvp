@@ -209,6 +209,15 @@ MALL_MEMBER_POINTS_EXPORT_LEVELS = frozenset(
 )
 
 
+# 一次性激活码仅由商城运营角色签发并安全交付。
+MALL_ACTIVATION_ISSUE_LEVELS = frozenset(
+    {
+        SUPER_ADMIN,
+        OPERATOR,
+    }
+)
+
+
 MALL_SUPPLIER_SETTLEMENT_CONFIRMATION_LEVELS = (
     frozenset(
         {
@@ -279,6 +288,8 @@ MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
             MALL_POINTS_ADJUSTMENT_LEVELS,
         MallAuditActionType.MEMBER_POINTS_EXPORT:
             MALL_MEMBER_POINTS_EXPORT_LEVELS,
+        MallAuditActionType.ACTIVATION_ISSUE:
+            MALL_ACTIVATION_ISSUE_LEVELS,
         MallAuditActionType.SUPPLIER_CREATE:
             MALL_SUPPLIER_MANAGEMENT_LEVELS,
         MallAuditActionType.SUPPLIER_UPDATE:
