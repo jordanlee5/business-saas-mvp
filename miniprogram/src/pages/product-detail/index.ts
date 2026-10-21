@@ -1,5 +1,6 @@
 import { getProductDetail, ProductNotFoundError, productImageUrl } from '../../services/catalog';
 import type { ProductDetail, ProductSku } from '../../services/catalog';
+import { addCartLine } from '../../services/cart';
 
 interface DisplaySku extends ProductSku { stockLabel: string; stockClass: string; selected: boolean }
 interface DisplayImage { url: string; alt: string }
@@ -18,6 +19,8 @@ Page({
     skus: [] as DisplaySku[],
     selectedSkuCode: '',
     selectedSku: null as DisplaySku | null,
+    cartNotice: '',
+    cartError: '',
   },
   onLoad(options: { id?: string }) {
     const id = options.id || '';
@@ -43,11 +46,26 @@ Page({
       skus: this.data.skus.map((sku: DisplaySku) => ({
         ...sku, selected: sku.sku_code === code,
       })),
+      cartNotice: '',
+      cartError: '',
     });
   },
+  onAddToCart() {
+    if (!this.data.product || !this.data.selectedSku) {
+      this.setData({ cartError: '请先选择商品规格', cartNotice: '' });
+      return;
+    }
+    try {
+      addCartLine(this.data.product, this.data.selectedSku);
+      this.setData({ cartNotice: '已加入购物车', cartError: '' });
+    } catch (error) {
+      this.setData({ cartError: error instanceof Error ? error.message : '加入购物车失败', cartNotice: '' });
+    }
+  },
+  onCartTap() { wx.navigateTo({ url: '/pages/cart/index' }); },
   async refresh() {
     const current = ++generation;
-    this.setData({ loading: true, error: '', notFound: false, product: null, gallery: [], detailImages: [], skus: [], selectedSku: null });
+    this.setData({ loading: true, error: '', notFound: false, product: null, gallery: [], detailImages: [], skus: [], selectedSku: null, cartNotice: '', cartError: '' });
     try {
       const product = await getProductDetail(this.data.id);
       if (current !== generation) return;

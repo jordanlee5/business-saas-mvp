@@ -1,0 +1,41 @@
+<view class="screen">
+  <view class="intro mall-surface">
+    <text class="eyebrow">POINTS MALL / 购物车</text>
+    <text class="title">已选好物</text>
+    <text class="intro-copy mall-muted">商品价格与库存以打开购物车时读取的状态为准。</text>
+  </view>
+  <view class="state mall-surface" wx:if="{{loading}}">正在核对商品…</view>
+  <view class="state mall-surface" wx:elif="{{error}}">
+    <text role="alert">{{error}}</text>
+    <button class="mall-primary-action" bindtap="onRetry">重新加载</button>
+  </view>
+  <view class="state mall-surface" wx:elif="{{!items.length}}">
+    <text>购物车还是空的</text>
+    <button class="mall-primary-action" bindtap="onCatalogTap">去逛好物</button>
+  </view>
+  <view wx:else>
+    <view class="item mall-surface" wx:for="{{items}}" wx:key="key">
+      <text class="product" data-id="{{item.product_public_id}}" bindtap="onProductTap">{{item.product_name}}</text>
+      <text class="sku mall-muted">{{item.sku_name}}</text>
+      <text class="status {{item.available ? 'available' : 'unavailable'}}">{{item.status}}</text>
+      <text class="price mall-points" wx:if="{{item.points_price}}">{{item.points_price}} 积分 / 件</text>
+      <view class="controls">
+        <button data-id="{{item.product_public_id}}" data-sku="{{item.sku_code}}" bindtap="onDecrease"
+                disabled="{{item.quantity <= 1}}">－</button>
+        <text aria-label="数量">{{item.quantity}} 件</text>
+        <button data-id="{{item.product_public_id}}" data-sku="{{item.sku_code}}" bindtap="onIncrease"
+                disabled="{{item.quantity >= 99 || !item.available}}">＋</button>
+        <button class="remove" data-id="{{item.product_public_id}}" data-sku="{{item.sku_code}}"
+                bindtap="onRemove">移除</button>
+      </view>
+      <text class="line-points mall-points" wx:if="{{item.available}}">小计 {{item.line_points}} 积分</text>
+    </view>
+    <text class="action-error" wx:if="{{actionError}}" role="alert">{{actionError}}</text>
+    <view class="summary mall-surface">
+      <text>当前可用商品参考合计</text>
+      <text class="mall-points">{{estimate}} 积分</text>
+      <text class="mall-muted" wx:if="{{hasUnavailable}}">下架、无货或不可见的规格未计入合计。</text>
+      <text class="mall-muted">本机购物车只保存商品编号、规格和数量。订单确认与提交尚未开放；后续下单仍须在服务端重新核验价格、库存和积分。</text>
+    </view>
+  </view>
+</view>

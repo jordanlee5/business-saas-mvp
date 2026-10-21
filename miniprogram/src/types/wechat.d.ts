@@ -1,6 +1,8 @@
 declare const wx: {
   getAccountInfoSync(): { miniProgram: { appId: string; envVersion: string } };
   getSystemInfoSync(): { platform: string };
+  getStorageSync(key: string): unknown;
+  setStorageSync(key: string, data: unknown): void;
   getPrivacySetting(options: {
     success(result: { needAuthorization: boolean; privacyContractName: string }): void;
     fail(error: unknown): void;

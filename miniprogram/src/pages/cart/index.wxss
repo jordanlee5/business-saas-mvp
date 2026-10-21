@@ -1,0 +1,17 @@
+.screen { padding: 24rpx 24rpx 80rpx; }
+.intro, .item, .summary, .state { padding: 30rpx; margin-bottom: 18rpx; }
+.eyebrow { display: block; color: #608579; font-size: 20rpx; letter-spacing: 2rpx; }
+.title { display: block; margin-top: 12rpx; font-size: 38rpx; font-weight: 600; }
+.intro-copy, .summary .mall-muted { display: block; margin-top: 14rpx; font-size: 23rpx; line-height: 1.5; }
+.state { text-align: center; font-size: 27rpx; }
+.state button { margin-top: 26rpx; font-size: 25rpx; }
+.product { display: block; font-size: 30rpx; font-weight: 600; }
+.sku, .status, .price, .line-points { display: block; margin-top: 10rpx; font-size: 24rpx; }
+.available { color: #206f53; }
+.unavailable { color: #aa4033; }
+.controls { display: flex; align-items: center; gap: 18rpx; margin-top: 18rpx; }
+.controls button { flex: 0 0 auto; min-width: 66rpx; margin: 0; padding: 0 10rpx; font-size: 26rpx; line-height: 62rpx; background: #edf3ef; color: #19322e; }
+.controls .remove { margin-left: auto; color: #aa4033; background: transparent; font-size: 23rpx; }
+.summary { line-height: 1.5; font-size: 26rpx; }
+.summary .mall-points { display: block; margin-top: 10rpx; font-size: 36rpx; }
+.action-error { display: block; padding: 14rpx; color: #aa4033; font-size: 24rpx; }

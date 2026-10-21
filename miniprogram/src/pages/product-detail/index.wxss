@@ -27,6 +27,12 @@
 .description { display: block; white-space: pre-wrap; line-height: 1.7; color: #546b60; font-size: 26rpx; }
 .detail-photo { width: 100%; margin-top: 18rpx; border-radius: 12rpx; }
 .footer-note { font-size: 22rpx; text-align: center; padding: 38rpx 0; }
+.cart-actions { padding: 24rpx; margin-top: 22rpx; text-align: center; }
+.cart-add, .cart-open { font-size: 26rpx; margin-top: 12rpx; }
+.cart-open { background: transparent; color: #315e54; }
+.cart-hint { display: block; margin-top: 12rpx; font-size: 22rpx; }
+.cart-error { display: block; color: #aa4033; font-size: 24rpx; }
+.cart-notice { display: block; color: #206f53; font-size: 24rpx; }
 .state { min-height: 430rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36rpx; text-align: center; }
 .state-title { font-size: 31rpx; font-weight: 600; }
 .state-copy { font-size: 24rpx; margin-top: 16rpx; }

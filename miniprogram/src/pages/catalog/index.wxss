@@ -38,3 +38,4 @@
 .page-end { text-align: center; font-size: 22rpx; padding: 35rpx; }
 .skeleton { display: flex; gap: 20rpx; }
 .skeleton-card { flex: 1; height: 410rpx; border-radius: 23rpx; background: #e8eee9; }
+.cart-entry { margin: 0 24rpx 18rpx; background: #fff; color: #315e54; border: 1rpx solid #dce6df; border-radius: 18rpx; font-size: 24rpx; }

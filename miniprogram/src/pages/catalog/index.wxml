@@ -19,6 +19,7 @@
   <text class="search-hint" wx:if="{{searchError}}">{{searchError}}</text>
   <view class="query-heading" wx:if="{{activeQuery}}">搜索“{{activeQuery}}”的结果</view>
   <view class="section-title">探索好物</view>
+  <button class="cart-entry" bindtap="onCartTap">查看购物车</button>
   <scroll-view class="tabs" scroll-x="true" show-scrollbar="false" wx:if="{{categories.length}}">
     <view class="tabs-inner">
       <view wx:for="{{categories}}" wx:key="slug"

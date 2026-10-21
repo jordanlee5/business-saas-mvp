@@ -91,6 +91,7 @@ Page({
     wx.navigateTo({ url: '/pages/product-detail/index?id=' + encodeURIComponent(id) });
   },
   onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
+  onCartTap() { wx.navigateTo({ url: '/pages/cart/index' }); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
   async onLoadMore() {
     if (this.data.loading || this.data.moreLoading || !this.data.hasMore) return;

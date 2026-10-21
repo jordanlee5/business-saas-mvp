@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/catalog/index", "pages/product-detail/index", "pages/points/index", "pages/profile/index", "pages/activation/index"],
+  "pages": ["pages/catalog/index", "pages/product-detail/index", "pages/cart/index", "pages/points/index", "pages/profile/index", "pages/activation/index"],
   "window": {
     "navigationBarTitleText": "积分商城",
     "navigationBarBackgroundColor": "#153d39",
