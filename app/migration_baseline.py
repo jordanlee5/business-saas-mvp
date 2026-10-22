@@ -28,6 +28,8 @@ BASELINE_REVISION = "0001_current_schema_baseline"
 POST_BASELINE_TABLES = frozenset(
     {
         "members",
+        "member_addresses",
+        "member_address_events",
         "member_wechat_bindings",
         "member_activation_credentials",
         "points_accounts",

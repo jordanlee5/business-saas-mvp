@@ -116,10 +116,10 @@ class BusinessRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     batch_id = Column(Integer, ForeignKey("upload_batches.id"))
-    
+
     # 旧业务单号：暂时保留，用于历史兼容。
     business_no = Column(String, index=True)
-    
+
     # 新公开业务单号：后续用于页面、导出和凭证文件命名。
     public_business_no = Column(
         String(32),
@@ -563,6 +563,49 @@ class Member(Base):
         default=utc8_now,
         onupdate=utc8_now,
     )
+
+
+class MemberAddress(Base):
+    """Mutable private address book; future orders use separate snapshots."""
+
+    __tablename__ = "member_addresses"
+    __table_args__ = (
+        CheckConstraint("length(address_public_id) = 37", name="ck_member_addresses_public_id"),
+        *(CheckConstraint(f"length(trim({key})) BETWEEN 1 AND {limit}",
+                          name=f"ck_member_addresses_{key}_length")
+          for key, limit in (("recipient_name", 80), ("phone", 16),
+                             ("province", 80), ("city", 80), ("district", 80), ("detail", 240))),
+        Index("uq_member_addresses_one_default", "member_id", unique=True,
+              sqlite_where=text("is_default = 1"), postgresql_where=text("is_default = true")),
+    )
+    id = Column(Integer, primary_key=True)
+    address_public_id = Column(String(37), nullable=False, unique=True)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
+    recipient_name = Column(String(80), nullable=False)
+    phone = Column(String(16), nullable=False)
+    province = Column(String(80), nullable=False)
+    city = Column(String(80), nullable=False)
+    district = Column(String(80), nullable=False)
+    detail = Column(String(240), nullable=False)
+    is_default = Column(Boolean, nullable=False, default=False, server_default=false())
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc8_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc8_now)
+
+
+class MemberAddressEvent(Base):
+    """Minimal mutation audit. Deliberately no FK to a deletable address."""
+
+    __tablename__ = "member_address_events"
+    __table_args__ = (
+        CheckConstraint("action IN ('CREATE', 'UPDATE', 'SET_DEFAULT', 'DELETE')",
+                        name="ck_member_address_events_action"),
+        CheckConstraint("length(address_public_id) = 37", name="ck_member_address_events_public_id"),
+    )
+    id = Column(Integer, primary_key=True)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
+    address_public_id = Column(String(37), nullable=False, index=True)
+    action = Column(String(16), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc8_now)
 
 
 class MemberWechatBinding(Base):
