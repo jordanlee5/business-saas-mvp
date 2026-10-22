@@ -1,17 +1,31 @@
-.screen { padding: 24rpx 24rpx 80rpx; }
-.intro, .item, .summary, .state { padding: 30rpx; margin-bottom: 18rpx; }
-.eyebrow { display: block; color: #608579; font-size: 20rpx; letter-spacing: 2rpx; }
-.title { display: block; margin-top: 12rpx; font-size: 38rpx; font-weight: 600; }
-.intro-copy, .summary .mall-muted { display: block; margin-top: 14rpx; font-size: 23rpx; line-height: 1.5; }
-.state { text-align: center; font-size: 27rpx; }
-.state button { margin-top: 26rpx; font-size: 25rpx; }
-.product { display: block; font-size: 30rpx; font-weight: 600; }
-.sku, .status, .price, .line-points { display: block; margin-top: 10rpx; font-size: 24rpx; }
-.available { color: #206f53; }
-.unavailable { color: #aa4033; }
-.controls { display: flex; align-items: center; gap: 18rpx; margin-top: 18rpx; }
-.controls button { flex: 0 0 auto; min-width: 66rpx; margin: 0; padding: 0 10rpx; font-size: 26rpx; line-height: 62rpx; background: #edf3ef; color: #19322e; }
-.controls .remove { margin-left: auto; color: #aa4033; background: transparent; font-size: 23rpx; }
-.summary { line-height: 1.5; font-size: 26rpx; }
-.summary .mall-points { display: block; margin-top: 10rpx; font-size: 36rpx; }
+.intro { padding: 36rpx 32rpx; margin-bottom: 24rpx; background: linear-gradient(120deg, #e8f0e5, #f8f7ee); }
+.eyebrow { display: block; color: #52735d; font-size: 20rpx; letter-spacing: 2rpx; }
+.title { display: block; margin-top: 18rpx; font-size: 38rpx; font-weight: 600; }
+.intro-copy { display: block; margin-top: 16rpx; font-size: 24rpx; line-height: 1.7; }
+.state { min-height: 420rpx; box-sizing: border-box; padding: 52rpx 32rpx; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.state-title { display: block; font-size: 31rpx; font-weight: 600; }
+.state-copy { display: block; margin-top: 16rpx; font-size: 24rpx; line-height: 1.7; }
+.state-action { margin: 32rpx 0 0; padding: 0 52rpx; font-size: 26rpx; line-height: 82rpx; }
+.list-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 30rpx 4rpx 20rpx; font-size: 30rpx; font-weight: 600; }
+.list-count { color: #64786e; font-size: 23rpx; font-weight: 400; }
+.item { padding: 30rpx; margin-bottom: 20rpx; }
+.item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
+.product { min-width: 0; flex: 1; font-size: 29rpx; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.sku { display: block; margin-top: 12rpx; font-size: 23rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.status { flex-shrink: 0; max-width: 180rpx; border-radius: 10rpx; padding: 7rpx 12rpx; font-size: 21rpx; line-height: 1.4; }
+.available { color: #276044; background: #edf4ea; }
+.unavailable { color: #a04a38; background: #fbefe9; }
+.price { display: block; margin-top: 22rpx; font-size: 34rpx; overflow-wrap: anywhere; }
+.price-unit { font-size: 22rpx; font-weight: 400; }
+.controls { display: flex; align-items: center; justify-content: space-between; margin-top: 24rpx; }
+.stepper { display: flex; align-items: center; border-radius: 16rpx; background: #f1f5ef; overflow: hidden; }
+.stepper button { flex: 0 0 auto; width: 76rpx; height: 76rpx; margin: 0; padding: 0; border-radius: 0; font-size: 28rpx; line-height: 76rpx; background: transparent; color: #19322e; }
+.stepper button[disabled] { color: #a5b0a4; }
+.quantity { min-width: 66rpx; text-align: center; font-size: 26rpx; }
+.remove { margin: 0; padding: 0 12rpx; background: transparent; color: #8c5143; font-size: 23rpx; line-height: 76rpx; }
+.line-points { display: block; margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid #edf0e9; text-align: right; color: #64786e; font-size: 23rpx; overflow-wrap: anywhere; }
+.summary { padding: 32rpx; margin-top: 26rpx; border: 1rpx solid #e5e9dd; }
+.summary-label { font-size: 25rpx; }
+.summary-total { display: block; margin-top: 12rpx; font-size: 42rpx; overflow-wrap: anywhere; }
+.summary-note { display: block; margin-top: 18rpx; font-size: 23rpx; line-height: 1.65; }
 .action-error { display: block; padding: 14rpx; color: #aa4033; font-size: 24rpx; }

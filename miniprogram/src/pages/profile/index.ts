@@ -77,5 +77,6 @@ Page({
       }
     }
   },
+  onCartTap() { wx.reLaunch({ url: '/pages/cart/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },
 });

@@ -181,5 +181,6 @@ Page({
   },
   onRetryTap() { this.refreshPoints(); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
+  onCartTap() { wx.reLaunch({ url: '/pages/cart/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },
 });

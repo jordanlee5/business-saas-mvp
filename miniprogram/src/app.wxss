@@ -1,58 +1,40 @@
 page {
-  background: #f5f7f5;
+  background: #f5f6f2;
   color: #19322e;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
-
 button::after { border: 0; }
-
-/* Shared mall surfaces and semantic colors for catalog and detail. */
-.mall-surface { background: #fff; border-radius: 24rpx; }
+.mall-surface { background: #fff; border-radius: 28rpx; box-shadow: 0 6rpx 24rpx rgba(22, 61, 57, .035); }
 .mall-primary-action { background: #153d39; color: #fff; border-radius: 40rpx; }
-.mall-points { color: #a46827; font-weight: 600; }
-.mall-muted { color: #84958d; }
-
-/* Three real destinations; the fixed dock stays clear of the device home indicator. */
+.mall-points { color: #99601f; font-weight: 600; }
+.mall-muted { color: #64786e; }
+/* Keep the last card and actions above the entire dock, including safe area. */
+.mall-screen { box-sizing: border-box; min-height: 100vh; padding: 28rpx 28rpx 160rpx; padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 .mall-nav {
-  position: fixed;
-  z-index: 10;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: stretch;
-  padding: 10rpx 22rpx;
+  position: fixed; z-index: 10; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: stretch; padding: 12rpx 20rpx 10rpx;
   padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1rpx solid #e3eae5;
-  box-shadow: 0 -8rpx 28rpx rgba(22, 61, 57, .06);
+  background: #fff; border-top: 1rpx solid #e5eae3;
+  box-shadow: 0 -8rpx 30rpx rgba(22, 61, 57, .045);
 }
 .mall-nav-item {
-  position: relative;
-  box-sizing: border-box;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  height: 86rpx;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0 8rpx;
-  border-radius: 0;
-  background: transparent;
-  color: #64776f;
-  font-size: 25rpx;
-  font-weight: 500;
-  line-height: 1.2;
+  position: relative; box-sizing: border-box; display: flex; flex: 1;
+  flex-direction: column; min-width: 0; height: 94rpx;
+  align-items: center; justify-content: center; margin: 0; padding: 6rpx 2rpx;
+  border-radius: 20rpx; background: transparent; color: #69796f;
+  font-size: 22rpx; font-weight: 500; line-height: 1.4;
 }
-.mall-nav-current { color: #153d39; font-weight: 700; }
-.mall-nav-current::before {
-  position: absolute;
-  top: 0;
-  left: 32%;
-  right: 32%;
-  height: 5rpx;
-  border-radius: 5rpx;
-  background: #c68f53;
-  content: '';
-}
+.mall-nav-current { color: #153d39; background: #eef4ed; font-weight: 700; }
+.mall-nav-current::before { position: absolute; top: 0; width: 28rpx; height: 4rpx; border-radius: 4rpx; background: #b58a51; content: ''; }
+.mall-nav-icon { position: relative; box-sizing: border-box; width: 38rpx; height: 38rpx; margin-bottom: 8rpx; }
+.mall-nav-icon::before, .mall-nav-icon::after { position: absolute; box-sizing: border-box; content: ''; }
+.mall-icon-catalog::before { left: 5rpx; top: 12rpx; width: 28rpx; height: 25rpx; border: 3rpx solid currentColor; border-radius: 4rpx; }
+.mall-icon-catalog::after { left: 12rpx; top: 3rpx; width: 14rpx; height: 17rpx; border: 3rpx solid currentColor; border-bottom: 0; border-radius: 12rpx 12rpx 0 0; }
+.mall-icon-cart::before { left: 4rpx; top: 4rpx; width: 30rpx; height: 23rpx; border: 3rpx solid currentColor; border-top-width: 5rpx; border-radius: 3rpx 3rpx 8rpx 8rpx; transform: skew(-8deg); }
+.mall-icon-cart::after { left: 8rpx; top: 32rpx; width: 6rpx; height: 6rpx; border-radius: 50%; background: currentColor; box-shadow: 19rpx 0 0 currentColor; }
+.mall-icon-points::before { inset: 2rpx; border: 3rpx solid currentColor; border-radius: 50%; }
+.mall-icon-points::after { left: 15rpx; top: 12rpx; width: 8rpx; height: 14rpx; border-top: 3rpx solid currentColor; border-bottom: 3rpx solid currentColor; transform: skew(-12deg); }
+.mall-icon-profile::before { left: 12rpx; top: 1rpx; width: 16rpx; height: 16rpx; border: 3rpx solid currentColor; border-radius: 50%; }
+.mall-icon-profile::after { left: 5rpx; bottom: 0; width: 30rpx; height: 17rpx; border: 3rpx solid currentColor; border-radius: 20rpx 20rpx 5rpx 5rpx; }
+.mall-empty-mark { position: relative; width: 116rpx; height: 116rpx; margin: 0 auto 30rpx; border-radius: 50%; background: #edf3e9; color: #416451; display: flex; align-items: center; justify-content: center; }
+.mall-empty-mark .mall-nav-icon { margin: 0; transform: scale(1.45); }

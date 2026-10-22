@@ -1,4 +1,5 @@
-<view class="screen">
+<import src="../../templates/mall-nav.wxml" />
+<view class="screen mall-screen">
   <view class="intro mall-surface">
     <text class="eyebrow">MY POINTS / 我的积分</text>
     <text class="title">{{signedIn ? '每一分，都有来处。' : '你的积分，等你开启。'}}</text>
@@ -15,7 +16,7 @@
     <view class="summary-row"><text>已预占积分</text><text>{{reservedPoints}}</text></view>
     <view class="summary-row"><text>积分批次数</text><text>{{grantCount}}</text></view>
     <view class="summary-row"><text>最近到期</text><text>{{nearestExpiry || '暂无'}}</text></view>
-    <text class="card-copy mall-muted">积分批次按激活时间由近到远展示，流水按发生时间由近到远展示。权益激活将在后续阶段接入。</text>
+    <text class="card-copy mall-muted">积分批次和流水按时间由近到远展示，可在个人中心继续领取积分权益。</text>
   </view>
   <view wx:elif="{{error}}" class="guest-card mall-surface" role="alert">
     <text class="card-title">暂时无法读取积分</text>
@@ -25,7 +26,7 @@
   </view>
   <view wx:else class="guest-card mall-surface">
     <text class="card-title">尚未登录</text>
-    <text class="card-copy mall-muted">暂不能展示余额、积分批次与流水。此页不会把访客积分记为 0，也不会请求其他会员的数据。</text>
+    <text class="card-copy mall-muted">登录后查看可用积分、有效期和每一笔积分记录。</text>
     <button class="mall-primary-action action" bindtap="onProfileTap">前往个人中心</button>
   </view>
   <view wx:if="{{signedIn}}" class="grant-section mall-surface">
@@ -64,8 +65,4 @@
   </view>
   <button class="back-link" bindtap="onCatalogTap">返回商城选好物</button>
 </view>
-<view class="mall-nav" aria-label="积分商城导航">
-  <button class="mall-nav-item" bindtap="onCatalogTap" aria-label="打开逛好物">逛好物</button>
-  <view class="mall-nav-item mall-nav-current" aria-label="当前：我的积分"><text>我的积分</text></view>
-  <button class="mall-nav-item" bindtap="onProfileTap" aria-label="打开个人中心">个人中心</button>
-</view>
+<template is="mall-nav" data="{{current: 'points'}}" />

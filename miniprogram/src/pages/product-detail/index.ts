@@ -62,7 +62,7 @@ Page({
       this.setData({ cartError: error instanceof Error ? error.message : '加入购物车失败', cartNotice: '' });
     }
   },
-  onCartTap() { wx.navigateTo({ url: '/pages/cart/index' }); },
+  onCartTap() { wx.reLaunch({ url: '/pages/cart/index' }); },
   async refresh() {
     const current = ++generation;
     this.setData({ loading: true, error: '', notFound: false, product: null, gallery: [], detailImages: [], skus: [], selectedSku: null, cartNotice: '', cartError: '' });

@@ -1,9 +1,8 @@
-.screen { padding: 30rpx 28rpx 160rpx; padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
-.hero { display: flex; align-items: center; gap: 24rpx; padding: 45rpx 34rpx; }
-.avatar { display: flex; align-items: center; justify-content: center; width: 100rpx; height: 100rpx; border-radius: 50%; background: #e3eee6; color: #286149; font-size: 37rpx; }
-.identity { display: flex; flex-direction: column; gap: 9rpx; }
+.hero { display: flex; align-items: center; gap: 24rpx; padding: 38rpx 32rpx; background: linear-gradient(120deg, #e8f0e5, #f8f7ee); }
+.avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 100rpx; height: 100rpx; border-radius: 50%; background: #e3eee6; color: #286149; font-size: 37rpx; }
+.identity { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 9rpx; }
 .identity-title { font-size: 34rpx; font-weight: 600; }
-.identity-copy { font-size: 23rpx; }
+.identity-copy { font-size: 23rpx; line-height: 1.6; overflow-wrap: anywhere; }
 .notice { margin-top: 24rpx; padding: 38rpx 34rpx; }
 .notice-title { display: block; font-size: 29rpx; font-weight: 600; }
 .notice-copy { display: block; margin-top: 15rpx; font-size: 24rpx; line-height: 1.7; }
