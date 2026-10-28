@@ -2,7 +2,7 @@
   "description": "积分商城小程序开发壳体",
   "miniprogramRoot": "src/",
   "compileType": "miniprogram",
-  "appid": "touristappid",
+  "appid": "wx954783174df6dfdf",
   "setting": {
     "urlCheck": true,
     "es6": true,
