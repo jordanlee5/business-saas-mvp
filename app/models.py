@@ -1977,3 +1977,22 @@ class OrderDeliverySnapshot(Base):
     city = Column(String(80), nullable=False)
     district = Column(String(80), nullable=False)
     detail = Column(String(240), nullable=False)
+
+
+class OrderPrivacyReceipt(Base):
+    """Minimal erasure evidence; request digest retains idempotency, not address."""
+    __tablename__ = 'order_privacy_receipts'
+    __table_args__ = (CheckConstraint('length(request_digest) = 64', name='ck_order_privacy_digest'),)
+    order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
+    request_digest = Column(String(64), nullable=False)
+    policy_version = Column(String(80), nullable=False)
+    cleared_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class OrderFulfillmentNotice(Base):
+    """Published recipient profiles and notice shown at checkout, no consumer PII."""
+    __tablename__ = 'order_fulfillment_notices'
+    __table_args__ = (CheckConstraint('length(digest) = 64', name='ck_order_notice_digest'),)
+    order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
+    digest = Column(String(64), nullable=False)
+    payload = Column(Text, nullable=False)

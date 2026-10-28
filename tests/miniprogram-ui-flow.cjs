@@ -1,0 +1,36 @@
+// Exercise generated demo using real page/service code and no native transport.
+const assert=require('node:assert/strict'),path=require('node:path');
+const root=path.resolve(process.argv[2]),storage=new Map();let definition;
+global.wx={getAccountInfoSync:()=>({miniProgram:{appId:'touristappid',envVersion:'develop'}}),getSystemInfoSync:()=>({platform:'devtools'}),getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),request:()=>{throw Error('Native request forbidden')},login:()=>{throw Error('Native login forbidden')},navigateTo:()=>{},reLaunch:()=>{}};
+global.Page=x=>definition=x;
+const session=require(path.join(root,'services/member-session.js'));
+const catalog=require(path.join(root,'services/catalog.js'));
+const cart=require(path.join(root,'services/cart.js'));
+const addresses=require(path.join(root,'services/addresses.js'));
+const orders=require(path.join(root,'services/orders.js'));
+const fulfillment=require(path.join(root,'services/fulfillment.js'));
+const demo=require(path.join(root,'demo-transport.js'));
+const wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('UI did not settle');};
+(async()=>{
+ await session.loginMember();assert.ok(session.hasMemberSession());
+ const product=await catalog.getProductDetail('PRD-DEMO-001');cart.addCartLine(product,product.skus[0]);
+ const before=await addresses.listAddresses();assert.equal(before.length,1);
+ await addresses.saveAddress('',{recipient_name:'离线测试',phone:'13800000002',province:'演示省',city:'演示市',district:'演示区',detail:'虚拟路二号'});
+ assert.equal((await addresses.listAddresses()).length,2);
+ const cartData=await cart.loadCartDisplay(cart.readCart());
+ assert.equal((await fulfillment.getFulfillment(cartData.items)).ready,true);
+ require(path.join(root,'pages/checkout/index.js'));
+ const page={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
+ page.onShow();await wait(()=>page.data.fulfillment!==null&&!page.data.loading);
+ assert.ok(page.data.fulfillment.ready);assert.ok(page.data.selected);
+ page.onSubmit();await wait(()=>Boolean(page.data.complete));
+ assert.equal(cart.readCart().length,0);
+ const id=page.data.complete;assert.equal((await orders.getOrder(id)).fulfillment.suppliers.length,1);
+ demo.advance(id);demo.advance(id);demo.advance(id);
+ assert.equal((await orders.getOrder(id)).status,'COMPLETED');demo.clearDemoAddress(id);
+ assert.equal((await orders.getOrder(id)).address_state,'CLEARED');
+ const points=await session.getCurrentMemberPointsSummary();assert.equal(points.available_points,'1080.00');
+ assert.ok((await session.getCurrentMemberPointsLedger(1)).items.length);
+ page.onHide();assert.deepEqual(page.data.addresses,[]);assert.equal(page.data.fulfillment,null);
+ console.log('PASS generated UI flow: login/cart/address/notice/checkout/order/fulfillment/cleared/points; native network blocked');
+})().catch(e=>{console.error(e);process.exitCode=1;});

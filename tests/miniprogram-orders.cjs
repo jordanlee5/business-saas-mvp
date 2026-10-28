@@ -6,6 +6,7 @@ require(path.join(root,'services/privacy.js')).assertPrivacyAuthorized=async()=>
 const session=require(path.join(root,'services/member-session.js'));
 const service=require(path.join(root,'services/orders.js'));
 const cart=require(path.join(root,'services/cart.js'));
+require(path.join(root,'services/fulfillment.js')).getFulfillment=async()=>({ready:true,digest:'f'.repeat(64),suppliers:[],notice:'test',operator_name:'test',operator_contact:'test',message:''});
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
 const reply=(statusCode,data)=>{assert.ok(requests.length);requests.shift().success({statusCode,data});};
 const addr={recipient_name:'收件测试',phone:'13800000001',province:'测试省',city:'测试市',district:'测试区',detail:'测试路1号'};

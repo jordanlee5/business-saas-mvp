@@ -30,7 +30,7 @@
     <div><dt>积分 / 数量</dt><dd>{{ '%.2f' | format(detail.order.total_points) }} / {{ detail.order.total_quantity }}</dd></div>
     <div><dt>商品成本（元）</dt><dd>{{ '%.2f' | format(detail.order.total_cost_amount) }}</dd></div>
     <div><dt>创建时间</dt><dd>{{ detail.order.created_at | format_utc8 }}</dd></div>
-    <div><dt>收货地址快照</dt><dd>{% if detail.delivery_address %}{{ detail.delivery_address.recipient_name }} · {{ detail.delivery_address.phone }} · {{ detail.delivery_address.province }} {{ detail.delivery_address.city }} {{ detail.delivery_address.district }} {{ detail.delivery_address.detail }}{% else %}历史订单未保存收货快照{% endif %}</dd></div>
+    <div><dt>收货地址快照</dt><dd>{% if detail.delivery_address %}{{ detail.delivery_address.recipient_name }} · {{ detail.delivery_address.phone }} · {{ detail.delivery_address.province }} {{ detail.delivery_address.city }} {{ detail.delivery_address.district }} {{ detail.delivery_address.detail }}{% elif detail.delivery_cleared %}收货信息已按保存规则清理，订单交易记录仍保留{% else %}历史订单未保存收货快照{% endif %}</dd></div>
     <div><dt>物流</dt><dd>{% if detail.shipped_at %}{{ detail.shipping_carrier }} · {{ detail.tracking_number }} · {{ detail.shipped_at | format_utc8 }}{% else %}尚未发货{% endif %}</dd></div>
     <div><dt>完成时间</dt><dd>{% if detail.completed_at %}{{ detail.completed_at | format_utc8 }}{% else %}—{% endif %}</dd></div>
     <div><dt>退款记录</dt><dd>{% if detail.refunded_at %}{{ detail.refunded_at | format_utc8 }} · {{ detail.refund_reason }}{% else %}—{% endif %}</dd></div>

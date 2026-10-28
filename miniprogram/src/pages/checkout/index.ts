@@ -1,18 +1,19 @@
 import {getSignedInMember,hasMemberSession,MemberSessionError} from '../../services/member-session';
 import {listAddresses,type Address} from '../../services/addresses';
 import {readCart,loadCartDisplay,removeCartLine,type CartDisplayLine} from '../../services/cart';
+import {getFulfillment,type FulfillmentNotice} from '../../services/fulfillment';
 import {beginCheckout,submitCheckout,resolveCheckout,pendingCheckout,clearPendingCheckout,canRetryCheckout,pendingCartLines,type OrderDetail} from '../../services/orders';
 Page({
-  data:{loading:false,busy:false,owner:'',addresses:[] as Address[],selected:'',items:[] as CartDisplayLine[],total:'',error:'',pending:false,canRetry:false,reviewing:false,complete:''},
+  data:{loading:false,busy:false,owner:'',addresses:[] as Address[],selected:'',items:[] as CartDisplayLine[],total:'',error:'',pending:false,canRetry:false,reviewing:false,complete:'',fulfillment:null as FulfillmentNotice|null},
   generation:0,
   pendingAction:null as Promise<void>|null,
   lastCompleted:null as {owner:string;id:string}|null,
   async onShow(){const gen=++this.generation;if(this.pendingAction){try{await this.pendingAction;}catch(_){}}if(gen===this.generation)this.load();},
-  onHide(){this.generation++;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:''});},
+  onHide(){this.generation++;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:'',fulfillment:null});},
   onUnload(){this.onHide();},
   async load(review=false){
     const gen=++this.generation;
-    this.setData({busy:false,loading:true,owner:'',addresses:[],items:[],selected:'',error:'',pending:false,reviewing:review,complete:''});
+    this.setData({busy:false,loading:true,owner:'',addresses:[],items:[],selected:'',error:'',pending:false,reviewing:review,complete:'',fulfillment:null});
     try {
       const member=await getSignedInMember();if(!member)throw new Error('请先登录会员');
       if(gen!==this.generation)return;
@@ -22,7 +23,9 @@ Page({
       const addresses=await listAddresses();const cart=await loadCartDisplay(review ? pendingCartLines(owner) : readCart());
       if(gen!==this.generation)return;
       if(!cart.items.length || cart.hasUnavailable)throw new Error('请返回购物车核对可兑换商品');
-      this.setData({owner,addresses,items:cart.items,total:cart.estimate,selected:addresses.find(x=>x.is_default)?.address_public_id || ''});
+      const fulfillment=await getFulfillment(cart.items);
+      if(gen!==this.generation)return;
+      this.setData({owner,addresses,items:cart.items,total:cart.estimate,fulfillment,selected:addresses.find(x=>x.is_default)?.address_public_id || ''});
     }catch(e){if(gen===this.generation)this.setData({error:e instanceof Error?e.message:'暂不可用'});}
     finally{if(gen===this.generation)this.setData({loading:false});}
   },
@@ -34,7 +37,8 @@ Page({
       if(!pendingCheckout(owner) || this.data.reviewing){
         const address=this.data.addresses.find((x:Address)=>x.address_public_id===this.data.selected);
         if(!address)throw new Error('请选择收货地址');
-        beginCheckout(owner,address.address_public_id,address,this.data.items);
+        if(!this.data.fulfillment?.ready)throw new Error('请先核对发货服务信息');
+        beginCheckout(owner,address.address_public_id,address,this.data.items,this.data.fulfillment.digest);
         this.setData({reviewing:false});
       }
       const cartLines=pendingCartLines(owner);

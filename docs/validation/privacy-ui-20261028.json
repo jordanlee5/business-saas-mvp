@@ -1,0 +1,60 @@
+{
+  "base_commit": "534f6b6fb2b167077e343f4095d42dd8ecc59277",
+  "date": "2026-10-28",
+  "full_tests": 775,
+  "expected_pg_class_skips": 9,
+  "dedicated_pg_tests": 40,
+  "typescript": true,
+  "client_groups": 44,
+  "generated_page_flow": true,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_upgrade_executed": false,
+  "real_erasure_executed": false,
+  "isolated_upgrade_roundtrip": true,
+  "synthetic_erasure_and_restore": true,
+  "isolated_http_checks": [
+    {
+      "path": "/health",
+      "status": 200
+    },
+    {
+      "path": "/api/miniprogram/v1/status",
+      "status": 200
+    },
+    {
+      "path": "/api/miniprogram/v1/orders",
+      "status": 401
+    },
+    {
+      "path": "/api/miniprogram/v1/addresses",
+      "status": 401
+    }
+  ],
+  "wechat_platform_acceptance": false,
+  "privacy_submission": false,
+  "production_retention_days_approved": false,
+  "log_sha256": {
+    "client-addresses.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-addresses.stdout.txt": "8abf8c54ca1aab33b09c482d1593623480cb10a16c15b1e8f1bb67c6f7ef79a8",
+    "client-fulfillment.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-fulfillment.stdout.txt": "81a16765947d698f100bb579bc01e2d380f9aff2743856a80a65f7e1030cd1b7",
+    "client-orders.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-orders.stdout.txt": "1c2134966246df10320dbc33a0548488f9f6b171e2b86f474868e6799bae8a69",
+    "client-platform.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-platform.stdout.txt": "fc12640221100906df2f01298488551a604b3169e8b6453bd697762ad1389827",
+    "extra-checks.stderr.txt": "aa744ce9f52c71ce1c7b359db6a34de9a0a1ea19b4a708b2fa26b17d996efe0e",
+    "extra-checks.stdout.txt": "0daf8d2feddc7f2dcb9426a2142eda530d1a5c5a6047856369de8defcb807dce",
+    "full.stderr.txt": "aaccca520d3f5ef8a73a3e3c4d0d36bff4e16d0ddcbd845669e8066cb8460cd4",
+    "full.stdout.txt": "1554a9848dc6daaef194f2a34b6379a5aa5889d7191f1d505b40f42c736e1732",
+    "local-config-tests.stderr.txt": "47de6726fb1ce3583442d7182022938cd66c111698963a277acd72bb2da96671",
+    "local-config-tests.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "orders-pg.stderr.txt": "205657f3a3c8ecdcb25609b85c2350ebe6585ced718033de18c526fd8329121a",
+    "orders-pg.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.stderr.txt": "7abb61a0f180406eac6158d4e536b47cf01a5efdc10ace14c7d431e5f21be799",
+    "server.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stdout.txt": "ea2f43c7cd17080c87830693bd87bd99cbe10d9783595298a1a707d1e6bef5ab"
+  }
+}

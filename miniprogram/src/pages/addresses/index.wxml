@@ -1,4 +1,4 @@
-<view class="screen">
+<view class="screen"><view class="copy">地址簿修改或删除不会更改已生成订单的收货信息；订单信息按履约及保存规则另行处理。</view>
   <view class="heading">我的收货地址</view>
   <text class="copy mall-muted">最多保存20条地址。首次新增自动设为默认，之后可手动设置。</text>
   <text wx:if="{{error}}" class="copy error" role="alert">{{error}}</text>

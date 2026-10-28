@@ -11,7 +11,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from .member_addresses import address_session, AddressBody, _commit
 from .miniprogram_v1 import _require_current_member
-from ..models import Member, MemberAddress, Order, OrderItem, OrderDeliverySnapshot, Product, ProductSku
+from ..models import Member, MemberAddress, Order, OrderItem, OrderDeliverySnapshot, Product, ProductSku, OrderPrivacyReceipt
+from ..mall.fulfillment_notice import checkout_notice, save_notice, historical_notice
 from ..mall.member_address_service import ADDRESS_FIELDS, normalize_address, AddressInputError
 from ..mall.order_service import OrderLineRequest, place_order_with_reservations
 from ..mall.order_cancellation_service import cancel_created_order
@@ -49,6 +50,11 @@ class CheckoutBody(BaseModel):
     address_public_id:str=Field(pattern=r'^ADDR-[a-f0-9]{32}$')
     expected_address:AddressBody
     lines:list[CheckoutLine]=Field(min_length=1,max_length=20)
+    fulfillment_digest:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
+
+class NoticeBody(BaseModel):
+    model_config=ConfigDict(extra='forbid',strict=True)
+    lines:list[CheckoutLine]=Field(min_length=1,max_length=20)
 
 def stamp(value):
     if value is None:return None
@@ -59,7 +65,11 @@ def summary(order):
             'total_points':f'{order.total_points:.2f}','total_quantity':order.total_quantity,'created_at':stamp(order.created_at)}
 def detail(db,order):
     snapshot=db.get(OrderDeliverySnapshot,order.id)
+    receipt=db.get(OrderPrivacyReceipt,order.id)
+    if receipt and snapshot: raise RuntimeError('恢复后的收货资料尚未重新清理')
     return {**summary(order),
+        'address_state':'CLEARED' if receipt else ('AVAILABLE' if snapshot else 'NOT_RECORDED'),
+        'fulfillment':historical_notice(db,order.id),
         'address':{key:getattr(snapshot,key) for key in ADDRESS_FIELDS} if snapshot else None,
         'shipping_carrier':order.shipping_carrier,'tracking_number':order.tracking_number,
         'shipped_at':stamp(order.shipped_at),'completed_at':stamp(order.completed_at),
@@ -78,6 +88,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     member=db.query(Member).filter_by(id=member.id).with_for_update().populate_existing().one()
     if not member.is_active:raise HTTPException(401,'会员会话无效')
     normalized=body.model_dump()
+    if normalized['fulfillment_digest'] is None: normalized.pop('fulfillment_digest')
     normalized['expected_address']=normalize_address(normalized['expected_address'])
     normalized['lines']=sorted(normalized['lines'],key=lambda x:(x['product_public_id'],x['sku_code']))
     keys=[(x['product_public_id'],x['sku_code']) for x in normalized['lines']]
@@ -86,7 +97,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     key=f'mini:{member.id}:{body.request_id}'
     existing=db.query(Order).filter_by(idempotency_key=key).one_or_none()
     if existing:
-        saved=db.get(OrderDeliverySnapshot,existing.id)
+        saved=db.get(OrderDeliverySnapshot,existing.id) or db.get(OrderPrivacyReceipt,existing.id)
         if not saved or saved.request_digest!=digest:raise HTTPException(409,'请求编号已用于不同订单内容')
         response.status_code=200
         return detail(db,existing)
@@ -94,6 +105,9 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     if address is None:raise HTTPException(404,'收货地址不存在，请重新选择')
     values={key:getattr(address,key) for key in ADDRESS_FIELDS}
     if values!=normalized['expected_address']:raise HTTPException(409,'收货地址已变化，请重新确认')
+    notice=checkout_notice(db,normalized['lines'])
+    if not notice['ready'] or body.fulfillment_digest!=notice['digest']:
+        raise HTTPException(409,'受托发货信息待完善或已变化，请重新核对')
     lines=[];prices={}
     for line in body.lines:
         sku=db.query(ProductSku).join(Product,Product.id==ProductSku.product_id).filter(
@@ -105,7 +119,9 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
         if item.unit_points_price!=prices[item.sku_id]:raise HTTPException(409,'商品积分价已变化，请刷新后重新确认')
     db.add(OrderDeliverySnapshot(order_id=placed.order_id,address_public_id=body.address_public_id,request_digest=digest,**values))
     db.flush()
-    result=detail(db,db.get(Order,placed.order_id))
+    order=db.get(Order,placed.order_id)
+    save_notice(db,order,notice)
+    result=detail(db,order)
     _commit(db)
     return result
 
@@ -114,6 +130,14 @@ def orders(page:int=Query(1,ge=1,le=1000000),authorization:str|None=Header(None)
     member=_require_current_member(authorization,db)
     query=db.query(Order).filter_by(member_id=member.id)
     return {'items':[summary(x) for x in query.order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
+
+@order_router.post('/fulfillment-preview')
+def fulfillment_preview(body:NoticeBody,authorization:str|None=Header(None),db:Session=Depends(address_session)):
+    _require_current_member(authorization,db)
+    lines=[line.model_dump() for line in body.lines]
+    if len({(line['product_public_id'],line['sku_code']) for line in lines})!=len(lines):
+        raise HTTPException(422,'同一规格不能重复提交')
+    return checkout_notice(db,lines)
 
 @order_router.get('/request/{request_id}')
 def by_request(request_id:str,authorization:str|None=Header(None),db:Session=Depends(address_session)):

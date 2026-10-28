@@ -19,7 +19,7 @@ class OrderDeliveryMigrationTests(unittest.TestCase):
         self.assertEqual(report['result'],'PASS');self.assertEqual(before,file_fingerprints(self.path))
         self.assertEqual(report['live_upgrade'],'NOT_EXECUTED')
     def test_head_readiness_and_retained_snapshot_prevents_downgrade(self):
-        command.upgrade(self.config,CURRENT)
+        command.upgrade(self.config,'head')
         engine=create_engine(self.config.attributes['database_url']);self.addCleanup(engine.dispose)
         assert_database_schema_ready(engine)
         # Minimal fixture only in this disposable SQLite; production foreign keys remain enforced.

@@ -29,6 +29,8 @@ POST_BASELINE_TABLES = frozenset(
     {
         "members",
         "order_delivery_snapshots",
+        "order_privacy_receipts",
+        "order_fulfillment_notices",
         "member_addresses",
         "member_address_events",
         "member_wechat_bindings",

@@ -257,7 +257,7 @@ export async function getCurrentMemberPointsLedger(page: number): Promise<Member
 export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE',
                                            data?: Record<string, unknown>): Promise<unknown> {
   if (!/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path) &&
-      !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel)?)?$/.test(path)) {
+      !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/fulfillment-preview|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel)?)?$/.test(path)) {
     throw new MemberSessionError('收货地址请求无效');
   }
   const activeToken = currentToken();
