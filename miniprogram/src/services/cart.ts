@@ -1,4 +1,4 @@
-import { getProductDetail, ProductNotFoundError } from './catalog';
+import { getProductDetail, productImageUrl, ProductNotFoundError } from './catalog';
 import type { ProductDetail, ProductSku } from './catalog';
 
 const STORAGE_KEY = 'mall_cart_v1';
@@ -19,6 +19,7 @@ export interface CartDisplayLine extends CartLine {
   line_points: string;
   available: boolean;
   status: string;
+  imageUrl: string;
 }
 
 export class CartError extends Error {}
@@ -129,7 +130,7 @@ export async function loadCartDisplay(lines: CartLine[]): Promise<{
     if (detail instanceof ProductNotFoundError) {
       hasUnavailable = true;
       items.push({ ...line, key, product_name: '商品已下架', sku_name: line.sku_code,
-        points_price: '', line_points: '', available: false, status: '已下架或不可见' });
+        points_price: '', line_points: '', available: false, status: '已下架或不可见', imageUrl: '' });
       continue;
     }
     if (!detail) throw new CartError('商品详情暂不可用');
@@ -138,7 +139,8 @@ export async function loadCartDisplay(lines: CartLine[]): Promise<{
     if (!sku) {
       hasUnavailable = true;
       items.push({ ...line, key, product_name: product.name, sku_name: line.sku_code,
-        points_price: '', line_points: '', available: false, status: '规格已不可见' });
+        points_price: '', line_points: '', available: false, status: '规格已不可见',
+        imageUrl: productImageUrl(product.main_image_url, product.product_public_id) });
       continue;
     }
     const available = sku.in_stock && sku.stock_status !== 'OUT_OF_STOCK';
@@ -149,6 +151,7 @@ export async function loadCartDisplay(lines: CartLine[]): Promise<{
       throw new CartError('购物车积分合计暂不可用');
     if (available) totalCents += lineCents;
     items.push({ ...line, key, product_name: product.name, sku_name: sku.name,
+      imageUrl: productImageUrl(product.main_image_url, product.product_public_id),
       points_price: sku.points_price, line_points: formatCents(lineCents),
       available, status: available ? (sku.stock_status === 'LOW_STOCK' ? '库存紧张' : '有货') : '暂时无货' });
   }

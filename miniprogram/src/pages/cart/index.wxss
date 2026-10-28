@@ -10,6 +10,12 @@
 .list-count { color: #64786e; font-size: 23rpx; font-weight: 400; }
 .item { padding: 30rpx; margin-bottom: 20rpx; }
 .item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
+.item-body { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; margin-top: 12rpx; }
+.item-description { flex: 1; min-width: 0; }
+.item-description .sku { margin-top: 0; }
+.thumbnail { width: 128rpx; height: 128rpx; flex: 0 0 128rpx; overflow: hidden; border-radius: 16rpx; background: #f3f5ef; display: flex; align-items: center; justify-content: center; }
+.thumbnail-image { display: block; width: 100%; height: 100%; }
+.thumbnail-empty { color: #7b8a80; font-size: 20rpx; }
 .product { min-width: 0; flex: 1; font-size: 29rpx; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .sku { display: block; margin-top: 12rpx; font-size: 23rpx; line-height: 1.5; overflow-wrap: anywhere; }
 .status { flex-shrink: 0; max-width: 180rpx; border-radius: 10rpx; padding: 7rpx 12rpx; font-size: 21rpx; line-height: 1.4; }

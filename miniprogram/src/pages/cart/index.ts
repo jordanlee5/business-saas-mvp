@@ -57,6 +57,11 @@ Page({
     if (/^[A-Z0-9-]{1,32}$/.test(id))
       wx.navigateTo({ url: '/pages/product-detail/index?id=' + encodeURIComponent(id) });
   },
+  onImageError(event: { currentTarget: { dataset: { key: string; src: string } } }) {
+    const {key, src} = event.currentTarget.dataset;
+    this.setData({items: this.data.items.map((item: CartDisplayLine) =>
+      item.key === key && item.imageUrl === src ? {...item, imageUrl: ''} : item)});
+  },
   onCheckoutTap() { if (!this.data.loading && !this.data.error && this.data.items.length && !this.data.hasUnavailable) wx.navigateTo({ url: '/pages/checkout/index' }); },
   onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
