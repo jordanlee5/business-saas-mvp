@@ -17,10 +17,10 @@ declare const wx: {
   }): void;
   request(options: {
     url: string;
-    method: 'GET' | 'POST';
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     timeout: number;
     header: { Accept: string; 'Content-Type'?: string; Authorization?: string };
-    data?: { code: string } | {
+    data?: Record<string, string> | {
       wechat_code: string;
       business_public_no: string;
       phone: string;

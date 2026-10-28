@@ -1,0 +1,12 @@
+.screen { padding: 32rpx 28rpx calc(40rpx + env(safe-area-inset-bottom)); }
+.heading { font-size: 40rpx; font-weight: 700; margin-bottom: 16rpx; }
+.card { padding: 28rpx; margin: 24rpx 0; overflow-wrap: anywhere; }
+.title { display: block; font-size: 30rpx; font-weight: 600; }
+.copy { display: block; margin: 20rpx 0; font-size: 27rpx; line-height: 1.7; }
+.badge { display: inline-block; color: #153d39; background: #edf3e9; padding: 6rpx 14rpx; border-radius: 12rpx; margin-top: 16rpx; font-size: 24rpx; }
+.field { display: block; margin: 24rpx 0; font-size: 28rpx; }
+input { background: #f5f7f5; border-radius: 12rpx; padding: 20rpx; margin-top: 12rpx; }
+button { margin-top: 16rpx; font-size: 28rpx; }
+.actions { display: flex; gap: 12rpx; flex-wrap: wrap; }
+.actions button { flex: 1; min-width: 120rpx; padding: 0 12rpx; }
+.error, .danger { color: #a52f29; }

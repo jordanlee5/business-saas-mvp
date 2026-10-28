@@ -1,0 +1,45 @@
+<view class="screen">
+  <view class="heading">我的收货地址</view>
+  <text class="copy mall-muted">最多保存20条地址。首次新增自动设为默认，之后可手动设置。</text>
+  <text wx:if="{{error}}" class="copy error" role="alert">{{error}}</text>
+  <text wx:if="{{notice}}" class="copy">{{notice}}</text>
+  <view wx:if="{{!hasSession}}" class="card mall-surface"><text class="copy">登录会员后可管理收货地址。</text><button bindtap="onProfileTap">前往会员登录</button></view>
+  <text wx:elif="{{loading}}" class="copy">正在读取地址…</text>
+  <button wx:elif="{{!ready}}" bindtap="onRetryTap">刷新地址列表</button>
+  <block wx:else>
+    <view wx:if="{{editing}}" class="card mall-surface">
+      <text class="title">{{editId ? '编辑地址' : '新增地址'}}</text>
+<label class="field"><text>收件人</text><input value="{{form.recipient_name}}" data-field="recipient_name" bindinput="onInput" maxlength="80" disabled="{{busy}}" placeholder="收件人（必填）" /></label>
+<label class="field"><text>电话</text><input value="{{form.phone}}" data-field="phone" bindinput="onInput" maxlength="16" disabled="{{busy}}" placeholder="电话（必填）" /></label>
+<label class="field"><text>省</text><input value="{{form.province}}" data-field="province" bindinput="onInput" maxlength="80" disabled="{{busy}}" placeholder="省（必填）" /></label>
+<label class="field"><text>市</text><input value="{{form.city}}" data-field="city" bindinput="onInput" maxlength="80" disabled="{{busy}}" placeholder="市（必填）" /></label>
+<label class="field"><text>区县</text><input value="{{form.district}}" data-field="district" bindinput="onInput" maxlength="80" disabled="{{busy}}" placeholder="区县（必填）" /></label>
+<label class="field"><text>详细地址</text><input value="{{form.detail}}" data-field="detail" bindinput="onInput" maxlength="240" disabled="{{busy}}" placeholder="详细地址（必填）" /></label>
+      <button class="mall-primary-action" bindtap="onSaveTap" loading="{{busy}}" disabled="{{busy}}">保存地址</button>
+      <button bindtap="onCancelTap" disabled="{{busy}}">取消</button>
+    </view>
+    <block wx:else>
+      <view wx:if="{{deleteId}}" class="card mall-surface" role="dialog" aria-label="确认删除地址">
+        <text class="copy">删除后无法恢复。{{deleteDefault ? '删除默认地址后，其余地址不会自动成为默认。' : ''}}</text>
+        <button class="danger" bindtap="onConfirmDeleteTap" disabled="{{busy}}" loading="{{busy}}">确认删除</button>
+        <button bindtap="onCancelTap" disabled="{{busy}}">取消</button>
+      </view>
+      <block wx:else>
+        <text class="copy mall-muted">已保存 {{items.length}} / 20 条</text>
+        <text wx:if="{{!items.length}}" class="copy">还没有收货地址，添加后可用于后续兑换。</text>
+        <view wx:for="{{items}}" wx:key="address_public_id" class="card mall-surface">
+          <text class="title">{{item.recipient_name}}　{{item.phone}}</text>
+          <text wx:if="{{item.is_default}}" class="badge">默认地址</text>
+          <text class="copy">{{item.province}} {{item.city}} {{item.district}} {{item.detail}}</text>
+          <view class="actions">
+            <button data-id="{{item.address_public_id}}" bindtap="onEditTap" disabled="{{busy}}">编辑</button>
+            <button wx:if="{{!item.is_default}}" data-id="{{item.address_public_id}}" bindtap="onDefaultTap" disabled="{{busy}}">设为默认</button>
+            <button data-id="{{item.address_public_id}}" bindtap="onDeleteTap" disabled="{{busy}}">删除</button>
+          </view>
+        </view>
+        <button class="mall-primary-action" bindtap="onAddTap" disabled="{{busy || items.length >= 20}}">{{items.length >= 20 ? '地址已满20条' : '新增地址'}}</button>
+        <button bindtap="onRetryTap" disabled="{{busy}}">刷新列表</button>
+      </block>
+    </block>
+  </block>
+</view>

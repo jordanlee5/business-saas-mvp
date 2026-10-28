@@ -252,3 +252,37 @@ export async function getCurrentMemberPointsLedger(page: number): Promise<Member
   if (!valid) throw new MemberSessionError('积分流水数据暂不可用');
   return data as unknown as MemberPointsLedgerPage;
 }
+
+// Address transport keeps the bearer private and rejects responses from old sessions.
+export async function requestMemberAddress(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+                                           data?: Record<string, string>): Promise<unknown> {
+  if (!/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path)) {
+    throw new MemberSessionError('收货地址请求无效');
+  }
+  const activeToken = currentToken();
+  if (!activeToken) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  const current = generation;
+  try {
+    const result = await new Promise<unknown>((resolve, reject) => wx.request({
+      url: getApiOrigin() + '/api/miniprogram/v1' + path, method, timeout: 8000,
+      header: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: 'Bearer ' + activeToken },
+      ...(data ? { data } : {}),
+      success(response) {
+        const expected = method === 'POST' ? 201 : method === 'DELETE' ? 204 : 200;
+        if (response.statusCode === expected) { resolve(response.data); return; }
+        const messages: Record<number, string> = {
+          401: '会员会话已失效，请重新登录', 404: '地址已不存在，请刷新列表',
+          409: '最多保存20条地址，请先删除不再使用的地址', 422: '地址格式不正确，请检查后重试',
+        };
+        reject(new MemberSessionError(messages[response.statusCode] || '地址服务暂不可用，请刷新后核对结果', response.statusCode));
+      },
+      fail() { reject(new MemberSessionError('网络连接失败，请刷新后核对操作结果')); },
+    }));
+    if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+    return result;
+  } catch (error) {
+    if (current !== generation) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+    if (error instanceof MemberSessionError && error.status === 401) clearMemberSession();
+    throw error;
+  }
+}
