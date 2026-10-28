@@ -58,3 +58,9 @@ python -m app.wechat_local --directory PRIVATE_DIRECTORY serve
 - [微信隐私协议开发指南](https://developers.weixin.qq.com/miniprogram/dev/framework/user-privacy/PrivacyAuthorize.html)：后台配置隐私指引、查询授权状态及用户同意流程。
 
 本轮已读取上述官方文档；后台入口与平台要求以实际账号页面为准。
+
+## 2026-10-28 后续确认
+
+开发者权限和AppSecret本机录入已完成，仅核验配置状态，未验证真实微信身份。业务模式确认为会员向本公司兑换、供应商受托直接发货，无独立商家入驻。后台信息类型应区分微信昵称头像和OpenID/UnionID；后者不能靠勾选前者代替声明。供应商受托处理不能与独立商家共享混同。
+
+保存期限、清理、备份、受托方告知和用户权益待办见[后续开发计划](privacy-followup-plan.md)。用户要求先不提交微信审核，隐私标志保持为空；先验收本机UI，再安排正式服务器和HTTPS。本文前面的初始检查结果保留为当时状态，不代表这些待办已实现。
