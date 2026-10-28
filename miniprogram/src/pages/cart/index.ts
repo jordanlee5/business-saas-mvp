@@ -57,6 +57,7 @@ Page({
     if (/^[A-Z0-9-]{1,32}$/.test(id))
       wx.navigateTo({ url: '/pages/product-detail/index?id=' + encodeURIComponent(id) });
   },
+  onCheckoutTap() { if (!this.data.loading && !this.data.error && this.data.items.length && !this.data.hasUnavailable) wx.navigateTo({ url: '/pages/checkout/index' }); },
   onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },

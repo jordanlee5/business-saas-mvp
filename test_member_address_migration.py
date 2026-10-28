@@ -45,6 +45,7 @@ class MemberAddressMigrationTests(unittest.TestCase):
         with self.assertRaises(DatabaseSchemaNotReadyError):
             assert_database_schema_ready(self.engine)
         command.upgrade(self.config, CURRENT)
+        command.upgrade(self.config, "head")
         assert_database_schema_ready(self.engine)
         indexes = inspect(self.engine).get_indexes("member_addresses")
         index = next(x for x in indexes if x["name"] == "uq_member_addresses_one_default")
@@ -79,3 +80,9 @@ class MemberAddressMigrationTests(unittest.TestCase):
         self.assertNotIn("UPDATE members", sql)
         with self.assertRaisesRegex(RuntimeError, "离线模式"):
             command.downgrade(config, CURRENT + ":" + PREVIOUS, sql=True)
+
+    def test_rehearsal_rejects_incomplete_previous_schema(self):
+        with self.engine.begin() as db:
+            db.execute(text('DROP TABLE supplier_settlement_items'))
+        with self.assertRaisesRegex(RuntimeError, '缺少既有表'):
+            rehearse(self.source, Path(self.temp.name) / 'broken')

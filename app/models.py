@@ -1958,3 +1958,22 @@ class SupplierSettlementItem(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=utc8_now
     )
+
+
+class OrderDeliverySnapshot(Base):
+    """Immutable order evidence. No foreign key to the mutable address book."""
+    __tablename__ = 'order_delivery_snapshots'
+    __table_args__ = (
+        *(CheckConstraint(f'length(trim({key})) BETWEEN 1 AND {limit}', name=f'ck_order_delivery_{key}')
+          for key, limit in (('recipient_name',80),('phone',16),('province',80),('city',80),('district',80),('detail',240))),
+        CheckConstraint('length(request_digest) = 64',name='ck_order_delivery_digest'),
+    )
+    order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
+    address_public_id = Column(String(37), nullable=False)
+    request_digest = Column(String(64), nullable=False)
+    recipient_name = Column(String(80), nullable=False)
+    phone = Column(String(16), nullable=False)
+    province = Column(String(80), nullable=False)
+    city = Column(String(80), nullable=False)
+    district = Column(String(80), nullable=False)
+    detail = Column(String(240), nullable=False)

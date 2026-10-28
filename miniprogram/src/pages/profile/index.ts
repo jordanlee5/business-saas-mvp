@@ -59,6 +59,7 @@ Page({
     viewGeneration += 1;
     this.setData({ signedIn: false, memberPublicId: '', error: '', signingIn: false, loading: false });
   },
+  onOrdersTap() { wx.navigateTo({ url: '/pages/orders/index' }); },
   onAddressesTap() { wx.navigateTo({ url: '/pages/addresses/index' }); },
   onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
   onActivationTap() { wx.navigateTo({ url: '/pages/activation/index' }); },

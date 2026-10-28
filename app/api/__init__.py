@@ -7,6 +7,8 @@ from .miniprogram_v1 import (
 from .member_addresses import address_router
 
 miniprogram_v1_router.include_router(address_router)
+from .member_orders import order_router
+miniprogram_v1_router.include_router(order_router)
 
 __all__ = [
     "MINIPROGRAM_API_PREFIX",

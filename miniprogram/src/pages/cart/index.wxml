@@ -46,7 +46,8 @@
       <text class="summary-label">可用商品参考合计</text>
       <text class="summary-total mall-points">{{estimate}} <text class="price-unit">积分</text></text>
       <text class="summary-note mall-muted" wx:if="{{hasUnavailable}}">下架、无货或不可见的规格未计入合计。</text>
-      <text class="summary-note mall-muted">价格和库存会更新，下拉可刷新。当前仅支持整理购物车，订单提交尚未开放。</text>
+      <button class="mall-primary-action" bindtap="onCheckoutTap" disabled="{{loading || hasUnavailable}}">确认兑换</button>
+      <text class="summary-note mall-muted">价格和库存会更新，提交前需确认商品及收货地址。</text>
     </view>
   </view>
 </view>

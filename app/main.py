@@ -9219,6 +9219,7 @@ def mall_order_detail_page(
                 "message": message or None,
             }),
         )
+        response.headers["Cache-Control"] = "no-store, private"
         if can_fulfill:
             response.set_cookie(
                 "mall_order_fulfill_csrf", csrf_token,

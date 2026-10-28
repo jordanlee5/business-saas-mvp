@@ -19,6 +19,7 @@
   </view>
   <view class="actions mall-surface">
     <button class="action" bindtap="onActivationTap">{{signedIn ? '继续领取积分权益' : '激活积分权益'}}<text class="arrow">›</text></button>
+    <button class="action" bindtap="onOrdersTap">我的订单<text class="arrow">›</text></button>
     <button class="action" bindtap="onAddressesTap">我的收货地址<text class="arrow">›</text></button>
     <button class="action" bindtap="onPointsTap">我的积分<text class="arrow">›</text></button>
     <button class="action" bindtap="onPrivacyTap">微信隐私保护指引<text class="arrow">›</text></button>

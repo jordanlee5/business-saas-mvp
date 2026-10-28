@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import or_
 
-from ..models import Member, Order, OrderItem, OrderPointsGrantAllocation
+from ..models import Member, Order, OrderItem, OrderPointsGrantAllocation, OrderDeliverySnapshot
 from ..time_utils import UTC8_TIMEZONE
 from .order_fulfillment_service import _validate_order_totals
 
@@ -67,6 +67,7 @@ class MallOrderDetail:
     refunded_at: datetime | None
     refund_reason: str | None
     items: tuple[MallOrderDetailItem, ...]
+    delivery_address: dict | None = None
 
 
 def _time(value):
@@ -160,7 +161,9 @@ def get_mall_order_detail(db, *, order_public_id: str) -> MallOrderDetail:
             order.refunded_at and order.refund_reason
         ):
             raise RuntimeError("商城订单退款证据不完整")
+        snapshot = db.get(OrderDeliverySnapshot, order.id)
         return MallOrderDetail(
+            delivery_address={key:getattr(snapshot,key) for key in ("recipient_name","phone","province","city","district","detail")} if snapshot else None,
             order=_listing_item(order, member_id),
             shipping_carrier=order.shipping_carrier,
             tracking_number=order.tracking_number,

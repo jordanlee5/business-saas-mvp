@@ -20,7 +20,7 @@ declare const wx: {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     timeout: number;
     header: { Accept: string; 'Content-Type'?: string; Authorization?: string };
-    data?: Record<string, string> | {
+    data?: Record<string, unknown> | {
       wechat_code: string;
       business_public_no: string;
       phone: string;

@@ -12,9 +12,10 @@ import sqlite3
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 
-from .schema_readiness import assert_database_schema_ready
+from .schema_readiness import (assert_database_schema_ready, CURRENT_SCHEMA_REVISION,
+                               REQUIRED_APPLICATION_TABLES, REQUIRED_MALL_CORE_COLUMNS)
 
 PREVIOUS = "0011_supplier_settlement_foundation"
 CURRENT = "0012_member_addresses"
@@ -91,7 +92,23 @@ def rehearse(source, output):
     assert_preserved(before, after)
     engine = create_engine(config.attributes["database_url"])
     try:
-        assert_database_schema_ready(engine)
+        if CURRENT == CURRENT_SCHEMA_REVISION:
+            assert_database_schema_ready(engine)
+        else:
+            # Keep the historical 0012 gate strict while excluding only the explicitly
+            # registered 0013 table. A historical rehearsal is not current readiness.
+            later_tables = {'order_delivery_snapshots'}
+            with engine.connect() as connection:
+                inspector = inspect(connection)
+                if connection.execute(text('select version_num from alembic_version')).scalar() != CURRENT:
+                    raise RuntimeError('历史地址迁移版本不符')
+                if (REQUIRED_APPLICATION_TABLES - later_tables) - set(inspector.get_table_names()):
+                    raise RuntimeError('历史地址迁移后缺少既有表')
+                for table, columns in REQUIRED_MALL_CORE_COLUMNS.items():
+                    if table in later_tables:
+                        continue
+                    if columns - {column['name'] for column in inspector.get_columns(table)}:
+                        raise RuntimeError('历史地址迁移后缺少既有字段')
     finally:
         engine.dispose()
     # Empty new tables only; exercise the guarded rollback and re-upgrade.

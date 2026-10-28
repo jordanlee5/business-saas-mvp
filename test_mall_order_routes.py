@@ -140,6 +140,7 @@ class MallOrderReportingTests(unittest.TestCase):
                 placed.order_public_id,
             )
             self.assertEqual(detail.status_code, 200)
+            self.assertEqual(detail.headers["cache-control"], "no-store, private")
             self.assertIn("105.00".encode(), detail.body)
             invalid = mall_orders_page(request(), "", "UNKNOWN", 1, 20, "")
             self.assertIn("状态无效".encode(), invalid.body)
