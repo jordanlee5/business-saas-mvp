@@ -1,8 +1,8 @@
 // Offline order-list state checks. No real WeChat or database calls.
 const assert=require('node:assert/strict'),path=require('node:path');
 const root=path.resolve(process.argv[2]),demoRoot=path.resolve(process.argv[3]);
-let definition,signedIn=true,requests=[];
-global.wx={getAccountInfoSync:()=>({miniProgram:{appId:'touristappid',envVersion:'develop'}}),getSystemInfoSync:()=>({platform:'devtools'}),request:()=>{throw Error('Native transport forbidden');},login:()=>{throw Error('Native login forbidden');}};
+let definition,signedIn=true,requests=[],stopped=0;
+global.wx={stopPullDownRefresh:()=>stopped++,reLaunch:()=>{throw Error("Unexpected navigation during refresh");},navigateTo:()=>{throw Error("Unexpected navigation during refresh");},getAccountInfoSync:()=>({miniProgram:{appId:'touristappid',envVersion:'develop'}}),getSystemInfoSync:()=>({platform:'devtools'}),request:()=>{throw Error('Native transport forbidden');},login:()=>{throw Error('Native login forbidden');}};
 global.Page=x=>definition=x;
 const session=require(path.join(root,'services/member-session.js')),orders=require(path.join(root,'services/orders.js'));
 session.hasMemberSession=()=>signedIn;
@@ -46,10 +46,34 @@ async function test(name,run){signedIn=true;await run();assert.equal(requests.le
   requests.shift().resolve({items:[],total:20,page:2,page_size:20});await flush();assert.equal(p.data.page,2);assert.equal(p.data.listReady,true);p.onPrevious();assert.equal(requests[0].page,1);requests.shift().resolve({items:[row],total:20,page:1,page_size:20});await flush();
   for(const value of [0,-1,1.5,NaN,Infinity])await p.load(value);assert.equal(requests.length,0);
  });
+ await test('pull refresh preserves page two on success, failure and retry and always stops spinner',async()=>{
+  const p=page();await success(p,2,21);const before=stopped;
+  let pending=p.onPullDownRefresh();assert.equal(requests[0].page,2);assert.equal(stopped,before);requests.shift().reject(Error('offline'));await pending;
+  assert.equal(stopped,before+1);assert.equal(p.data.page,2);assert.equal(p.data.detailMode,false);
+  pending=p.onPullDownRefresh();assert.equal(requests[0].page,2);requests.shift().resolve({items:[row],total:21,page:2,page_size:20});await pending;
+  assert.equal(stopped,before+2);assert.equal(p.data.page,2);assert.equal(p.data.items.length,1);assert.equal(p.data.error,'');
+ });
+ await test('detail pull refresh stays on the same order after failure and recovery',async()=>{
+  const p=page();await success(p,2,21);await p.show(row.order_public_id);const saved=orders.getOrder,ids=[];let fail=true;
+  orders.getOrder=async id=>{ids.push(id);if(fail)throw Error('offline');return {...row,status:'SHIPPED',items:[]};};
+  const before=stopped;await p.onPullDownRefresh();assert.equal(p.targetOrderId,row.order_public_id);assert.equal(p.data.detailMode,true);assert.equal(p.data.detail,null);
+  fail=false;await p.onPullDownRefresh();assert.deepEqual(ids,[row.order_public_id,row.order_public_id]);assert.equal(p.data.detail.status,'SHIPPED');assert.equal(p.data.page,2);assert.equal(stopped,before+2);orders.getOrder=saved;
+ });
+ await test('busy, loading, invalid route and guest refresh stop without extra requests',async()=>{
+  const before=stopped;for(const prop of ['busy','loading']){const p=page();p.data[prop]=true;await p.onPullDownRefresh();}
+  const invalid=page();invalid.invalidRoute=true;await invalid.onPullDownRefresh();signedIn=false;await page().onPullDownRefresh();assert.equal(stopped,before+4);assert.equal(requests.length,0);
+ });
+ await test('late pull refresh response after hiding cannot repopulate private order data',async()=>{
+  const p=page();await success(p,2,21);const before=stopped,pending=p.onPullDownRefresh(),request=requests.shift();p.onHide();request.resolve({items:[row],total:21,page:2,page_size:20});await pending;
+  assert.equal(stopped,before+1);assert.equal(p.data.hasSession,false);assert.deepEqual(p.data.items,[]);assert.equal(p.data.listReady,false);
+ });
+ await test('returning to visible order list preserves its current page number',async()=>{
+  const p=page();await success(p,2,21);p.onHide();p.onShow();assert.equal(requests[0].page,2);requests.shift().resolve({items:[row],total:21,page:2,page_size:20});await flush();assert.equal(p.data.page,2);assert.equal(p.data.listReady,true);
+ });
  await test('generated demo order-list failure recovers to genuine empty state',async()=>{
   const demoSession=require(path.join(demoRoot,'services/member-session.js')),demo=require(path.join(demoRoot,'demo-transport.js'));
   await demoSession.loginMember();demo.setScenario('orders_offline_once');require(path.join(demoRoot,'pages/orders/index.js'));const p=page(definition);
-  await p.load(1);assert.ok(p.data.error);assert.equal(p.data.listReady,false);p.onReload();
+  await p.load(1);assert.ok(p.data.error);assert.equal(p.data.listReady,false);await p.onPullDownRefresh();
   for(let i=0;i<100&&p.data.loading;i++)await new Promise(r=>setTimeout(r,10));
   assert.equal(p.data.loading,false);assert.equal(p.data.error,'');assert.equal(p.data.listReady,true);assert.equal(p.data.total,0);
  });

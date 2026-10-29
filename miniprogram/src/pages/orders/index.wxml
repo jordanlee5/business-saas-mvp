@@ -41,7 +41,7 @@
     </view>
     <view wx:if="{{listReady && (total > 20 || page > 1)}}"><button bindtap="onPrevious" disabled="{{page <= 1 || loading}}">上一页</button><text class="copy">第 {{page}} 页 · 共 {{total}} 单</text><button bindtap="onNext" disabled="{{page * 20 >= total || loading}}">下一页</button></view>
   </block>
-  <button wx:if="{{detailMode}}" bindtap="onBack" disabled="{{busy || loading}}">查看全部订单</button>
-  <button wx:if="{{hasSession}}" bindtap="onReload" disabled="{{loading || busy}}">{{detailMode ? '刷新本单' : (error ? '重新加载' : '刷新订单')}}</button>
+  <button wx:if="{{detailMode}}" bindtap="onBack" disabled="{{busy || loading}}">返回上一页</button>
+  <text wx:if="{{hasSession && error}}" class="copy mall-muted">可下拉刷新，重新核对当前订单信息。</text>
   <button class="mall-primary-action" bindtap="onCatalog" disabled="{{busy}}">继续逛好物</button>
 </view>

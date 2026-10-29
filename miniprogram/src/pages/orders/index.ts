@@ -14,7 +14,7 @@ Page({
  onShow(){
    this.setData({loading:false,busy:false,hasSession:hasMemberSession()});
    if(this.invalidRoute){this.setData({detailMode:true,error:'订单链接无效，请查看全部订单。'});return;}
-   if(this.targetOrderId)this.show(this.targetOrderId);else this.load(1);
+   if(this.targetOrderId)this.show(this.targetOrderId);else this.load(this.data.page);
  },
  onHide(){this.generation++;this.setData({items:[],total:0,listReady:false,detail:null,confirmCancel:false,error:'',noticeExpanded:false,submitted:false,cartWarning:false,hasSession:false});},
  onUnload(){this.onHide();},
@@ -45,10 +45,11 @@ Page({
    if(!this.data.confirmCancel||this.data.busy||!this.data.detail)return;
    const gen=this.generation;const id=this.data.detail.order_public_id;this.setData({busy:true,error:''});
    try{const detail=await cancelOrder(id);if(gen===this.generation){this.fromCheckout=false;this.setData({detail,confirmCancel:false,submitted:false});}}
-   catch(e){if(gen===this.generation)this.setData({detail:null,confirmCancel:false,error:'取消结果请刷新本单核对',hasSession:hasMemberSession()});}
+   catch(e){if(gen===this.generation)this.setData({detail:null,confirmCancel:false,error:'取消结果请下拉刷新本单核对',hasSession:hasMemberSession()});}
    finally{if(gen===this.generation)this.setData({busy:false});}
  },
- onReload(){if(!this.data.busy&&!this.data.loading){if(this.targetOrderId)this.show(this.targetOrderId);else if(!this.invalidRoute)this.load(this.data.page);}},
+ async onReload(){if(!this.data.busy&&!this.data.loading){if(this.targetOrderId)await this.show(this.targetOrderId);else if(!this.invalidRoute)await this.load(this.data.page);}},
+ async onPullDownRefresh(){try{await this.onReload();}finally{wx.stopPullDownRefresh();}},
  onBack(){if(!this.data.busy&&!this.data.loading)this.load(this.data.page);},
  onPrevious(){if(this.data.listReady&&!this.data.error&&!this.data.loading&&!this.data.busy&&this.data.page>1)this.load(this.data.page-1);},
  onNext(){if(this.data.listReady&&!this.data.error&&!this.data.loading&&!this.data.busy&&this.data.page*20<this.data.total)this.load(this.data.page+1);},
