@@ -38,3 +38,5 @@ button::after { border: 0; }
 .mall-icon-profile::after { left: 5rpx; bottom: 0; width: 30rpx; height: 17rpx; border: 3rpx solid currentColor; border-radius: 20rpx 20rpx 5rpx 5rpx; }
 .mall-empty-mark { position: relative; width: 116rpx; height: 116rpx; margin: 0 auto 30rpx; border-radius: 50%; background: #edf3e9; color: #416451; display: flex; align-items: center; justify-content: center; }
 .mall-empty-mark .mall-nav-icon { margin: 0; transform: scale(1.45); }
+
+.mall-icon-categories::before { left: 3rpx; top: 3rpx; width: 13rpx; height: 13rpx; border: 3rpx solid currentColor; border-radius: 4rpx; box-shadow: 19rpx 0 0 -2rpx currentColor, 0 19rpx 0 -2rpx currentColor, 19rpx 19rpx 0 -2rpx currentColor; }

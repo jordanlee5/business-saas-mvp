@@ -63,7 +63,7 @@ Page({
       item.key === key && item.imageUrl === src ? {...item, imageUrl: ''} : item)});
   },
   onCheckoutTap() { if (!this.data.loading && !this.data.error && this.data.items.length && !this.data.hasUnavailable) wx.navigateTo({ url: '/pages/checkout/index' }); },
-  onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
+  onCategoriesTap() { wx.reLaunch({ url: '/pages/categories/index' }); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },
 });

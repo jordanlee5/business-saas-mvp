@@ -1,4 +1,5 @@
 <import src="../../templates/mall-nav.wxml" />
+<import src="../../templates/category-art.wxml" />
 <view class="screen mall-screen">
   <view class="hero">
     <text class="eyebrow">POINTS MALL / 积分商城</text>
@@ -18,15 +19,15 @@
     <button class="search-button" bindtap="onSearchSubmit">搜索</button>
   </view>
   <text class="search-hint" wx:if="{{searchError}}">{{searchError}}</text>
+  <view class="section-heading"><text class="section-title">探索好物</text><text class="section-note">按喜好，发现更多</text></view>
+  <view class="category-grid mall-surface">
+    <button wx:for="{{entries}}" wx:key="key" class="category-entry" data-key="{{item.key}}" bindtap="onCategoryTap" aria-label="打开{{item.name}}分类">
+      <template is="category-art" data="{{kind: item.key}}" />
+      <text class="category-name">{{item.name}}</text>
+    </button>
+  </view>
+  <view class="section-heading"><text class="section-title">{{activeQuery ? '搜索结果' : '精选好物'}}</text><text class="section-note">{{activeQuery ? '找到喜欢的那一件' : '积分换好物'}}</text></view>
   <view class="query-heading" wx:if="{{activeQuery}}">搜索“{{activeQuery}}”的结果</view>
-  <view class="section-heading"><text class="section-title">探索好物</text><text class="section-note">发现生活里的小美好</text></view>
-  <scroll-view class="tabs" scroll-x="true" show-scrollbar="false" wx:if="{{categories.length}}">
-    <view class="tabs-inner">
-      <view wx:for="{{categories}}" wx:key="slug"
-            class="tab {{item.selected ? 'tab-active' : ''}}"
-            data-slug="{{item.slug}}" bindtap="onCategoryTap">{{item.name}}</view>
-    </view>
-  </scroll-view>
   <view class="skeleton" wx:if="{{loading}}" aria-label="商品加载中">
     <view class="skeleton-card"></view><view class="skeleton-card"></view>
   </view>
@@ -38,12 +39,13 @@
   <view class="state mall-surface" wx:elif="{{!items.length}}">
     <view class="mall-empty-mark" aria-hidden="true"><view class="mall-nav-icon mall-icon-catalog"></view></view>
     <text class="state-title">{{activeQuery ? '未找到相关商品' : '好物即将上架'}}</text>
-    <text class="state-copy mall-muted">{{activeQuery ? '试试其他关键词，或清除搜索查看全部好物。' : '当前分类暂无商品，稍后再来看看。'}}</text>
+    <text class="state-copy mall-muted">{{activeQuery ? '试试其他关键词，或清除搜索查看全部好物。' : '商品正在准备中，稍后再来看看。'}}</text>
   </view>
   <view class="grid" wx:else>
-    <view class="card mall-surface" wx:for="{{items}}" wx:key="product_public_id"
+    <view class="waterfall-column" wx:for="{{columns}}" wx:for-item="column" wx:key="key">
+    <view class="card mall-surface" wx:for="{{column.items}}" wx:key="product_public_id"
           data-id="{{item.product_public_id}}" bindtap="onProductTap">
-      <image wx:if="{{item.imageUrl}}" class="photo" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true" />
+      <image wx:if="{{item.imageUrl}}" class="photo" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true" data-id="{{item.product_public_id}}" data-src="{{item.imageUrl}}" binderror="onImageError" />
       <view wx:else class="photo photo-empty">积分好物</view>
       <view class="card-body">
         <text class="name">{{item.name}}</text>
@@ -55,6 +57,7 @@
       </view>
     </view>
   </view>
+    </view>
   <view class="state state-small mall-surface" wx:if="{{error && items.length}}">
     <text class="state-copy mall-muted">{{error}}</text>
     <button class="retry mall-primary-action" bindtap="onLoadMore">重试加载更多</button>

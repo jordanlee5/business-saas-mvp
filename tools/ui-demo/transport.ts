@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { CATEGORY_ENTRIES } from './services/category-navigation';
 // OFFLINE UI FIXTURES ONLY. Never imported by the production mini program.
 const stamp=()=>new Date().toISOString().slice(0,19)+'+08:00';
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -7,6 +8,12 @@ const products=[
  ['PRD-DEMO-001','晨光陶瓷杯','把日常泡成好时光','home','120.00','雾白 · 350ml'],
  ['PRD-DEMO-002','轻柔棉织毛巾','柔软亲肤，陪伴每一天','home','80.00','鼠尾草绿 · 双条装'],
  ['PRD-DEMO-003','元气果干礼盒','一份甜蜜的小心意','food','180.00','综合口味 · 6袋装'],
+ ['PRD-DEMO-004','田园鲜果组合','为餐桌添一份清新','fresh','160.00','演示组合 · 1盒'],
+ ['PRD-DEMO-005','轻行帆布包','装下出门的小欢喜','bags','150.00','米白 · 标准款'],
+ ['PRD-DEMO-006','桌面小音箱','给生活添一点旋律','digital','260.00','森林绿 · 标准款'],
+ ['PRD-DEMO-007','随身护手霜','细心照顾每一天','beauty','60.00','清香 · 30g'],
+ ['PRD-DEMO-008','日常小炖锅','煮一餐温暖好味道','kitchen','220.00','浅绿 · 1.5L'],
+ ['PRD-DEMO-009','软绵小熊玩偶','陪伴每个小小日常','kids','100.00','浅棕 · 25cm'],
 ].map((r,i)=>({product_public_id:r[0],name:r[1],subtitle:r[2],category_slug:r[3],min_points_price:r[4],in_stock:true,
  main_image_url:`/uploads/mall_products/${r[0]}/main.png`,description:'此商品仅用于本机界面验收，不代表真实在售商品。可体验规格选择、购物车及兑换流程。',
  images:[{role:'main',url:`/uploads/mall_products/${r[0]}/main.png`,alt_text:r[1]}],
@@ -38,7 +45,7 @@ export function dispatch(options){
  const path=full.split('?')[0], method=options.method||'GET', body=options.data||{};
  const params={};(full.split('?')[1]||'').split('&').filter(Boolean).forEach(v=>{const [k,x]=v.split('=');params[k]=decodeURIComponent(x||'');});
  if(scenario==='offline')throw Error('simulated offline');
- if(path==='/categories')return response(200,[{name:'全部好物',slug:''},{name:'居家日用',slug:'home'},{name:'滋味零食',slug:'food'}]);
+ if(path==='/categories')return response(200,CATEGORY_ENTRIES.map(item=>({name:item.name,slug:item.key})));
  if(path==='/products'){let rows=scenario==='empty'?[]:products.filter(p=>(!params.category||p.category_slug===params.category)&&(!params.q||p.name.includes(params.q)));const page=Number(params.page||1);return response(200,{items:rows.slice((page-1)*20,page*20),total:rows.length,page,page_size:20});}
  if(path.startsWith('/products/')){const p=products.find(x=>x.product_public_id===path.split('/').pop());return response(p?200:404,p||{});}
  if(path==='/auth/wechat-session'){tokenValid=true;return response(200,{token_type:'Bearer',token:'demo.session',expires_in:900});}

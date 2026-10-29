@@ -13,6 +13,16 @@ const demo=require(path.join(root,'demo-transport.js'));
 const wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('UI did not settle');};
 (async()=>{
  await session.loginMember();assert.ok(session.hasMemberSession());
+ require(path.join(root,'pages/catalog/index.js'));
+ const home={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
+ home.onLoad();await wait(()=>!home.data.loading);assert.equal(home.data.entries.length,8);assert.equal(home.data.total,9);assert.deepEqual(home.data.columns.map(x=>x.items.length),[5,4]);
+ require(path.join(root,'pages/categories/index.js'));
+ for(const entry of home.data.entries){
+  const category={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
+  category.onLoad({category:entry.key});await wait(()=>!category.data.loading);
+  assert.equal(category.data.activeName,entry.name);assert.ok(category.data.items.length>0);assert.ok(category.data.items.every(x=>x.category_slug===entry.key));category.onUnload();
+ }
+ home.onUnload();
  const product=await catalog.getProductDetail('PRD-DEMO-001');cart.addCartLine(product,product.skus[0]);
  const before=await addresses.listAddresses();assert.equal(before.length,1);
  await addresses.saveAddress('',{recipient_name:'离线测试',phone:'13800000002',province:'演示省',city:'演示市',district:'演示区',detail:'虚拟路二号'});

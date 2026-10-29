@@ -1,4 +1,3 @@
-<import src="../../templates/mall-nav.wxml" />
 <view class="screen mall-screen">
   <view class="intro mall-surface">
     <text class="eyebrow">MY POINTS / 我的积分</text>
@@ -49,4 +48,3 @@
   </view>
   <button class="back-link" bindtap="onCatalogTap">返回商城选好物</button>
 </view>
-<template is="mall-nav" data="{{current: 'points'}}" />

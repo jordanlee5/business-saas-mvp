@@ -18,14 +18,20 @@ ROOT=Path(__file__).resolve().parents[1]
 def png(path,index):
     # Code-drawn placeholder product illustration, not real merchandise imagery.
     width=height=320
-    bg=[(232,238,225),(230,235,233),(249,236,215)][index]
-    ink=[(234,222,201),(101,139,123),(211,144,77)][index]
+    bg=[(232,238,225),(230,235,233),(249,236,215)][index % 3]
+    ink=[(234,222,201),(101,139,123),(211,144,77)][index % 3]
     data=bytearray()
     for y in range(height):
         data.append(0)
         for x in range(width):
             draw=(90<x<220 and 86<y<250) if index!=1 else (60<x<260 and 118<y<230)
             if index==0:draw=draw or (210<x<258 and 120<y<190 and ((x-228)**2+(y-155)**2<900))
+            if index==3:draw=((x-145)**2+(y-185)**2<65**2 or (x-215)**2+(y-180)**2<48**2 or (125<x<175 and 85<y<125))
+            if index==4:draw=(75<x<245 and 140<y<265) or (100<x<220 and 75<y<150 and not (115<x<205 and 92<y<140))
+            if index==5:draw=(90<x<230 and 70<y<255) and not ((x-160)**2+(y-165)**2<42**2)
+            if index==6:draw=(110<x<210 and 130<y<265) or (135<x<185 and 85<y<135) or (150<x<225 and 73<y<93)
+            if index==7:draw=(75<x<245 and 130<y<235) or (60<x<260 and 110<y<125) or (140<x<180 and 90<y<112) or (48<x<78 and 152<y<177) or (242<x<272 and 152<y<177)
+            if index==8:draw=((x-160)**2+(y-180)**2<75**2 or (x-101)**2+(y-107)**2<29**2 or (x-219)**2+(y-107)**2<29**2) and not ((x-132)**2+(y-169)**2<7**2 or (x-188)**2+(y-169)**2<7**2 or (x-160)**2+(y-205)**2<12**2)
             color=ink if draw else bg
             if draw and (y%35<3):color=tuple(min(c+20,255) for c in ink)
             data.extend(color)
@@ -63,7 +69,7 @@ export async function openPrivacyContract(){throw new PrivacyAuthorizationError(
         content=file.read_text('utf-8')
         file.write_text('<view class="demo-banner">离线UI演示 · 虚拟资料 · 请勿输入真实个人信息<navigator url="/pages/demo-console/index">切换演示场景 ›</navigator></view>'+content,encoding='utf-8')
     with (source/'app.wxss').open('a',encoding='utf-8') as stream:
-        stream.write('\n.demo-banner{padding:14rpx 28rpx;background:#fff1cd;color:#6a4b0b;font-size:22rpx;line-height:1.6}.demo-banner navigator{color:#153d39;font-weight:600}\n')
+        stream.write('\n.demo-banner{flex-shrink:0;padding:14rpx 28rpx;background:#fff1cd;color:#6a4b0b;font-size:22rpx;line-height:1.6}.demo-banner navigator{color:#153d39;font-weight:600}\n')
     app=json.loads((source/'app.json').read_text('utf-8'));app['pages'].append('pages/demo-console/index')
     app['window']['navigationBarTitleText']='开礼优选 · 离线演示'
     (source/'app.json').write_text(json.dumps(app,ensure_ascii=False,indent=2),encoding='utf-8')
@@ -79,7 +85,7 @@ catalog(){wx.reLaunch({url:'/pages/catalog/index'});},profile(){wx.reLaunch({url
     (console/'index.wxml').write_text('''<view class="screen"><text class="heading">离线演示控制台</text><text class="copy">本页只切换虚拟数据，不操作真实后台、积分或订单。当前：{{scenario}}；可用积分：{{available}}</text><button wx:for="{{choices}}" wx:key="index" data-value="{{item[0]}}" bindtap="choose">{{item[1]}}</button><button bindtap="catalog">返回商品页</button><button bindtap="profile">前往会员页</button><text class="copy">激活演示可输入：DEMO / 13800000000 / 演示车牌 / 23456789AB</text><view wx:for="{{orders}}" wx:key="order_public_id" class="mall-surface"><text class="copy">{{item.order_public_id}} · {{item.status}}</text><button data-id="{{item.order_public_id}}" bindtap="advance">模拟下一履约状态</button><button data-id="{{item.order_public_id}}" bindtap="clear">模拟终态收货信息已清理</button></view><button bindtap="reset">重置全部演示资料</button></view>''',encoding='utf-8')
     (console/'index.wxss').write_text('.screen{padding:28rpx}.heading{font-size:36rpx;font-weight:600}.copy{display:block;margin:20rpx 0}button{margin:16rpx 0}',encoding='utf-8')
     (console/'index.json').write_text('{"navigationBarTitleText":"离线演示控制台"}',encoding='utf-8')
-    for i in range(3):png(source/f'uploads/mall_products/PRD-DEMO-00{i+1}/main.png',i)
+    for i in range(9):png(source/f'uploads/mall_products/PRD-DEMO-00{i+1}/main.png',i)
     # Audit every generated TS file: there must be no native network or login call.
     for file in source.rglob('*.ts'):
         text=file.read_text('utf-8')

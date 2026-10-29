@@ -1,0 +1,36 @@
+/* Small code-native illustrations, in the existing mall palette. */
+.category-art { position: relative; width: 92rpx; height: 92rpx; border-radius: 30rpx; background: #eef3e7; color: #527764; }
+.art-shape, .art-detail, .art-shape::before, .art-shape::after, .art-detail::before, .art-detail::after { position: absolute; box-sizing: border-box; }
+.art-shape::before, .art-shape::after, .art-detail::before, .art-detail::after { content: ''; }
+.art-home .art-shape { left: 25rpx; top: 37rpx; width: 42rpx; height: 34rpx; border-radius: 3rpx; background: #8ba58a; }
+.art-home .art-shape::before { left: -5rpx; top: -23rpx; border-left: 26rpx solid transparent; border-right: 26rpx solid transparent; border-bottom: 26rpx solid #4d7460; }
+.art-home .art-detail { left: 40rpx; top: 49rpx; width: 13rpx; height: 22rpx; border-radius: 6rpx 6rpx 0 0; background: #f5eddb; }
+.art-food { background: #fbf0df; }
+.art-food .art-shape { left: 20rpx; top: 20rpx; width: 53rpx; height: 53rpx; border: 4rpx solid #c78d52; border-radius: 50%; background: #e3b87e; }
+.art-food .art-detail { left: 34rpx; top: 33rpx; width: 7rpx; height: 7rpx; background: #90623b; border-radius: 50%; box-shadow: 20rpx 3rpx #90623b, 8rpx 20rpx #90623b, -3rpx 12rpx #90623b; }
+.art-fresh { background: #e8f0e2; }
+.art-fresh .art-shape { left: 22rpx; top: 21rpx; width: 49rpx; height: 50rpx; border-radius: 6rpx 35rpx 6rpx 35rpx; background: #88a96f; transform: rotate(15deg); }
+.art-fresh .art-detail { left: 44rpx; top: 31rpx; width: 4rpx; height: 47rpx; background: #4d7450; transform: rotate(35deg); border-radius: 3rpx; }
+.art-bags { background: #f3eadd; }
+.art-bags .art-shape { left: 23rpx; top: 33rpx; width: 48rpx; height: 40rpx; background: #ba9870; border-radius: 6rpx 6rpx 12rpx 12rpx; }
+.art-bags .art-shape::before { left: 12rpx; top: -17rpx; width: 24rpx; height: 25rpx; border: 4rpx solid #8d6e4b; border-bottom: 0; border-radius: 15rpx 15rpx 0 0; }
+.art-bags .art-detail { left: 43rpx; top: 48rpx; width: 9rpx; height: 7rpx; border-radius: 2rpx; background: #f8e9c8; }
+.art-digital { background: #e7eeef; }
+.art-digital .art-shape { left: 17rpx; top: 24rpx; width: 58rpx; height: 38rpx; border: 5rpx solid #527478; border-radius: 6rpx; background: #b9d3d1; }
+.art-digital .art-detail { left: 42rpx; top: 61rpx; width: 8rpx; height: 10rpx; background: #527478; }
+.art-digital .art-detail::after { left: -10rpx; top: 9rpx; width: 28rpx; height: 4rpx; background: #527478; border-radius: 4rpx; }
+.art-beauty { background: #f6e9e7; }
+.art-beauty .art-shape { left: 25rpx; top: 35rpx; width: 24rpx; height: 38rpx; border-radius: 4rpx; background: #ae7f72; }
+.art-beauty .art-shape::before { left: 4rpx; top: -17rpx; width: 16rpx; height: 22rpx; border-radius: 9rpx 3rpx 0 0; background: #c68b89; }
+.art-beauty .art-detail { left: 54rpx; top: 42rpx; width: 17rpx; height: 31rpx; border-radius: 4rpx; background: #d5bb9c; }
+.art-beauty .art-detail::before { top: -8rpx; left: 3rpx; width: 11rpx; height: 9rpx; border-radius: 2rpx; background: #9a8d77; }
+.art-kitchen { background: #e8eeea; }
+.art-kitchen .art-shape { left: 22rpx; top: 39rpx; width: 48rpx; height: 31rpx; border-radius: 3rpx 3rpx 16rpx 16rpx; background: #77998c; }
+.art-kitchen .art-shape::before { left: -5rpx; top: -6rpx; width: 58rpx; height: 5rpx; border-radius: 4rpx; background: #496e60; }
+.art-kitchen .art-shape::after { left: 18rpx; top: -15rpx; width: 13rpx; height: 9rpx; border: 3rpx solid #496e60; border-bottom: 0; border-radius: 6rpx 6rpx 0 0; }
+.art-kitchen .art-detail { left: 13rpx; top: 45rpx; width: 8rpx; height: 8rpx; border: 3rpx solid #496e60; border-radius: 3rpx; box-shadow: 58rpx 0 0 -1rpx #496e60; }
+.art-kids { background: #f5eedd; }
+.art-kids .art-shape { left: 23rpx; top: 28rpx; width: 48rpx; height: 44rpx; border-radius: 45%; background: #c1a072; }
+.art-kids .art-shape::before { left: -3rpx; top: -10rpx; width: 20rpx; height: 20rpx; border-radius: 50%; background: #c1a072; box-shadow: 34rpx 0 #c1a072; }
+.art-kids .art-detail { left: 35rpx; top: 44rpx; width: 5rpx; height: 5rpx; border-radius: 50%; background: #6d5841; box-shadow: 20rpx 0 #6d5841; }
+.art-kids .art-detail::after { left: 7rpx; top: 12rpx; width: 12rpx; height: 8rpx; background: #6d5841; border-radius: 50%; }

@@ -1,8 +1,9 @@
-.hero { background: #153d39; color: #fff; border-radius: 30rpx; padding: 38rpx 34rpx; min-height: 222rpx; background: linear-gradient(120deg, #153d39, #2d5945); display: flex; flex-direction: column; justify-content: space-between; }
+@import "../../templates/category-art.wxss";
+.hero { background: #153d39; color: #fff; border-radius: 30rpx; padding: 28rpx 30rpx; min-height: 150rpx; background: linear-gradient(120deg, #153d39, #2d5945); display: flex; flex-direction: column; justify-content: space-between; }
 .eyebrow { color: #bddfc6; font-size: 20rpx; letter-spacing: 3rpx; }
-.headline { font-size: 42rpx; font-weight: 600; line-height: 1.42; margin-top: 22rpx; }
+.headline { font-size: 36rpx; font-weight: 600; line-height: 1.42; margin-top: 14rpx; }
 .headline-second { margin-top: 0; }
-.hero-note { color: #cce4d3; font-size: 23rpx; margin-top: 25rpx; }
+.hero-note { color: #cce4d3; font-size: 23rpx; margin-top: 16rpx; }
 .search-area { display: flex; align-items: center; gap: 14rpx; margin-top: 28rpx; }
 .search-field { display: flex; align-items: center; flex: 1; min-width: 0; height: 82rpx; border-radius: 42rpx; background: #fff; padding: 0 24rpx; }
 .search-mark { color: #5d7870; font-size: 38rpx; margin-right: 10rpx; }
@@ -10,20 +11,17 @@
 .search-clear { padding: 15rpx 0 15rpx 18rpx; color: #5a756b; font-size: 24rpx; }
 .search-button { flex-shrink: 0; margin: 0; padding: 0 32rpx; height: 82rpx; line-height: 82rpx; border-radius: 42rpx; background: #153d39; color: #fff; font-size: 26rpx; }
 .search-hint { display: block; margin: 14rpx 10rpx 0; color: #a34334; font-size: 23rpx; }
-.query-heading { color: #53746c; font-size: 24rpx; margin-top: 25rpx; }
+.query-heading { color: #53746c; font-size: 24rpx; margin-top: 16rpx; }
 .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; margin: 36rpx 0 22rpx; }
 .section-title { font-size: 34rpx; font-weight: 600; }
 .section-note { color: #68796e; font-size: 21rpx; }
-.tabs { white-space: nowrap; margin-bottom: 30rpx; }
-.tabs-inner { display: flex; gap: 16rpx; }
-.tab { display: inline-flex; flex-shrink: 0; border-radius: 36rpx; padding: 17rpx 30rpx; background: #fff; color: #49615b; font-size: 25rpx; }
-.tab-active { background: #153d39; color: #fff; }
-.grid { display: flex; flex-wrap: wrap; justify-content: space-between; }
-.card { width: 48%; margin-bottom: 20rpx; overflow: hidden; box-shadow: 0 10rpx 26rpx rgba(27, 58, 50, .04); }
+.grid { display: flex; align-items: flex-start; justify-content: space-between; }
+.waterfall-column { width: 48%; min-width: 0; }
+.card { width: 100%; margin-bottom: 20rpx; overflow: hidden; box-shadow: 0 10rpx 26rpx rgba(27, 58, 50, .04); }
 .photo { display: flex; align-items: center; justify-content: center; width: 100%; height: 290rpx; background: #e1ece5; }
 .photo-empty { color: #87a18e; font-size: 24rpx; letter-spacing: 3rpx; }
 .card-body { min-height: 135rpx; padding: 22rpx; display: flex; flex-direction: column; }
-.name { font-size: 28rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { font-size: 28rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .subtitle { color: #81928c; font-size: 22rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 9rpx; }
 .card-footer { display: flex; align-items: baseline; justify-content: space-between; gap: 6rpx; margin-top: auto; padding-top: 18rpx; }
 .price { font-size: 30rpx; }
@@ -39,3 +37,8 @@
 .page-end { text-align: center; font-size: 22rpx; padding: 35rpx; }
 .skeleton { display: flex; gap: 20rpx; }
 .skeleton-card { flex: 1; height: 410rpx; border-radius: 23rpx; background: #e8eee9; }
+
+.category-grid { display: flex; flex-wrap: wrap; padding: 24rpx 8rpx 8rpx; }
+.category-entry { display: flex; flex-direction: column; align-items: center; width: 25%; margin: 0 0 22rpx; padding: 0; background: transparent; line-height: 1.5; border-radius: 0; }
+.category-name { display: block; margin-top: 12rpx; color: #314e43; font-size: 24rpx; white-space: nowrap; }
+.query-heading { margin: 0 0 22rpx; overflow-wrap: anywhere; }

@@ -61,7 +61,8 @@ Page({
   },
   onOrdersTap() { wx.navigateTo({ url: '/pages/orders/index' }); },
   onAddressesTap() { wx.navigateTo({ url: '/pages/addresses/index' }); },
-  onPointsTap() { wx.reLaunch({ url: '/pages/points/index' }); },
+  onCategoriesTap() { wx.reLaunch({ url: '/pages/categories/index' }); },
+  onPointsTap() { wx.navigateTo({ url: '/pages/points/index' }); },
   onActivationTap() { wx.navigateTo({ url: '/pages/activation/index' }); },
   onPrivacyAgree() {
     if (!this.data.privacyVisible) return;

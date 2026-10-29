@@ -1,5 +1,16 @@
 {
-  "pages": ["pages/catalog/index", "pages/product-detail/index", "pages/cart/index", "pages/points/index", "pages/profile/index", "pages/activation/index", "pages/addresses/index", "pages/checkout/index", "pages/orders/index"],
+  "pages": [
+    "pages/catalog/index",
+    "pages/categories/index",
+    "pages/product-detail/index",
+    "pages/cart/index",
+    "pages/points/index",
+    "pages/profile/index",
+    "pages/activation/index",
+    "pages/addresses/index",
+    "pages/checkout/index",
+    "pages/orders/index"
+  ],
   "window": {
     "navigationBarTitleText": "积分商城",
     "navigationBarBackgroundColor": "#153d39",

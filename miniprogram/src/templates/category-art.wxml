@@ -1,0 +1,5 @@
+<template name="category-art">
+  <view class="category-art art-{{kind}}" aria-hidden="true">
+    <view class="art-shape"></view><view class="art-detail"></view>
+  </view>
+</template>

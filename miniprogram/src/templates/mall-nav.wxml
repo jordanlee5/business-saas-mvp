@@ -6,17 +6,17 @@
     <button wx:else class="mall-nav-item" bindtap="onCatalogTap" aria-label="打开逛好物">
       <view class="mall-nav-icon mall-icon-catalog" aria-hidden="true"></view><text>逛好物</text>
     </button>
+    <view wx:if="{{current === 'categories'}}" class="mall-nav-item mall-nav-current" aria-label="当前：分类">
+      <view class="mall-nav-icon mall-icon-categories" aria-hidden="true"></view><text>分类</text>
+    </view>
+    <button wx:else class="mall-nav-item" bindtap="onCategoriesTap" aria-label="打开分类">
+      <view class="mall-nav-icon mall-icon-categories" aria-hidden="true"></view><text>分类</text>
+    </button>
     <view wx:if="{{current === 'cart'}}" class="mall-nav-item mall-nav-current" aria-label="当前：购物车">
       <view class="mall-nav-icon mall-icon-cart" aria-hidden="true"></view><text>购物车</text>
     </view>
     <button wx:else class="mall-nav-item" bindtap="onCartTap" aria-label="打开购物车">
       <view class="mall-nav-icon mall-icon-cart" aria-hidden="true"></view><text>购物车</text>
-    </button>
-    <view wx:if="{{current === 'points'}}" class="mall-nav-item mall-nav-current" aria-label="当前：我的积分">
-      <view class="mall-nav-icon mall-icon-points" aria-hidden="true"></view><text>我的积分</text>
-    </view>
-    <button wx:else class="mall-nav-item" bindtap="onPointsTap" aria-label="打开我的积分">
-      <view class="mall-nav-icon mall-icon-points" aria-hidden="true"></view><text>我的积分</text>
     </button>
     <view wx:if="{{current === 'profile'}}" class="mall-nav-item mall-nav-current" aria-label="当前：个人中心">
       <view class="mall-nav-icon mall-icon-profile" aria-hidden="true"></view><text>个人中心</text>
