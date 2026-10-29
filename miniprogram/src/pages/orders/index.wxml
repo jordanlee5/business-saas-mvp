@@ -33,7 +33,7 @@
     <text wx:if="{{hasSession && !items.length && !error}}" class="copy">暂无订单</text>
     <view wx:for="{{items}}" wx:key="order_public_id" class="card mall-surface">
       <text class="title">{{labels[item.status]}} · {{item.total_points}} 积分</text>
-      <text class="copy">{{item.order_public_id}}</text><text class="copy">{{item.created_at}}</text>
+      <text class="copy">{{item.order_public_id}}</text><text class="copy">下单时间：{{item.createdText}}（北京时间）</text>
       <button data-id="{{item.order_public_id}}" bindtap="onDetail">查看详情</button>
     </view>
     <view wx:if="{{hasSession}}"><button bindtap="onPrevious" disabled="{{page <= 1 || loading}}">上一页</button><text class="copy">第 {{page}} 页 · 共 {{total}} 单</text><button bindtap="onNext" disabled="{{page * 20 >= total || loading}}">下一页</button></view>

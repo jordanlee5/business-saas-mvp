@@ -3,14 +3,12 @@ import {
   getSignedInMember, hasMemberSession, type MemberPointsLedgerEntry,
 } from '../../services/member-session';
 
+import { beijingTimeText } from '../../services/display-time';
+
 let viewGeneration = 0;
 type LedgerDisplay = {
   key: string; title: string; amount: string; direction: string; created: string;
 };
-
-function dateText(value: string): string {
-  return value.replace('T', ' ').replace('+08:00', '');
-}
 
 function displayLedger(entry: MemberPointsLedgerEntry, index: number, page: number): LedgerDisplay {
   const titles = {
@@ -21,7 +19,7 @@ function displayLedger(entry: MemberPointsLedgerEntry, index: number, page: numb
   return {
     key: `${page}-${index}`, title: titles[entry.entry_type],
     amount: `${outgoing ? '' : '+'}${entry.available_points_delta}`,
-    direction: outgoing ? 'outgoing' : 'incoming', created: dateText(entry.created_at),
+    direction: outgoing ? 'outgoing' : 'incoming', created: beijingTimeText(entry.created_at),
   };
 }
 
@@ -56,7 +54,7 @@ Page({
       if (!ledger) throw new Error('登录已过期，请重新登录');
       this.setData({
         signedIn: true, availablePoints: summary.available_points,
-        nearestExpiry: summary.nearest_expires_at ? dateText(summary.nearest_expires_at) : '',
+        nearestExpiry: summary.nearest_expires_at ? beijingTimeText(summary.nearest_expires_at) : '',
         ledgerItems: ledger.items.map((entry, index) => displayLedger(entry, index, 1)),
         ledgerPage: 1, ledgerTotal: ledger.total, ledgerHasMore: ledger.items.length < ledger.total,
       });

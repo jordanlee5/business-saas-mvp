@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { CATEGORY_ENTRIES } from './services/category-navigation';
 // OFFLINE UI FIXTURES ONLY. Never imported by the production mini program.
-const stamp=()=>new Date().toISOString().slice(0,19)+'+08:00';
+// Shift UTC to Beijing wall time before attaching the +08:00 offset.
+const stamp=()=>new Date(Date.now()+8*60*60*1000).toISOString().slice(0,19)+'+08:00';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const address={address_public_id:'ADDR-'+'d'.repeat(32),is_default:true,recipient_name:'演示收件人',phone:'13800000000',province:'演示省',city:'演示市',district:'演示区',detail:'虚拟地址，请勿用于真实配送'};
 const products=[

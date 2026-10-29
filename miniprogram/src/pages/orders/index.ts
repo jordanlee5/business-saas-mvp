@@ -1,7 +1,9 @@
 import {hasMemberSession} from '../../services/member-session';
 import {listOrders,getOrder,cancelOrder,statusLabels,type OrderSummary,type OrderDetail} from '../../services/orders';
+import { beijingTimeText } from '../../services/display-time';
+type OrderDisplay = OrderSummary & { createdText: string };
 Page({
- data:{items:[] as OrderSummary[],detail:null as OrderDetail|null,loading:false,busy:false,hasSession:false,error:'',page:1,total:0,labels:statusLabels,confirmCancel:false,detailMode:false,submitted:false,cartWarning:false,noticeExpanded:false},
+ data:{items:[] as OrderDisplay[],detail:null as OrderDetail|null,loading:false,busy:false,hasSession:false,error:'',page:1,total:0,labels:statusLabels,confirmCancel:false,detailMode:false,submitted:false,cartWarning:false,noticeExpanded:false},
  generation:0,targetOrderId:'',invalidRoute:false,fromCheckout:false,cartWarning:false,
  onLoad(options:{id?:string;submitted?:string;cart_warning?:string}={}){
    this.invalidRoute=options.id!==undefined&&!/^ORD-[A-Z0-9]{16}$/.test(options.id);
@@ -21,7 +23,7 @@ Page({
    this.targetOrderId='';this.invalidRoute=false;this.fromCheckout=false;this.cartWarning=false;
    this.setData({items:[],detail:null,detailMode:false,hasSession,loading:hasSession,error:'',busy:false,confirmCancel:false,noticeExpanded:false,submitted:false,cartWarning:false});
    if(!hasSession)return;
-   try{const result=await listOrders(page);if(gen===this.generation)this.setData({items:result.items,total:result.total,page});}
+   try{const result=await listOrders(page);if(gen===this.generation)this.setData({items:result.items.map(item=>({...item,createdText:beijingTimeText(item.created_at)})),total:result.total,page});}
    catch(e){if(gen===this.generation)this.setData({error:e instanceof Error?e.message:'订单暂不可用',hasSession:hasMemberSession()});}
    finally{if(gen===this.generation)this.setData({loading:false});}
  },

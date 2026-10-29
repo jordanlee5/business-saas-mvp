@@ -59,7 +59,7 @@
       <button class="mall-primary-action cart-add" bindtap="onAddToCart"
               disabled="{{!selectedSku || !selectedSku.in_stock}}">加入购物车</button>
       <button class="cart-open" bindtap="onCartTap">查看购物车</button>
-      <text class="cart-hint mall-muted">购物车保存本机草稿；订单提交将在后续阶段开放。</text>
+      <text class="cart-hint mall-muted">选好商品和规格后，可前往购物车确认兑换。</text>
     </view>
   </view>
 </view>
