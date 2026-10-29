@@ -32,6 +32,7 @@ declare const wx: {
   }): void;
   stopPullDownRefresh(): void;
   navigateTo(options: { url: string }): void;
+  redirectTo(options: { url: string; success?(): void; fail?(error: unknown): void }): void;
   navigateBack(options: { delta: number }): void;
   reLaunch(options: { url: string }): void;
 };

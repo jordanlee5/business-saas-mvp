@@ -1,3 +1,4 @@
+@import "../../templates/delivery-info.wxss";
 .screen { padding: 32rpx 28rpx calc(40rpx + env(safe-area-inset-bottom)); }
 .heading { font-size: 40rpx; font-weight: 700; margin-bottom: 16rpx; }
 .card { padding: 28rpx; margin: 24rpx 0; overflow-wrap: anywhere; }

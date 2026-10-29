@@ -4,12 +4,13 @@ import {readCart,loadCartDisplay,removeCartLine,type CartDisplayLine} from '../.
 import {getFulfillment,type FulfillmentNotice} from '../../services/fulfillment';
 import {beginCheckout,submitCheckout,resolveCheckout,pendingCheckout,clearPendingCheckout,canRetryCheckout,pendingCartLines,type OrderDetail} from '../../services/orders';
 Page({
-  data:{loading:false,busy:false,owner:'',addresses:[] as Address[],selected:'',items:[] as CartDisplayLine[],total:'',error:'',pending:false,canRetry:false,reviewing:false,complete:'',fulfillment:null as FulfillmentNotice|null},
+  data:{loading:false,busy:false,owner:'',addresses:[] as Address[],selected:'',items:[] as CartDisplayLine[],total:'',error:'',pending:false,canRetry:false,reviewing:false,complete:'',fulfillment:null as FulfillmentNotice|null,noticeExpanded:false},
   generation:0,
   pendingAction:null as Promise<void>|null,
-  lastCompleted:null as {owner:string;id:string}|null,
+  lastCompleted:null as {owner:string;id:string;cartWarning:boolean}|null,
+  navigating:false,
   async onShow(){const gen=++this.generation;if(this.pendingAction){try{await this.pendingAction;}catch(_){}}if(gen===this.generation)this.load();},
-  onHide(){this.generation++;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:'',fulfillment:null});},
+  onHide(){this.generation++;this.navigating=false;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:'',fulfillment:null,noticeExpanded:false});},
   onUnload(){this.onHide();},
   async load(review=false){
     const gen=++this.generation;
@@ -18,7 +19,7 @@ Page({
       const member=await getSignedInMember();if(!member)throw new Error('请先登录会员');
       if(gen!==this.generation)return;
       const owner=member.member_public_id;
-      if(this.lastCompleted?.owner===owner){this.setData({owner,complete:this.lastCompleted.id});return;}
+      if(this.lastCompleted?.owner===owner){this.setData({owner,complete:this.lastCompleted.id});this.openCompleted();return;}
       if(pendingCheckout(owner) && !review){this.setData({owner,pending:true,canRetry:canRetryCheckout(owner)});return;}
       const addresses=await listAddresses();const cart=await loadCartDisplay(review ? pendingCartLines(owner) : readCart());
       if(gen!==this.generation)return;
@@ -31,7 +32,7 @@ Page({
   },
   onSelect(e:{currentTarget:{dataset:{id:string}}}){if(!this.data.busy)this.setData({selected:e.currentTarget.dataset.id});},
   async act(query:boolean){
-    if(this.data.busy || this.data.loading || !this.data.owner || !hasMemberSession())return;
+    if(this.data.busy || this.data.loading || this.data.complete || !this.data.owner || !hasMemberSession())return;
     const gen=this.generation;const owner=this.data.owner;this.setData({busy:true,error:''});
     try{
       if(!pendingCheckout(owner) || this.data.reviewing){
@@ -45,12 +46,14 @@ Page({
       const result:OrderDetail=query?await resolveCheckout(owner):await submitCheckout(owner);
       // Clear the recovery marker only after a validated successful response.
       clearPendingCheckout(owner);
-      this.lastCompleted={owner,id:result.order_public_id};
+      this.lastCompleted={owner,id:result.order_public_id,cartWarning:false};
       let warning='';
       try{for(const item of cartLines){const current=readCart().find(x=>x.product_public_id===item.product_public_id && x.sku_code===item.sku_code);if(current && current.quantity===item.quantity)removeCartLine(item.product_public_id,item.sku_code);}}
       catch(_){warning='订单已成功，请手动核对购物车';}
+      this.lastCompleted.cartWarning=Boolean(warning);
       if(gen!==this.generation)return;
       this.setData({complete:result.order_public_id,pending:false,addresses:[],items:[],selected:'',error:warning});
+      this.openCompleted();
     }catch(e){
       if(gen!==this.generation)return;
       // Preserve the same request key until a validated order is found, even across app restarts.
@@ -61,6 +64,15 @@ Page({
   onReviewPending(){if(!this.data.busy)this.load(true);},
   onReload(){if(!this.data.busy)this.load();},
   onAddresses(){wx.navigateTo({url:'/pages/addresses/index'});},
-  onOrders(){wx.navigateTo({url:'/pages/orders/index'});},
+  openCompleted(){
+    const done=this.lastCompleted;
+    if(this.navigating || !done || done.owner!==this.data.owner || !hasMemberSession())return;
+    this.navigating=true;const gen=this.generation;
+    const fail=()=>{if(gen===this.generation){this.navigating=false;this.setData({error:'订单已提交，页面暂未打开，请点击查看订单详情。'});}};
+    try{wx.redirectTo({url:'/pages/orders/index?id='+encodeURIComponent(done.id)+'&submitted=1'+(done.cartWarning?'&cart_warning=1':''),
+      success:()=>{if(gen===this.generation)this.navigating=false;},fail});}catch(_){fail();}
+  },
+  onToggleDeliveryInfo(){this.setData({noticeExpanded:!this.data.noticeExpanded});},
+  onOrders(){if(this.data.complete)this.openCompleted();else wx.navigateTo({url:'/pages/orders/index'});},
   onProfile(){wx.reLaunch({url:'/pages/profile/index'});},
 });

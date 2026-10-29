@@ -1,0 +1,11 @@
+<template name="delivery-info">
+  <view class="delivery-info">
+    <text class="delivery-summary">配送及售后由本公司统一安排。</text>
+    <button class="delivery-link" bindtap="onToggleDeliveryInfo" aria-expanded="{{noticeExpanded}}">{{noticeExpanded ? '收起配送与隐私说明' : '配送与隐私说明'}}</button>
+    <view wx:if="{{noticeExpanded}}" class="delivery-explanation">
+      <text>为完成配送及必要售后，本公司会将收件人姓名、电话、地址和本单必要商品信息提供给负责履约的受托合作方，用于处理本次订单。</text>
+      <text wx:if="{{serviceContact}}">公司客服：{{serviceContact}}</text>
+      <text>完整隐私保护指引可在个人中心查看。</text>
+    </view>
+  </view>
+</template>

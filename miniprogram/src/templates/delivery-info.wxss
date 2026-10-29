@@ -1,0 +1,6 @@
+.delivery-info { margin: 24rpx 0; color: #64786e; font-size: 23rpx; line-height: 1.65; }
+.delivery-summary { display: block; }
+.delivery-info .delivery-link { display: inline-block; margin: 8rpx 0 0; padding: 0; background: transparent; color: #24594c; font-size: 23rpx; line-height: 1.8; text-align: left; }
+.delivery-link::after { border: 0; }
+.delivery-explanation { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #edf3e9; overflow-wrap: anywhere; }
+.delivery-explanation text { display: block; margin-bottom: 8rpx; }

@@ -1,7 +1,7 @@
 // Exercise generated demo using real page/service code and no native transport.
 const assert=require('node:assert/strict'),path=require('node:path');
-const root=path.resolve(process.argv[2]),storage=new Map();let definition;
-global.wx={getAccountInfoSync:()=>({miniProgram:{appId:'touristappid',envVersion:'develop'}}),getSystemInfoSync:()=>({platform:'devtools'}),getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),request:()=>{throw Error('Native request forbidden')},login:()=>{throw Error('Native login forbidden')},navigateTo:()=>{},reLaunch:()=>{}};
+const root=path.resolve(process.argv[2]),storage=new Map();let definition,redirected="";
+global.wx={getAccountInfoSync:()=>({miniProgram:{appId:'touristappid',envVersion:'develop'}}),getSystemInfoSync:()=>({platform:'devtools'}),getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),request:()=>{throw Error('Native request forbidden')},login:()=>{throw Error('Native login forbidden')},redirectTo:o=>{redirected=o.url;o.success?.();},navigateTo:()=>{},reLaunch:()=>{}};
 global.Page=x=>definition=x;
 const session=require(path.join(root,'services/member-session.js'));
 const catalog=require(path.join(root,'services/catalog.js'));
@@ -25,8 +25,12 @@ const wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await 
  assert.ok(page.data.fulfillment.ready);assert.ok(page.data.selected);
  page.onSubmit();await wait(()=>Boolean(page.data.complete));
  assert.equal(cart.readCart().length,0);
- const id=page.data.complete;assert.equal((await orders.getOrder(id)).fulfillment.suppliers.length,1);
- demo.advance(id);demo.advance(id);demo.advance(id);
+ const id=page.data.complete;assert.ok(redirected.includes('id='+id));
+ require(path.join(root,'pages/orders/index.js'));
+ const detailPage={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
+ detailPage.onLoad({id,submitted:'1'});detailPage.onShow();await wait(()=>Boolean(detailPage.data.detail));assert.equal(detailPage.data.detail.order_public_id,id);assert.equal(detailPage.data.submitted,true);
+ assert.equal((await orders.getOrder(id)).fulfillment.suppliers.length,1);
+ demo.advance(id);demo.advance(id);demo.advance(id);detailPage.onReload();await wait(()=>!detailPage.data.loading);assert.equal(detailPage.data.detail.status,'COMPLETED');
  assert.equal((await orders.getOrder(id)).status,'COMPLETED');demo.clearDemoAddress(id);
  assert.equal((await orders.getOrder(id)).address_state,'CLEARED');
  const points=await session.getCurrentMemberPointsSummary();assert.equal(points.available_points,'1080.00');
