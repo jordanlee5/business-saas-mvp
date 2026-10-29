@@ -78,7 +78,7 @@ export function dispatch(options){
   const o={order_public_id:'ORD-'+String(next++).padStart(16,'0'),request_id:body.request_id,status:'CREATED',total_points:money(total),total_quantity:items.reduce((n,i)=>n+i.quantity,0),created_at:stamp(),address:copy(body.expected_address),address_state:'AVAILABLE',fulfillment:notice(body.lines),items,shipping_carrier:null,tracking_number:null};orders.unshift(o);movement('RESERVE',-total,total);
   if(scenario==='timeout_after_submit'){scenario='normal';throw Error('simulated lost response');}return response(201,o);
  }
- if(path==='/orders'){const page=Number(params.page||1);return response(200,{items:orders.slice((page-1)*20,page*20),total:orders.length,page,page_size:20});}
+ if(path==='/orders'){if(scenario==='orders_offline_once'){scenario='normal';throw Error('simulated order list network failure');}const page=Number(params.page||1);return response(200,{items:orders.slice((page-1)*20,page*20),total:orders.length,page,page_size:20});}
  if(path.startsWith('/orders/')){const parts=path.split('/');const o=parts[2]==='request'?orders.find(x=>x.request_id===parts[3]):orders.find(x=>x.order_public_id===parts[2]);if(!o)return response(404,{});
  if(path.endsWith('/cancel')){if(o.status==='CREATED'){o.status='CANCELLED';movement('RELEASE',Number(o.total_points),-Number(o.total_points));}else if(o.status!=='CANCELLED')return response(409,{});}return response(200,o);}
  return response(404,{});

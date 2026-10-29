@@ -3,7 +3,7 @@ import {listOrders,getOrder,cancelOrder,statusLabels,type OrderSummary,type Orde
 import { beijingTimeText } from '../../services/display-time';
 type OrderDisplay = OrderSummary & { createdText: string };
 Page({
- data:{items:[] as OrderDisplay[],detail:null as OrderDetail|null,loading:false,busy:false,hasSession:false,error:'',page:1,total:0,labels:statusLabels,confirmCancel:false,detailMode:false,submitted:false,cartWarning:false,noticeExpanded:false},
+ data:{items:[] as OrderDisplay[],detail:null as OrderDetail|null,loading:false,busy:false,hasSession:false,error:'',page:1,total:0,listReady:false,labels:statusLabels,confirmCancel:false,detailMode:false,submitted:false,cartWarning:false,noticeExpanded:false},
  generation:0,targetOrderId:'',invalidRoute:false,fromCheckout:false,cartWarning:false,
  onLoad(options:{id?:string;submitted?:string;cart_warning?:string}={}){
    this.invalidRoute=options.id!==undefined&&!/^ORD-[A-Z0-9]{16}$/.test(options.id);
@@ -16,21 +16,22 @@ Page({
    if(this.invalidRoute){this.setData({detailMode:true,error:'订单链接无效，请查看全部订单。'});return;}
    if(this.targetOrderId)this.show(this.targetOrderId);else this.load(1);
  },
- onHide(){this.generation++;this.setData({items:[],detail:null,confirmCancel:false,error:'',noticeExpanded:false,submitted:false,cartWarning:false,hasSession:false});},
+ onHide(){this.generation++;this.setData({items:[],total:0,listReady:false,detail:null,confirmCancel:false,error:'',noticeExpanded:false,submitted:false,cartWarning:false,hasSession:false});},
  onUnload(){this.onHide();},
  async load(page:number){
+   if(!Number.isSafeInteger(page)||page<1)return;
    const gen=++this.generation;const hasSession=hasMemberSession();
    this.targetOrderId='';this.invalidRoute=false;this.fromCheckout=false;this.cartWarning=false;
-   this.setData({items:[],detail:null,detailMode:false,hasSession,loading:hasSession,error:'',busy:false,confirmCancel:false,noticeExpanded:false,submitted:false,cartWarning:false});
+   this.setData({items:[],total:0,listReady:false,page,detail:null,detailMode:false,hasSession,loading:hasSession,error:'',busy:false,confirmCancel:false,noticeExpanded:false,submitted:false,cartWarning:false});
    if(!hasSession)return;
-   try{const result=await listOrders(page);if(gen===this.generation)this.setData({items:result.items.map(item=>({...item,createdText:beijingTimeText(item.created_at)})),total:result.total,page});}
+   try{const result=await listOrders(page);if(gen===this.generation)this.setData({items:result.items.map(item=>({...item,createdText:beijingTimeText(item.created_at)})),total:result.total,page,listReady:true});}
    catch(e){if(gen===this.generation)this.setData({error:e instanceof Error?e.message:'订单暂不可用',hasSession:hasMemberSession()});}
    finally{if(gen===this.generation)this.setData({loading:false});}
  },
  async show(id:string){
    if(this.data.busy||this.data.loading||!/^ORD-[A-Z0-9]{16}$/.test(id))return;
    this.targetOrderId=id;const gen=++this.generation;const hasSession=hasMemberSession();
-   this.setData({loading:hasSession,hasSession,error:'',items:[],detail:null,detailMode:true,confirmCancel:false,noticeExpanded:false,submitted:false,cartWarning:false});
+   this.setData({loading:hasSession,hasSession,error:'',items:[],total:0,listReady:false,detail:null,detailMode:true,confirmCancel:false,noticeExpanded:false,submitted:false,cartWarning:false});
    if(!hasSession)return;
    try{const detail=await getOrder(id);if(gen===this.generation)this.setData({detail,submitted:this.fromCheckout,cartWarning:this.cartWarning});}
    catch(e){if(gen===this.generation)this.setData({error:e instanceof Error?e.message:'订单暂不可用',hasSession:hasMemberSession()});}
@@ -49,8 +50,8 @@ Page({
  },
  onReload(){if(!this.data.busy&&!this.data.loading){if(this.targetOrderId)this.show(this.targetOrderId);else if(!this.invalidRoute)this.load(this.data.page);}},
  onBack(){if(!this.data.busy&&!this.data.loading)this.load(this.data.page);},
- onPrevious(){if(!this.data.loading&&!this.data.busy&&this.data.page>1)this.load(this.data.page-1);},
- onNext(){if(!this.data.loading&&!this.data.busy&&this.data.page*20<this.data.total)this.load(this.data.page+1);},
+ onPrevious(){if(this.data.listReady&&!this.data.error&&!this.data.loading&&!this.data.busy&&this.data.page>1)this.load(this.data.page-1);},
+ onNext(){if(this.data.listReady&&!this.data.error&&!this.data.loading&&!this.data.busy&&this.data.page*20<this.data.total)this.load(this.data.page+1);},
  onCatalog(){wx.reLaunch({url:'/pages/catalog/index'});},
  onProfile(){wx.reLaunch({url:'/pages/profile/index'});}
 });

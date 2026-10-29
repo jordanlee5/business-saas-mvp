@@ -30,15 +30,18 @@
     </view>
   </block>
   <block wx:elif="{{!detailMode}}">
-    <text wx:if="{{hasSession && !items.length && !error}}" class="copy">暂无订单</text>
+    <view wx:if="{{listReady && !items.length}}" class="card mall-surface">
+      <text class="title">{{total === 0 ? '还没有兑换订单' : '这一页暂无订单'}}</text>
+      <text class="copy mall-muted">{{total === 0 ? '去逛好物，挑选喜欢的商品吧。' : '可以返回上一页，或刷新后再看看。'}}</text>
+    </view>
     <view wx:for="{{items}}" wx:key="order_public_id" class="card mall-surface">
       <text class="title">{{labels[item.status]}} · {{item.total_points}} 积分</text>
       <text class="copy">{{item.order_public_id}}</text><text class="copy">下单时间：{{item.createdText}}（北京时间）</text>
       <button data-id="{{item.order_public_id}}" bindtap="onDetail">查看详情</button>
     </view>
-    <view wx:if="{{hasSession}}"><button bindtap="onPrevious" disabled="{{page <= 1 || loading}}">上一页</button><text class="copy">第 {{page}} 页 · 共 {{total}} 单</text><button bindtap="onNext" disabled="{{page * 20 >= total || loading}}">下一页</button></view>
+    <view wx:if="{{listReady && (total > 20 || page > 1)}}"><button bindtap="onPrevious" disabled="{{page <= 1 || loading}}">上一页</button><text class="copy">第 {{page}} 页 · 共 {{total}} 单</text><button bindtap="onNext" disabled="{{page * 20 >= total || loading}}">下一页</button></view>
   </block>
   <button wx:if="{{detailMode}}" bindtap="onBack" disabled="{{busy || loading}}">查看全部订单</button>
-  <button wx:if="{{hasSession}}" bindtap="onReload" disabled="{{loading || busy}}">{{detailMode ? '刷新本单' : '刷新订单'}}</button>
+  <button wx:if="{{hasSession}}" bindtap="onReload" disabled="{{loading || busy}}">{{detailMode ? '刷新本单' : (error ? '重新加载' : '刷新订单')}}</button>
   <button class="mall-primary-action" bindtap="onCatalog" disabled="{{busy}}">继续逛好物</button>
 </view>
