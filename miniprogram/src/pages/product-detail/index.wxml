@@ -11,16 +11,22 @@
   </view>
   <view class="state mall-surface" wx:elif="{{error}}">
     <text class="state-title">暂时无法加载商品详情</text>
-    <text class="state-copy mall-muted">{{error}}</text>
+    <text class="state-copy mall-muted">{{error}}。网络恢复后可点击下方按钮重试。</text>
     <button class="action mall-primary-action" bindtap="onRetry">重新加载</button>
   </view>
   <view wx:elif="{{product}}">
     <swiper class="gallery" indicator-dots="{{gallery.length > 1}}" circular="{{gallery.length > 1}}" wx:if="{{gallery.length}}">
-      <swiper-item wx:for="{{gallery}}" wx:key="url">
-        <image class="gallery-photo" src="{{item.url}}" mode="aspectFit" aria-label="{{item.alt}}" />
+      <swiper-item wx:for="{{gallery}}" wx:key="key">
+        <image wx:if="{{!item.failed}}" class="gallery-photo" src="{{item.url}}" mode="aspectFit" aria-label="{{item.alt}}"
+               data-kind="gallery" data-index="{{index}}" data-key="{{item.key}}" binderror="onImageError" />
+        <view wx:else class="image-fallback gallery-fallback" role="status">
+          <text class="fallback-title">图片暂未加载</text>
+          <text class="fallback-copy">可先查看商品信息，稍后重试</text>
+          <button class="image-retry" data-kind="gallery" data-index="{{index}}" data-key="{{item.key}}" bindtap="onRetryImage">重新加载图片</button>
+        </view>
       </swiper-item>
     </swiper>
-    <view class="gallery gallery-empty" wx:else>积分好物</view>
+    <view class="gallery gallery-empty" wx:else>暂无商品图片</view>
     <view class="card heading mall-surface">
       <text class="eyebrow">POINTS MALL / 商品详情</text>
       <text class="name">{{product.name}}</text>
@@ -50,8 +56,14 @@
     <view class="card mall-surface" wx:if="{{product.description || detailImages.length}}">
       <text class="section-title">商品介绍</text>
       <text class="description" wx:if="{{product.description}}">{{product.description}}</text>
-      <image class="detail-photo" wx:for="{{detailImages}}" wx:key="url"
-             src="{{item.url}}" mode="widthFix" aria-label="{{item.alt}}" />
+      <view wx:for="{{detailImages}}" wx:key="key">
+        <image wx:if="{{!item.failed}}" class="detail-photo" src="{{item.url}}" mode="widthFix" aria-label="{{item.alt}}"
+               data-kind="detailImages" data-index="{{index}}" data-key="{{item.key}}" binderror="onImageError" />
+        <view wx:else class="image-fallback detail-fallback" role="status">
+          <text class="fallback-title">介绍图片暂未加载</text>
+          <button class="image-retry" data-kind="detailImages" data-index="{{index}}" data-key="{{item.key}}" bindtap="onRetryImage">重新加载图片</button>
+        </view>
+      </view>
     </view>
     <view class="cart-actions mall-surface">
       <text wx:if="{{cartError}}" class="cart-error" role="alert">{{cartError}}</text>

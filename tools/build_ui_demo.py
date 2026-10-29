@@ -76,7 +76,7 @@ export async function openPrivacyContract(){throw new PrivacyAuthorizationError(
     console=source/'pages/demo-console';console.mkdir()
     (console/'index.ts').write_text('''import {demoState,setScenario,resetDemo,advance,clearDemoAddress} from '../../demo-transport';
 import {clearMemberSession} from '../../services/member-session';
-Page({data:{scenario:'',orders:[],available:'',choices:[['normal','正常'],['empty','空商品'],['offline','网络失败'],['expired','会话失效'],['missing_supplier','受托资料未配置'],['price_conflict','条件变化'],['insufficient','积分不足'],['timeout_after_submit','提交成功但响应丢失']]},
+Page({data:{scenario:'',orders:[],available:'',choices:[['normal','正常'],['empty','空商品'],['offline','网络失败'],['detail_images_missing','详情图片缺失'],['detail_offline_once','详情首次断网（重试恢复）'],['detail_long_text','详情长文案'],['expired','会话失效'],['missing_supplier','受托资料未配置'],['price_conflict','条件变化'],['insufficient','积分不足'],['timeout_after_submit','提交成功但响应丢失']]},
 onShow(){this.setData(demoState());},choose(e){setScenario(e.currentTarget.dataset.value);this.onShow();},
 advance(e){advance(e.currentTarget.dataset.id);this.onShow();},clear(e){clearDemoAddress(e.currentTarget.dataset.id);this.onShow();},
 reset(){resetDemo();clearMemberSession();wx.setStorageSync('mall_ui_demo_cart_v1',[]);wx.setStorageSync('mall_ui_demo_pending_v1:MEM-DEMO-001',null);this.onShow();},

@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-29",
+  "base_commit": "8ae6ea79ad9458272957370ec766dd1133644844",
+  "scope": "product_detail_image_fallback_retry_narrow_layout_network_recovery",
+  "local_config_tests": 64,
+  "full_tests": 778,
+  "expected_pg_class_skips": 9,
+  "dedicated_pg_tests": 40,
+  "typescript": true,
+  "offline_client_groups": 88,
+  "product_detail_client_groups": 10,
+  "generated_page_flow": true,
+  "isolated_http_checks": 5,
+  "markup_structure_checked": [
+    "miniprogram/src/pages/product-detail/index.wxml"
+  ],
+  "real_database_unchanged": true,
+  "migration_executed": false,
+  "native_visual_acceptance": "PENDING for this round; previous Beijing time round accepted by user",
+  "wechat_platform_acceptance": false,
+  "browser_layout": {
+    "scope": "browser approximation with actual WXSS; not WeChat native rendering",
+    "checks": [
+      {
+        "mode": "detail",
+        "width": 320,
+        "overflow": []
+      },
+      {
+        "mode": "detail",
+        "width": 375,
+        "overflow": []
+      },
+      {
+        "mode": "detail",
+        "width": 430,
+        "overflow": []
+      },
+      {
+        "mode": "offline",
+        "width": 320,
+        "overflow": []
+      }
+    ],
+    "native_acceptance": false,
+    "initial_probe": "CLI dump-dom produced no stdout; no result inferred. Verified layout through isolated browser DevTools protocol."
+  },
+  "log_sha256": {
+    "client-addresses.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-addresses.stdout.txt": "8abf8c54ca1aab33b09c482d1593623480cb10a16c15b1e8f1bb67c6f7ef79a8",
+    "client-categories.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-categories.stdout.txt": "9802d51e1f6436cd624c36523b2b8f167e3f85c38654ee371ee92264fbfd434b",
+    "client-detail.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-detail.stdout.txt": "8590ad360e83c088aabdd41050683e3f8cf5a64909fd0536e733b274658999d4",
+    "client-fulfillment.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-fulfillment.stdout.txt": "81a16765947d698f100bb579bc01e2d380f9aff2743856a80a65f7e1030cd1b7",
+    "client-orders.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-orders.stdout.txt": "4e0ac515f03f358daf17ecb9698cd67343884ab7c30f9fe500b62c7af7492e4f",
+    "client-platform.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-platform.stdout.txt": "fc12640221100906df2f01298488551a604b3169e8b6453bd697762ad1389827",
+    "client-points.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-points.stdout.txt": "147d9defb062fb8ed74bdd3600f5f2d9ef7f6169ffb0672acb6b553d7c7386ec",
+    "client-time.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-time.stdout.txt": "5f74033772efcefcaf5963bb9eed5c318519c9ab13401c255b35cb9964850845",
+    "full.stderr.txt": "e7d454604d20cf0c962290608314058789a38d0ceb8e24a5bdd314e3a71d71c0",
+    "full.stdout.txt": "1554a9848dc6daaef194f2a34b6379a5aa5889d7191f1d505b40f42c736e1732",
+    "layout-detail-320.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "layout-detail-320.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local-config-tests.stderr.txt": "7dbeca6658d7f74fe9f843bfc94973b6c34b4b6f1fae6ea0e6277d93fa479986",
+    "local-config-tests.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "orders-pg.stderr.txt": "8c9ea4a36cfc063e5501a801a00ab9f07821c89e4c21cbf6d8195016373e27ff",
+    "orders-pg.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.stderr.txt": "2dfc86eb8d036ba0a521fb8b90e7db653f7cb03b5516ef031256e8a48587edaf",
+    "server.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stdout.txt": "ea2f43c7cd17080c87830693bd87bd99cbe10d9783595298a1a707d1e6bef5ab"
+  },
+  "preview_sha256": {
+    "preview-detail-320.png": "c4a79336395be5483ab81c69ac11f7a485c218c6d6e29b69362496a10f069e15",
+    "preview-detail-375.png": "615fd6367618521e9350c033724ec2c3e2eb22748bc5c98a90eea2ee7e10592f",
+    "preview-detail-430.png": "1d419d2234902fdb64f69a1396ebb193f9a2d2911367fcf7f822d49ba2115cc9",
+    "preview-offline-320.png": "3353db1b9780e80dac427b12fa98b9e564995e418de011abae9225676e3aafd0"
+  }
+}

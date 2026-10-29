@@ -48,7 +48,17 @@ export function dispatch(options){
  if(scenario==='offline')throw Error('simulated offline');
  if(path==='/categories')return response(200,CATEGORY_ENTRIES.map(item=>({name:item.name,slug:item.key})));
  if(path==='/products'){let rows=scenario==='empty'?[]:products.filter(p=>(!params.category||p.category_slug===params.category)&&(!params.q||p.name.includes(params.q)));const page=Number(params.page||1);return response(200,{items:rows.slice((page-1)*20,page*20),total:rows.length,page,page_size:20});}
- if(path.startsWith('/products/')){const p=products.find(x=>x.product_public_id===path.split('/').pop());return response(p?200:404,p||{});}
+ if(path.startsWith('/products/')){
+  if(scenario==='detail_offline_once'){scenario='normal';throw Error('simulated detail network failure');}
+  const p=products.find(x=>x.product_public_id===path.split('/').pop());
+  if(p&&scenario==='detail_images_missing')return response(200,{...p,images:[
+   {role:'main',url:`/uploads/mall_products/${p.product_public_id}/missing-main.png`,alt_text:p.name},
+   {role:'detail',url:`/uploads/mall_products/${p.product_public_id}/missing-detail.png`,alt_text:p.name}]});
+  if(p&&scenario==='detail_long_text')return response(200,{...p,name:'舒适生活系列多用途随身日常用品 '+ 'LONGNAME'.repeat(12),
+   subtitle:'此长文案仅用于窄屏换行验收',description:'Specification'.repeat(24),
+   skus:p.skus.map(s=>({...s,name:'演示长规格名称 '+ 'LONGSKU'.repeat(18),points_price:'123456789.99'}))});
+  return response(p?200:404,p||{});
+ }
  if(path==='/auth/wechat-session'){tokenValid=true;return response(200,{token_type:'Bearer',token:'demo.session',expires_in:900});}
  if(path==='/activation/redeem')return response(200,{status:'activated'});
  if(scenario==='expired'||!tokenValid)return response(401,{detail:'演示会话失效'});
