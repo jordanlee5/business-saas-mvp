@@ -16,7 +16,7 @@ from app.mall.miniprogram_session_service import issue_session
 from app.mall.points_ledger_service import record_initial_points_grant
 from app.models import (
     BusinessRecord, Member, MemberWechatBinding, PointsAccount, PointsGrant,
-    UploadBatch, User,
+    UploadBatch, User, PointsLedgerEntry,
 )
 from app.time_utils import utc8_now
 from test_postgresql_migration import (
@@ -126,6 +126,24 @@ class PostgreSQLMiniprogramPointsLedgerTests(unittest.TestCase):
                     get_member_points_ledger(Response(), None,
                                              page=1, page_size=20, db=db)
                 self.assertEqual(unauthenticated.exception.status_code, 401)
+                # A settlement row at the head must not consume the first customer page.
+                for kind, a, held in [("RESERVE", "-2.00", "2.00"), ("CONSUME", "0.00", "-2.00")]:
+                    db.add(PointsLedgerEntry(grant_id=grant.id, entry_type=kind,
+                        available_points_delta=Decimal(a), reserved_points_delta=Decimal(held),
+                        idempotency_key="pg-consumer-" + kind, created_at=now + timedelta(seconds=1)))
+                account.available_points = grant.available_points = Decimal("10.50")
+                db.commit()
+                first = get_member_points_ledger(Response(), "Bearer " + token,
+                    page=1, page_size=1, db=db, available_only=True)
+                second = get_member_points_ledger(Response(), "Bearer " + token,
+                    page=2, page_size=1, db=db, available_only=True)
+                self.assertEqual((first.total, second.total), (2, 2))
+                self.assertEqual(first.items[0].entry_type, "RESERVE")
+                self.assertEqual(second.items[0].entry_type, "GRANT")
+                self.assertEqual(get_member_points_ledger(Response(), "Bearer " + token,
+                    page=1, page_size=20, db=db).total, 3)
+                self.assertEqual(get_member_points_ledger(Response(), "Bearer " + other_token,
+                    page=1, page_size=20, db=db, available_only=True).total, 0)
                 account.available_points = Decimal("99.00")
                 db.commit()
                 with self.assertRaises(HTTPException) as drift:

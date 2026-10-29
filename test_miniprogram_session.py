@@ -458,5 +458,75 @@ class MiniprogramSessionTests(unittest.TestCase):
         self.assertEqual(revoked.exception.status_code, 401)
 
 
+    def _consumer_ledger_fixture(self):
+        account, grant = self._points_grant()
+        now = utc8_now()
+        movements = [("RESERVE", "-4.00", "4.00"), ("CONSUME", "0.00", "-4.00"),
+                     ("REFUND", "4.00", "0.00"), ("RESERVE", "-2.00", "2.00"),
+                     ("RELEASE", "2.00", "-2.00"), ("EXPIRE", "-1.00", "0.00")]
+        for i, (kind, available, reserved) in enumerate(movements):
+            self.db.add(PointsLedgerEntry(grant_id=grant.id, entry_type=kind,
+                available_points_delta=Decimal(available), reserved_points_delta=Decimal(reserved),
+                idempotency_key=f"consumer-{i}", created_at=now,
+                reference_type="ORDER", reference_id="PRIVATE-ORDER-REFERENCE"))
+        grant.available_points = account.available_points = Decimal("11.50")
+        self.db.commit()
+        return account
+
+    def test_consumer_ledger_filters_before_count_and_pagination(self):
+        self._consumer_ledger_fixture()
+        token = self._login().token
+        pages = [get_member_points_ledger(Response(), "Bearer " + token,
+            page=i, page_size=1, db=self.db, available_only=True) for i in range(1, 8)]
+        self.assertEqual([p.total for p in pages], [6] * 7)
+        self.assertEqual([p.items[0].entry_type for p in pages[:-1]],
+                         ["EXPIRE", "RELEASE", "RESERVE", "REFUND", "RESERVE", "GRANT"])
+        self.assertEqual(pages[-1].items, [])
+        self.assertEqual(sum(Decimal(p.items[0].available_points_delta) for p in pages[:-1]), Decimal("11.50"))
+        self.assertEqual(self._ledger_page().total, 7)  # Complete legacy view remains available.
+        self.assertNotIn("PRIVATE-ORDER-REFERENCE", str([p.model_dump() for p in pages]))
+
+    def test_consumer_ledger_keeps_member_isolation_revocation_and_balance_audit(self):
+        account = self._consumer_ledger_fixture()
+        other = Member(member_public_id="MEMBER-CONSUMER-OTHER", is_active=True)
+        self.db.add(other); self.db.flush()
+        binding = MemberWechatBinding(member_id=other.id, wechat_app_id=APP_ID, openid="consumer-other")
+        self.db.add_all([binding, PointsAccount(member_id=other.id)]); self.db.commit()
+        other_token, _ = issue_session(binding.id, APP_ID, binding.openid)
+        self.assertEqual(get_member_points_ledger(Response(), "Bearer " + other_token,
+            page=1, page_size=20, db=self.db, available_only=True).total, 0)
+        token = self._login().token
+        account.available_points = Decimal("99.00"); self.db.commit()
+        with self.assertRaises(HTTPException) as drift:
+            get_member_points_ledger(Response(), "Bearer " + token,
+                page=1, page_size=20, db=self.db, available_only=True)
+        self.assertEqual(drift.exception.status_code, 503)
+        self.member.is_active = False; self.db.commit()
+        with self.assertRaises(HTTPException) as revoked:
+            get_member_points_ledger(Response(), "Bearer " + token,
+                page=1, page_size=20, db=self.db, available_only=True)
+        self.assertEqual(revoked.exception.status_code, 401)
+
+    def test_consumer_ledger_http_query_contract(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from app.api.miniprogram_v1 import miniprogram_v1_router, public_catalog_session
+        self._consumer_ledger_fixture()
+        app = FastAPI()
+        app.include_router(miniprogram_v1_router)
+        app.dependency_overrides[public_catalog_session] = lambda: self.db
+        token = self._login().token
+        with TestClient(app) as client:
+            path = "/api/miniprogram/v1/points/ledger"
+            headers = {"Authorization": "Bearer " + token}
+            response = client.get(path + "?available_only=true&page_size=1", headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["total"], 6)
+            self.assertEqual(response.headers["Cache-Control"], "no-store")
+            self.assertEqual(client.get(path, headers=headers).json()["total"], 7)
+            self.assertEqual(client.get(path + "?available_only=invalid", headers=headers).status_code, 422)
+            self.assertEqual(client.get(path + "?available_only=true").status_code, 401)
+
+
 if __name__ == "__main__":
     unittest.main()

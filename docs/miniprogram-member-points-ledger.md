@@ -1,5 +1,7 @@
 # M7-20 会员积分流水私有分页接口
 
+2026-10-29补充：可选查询参数 `available_only=true` 只返回可用积分变化非0的记录，在 `count` 和分页前过滤。默认 `false` 保持原完整事件接口；权限、对账检查和响应字段保持，数据库不迁移。客户展示方式见[积分页简化](ui-points-simplification-20261029.md)。
+
 `GET /api/miniprogram/v1/points/ledger?page=1&page_size=20` 只接受有效的会员 Bearer 会话。每次读取重新核对绑定、AppID 和会员启用状态；管理员 Cookie 不能代替会员令牌。`page` 范围 1–1000000，`page_size` 范围 1–50，默认分别为 1 和 20。越界参数由 FastAPI 返回 422。
 
 只读取当前会员账户下的积分流水，按创建时间降序、内部流水 ID 降序稳定分页。响应为 `items`、`page`、`page_size` 和 `total`。每条仅返回 `entry_type`、`available_points_delta`、`reserved_points_delta`、`created_at`；变化量采用带正负号的两位小数字符串，时间带 `+08:00`。类型包括 `GRANT`、`RESERVE`、`RELEASE`、`CONSUME`、`REFUND`、`EXPIRE`、`ADJUST`。空账户有账户记录时返回空列表，不合并不同会员的流水。

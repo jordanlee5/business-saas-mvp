@@ -46,7 +46,7 @@ export function dispatch(options){
  if(scenario==='expired'||!tokenValid)return response(401,{detail:'演示会话失效'});
  if(path==='/auth/me')return response(200,{member_public_id:'MEM-DEMO-001'});
  if(path==='/points/summary')return response(200,{available_points:money(available),reserved_points:money(reserved),grant_count:1,nearest_expires_at:'2027-10-28T23:59:59+08:00'});
- if(path.startsWith('/points/')){const page=Number(params.page||1),rows=path.endsWith('ledger')?ledger:[{granted_points:'1200.00',available_points:money(available),reserved_points:money(reserved),activated_at:'2026-10-28T09:00:00+08:00',expires_at:'2027-10-28T23:59:59+08:00',status:'ACTIVE'}];return response(200,{items:rows.slice((page-1)*20,page*20),total:rows.length,page,page_size:20});}
+ if(path.startsWith('/points/')){const page=Number(params.page||1),rows=path.endsWith('ledger')?(params.available_only==='true'?ledger.filter(e=>Number(e.available_points_delta)!==0):ledger):[{granted_points:'1200.00',available_points:money(available),reserved_points:money(reserved),activated_at:'2026-10-28T09:00:00+08:00',expires_at:'2027-10-28T23:59:59+08:00',status:'ACTIVE'}];return response(200,{items:rows.slice((page-1)*20,page*20),total:rows.length,page,page_size:20});}
  if(path==='/addresses'&&method==='GET')return response(200,{items:addresses,total:addresses.length,limit:20});
  if(path==='/addresses'&&method==='POST'){if(addresses.length>=20)return response(409,{});const x={...body,address_public_id:'ADDR-'+String(next++).padStart(32,'0'),is_default:!addresses.length};addresses.push(x);return response(201,x);}
  if(path.startsWith('/addresses/')){const id=path.split('/')[2],x=addresses.find(a=>a.address_public_id===id);if(!x)return response(404,{});

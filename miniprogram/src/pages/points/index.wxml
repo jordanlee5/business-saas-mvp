@@ -3,20 +3,22 @@
   <view class="intro mall-surface">
     <text class="eyebrow">MY POINTS / 我的积分</text>
     <text class="title">{{signedIn ? '每一分，都有来处。' : '你的积分，等你开启。'}}</text>
-    <text class="copy" wx:if="{{signedIn}}">会员编号：{{memberPublicId}}</text>
-    <text class="copy" wx:else>完成微信身份绑定与权益激活后，才能安全查看属于你的积分。</text>
+    <text class="copy" wx:if="{{signedIn}}">积分到账、兑换和退回，在这里一目了然。</text>
+    <text class="copy" wx:else>登录并激活会员权益，即可查看积分、兑换好物。</text>
   </view>
   <view wx:if="{{loading}}" class="guest-card mall-surface" role="status">
     <text class="card-title">正在读取积分</text>
-    <text class="card-copy mall-muted">正在确认当前会员身份与积分账户…</text>
+    <text class="card-copy mall-muted">请稍等，正在更新你的积分记录…</text>
   </view>
   <view wx:elif="{{signedIn}}" class="guest-card mall-surface">
     <text class="card-title">可用积分</text>
     <text class="balance">{{availablePoints}}</text>
-    <view class="summary-row"><text>已预占积分</text><text>{{reservedPoints}}</text></view>
-    <view class="summary-row"><text>积分批次数</text><text>{{grantCount}}</text></view>
-    <view class="summary-row"><text>最近到期</text><text>{{nearestExpiry || '暂无'}}</text></view>
-    <text class="card-copy mall-muted">积分批次和流水按时间由近到远展示，可在个人中心继续领取积分权益。</text>
+    <text class="card-copy mall-muted">可用于兑换商品。提交订单后，相应积分暂不可再用；取消成功后退回。</text>
+    <view class="expiry-note">
+      <text class="expiry-title">到期提醒</text>
+      <text wx:if="{{nearestExpiry}}" class="expiry-copy">部分可用积分将于 {{nearestExpiry}}（北京时间）到期，记得及时使用。</text>
+      <text wx:else class="expiry-copy">暂无可用积分到期提醒。</text>
+    </view>
   </view>
   <view wx:elif="{{error}}" class="guest-card mall-surface" role="alert">
     <text class="card-title">暂时无法读取积分</text>
@@ -26,42 +28,24 @@
   </view>
   <view wx:else class="guest-card mall-surface">
     <text class="card-title">尚未登录</text>
-    <text class="card-copy mall-muted">登录后查看可用积分、有效期和每一笔积分记录。</text>
+    <text class="card-copy mall-muted">登录后查看可用积分、到期提醒和每一笔积分记录。</text>
     <button class="mall-primary-action action" bindtap="onProfileTap">前往个人中心</button>
   </view>
-  <view wx:if="{{signedIn}}" class="grant-section mall-surface">
-    <view class="grant-heading">
-      <text class="card-title">积分批次</text>
-      <text class="grant-total">共 {{grantTotal}} 批</text>
-    </view>
-    <text wx:if="{{grantTotal === 0}}" class="card-copy mall-muted">当前没有积分批次。</text>
-    <view wx:for="{{grantItems}}" wx:key="key" class="grant-item">
-      <view class="grant-heading">
-        <text class="grant-amount">初始 {{item.granted}} 积分</text>
-        <text class="grant-status">{{item.status}}</text>
-      </view>
-      <view class="summary-row"><text>可用</text><text>{{item.available}}</text></view>
-      <view class="summary-row"><text>已预占</text><text>{{item.reserved}}</text></view>
-      <text class="grant-date">激活：{{item.activated}}</text>
-      <text class="grant-date">到期：{{item.expires}}</text>
-    </view>
-    <button wx:if="{{hasMore}}" class="more-action" bindtap="onMoreTap" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在读取…' : '加载更多批次'}}</button>
-  </view>
   <view wx:if="{{signedIn}}" class="ledger-section mall-surface">
-    <view class="grant-heading">
-      <text class="card-title">积分流水</text>
-      <text class="grant-total">共 {{ledgerTotal}} 条</text>
+    <view class="ledger-heading">
+      <text class="card-title">积分记录</text>
+      <text class="ledger-total">共 {{ledgerTotal}} 条</text>
     </view>
-    <text wx:if="{{ledgerTotal === 0}}" class="card-copy mall-muted">当前没有积分流水。</text>
+    <text class="card-copy mall-muted">按时间从近到远展示，时间均为北京时间。</text>
+    <text wx:if="{{ledgerTotal === 0}}" class="card-copy mall-muted">还没有积分记录，领取积分后就会显示在这里。</text>
     <view wx:for="{{ledgerItems}}" wx:key="key" class="ledger-item">
-      <view class="grant-heading">
-        <text class="grant-amount">{{item.type}}</text>
-        <text class="ledger-date">{{item.created}}</text>
+      <view class="ledger-heading">
+        <text class="ledger-title">{{item.title}}</text>
+        <text class="ledger-amount {{item.direction}}">{{item.amount}}<text class="amount-unit">积分</text></text>
       </view>
-      <view class="summary-row"><text>可用积分变化</text><text>{{item.available}}</text></view>
-      <view class="summary-row"><text>预占积分变化</text><text>{{item.reserved}}</text></view>
+      <text class="ledger-date">{{item.created}}</text>
     </view>
-    <button wx:if="{{ledgerHasMore}}" class="more-action" bindtap="onMoreLedgerTap" loading="{{ledgerLoadingMore}}" disabled="{{ledgerLoadingMore}}">{{ledgerLoadingMore ? '正在读取…' : '加载更多流水'}}</button>
+    <button wx:if="{{ledgerHasMore}}" class="more-action" bindtap="onMoreLedgerTap" loading="{{ledgerLoadingMore}}" disabled="{{ledgerLoadingMore}}">{{ledgerLoadingMore ? '正在读取…' : '查看更多记录'}}</button>
   </view>
   <button class="back-link" bindtap="onCatalogTap">返回商城选好物</button>
 </view>

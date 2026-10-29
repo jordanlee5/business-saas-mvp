@@ -367,6 +367,7 @@ def get_member_points_ledger(
     page: int = Query(1, ge=1, le=1000000),
     page_size: int = Query(20, ge=1, le=50),
     db=Depends(public_catalog_session),
+    available_only: bool = False,
 ):
     response.headers["Cache-Control"] = "no-store"
     member = _require_current_member(authorization, db)
@@ -385,6 +386,10 @@ def get_member_points_ledger(
         entries = db.query(PointsLedgerEntry).join(
             PointsGrant, PointsGrant.id == PointsLedgerEntry.grant_id,
         ).filter(PointsGrant.account_id == account.id)
+        # Filter before counting/paging: internal settlement is not a second debit.
+        # The default keeps the existing complete ledger contract compatible.
+        if available_only:
+            entries = entries.filter(PointsLedgerEntry.available_points_delta != 0)
         total = entries.count()
         rows = entries.order_by(
             PointsLedgerEntry.created_at.desc(), PointsLedgerEntry.id.desc(),

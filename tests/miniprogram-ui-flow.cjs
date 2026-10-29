@@ -35,6 +35,14 @@ const wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await 
  assert.equal((await orders.getOrder(id)).address_state,'CLEARED');
  const points=await session.getCurrentMemberPointsSummary();assert.equal(points.available_points,'1080.00');
  assert.ok((await session.getCurrentMemberPointsLedger(1)).items.length);
+ require(path.join(root,'pages/points/index.js'));
+ const pointsPage={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
+ pointsPage.onShow();await wait(()=>pointsPage.data.signedIn&&!pointsPage.data.loading);
+ assert.deepEqual(pointsPage.data.ledgerItems.map(x=>[x.title,x.amount]),[['商品兑换','-120.00'],['积分到账','+1200.00']]);
+ assert.equal(pointsPage.data.availablePoints,'1080.00');
+ demo.advance(id);pointsPage.onShow();await wait(()=>pointsPage.data.signedIn&&!pointsPage.data.loading);
+ assert.equal(pointsPage.data.availablePoints,'1200.00');assert.equal(pointsPage.data.ledgerItems[0].title,'退款退回');assert.equal(pointsPage.data.ledgerItems[0].amount,'+120.00');
+ pointsPage.onHide();assert.equal(pointsPage.data.ledgerItems.length,0);
  page.onHide();assert.deepEqual(page.data.addresses,[]);assert.equal(page.data.fulfillment,null);
  console.log('PASS generated UI flow: login/cart/address/notice/checkout/order/fulfillment/cleared/points; native network blocked');
 })().catch(e=>{console.error(e);process.exitCode=1;});

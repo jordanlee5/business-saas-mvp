@@ -223,7 +223,7 @@ export async function getCurrentMemberPointsGrants(page: number): Promise<Member
   return data as unknown as MemberPointsGrantPage;
 }
 
-export async function getCurrentMemberPointsLedger(page: number): Promise<MemberPointsLedgerPage | null> {
+export async function getCurrentMemberPointsLedger(page: number, availableOnly = false): Promise<MemberPointsLedgerPage | null> {
   if (!Number.isSafeInteger(page) || page < 1 || page > 1000000) {
     throw new MemberSessionError('积分流水页码无效');
   }
@@ -232,7 +232,7 @@ export async function getCurrentMemberPointsLedger(page: number): Promise<Member
   const current = generation;
   let data: unknown;
   try {
-    data = await request(`/api/miniprogram/v1/points/ledger?page=${page}&page_size=20`, 'GET', activeToken);
+    data = await request(`/api/miniprogram/v1/points/ledger?page=${page}&page_size=20${availableOnly ? "&available_only=true" : ""}`, 'GET', activeToken);
   } catch (error) {
     if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
     throw error;
@@ -248,6 +248,7 @@ export async function getCurrentMemberPointsLedger(page: number): Promise<Member
   const valid = data.items.every((item: unknown) => isRecord(item) &&
     ['GRANT', 'RESERVE', 'RELEASE', 'CONSUME', 'REFUND', 'EXPIRE', 'ADJUST'].includes(String(item.entry_type)) &&
     isPointsDelta(item.available_points_delta) && isPointsDelta(item.reserved_points_delta) &&
+    (!availableOnly || !/^-?0+\.00$/.test(item.available_points_delta)) &&
     isUtc8Timestamp(item.created_at));
   if (!valid) throw new MemberSessionError('积分流水数据暂不可用');
   return data as unknown as MemberPointsLedgerPage;
