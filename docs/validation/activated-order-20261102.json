@@ -1,0 +1,169 @@
+{
+  "date": "2026-11-02",
+  "baseline": "5712b78867331ca9d1cc3adcc97b3abb5bf62106",
+  "journey": {
+    "result": "PASS",
+    "transport": "loopback_http",
+    "wechat_exchange": "synthetic_one_use_codes",
+    "checkpoints": [
+      {
+        "stage": "issued_before_activation",
+        "members": 0,
+        "grants": 0,
+        "available_points": "0"
+      },
+      {
+        "stage": "wrong_factor",
+        "members": 0,
+        "grants": 0,
+        "available_points": "0"
+      },
+      {
+        "stage": "owner_activated",
+        "members": 1,
+        "grants": 1,
+        "available_points": "12.50"
+      },
+      {
+        "stage": "same_and_other_identity_rejected",
+        "members": 1,
+        "grants": 1,
+        "available_points": "12.50"
+      },
+      {
+        "stage": "second_business_same_member",
+        "members": 1,
+        "grants": 2,
+        "available_points": "20.00"
+      }
+    ],
+    "redemption_checkpoints": [
+      {
+        "stage": "activated_balance",
+        "available_points": 20,
+        "reserved_points": 0,
+        "grant_available": [
+          "12.50",
+          "7.50"
+        ],
+        "order_count": 0,
+        "order_status": null,
+        "stock_on_hand": 2,
+        "stock_reserved": 0,
+        "visible_ledger_rows": 2
+      },
+      {
+        "stage": "submitted",
+        "available_points": 4,
+        "reserved_points": 16,
+        "grant_available": [
+          "0.00",
+          "4.00"
+        ],
+        "order_count": 1,
+        "order_status": "CREATED",
+        "stock_on_hand": 2,
+        "stock_reserved": 2,
+        "visible_ledger_rows": 4
+      },
+      {
+        "stage": "submit_replayed",
+        "available_points": 4,
+        "reserved_points": 16,
+        "grant_available": [
+          "0.00",
+          "4.00"
+        ],
+        "order_count": 1,
+        "order_status": "CREATED",
+        "stock_on_hand": 2,
+        "stock_reserved": 2,
+        "visible_ledger_rows": 4
+      },
+      {
+        "stage": "cancelled",
+        "available_points": 20,
+        "reserved_points": 0,
+        "grant_available": [
+          "12.50",
+          "7.50"
+        ],
+        "order_count": 1,
+        "order_status": "CANCELLED",
+        "stock_on_hand": 2,
+        "stock_reserved": 0,
+        "visible_ledger_rows": 6
+      },
+      {
+        "stage": "cancel_replayed",
+        "available_points": 20,
+        "reserved_points": 0,
+        "grant_available": [
+          "12.50",
+          "7.50"
+        ],
+        "order_count": 1,
+        "order_status": "CANCELLED",
+        "stock_on_hand": 2,
+        "stock_reserved": 0,
+        "visible_ledger_rows": 6
+      },
+      {
+        "stage": "submit_replayed_after_cancel",
+        "available_points": 20,
+        "reserved_points": 0,
+        "grant_available": [
+          "12.50",
+          "7.50"
+        ],
+        "order_count": 1,
+        "order_status": "CANCELLED",
+        "stock_on_hand": 2,
+        "stock_reserved": 0,
+        "visible_ledger_rows": 6
+      }
+    ]
+  },
+  "full_tests": 787,
+  "expected_pg_class_skips": 9,
+  "dedicated_pg_tests": 40,
+  "offline_client_groups": 101,
+  "typescript": true,
+  "guest_http_checks": 5,
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "log_sha256": {
+    "client-addresses.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-addresses.stdout.txt": "8abf8c54ca1aab33b09c482d1593623480cb10a16c15b1e8f1bb67c6f7ef79a8",
+    "client-categories.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-categories.stdout.txt": "9802d51e1f6436cd624c36523b2b8f167e3f85c38654ee371ee92264fbfd434b",
+    "client-detail.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-detail.stdout.txt": "8590ad360e83c088aabdd41050683e3f8cf5a64909fd0536e733b274658999d4",
+    "client-fulfillment.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-fulfillment.stdout.txt": "81a16765947d698f100bb579bc01e2d380f9aff2743856a80a65f7e1030cd1b7",
+    "client-order-states.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-order-states.stdout.txt": "ab2cf8f7a25e4d20023d6bfcd9a4c178a42d35a45612e1199904508f51792808",
+    "client-orders.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-orders.stdout.txt": "4e0ac515f03f358daf17ecb9698cd67343884ab7c30f9fe500b62c7af7492e4f",
+    "client-platform.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-platform.stdout.txt": "fc12640221100906df2f01298488551a604b3169e8b6453bd697762ad1389827",
+    "client-points.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-points.stdout.txt": "147d9defb062fb8ed74bdd3600f5f2d9ef7f6169ffb0672acb6b553d7c7386ec",
+    "client-time.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-time.stdout.txt": "5f74033772efcefcaf5963bb9eed5c318519c9ab13401c255b35cb9964850845",
+    "combined.stderr.txt": "bc109c67d4190d2795d3ab732de65576ae5f6b93a8e73c9787c58eed6c153ef1",
+    "combined.stdout.txt": "07042123f0d5bcbe1399d660fa94486c73f451792e02632d678e46ddf4f99850",
+    "full.stderr.txt": "a69526c4713c7de9d8800eb5be953a5d811afdf36a5e23256359fa419781879c",
+    "full.stdout.txt": "1554a9848dc6daaef194f2a34b6379a5aa5889d7191f1d505b40f42c736e1732",
+    "local-config-tests.stderr.txt": "5cf6fd3dee0dd305aa252288602b62e7adbaf15a266da255191f277ad9d8e315",
+    "local-config-tests.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "orders-pg.stderr.txt": "d99ce31bf8ecae00c7c1f4fbbd895f36efd6d15bf2300cd5fb9ba914a3d8ea99",
+    "orders-pg.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.stderr.txt": "33367ca22dd268fe1990043363667d7ae9b08f385fc196612b0f453515117231",
+    "server.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stdout.txt": "ea2f43c7cd17080c87830693bd87bd99cbe10d9783595298a1a707d1e6bef5ab"
+  }
+}

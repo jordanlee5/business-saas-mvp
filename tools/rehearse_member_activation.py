@@ -1,7 +1,7 @@
 """Run from the repo root: python -m tools.rehearse_member_activation.
 
-Exercises admin issuance and member enrollment over loopback with synthetic
-one-use WeChat codes. Only the external code exchange transport is replaced.
+Exercises issuance, activation, redemption and cancellation over loopback.
+The member keeps the session obtained after exchanging a synthetic WeChat code.
 """
 import json
 import os
@@ -20,6 +20,7 @@ from alembic import command
 from alembic.config import Config
 
 from tools.rehearse_member_fulfillment import FormFields, PREFIX, serve
+from tools.activated_order_journey import prepare_catalog, redeem_and_cancel
 
 
 class TestIdentities:
@@ -158,7 +159,9 @@ def journey(admin, member, identities, records, password):
     ledger = request("/points/ledger?available_only=true", 200, headers=headers)
     assert ledger["total"] == 2 and all(item["entry_type"] == "GRANT" for item in ledger["items"])
     assert sum(Decimal(item["available_points_delta"]) for item in ledger["items"]) == Decimal("20.00")
-    return history
+    # Continue the order flow using exactly the session obtained after activation.
+    member.headers.update(headers)
+    return history, identity["member_public_id"]
 
 
 def run():
@@ -167,7 +170,9 @@ def run():
     app_id = json.loads(Path("miniprogram/project.config.json").read_text("utf-8"))["appid"]
     with tempfile.TemporaryDirectory(prefix="activation-journey-") as work:
         database = Path(work).resolve() / "activation.db"
+        profile = database.parent / "fulfillment.json"
         environment = dict(DATABASE_URL="sqlite:///" + database.as_posix(), WECHAT_MINIPROGRAM_APP_ID=app_id,
+                           MALL_FULFILLMENT_SETTINGS=str(profile),
                            WECHAT_MINIPROGRAM_APP_SECRET="synthetic-local-only",
                            MINIPROGRAM_SESSION_SIGNING_KEY=secrets.token_hex(32))
         with patch.dict(os.environ, environment):
@@ -177,17 +182,19 @@ def run():
                 command.upgrade(Config("alembic.ini"), "head")
                 password = secrets.token_urlsafe(20)
                 records = seed(password)
+                product_id, sku_id = prepare_catalog(profile)
                 from app.main import app
                 identities = TestIdentities(app_id)
                 with patch("app.mall.wechat_identity_service._fetch_response", identities.exchange), serve(app) as origin:
                     with httpx.Client(base_url=origin, trust_env=False) as admin, httpx.Client(
                         base_url=origin, trust_env=False
                     ) as member:
-                        history = journey(admin, member, identities, records, password)
+                        history, public_member_id = journey(admin, member, identities, records, password)
+                        redemption = redeem_and_cancel(admin, member, product_id, sku_id, public_member_id)
             finally:
                 engine.dispose()
     return dict(result="PASS", transport="loopback_http", wechat_exchange="synthetic_one_use_codes",
-                checkpoints=history)
+                checkpoints=history, redemption_checkpoints=redemption)
 
 
 if __name__ == "__main__":
