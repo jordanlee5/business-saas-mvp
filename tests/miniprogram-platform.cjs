@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = path.resolve(process.argv[2]);
-let account = {miniProgram: {appId:'wx954783174df6dfdf', envVersion:'develop'}};
+let account = {miniProgram: {appId:'wx5b2fb1e60e964c4b', envVersion:'develop'}};
 let calls = 0;
 global.wx = {
   getAccountInfoSync: () => account,
@@ -30,7 +30,7 @@ async function test(name, fn) {await fn(); assert.equal(calls,0); passed++; cons
     await assert.rejects(activation.redeemActivation({businessPublicNo:'TEST',phone:'13800000000',plateNumber:'TEST',activationCode:'23456789AB'}),privacy.PrivacyAuthorizationError);
   });
   await test('tourist and unrelated AppIDs remain blocked', async()=>{
-    for(const appId of ['touristappid','wx0000000000000000']) {
+    for(const appId of ['touristappid','wx954783174df6dfdf','wx0000000000000000']) {
       account.miniProgram.appId=appId;
       await assert.rejects(privacy.getPrivacySetting(),privacy.PrivacyAuthorizationError);
     }

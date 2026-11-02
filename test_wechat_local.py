@@ -60,7 +60,8 @@ class WechatLocalTests(unittest.TestCase):
 
     def test_wrong_app_id_unknown_fields_and_weak_key_rejected(self):
         original = local.load_config(self.directory)
-        for updates in ({local.APP_ID_KEY: "wx0000000000000000"},
+        for updates in ({local.APP_ID_KEY: "wx954783174df6dfdf"},
+                        {local.APP_ID_KEY: "wx0000000000000000"},
                         {local.SIGNING_KEY: "short"}, {"DATABASE_URL": "arbitrary"},
                         {local.SECRET_KEY: "contains\nnewline"}, {local.SECRET_KEY: 123}):
             with self.subTest(updates=list(updates)):
