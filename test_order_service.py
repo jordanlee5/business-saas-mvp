@@ -63,6 +63,9 @@ class OrderServiceTests(unittest.TestCase):
         )
         self.db = self.Session()
 
+        self.seed_order_fixture()
+
+    def seed_order_fixture(self):
         self.operator = User(
             username="order-stock-operator",
             password_hash="test-only",

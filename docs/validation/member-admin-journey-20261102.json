@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-02",
+  "baseline": "cd2b40669c53b0ded23fcd7baedccc725247acaf",
+  "account_status": {
+    "app_id": "wx5b2fb1e60e964c4b",
+    "project_app_id_matches": true,
+    "url_check_enabled": true,
+    "app_secret_present": true,
+    "session_signing_key_valid": true,
+    "privacy_approval_gate_empty": true,
+    "https_api_origin_empty": true,
+    "wechat_credentials_verified": false,
+    "wechat_platform_acceptance": "DEFERRED"
+  },
+  "journey": {
+    "result": "PASS",
+    "transport": "loopback_http",
+    "member_identity": "synthetic_session",
+    "logistics": "synthetic_manual_waybill",
+    "checkpoints": [
+      {
+        "stage": "seeded",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 5,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "admin_received",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "created_and_replayed",
+        "available_points": 90,
+        "reserved_points": 80,
+        "stock_on_hand": 6,
+        "stock_reserved": 2
+      },
+      {
+        "stage": "FULFILLING",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "SHIPPED",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "COMPLETED",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "REFUNDED",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "second_created",
+        "available_points": 90,
+        "reserved_points": 80,
+        "stock_on_hand": 6,
+        "stock_reserved": 2
+      },
+      {
+        "stage": "cancelled_and_replayed",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      }
+    ]
+  },
+  "full_tests": 778,
+  "expected_pg_class_skips": 9,
+  "dedicated_pg_tests": 40,
+  "typescript": true,
+  "offline_client_groups": 101,
+  "isolated_guest_http_checks": 5,
+  "real_database_unchanged": true,
+  "initial_rehearsal_corrections": [
+    "recognize point settlement and stock outbound at fulfillment confirmation",
+    "recognize inventory return on full refund"
+  ],
+  "log_sha256": {
+    "client-addresses.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-addresses.stdout.txt": "8abf8c54ca1aab33b09c482d1593623480cb10a16c15b1e8f1bb67c6f7ef79a8",
+    "client-categories.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-categories.stdout.txt": "9802d51e1f6436cd624c36523b2b8f167e3f85c38654ee371ee92264fbfd434b",
+    "client-detail.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-detail.stdout.txt": "8590ad360e83c088aabdd41050683e3f8cf5a64909fd0536e733b274658999d4",
+    "client-fulfillment.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-fulfillment.stdout.txt": "81a16765947d698f100bb579bc01e2d380f9aff2743856a80a65f7e1030cd1b7",
+    "client-order-states.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-order-states.stdout.txt": "ab2cf8f7a25e4d20023d6bfcd9a4c178a42d35a45612e1199904508f51792808",
+    "client-orders.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-orders.stdout.txt": "4e0ac515f03f358daf17ecb9698cd67343884ab7c30f9fe500b62c7af7492e4f",
+    "client-platform.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-platform.stdout.txt": "fc12640221100906df2f01298488551a604b3169e8b6453bd697762ad1389827",
+    "client-points.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-points.stdout.txt": "147d9defb062fb8ed74bdd3600f5f2d9ef7f6169ffb0672acb6b553d7c7386ec",
+    "client-time.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-time.stdout.txt": "5f74033772efcefcaf5963bb9eed5c318519c9ab13401c255b35cb9964850845",
+    "full.stderr.txt": "5476434277e59632d989c163a741c97322912901e98203f73b37610045f9c38e",
+    "full.stdout.txt": "1554a9848dc6daaef194f2a34b6379a5aa5889d7191f1d505b40f42c736e1732",
+    "journey-first.stderr.txt": "67da4e4c1dad3ffcd1936736d17255e85bb6a3327376c74073f5d63b44a67001",
+    "journey-second.stderr.txt": "e814405803d70e4e2afd5304ed11d71beef97c0acbc44edd1b7e32d288e1eab5",
+    "journey.stderr.txt": "2c43fd56dbaaaae92afd4dc812932caeb0781e13d787f2211ba3f5182541d751",
+    "journey.stdout.txt": "d350aca4070f5977d324dffdff7400aef825498c3d1a430e4f832d991da79178",
+    "local-config-tests.stderr.txt": "d346b3ab373a0ecde9c0f82d5267080d628fd0df8c0be684116e0895718404f2",
+    "local-config-tests.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "orders-pg.stderr.txt": "74ca532af19ffe559982cdc7798838c16bc9bfa2fc9f90448707d420024d543c",
+    "orders-pg.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.stderr.txt": "7effd1caeeb1f2d2454e1aee8fa0d1ddec05010e6a362812d4a5ad6dff99c008",
+    "server.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stdout.txt": "ea2f43c7cd17080c87830693bd87bd99cbe10d9783595298a1a707d1e6bef5ab"
+  }
+}
