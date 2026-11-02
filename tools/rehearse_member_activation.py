@@ -3,6 +3,7 @@
 Exercises issuance, activation, redemption and cancellation over loopback.
 The member keeps the session obtained after exchanging a synthetic WeChat code.
 """
+import argparse
 import json
 import os
 import re
@@ -21,6 +22,7 @@ from alembic.config import Config
 
 from tools.rehearse_member_fulfillment import FormFields, PREFIX, serve
 from tools.activated_order_journey import prepare_catalog, redeem_and_cancel
+from tools.supplier_packet_journey import check_supplier_packets
 
 
 class TestIdentities:
@@ -164,7 +166,7 @@ def journey(admin, member, identities, records, password):
     return history, identity["member_public_id"]
 
 
-def run():
+def run(*, supplier_split=False):
     if not __debug__ or "app.database" in sys.modules:
         raise RuntimeError("Run in a fresh Python process with assertions enabled")
     app_id = json.loads(Path("miniprogram/project.config.json").read_text("utf-8"))["appid"]
@@ -191,11 +193,18 @@ def run():
                     ) as member:
                         history, public_member_id = journey(admin, member, identities, records, password)
                         redemption = redeem_and_cancel(admin, member, product_id, sku_id, public_member_id)
+                        if supplier_split:
+                            packets = check_supplier_packets(admin, member, profile, product_id)
             finally:
                 engine.dispose()
-    return dict(result="PASS", transport="loopback_http", wechat_exchange="synthetic_one_use_codes",
-                checkpoints=history, redemption_checkpoints=redemption)
+    result = dict(result="PASS", transport="loopback_http", wechat_exchange="synthetic_one_use_codes",
+                  checkpoints=history, redemption_checkpoints=redemption)
+    if supplier_split:
+        result["supplier_packet_checks"] = packets
+    return result
 
 
 if __name__ == "__main__":
-    print(json.dumps(run(), indent=2))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--supplier-split", action="store_true", help="also check two suppliers on one order")
+    print(json.dumps(run(supplier_split=parser.parse_args().supplier_split), indent=2))

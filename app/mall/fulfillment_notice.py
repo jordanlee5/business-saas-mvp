@@ -103,22 +103,40 @@ def supplier_packet(db, order, supplier_public_id):
     The caller must enforce operator authorization and record actual provision.
     This function alone does not send or grant a supplier access to information.
     """
-    from ..models import OrderDeliverySnapshot
-    from .member_address_service import ADDRESS_FIELDS
+    from ..models import Order, OrderDeliverySnapshot, OrderPrivacyReceipt
     config = settings()
     profile = config and config['suppliers'].get(supplier_public_id)
     if not profile or not profile['enabled']:
         raise ValueError('受托发货授权不可用')
-    if order.status != 'FULFILLING':
-        raise ValueError('仅待发货订单可准备发货资料')
-    snapshot = db.get(OrderDeliverySnapshot, order.id)
-    notice = historical_notice(db, order.id)
-    if not snapshot or not notice or not any(g['supplier_public_id'] == supplier_public_id for g in notice['suppliers']):
-        raise ValueError('订单缺少有效收货资料或告知记录')
-    items = db.query(OrderItem).filter_by(order_id=order.id, supplier_public_id_snapshot=supplier_public_id).all()
-    if not items:
-        raise ValueError('该供应商不负责此订单')
-    return {'order_public_id': order.order_public_id,
-            'address': {key: getattr(snapshot, key) for key in ADDRESS_FIELDS},
-            'items': [{'product_name': i.product_name_snapshot, 'sku_name': i.sku_name_snapshot,
-                       'quantity': i.quantity} for i in items]}
+    # Read eligibility and packet fields together. Do not trust the status on
+    # the caller's Order instance or use a SKU's present-day supplier.
+    address_fields = ('recipient_name', 'phone', 'province', 'city', 'district', 'detail')
+    rows = (
+        db.query(Order.order_public_id, OrderFulfillmentNotice.payload,
+                 *(getattr(OrderDeliverySnapshot, field) for field in address_fields),
+                 OrderItem.product_name_snapshot, OrderItem.sku_name_snapshot, OrderItem.quantity)
+        .select_from(Order)
+        .join(OrderItem, OrderItem.order_id == Order.id)
+        .join(Supplier, Supplier.id == OrderItem.supplier_id)
+        .join(OrderDeliverySnapshot, OrderDeliverySnapshot.order_id == Order.id)
+        .join(OrderFulfillmentNotice, OrderFulfillmentNotice.order_id == Order.id)
+        .outerjoin(OrderPrivacyReceipt, OrderPrivacyReceipt.order_id == Order.id)
+        .filter(Order.id == order.id, Order.status == 'FULFILLING',
+                Supplier.is_active.is_(True), Supplier.supplier_public_id == supplier_public_id,
+                OrderItem.supplier_public_id_snapshot == supplier_public_id,
+                OrderPrivacyReceipt.order_id.is_(None))
+        .order_by(OrderItem.id)
+        .all()
+    )
+    if not rows:
+        raise ValueError('该订单当前不能为此供应商准备发货资料')
+    first = rows[0]
+    notice = json.loads(first.payload)
+    if not any(group['supplier_public_id'] == supplier_public_id for group in notice['suppliers']):
+        raise ValueError('订单缺少该供应商的发货告知记录')
+    return {
+        'order_public_id': first.order_public_id,
+        'address': {field: getattr(first, field) for field in address_fields},
+        'items': [{'product_name': row.product_name_snapshot, 'sku_name': row.sku_name_snapshot,
+                   'quantity': row.quantity} for row in rows],
+    }

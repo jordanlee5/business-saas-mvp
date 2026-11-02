@@ -239,6 +239,44 @@ class MemberOrderTests(unittest.TestCase):
             with patch('app.mall.fulfillment_notice.settings',return_value=changed):
                 with self.assertRaises(ValueError):supplier_packet(db,order,self.f.supplier.supplier_public_id)
 
+    def test_packet_denies_inactive_supplier_even_with_enabled_profile(self):
+        from app.models import Supplier
+        from app.mall.fulfillment_notice import supplier_packet
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        with Session(self.f.engine) as db:
+            supplier = db.get(Supplier, self.f.supplier.id)
+            supplier.is_active = False
+            db.commit()
+            order = db.query(Order).filter_by(order_public_id=oid).one()
+            with self.assertRaises(ValueError):
+                supplier_packet(db, order, supplier.supplier_public_id)
+
+    def test_packet_denies_stale_fulfilling_order_after_shipping(self):
+        from app.mall.fulfillment_notice import supplier_packet
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        with Session(self.f.engine) as reader:
+            cached = reader.query(Order).filter_by(order_public_id=oid).one()
+        self.assertEqual(cached.status, 'FULFILLING')
+        self.f.ship(oid)
+        with Session(self.f.engine) as db, self.assertRaises(ValueError):
+            supplier_packet(db, cached, self.f.supplier.supplier_public_id)
+
+    def test_packet_denies_restored_address_when_erasure_receipt_exists(self):
+        from app.models import OrderPrivacyReceipt
+        from app.mall.fulfillment_notice import supplier_packet
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        with Session(self.f.engine) as db:
+            order = db.query(Order).filter_by(order_public_id=oid).one()
+            snapshot = db.get(OrderDeliverySnapshot, order.id)
+            db.add(OrderPrivacyReceipt(order_id=order.id, request_digest=snapshot.request_digest,
+                                       policy_version='test-only', cleared_at=fixtures.NOW))
+            db.flush()
+            with self.assertRaises(ValueError):
+                supplier_packet(db, order, self.f.supplier.supplier_public_id)
+
     def test_two_suppliers_are_grouped_and_dispatch_does_not_leak_other_items(self):
         from app.models import Supplier,ProductSku
         from app.mall.fulfillment_notice import supplier_packet
