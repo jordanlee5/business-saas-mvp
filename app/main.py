@@ -44,6 +44,7 @@ from .models import (
     VoucherUploadBatch,
 )
 from .auth import verify_password, get_password_hash
+from .browser_sessions import BrowserSessions, COOKIE_NAME, LIFETIME, fingerprint
 from .password_service import (
     validate_first_login_password_change,
 )
@@ -235,6 +236,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(miniprogram_v1_router)
+browser_sessions = BrowserSessions()
 
 def create_admin_action_log(
     db,
@@ -281,60 +283,14 @@ async def enforce_active_user_session(
     ):
         return await call_next(request)
 
-    user_id = request.cookies.get(
-        "user_id"
-    )
-
-    # 没有登录 Cookie 时，
-    # 继续交给原有路由处理。
-    if not user_id:
+    if COOKIE_NAME not in request.cookies and "user_id" not in request.cookies:
         return await call_next(request)
 
-    db = SessionLocal()
-
-    try:
-        try:
-            user_id_value = int(user_id)
-        except (TypeError, ValueError):
-            user_id_value = None
-
-        user = None
-
-        if user_id_value is not None:
-            user = (
-                db.query(User)
-                .filter(
-                    User.id
-                    == user_id_value
-                )
-                .first()
-            )
-
-        # 用户不存在、Cookie 非法或账号已停用：
-        # 立即退出登录并删除旧 Cookie。
-        if not user or not user.is_active:
-            response = RedirectResponse(
-                url="/login",
-                status_code=302,
-            )
-            response.delete_cookie(
-                "user_id"
-            )
-            return response
-
-        # 首次登录尚未修改初始密码时，
-        # 不允许进入任何业务页面。
-        if (
-            user.must_change_password
-            and path != "/change-password"
-        ):
-            return RedirectResponse(
-                url="/change-password",
-                status_code=302,
-            )
-
-    finally:
-        db.close()
+    user = get_current_user(request)
+    if user is None:
+        return end_browser_session(request)
+    if user.must_change_password and path != "/change-password":
+        return RedirectResponse(url="/change-password", status_code=302)
 
     return await call_next(request)
 
@@ -576,29 +532,36 @@ def money2(value):
 
 
 def get_current_user(request: Request):
-    user_id = request.cookies.get("user_id")
-
-    if not user_id:
+    token = request.cookies.get(COOKIE_NAME)
+    session = browser_sessions.resolve(token)
+    if session is None:
         return None
-
-    db = SessionLocal()
-
-    try:
-        user = (
-            db.query(User)
-            .filter(
-                User.id == int(user_id),
-                User.is_active.is_(True),
-            )
-            .first()
-        )
+    with SessionLocal() as db:
+        user = db.get(User, session.user_id)
+        if (user is None or not user.is_active or not user.password_hash
+                or fingerprint(user.password_hash) != session.credential):
+            browser_sessions.revoke(token)
+            return None
         return user
 
-    except (TypeError, ValueError):
-        return None
 
-    finally:
-        db.close()
+def start_browser_session(request, response, user_id, password_hash):
+    browser_sessions.revoke(request.cookies.get(COOKIE_NAME))
+    response.delete_cookie("user_id")
+    response.set_cookie(
+        COOKIE_NAME, browser_sessions.issue(user_id, password_hash),
+        max_age=LIFETIME, httponly=True, samesite="lax",
+        secure=request.url.scheme == "https",
+    )
+    return response
+
+
+def end_browser_session(request):
+    browser_sessions.revoke(request.cookies.get(COOKIE_NAME))
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie(COOKIE_NAME)
+    response.delete_cookie("user_id")
+    return response
 
 
 def add_base_context(request: Request, context: dict):
@@ -2294,6 +2257,9 @@ def update_administrator_status(
                 f"已{action_text}"
             ),
         )
+
+        if not desired_is_active:
+            browser_sessions.revoke_user(administrator_id)
 
     except Exception:
         db.rollback()
@@ -4903,6 +4869,7 @@ def login_submit(
             )
 
         user_id = user.id
+        password_hash = user.password_hash
         must_change_password = bool(
             user.must_change_password
         )
@@ -4918,13 +4885,7 @@ def login_submit(
         ),
         status_code=302,
     )
-    response.set_cookie(
-        key="user_id",
-        value=str(user_id),
-        httponly=True,
-        max_age=60 * 60 * 8,
-    )
-    return response
+    return start_browser_session(request, response, user_id, password_hash)
 
 
 @app.get(
@@ -4989,14 +4950,7 @@ def change_password_submit(
         )
 
         if not account:
-            response = RedirectResponse(
-                url="/login",
-                status_code=302,
-            )
-            response.delete_cookie(
-                "user_id"
-            )
-            return response
+            return end_browser_session(request)
 
         if not account.must_change_password:
             return RedirectResponse(
@@ -5037,16 +4991,15 @@ def change_password_submit(
             )
         )
         account.must_change_password = False
-
+        user_id, password_hash = account.id, account.password_hash
         db.commit()
+        browser_sessions.revoke_user(user_id)
 
     finally:
         db.close()
 
-    return RedirectResponse(
-        url="/dashboard",
-        status_code=303,
-    )
+    response = RedirectResponse(url="/dashboard", status_code=303)
+    return start_browser_session(request, response, user_id, password_hash)
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -5480,6 +5433,8 @@ def toggle_partner_active(
             partner.is_active = not bool(partner.is_active)
             db.commit()
 
+            if not partner.is_active:
+                browser_sessions.revoke_user(partner_id)
             action_text = "恢复启用" if partner.is_active else "停用"
             message = (
                 f"上传方账号 {partner.username} 已{action_text}"
@@ -9768,10 +9723,8 @@ def export_mall_settlement(
 
 
 @app.get("/logout")
-def logout():
-    response = RedirectResponse(url="/login", status_code=302)
-    response.delete_cookie("user_id")
-    return response
+def logout(request: Request):
+    return end_browser_session(request)
 
 
 @app.get("/health")

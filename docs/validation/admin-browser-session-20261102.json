@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-02",
+  "baseline": "fe951d9facca43dddf00ee10029673d4c8a18aa2",
+  "scope": "single_process_back_office_browser_sessions",
+  "synthetic_forged_cookie_route_comparison": {
+    "baseline": {
+      "status": 200,
+      "location": null
+    },
+    "check": {
+      "status": 302,
+      "location": "/login"
+    }
+  },
+  "session_tests": 6,
+  "full_tests": 784,
+  "expected_pg_class_skips": 9,
+  "dedicated_pg_tests": 40,
+  "offline_client_groups": 101,
+  "typescript": true,
+  "local_http_journey_checkpoints": 9,
+  "guest_http_checks": 5,
+  "real_database_unchanged": true,
+  "migration_executed": false,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "client-addresses.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-addresses.stdout.txt": "8abf8c54ca1aab33b09c482d1593623480cb10a16c15b1e8f1bb67c6f7ef79a8",
+    "client-categories.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-categories.stdout.txt": "9802d51e1f6436cd624c36523b2b8f167e3f85c38654ee371ee92264fbfd434b",
+    "client-detail.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-detail.stdout.txt": "8590ad360e83c088aabdd41050683e3f8cf5a64909fd0536e733b274658999d4",
+    "client-fulfillment.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-fulfillment.stdout.txt": "81a16765947d698f100bb579bc01e2d380f9aff2743856a80a65f7e1030cd1b7",
+    "client-order-states.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-order-states.stdout.txt": "ab2cf8f7a25e4d20023d6bfcd9a4c178a42d35a45612e1199904508f51792808",
+    "client-orders.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-orders.stdout.txt": "4e0ac515f03f358daf17ecb9698cd67343884ab7c30f9fe500b62c7af7492e4f",
+    "client-platform.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-platform.stdout.txt": "fc12640221100906df2f01298488551a604b3169e8b6453bd697762ad1389827",
+    "client-points.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-points.stdout.txt": "147d9defb062fb8ed74bdd3600f5f2d9ef7f6169ffb0672acb6b553d7c7386ec",
+    "client-time.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "client-time.stdout.txt": "5f74033772efcefcaf5963bb9eed5c318519c9ab13401c255b35cb9964850845",
+    "full.stderr.txt": "0435c4cc04de98765dd6a9d2919277f3306de17e948b19c83520a87446e24562",
+    "full.stdout.txt": "1554a9848dc6daaef194f2a34b6379a5aa5889d7191f1d505b40f42c736e1732",
+    "journey.stderr.txt": "0dac8198b4d2dda9bdb17f69923ecf4b0330172b93c9f66daf3bbd2fdb0cb967",
+    "journey.stdout.txt": "d350aca4070f5977d324dffdff7400aef825498c3d1a430e4f832d991da79178",
+    "local-config-tests.stderr.txt": "b2b56f549b5a5ec008cca091bcda07b590adc1c0ff620d1763921e34938c6d1b",
+    "local-config-tests.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "orders-pg.stderr.txt": "95c9549877d67288d025a4162f091c04b6ab3d75820dbffab1f5669474476fd2",
+    "orders-pg.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.stderr.txt": "ef591adc629049ac779724dd865647f0403d7b18289c65f9f4da460ca0633887",
+    "server.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "session.stderr.txt": "d9e51a5fb40fc58681d210133ca76ccdcc131245ada3f07e1af530c04d274cbc",
+    "session.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-page-flow.stdout.txt": "ea2f43c7cd17080c87830693bd87bd99cbe10d9783595298a1a707d1e6bef5ab"
+  }
+}
