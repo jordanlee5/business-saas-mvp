@@ -2,8 +2,10 @@
 
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
+from threading import Barrier
 from unittest.mock import patch
 
 from alembic import command
@@ -40,7 +42,7 @@ class PostgreSQLMiniprogramActivationTests(unittest.TestCase):
             configured, resolve_database_url(),
         )
 
-    def test_activation_commits_once_and_cannot_be_replayed(self):
+    def test_competing_claims_commit_once_and_cannot_be_replayed(self):
         tables, revision = get_database_state(self.database_url)
         self.assertFalse(tables - {"alembic_version"})
         self.assertIsNone(revision)
@@ -93,17 +95,34 @@ class PostgreSQLMiniprogramActivationTests(unittest.TestCase):
                     phone="13800000001", plate_number="京A00001",
                     activation_code=issued.activation_code,
                 )
+                contenders = ("pg-owner-a", "pg-owner-b")
+                start = Barrier(2, timeout=10)
+
+                def claim(identity):
+                    with Session() as claimant:
+                        claimant.connection().exec_driver_sql("SET LOCAL lock_timeout = '8s'")
+                        start.wait()
+                        response = Response()
+                        try:
+                            result = redeem_member_activation(
+                                body.model_copy(update={"wechat_code": identity}), response, claimant)
+                        except HTTPException as exc:
+                            return exc.status_code
+                        self.assertEqual(response.headers["Cache-Control"], "no-store")
+                        self.assertEqual(result.model_dump(), {"status": "activated"})
+                        return 200
+
                 with patch("app.api.miniprogram_v1.exchange_wechat_code",
-                           return_value=WechatIdentity(APP_ID, "pg-activation-openid")):
-                    response = Response()
-                    result = redeem_member_activation(body, response, db)
-                    self.assertEqual(response.headers["Cache-Control"], "no-store")
-                    self.assertEqual(result.model_dump(), {"status": "activated"})
+                           side_effect=lambda identity: WechatIdentity(APP_ID, identity)):
+                    with ThreadPoolExecutor(max_workers=2) as pool:
+                        outcomes = list(pool.map(claim, contenders))
+                    self.assertCountEqual(outcomes, [200, 400])
+                    winner = contenders[outcomes.index(200)]
                     with self.assertRaises(HTTPException) as replay:
-                        redeem_member_activation(body, Response(), db)
+                        redeem_member_activation(body.model_copy(update={"wechat_code": winner}), Response(), db)
                     self.assertEqual(replay.exception.status_code, 400)
                 self.assertEqual(db.query(Member).count(), 1)
-                self.assertEqual(db.query(MemberWechatBinding).count(), 1)
+                self.assertEqual(db.query(MemberWechatBinding).one().openid, winner)
                 self.assertEqual(db.query(PointsAccount).one().available_points,
                                  Decimal("12.50"))
                 self.assertEqual(db.query(PointsGrant).count(), 1)

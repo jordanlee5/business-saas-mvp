@@ -4,6 +4,9 @@ import os
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -48,6 +51,30 @@ miniprogram_v1_router = APIRouter(
     prefix=MINIPROGRAM_API_PREFIX,
     tags=["miniprogram-v1"],
 )
+
+
+class IdentityRoute(APIRoute):
+    """Validation errors may contain complete activation or login request bodies."""
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def handle(request):
+            try:
+                response = await handler(request)
+            except RequestValidationError:
+                raise HTTPException(422, "身份请求格式不正确",
+                                    headers={"Cache-Control": "no-store"}) from None
+            except StarletteHTTPException as exc:
+                exc.headers = {**(exc.headers or {}), "Cache-Control": "no-store"}
+                raise
+            response.headers["Cache-Control"] = "no-store"
+            return response
+
+        return handle
+
+
+identity_router = APIRouter(route_class=IdentityRoute)
 
 
 @miniprogram_v1_router.get(
@@ -135,7 +162,7 @@ class MemberPointsLedgerPage(BaseModel):
     total: int
 
 
-@miniprogram_v1_router.post(
+@identity_router.post(
     "/activation/redeem", response_model=MemberActivationResponse,
     operation_id="redeem_miniprogram_member_activation",
     summary="使用一次性激活码与微信身份领取商城积分权益",
@@ -178,7 +205,7 @@ def redeem_member_activation(
     return MemberActivationResponse()
 
 
-@miniprogram_v1_router.post(
+@identity_router.post(
     "/auth/wechat-session", response_model=MemberSessionResponse,
     operation_id="create_miniprogram_member_session",
     summary="使用微信登录 code 创建已绑定会员短期会话",
@@ -217,7 +244,7 @@ def create_member_session(
     return MemberSessionResponse(token=token, expires_in=ttl)
 
 
-@miniprogram_v1_router.get(
+@identity_router.get(
     "/auth/me", response_model=CurrentMemberResponse,
     operation_id="get_miniprogram_current_member",
     summary="读取当前有效会话所绑定的会员身份",
@@ -229,6 +256,9 @@ def get_current_member(
     response.headers["Cache-Control"] = "no-store"
     member = _require_current_member(authorization, db)
     return CurrentMemberResponse(member_public_id=member.member_public_id)
+
+
+miniprogram_v1_router.include_router(identity_router)
 
 
 def _require_current_member(authorization, db) -> Member:
