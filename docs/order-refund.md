@@ -44,6 +44,8 @@ SQLite 真实库升级前必须停止应用，先运行 `python -m app.migration
 
 ## 验证
 
+独立 PostgreSQL 专项在 `test_postgresql_member_orders.PostgreSQLMemberOrderTests` 中覆盖退款与首次生成结算单竞争。使用项目既有的专用空库测试流程运行该测试类。测试以 `pg_blocking_pids` 确认两个真实数据库连接发生等待，分别验证两种提交顺序、重试、积分批次、库存退回、结算成本和经办人审计；同一账号的两个并发请求也在验证范围内。
+
 在仓库根目录执行 `python -m tools.rehearse_member_activation --refund-before-settlement`，可用两个模拟包裹复验尚未入批时的整单退款。工具通过本机后台表单提交两次相同请求，核对原批次积分、会员可见流水、库存退回和退款审计，并核验退款后的订单不会生成供应商结算。
 
 执行 `python -m tools.rehearse_member_activation --supplier-split`，可复验同一订单仅杯子供应商入批时的保护，分别在待确认和已确认时提交退款表单。两种情况下均要求整单保持已完成，拒绝请求前后的隔离数据库逻辑快照完全一致。以上命令均使用虚拟会员和独立临时数据库。

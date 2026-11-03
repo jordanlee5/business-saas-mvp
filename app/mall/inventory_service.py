@@ -109,7 +109,8 @@ def _require_actor(db, *, actor_admin_id, action_type):
         actor = (
             db.query(User)
             .filter(User.id == actor_admin_id)
-            .with_for_update()
+            # Returning inventory rechecks the refund permission in the same transaction.
+            .with_for_update(read=action_type == MallAuditActionType.ORDER_REFUND)
             .populate_existing()
             .one_or_none()
         )

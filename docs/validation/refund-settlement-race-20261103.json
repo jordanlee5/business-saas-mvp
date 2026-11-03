@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-03",
+  "baseline": "346346e53ff8242996628ff464c89dffe088fff5",
+  "before": "Same operator, overlapping transactions: PostgreSQL DeadlockDetected (40P01).",
+  "pg_race": {
+    "observed_with": "pg_blocking_pids",
+    "accounts": [
+      "two distinct operators",
+      "two sessions of one operator"
+    ],
+    "order_points": 105,
+    "refund_first": {
+      "status": "REFUNDED",
+      "available": 170,
+      "refund_grants": [
+        70,
+        35
+      ],
+      "returns": [
+        2,
+        1
+      ],
+      "batches": 0
+    },
+    "settlement_first": {
+      "status": "COMPLETED",
+      "available": 65,
+      "refund_grants": [],
+      "returns": [],
+      "pending_cost": "24.00",
+      "unbatched_cost": "5.00"
+    },
+    "unique_winner_audit_verified": true,
+    "retries_verified": true,
+    "account_write_lock_probe": "55P03 (lock not available)"
+  },
+  "full_tests": 798,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_unique_tests": 53,
+  "final_race_rerun": 4,
+  "http_unbatched_and_partial_settlement_rehearsals": true,
+  "wechat_identity": "synthetic",
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "payment_executed": false,
+  "evidence_sha256": {
+    "full-final.stderr.txt": "6d08619dab78f0de286c332b5e6a70c1f47c19675cacf7f916f2fc4e6ad43ee1",
+    "same-account-before.stderr.txt": "12a970ac85f5dff31f1c21f083bbe8c218e4848d7f8db2ac49c89120321991bd",
+    "race-final.stderr.txt": "ca35821bc57764f88a875d33a1a19eb2caa9df831a959c8c15b181aa84a87987",
+    "orders-pg.stderr.txt": "e74ed68f24dd62835f60aef2891b497b34d06f894b32998e919e6fc4a6b03361",
+    "settlement-pg.stderr.txt": "daff5633b4da6164554376f127aa9711b70a3a268c613170fecc33bdd455040d",
+    "partial.json": "57b873efa7b328a3502b6a2a354b760b103fec99de0d95ad29c9227d52d5507a",
+    "unbatched.json": "174966ebaf451ef876bdab49f7c5fb17d6101825a1b7b80d8f6dd2efed6bab53",
+    "checks-result.json": "68b1167ce57313a426391debc4fe9263cbe3ea9543eb8a614ba2e62f7aa3c7bb",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}

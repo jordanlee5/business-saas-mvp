@@ -92,7 +92,8 @@ def _require_actor(db, *, actor_admin_id):
     actor = (
         db.query(User)
         .filter(User.id == actor_admin_id)
-        .with_for_update()
+        # Hold the permission check through commit; concurrent readers can share it.
+        .with_for_update(read=True)
         .populate_existing()
         .one_or_none()
     )

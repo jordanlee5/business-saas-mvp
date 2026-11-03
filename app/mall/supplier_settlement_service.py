@@ -109,7 +109,8 @@ def _require_actor(
         raise PermissionError(message)
     actor_query = db.query(User).filter(User.id == actor_admin_id)
     if lock:
-        actor_query = actor_query.with_for_update()
+        # Batch generation reads the actor before locking the supplier and order.
+        actor_query = actor_query.with_for_update(read=action_type == MallAuditActionType.SUPPLIER_SETTLEMENT_GENERATE)
     actor = actor_query.populate_existing().one_or_none()
     if (
         actor is None
