@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .member_addresses import address_session, AddressBody, _commit
 from .miniprogram_v1 import _require_current_member
 from ..models import Member, MemberAddress, Order, OrderItem, OrderDeliverySnapshot, Product, ProductSku, OrderPrivacyReceipt
+from ..mall.order_parcels import PARTIAL, display_status, parcels_for_order
 from ..mall.fulfillment_notice import checkout_notice, save_notice, historical_notice
 from ..mall.member_address_service import ADDRESS_FIELDS, normalize_address, AddressInputError
 from ..mall.order_service import OrderLineRequest, place_order_with_reservations
@@ -60,18 +61,24 @@ def stamp(value):
     if value is None:return None
     if value.tzinfo is None:value=value.replace(tzinfo=UTC8_TIMEZONE)
     return value.astimezone(UTC8_TIMEZONE).isoformat(timespec='seconds')
-def summary(order):
-    return {'order_public_id':order.order_public_id,'status':order.status,
+def summary(order, status):
+    return {'order_public_id':order.order_public_id,'status':status,
             'total_points':f'{order.total_points:.2f}','total_quantity':order.total_quantity,'created_at':stamp(order.created_at)}
 def detail(db,order):
     snapshot=db.get(OrderDeliverySnapshot,order.id)
     receipt=db.get(OrderPrivacyReceipt,order.id)
     if receipt and snapshot: raise RuntimeError('恢复后的收货资料尚未重新清理')
-    return {**summary(order),
+    parcels = parcels_for_order(db, order.id)
+    for parcel in parcels:
+        for line in parcel['items']:
+            del line['item_id']
+    status = PARTIAL if order.status == 'FULFILLING' and parcels else order.status
+    return {**summary(order, status), 'parcels':parcels,
         'address_state':'CLEARED' if receipt else ('AVAILABLE' if snapshot else 'NOT_RECORDED'),
         'fulfillment':historical_notice(db,order.id),
         'address':{key:getattr(snapshot,key) for key in ADDRESS_FIELDS} if snapshot else None,
-        'shipping_carrier':order.shipping_carrier,'tracking_number':order.tracking_number,
+        'shipping_carrier':order.shipping_carrier if len(parcels) <= 1 else None,
+        'tracking_number':order.tracking_number if len(parcels) <= 1 else None,
         'shipped_at':stamp(order.shipped_at),'completed_at':stamp(order.completed_at),
         'items':[{'product_name':x.product_name_snapshot,'sku_name':x.sku_name_snapshot,
                   'quantity':x.quantity,'unit_points_price':f'{x.unit_points_price:.2f}','line_points':f'{x.line_points:.2f}'}
@@ -129,7 +136,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
 def orders(page:int=Query(1,ge=1,le=1000000),authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     query=db.query(Order).filter_by(member_id=member.id)
-    return {'items':[summary(x) for x in query.order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
+    return {'items':[summary(order,status) for order,status in query.add_columns(display_status()).order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
 
 @order_router.post('/fulfillment-preview')
 def fulfillment_preview(body:NoticeBody,authorization:str|None=Header(None),db:Session=Depends(address_session)):

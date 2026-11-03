@@ -23,7 +23,7 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
         command.upgrade(self.config, 'head')
         assert_database_schema_ready(self.engine)
         self.assertEqual(set(inspect(self.engine).get_table_names()) - before,
-                         {'order_privacy_receipts', 'order_fulfillment_notices'})
+                         {'order_privacy_receipts', 'order_fulfillment_notices', 'order_parcels', 'order_parcel_items'})
         command.downgrade(self.config, '0013_order_delivery_snapshot')
         self.assertEqual(set(inspect(self.engine).get_table_names()), before)
         command.upgrade(self.config, 'head')
@@ -35,8 +35,10 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
         # Production domain tests separately enforce valid orders and FKs.
         with self.engine.begin() as connection:
             connection.execute(text(statement), {'digest': 'a' * 64})
+        command.downgrade(self.config, '0014_order_privacy')
         with self.assertRaisesRegex(RuntimeError, '禁止降级'):
             command.downgrade(self.config, '0013_order_delivery_snapshot')
+        command.upgrade(self.config, 'head')
         assert_database_schema_ready(self.engine)
         with self.engine.connect() as connection:
             self.assertEqual(connection.execute(text('select count(*) from ' + table)).scalar(), 1)
@@ -44,6 +46,16 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
     def test_erasure_receipt_blocks_downgrade(self):
         self._check_preserved('order_privacy_receipts',
             "insert into order_privacy_receipts values (1, :digest, 'isolated-test', '2026-10-28 12:00:00')")
+
+    def test_recorded_parcel_blocks_downgrade(self):
+        command.upgrade(self.config, 'head')
+        with self.engine.begin() as connection:
+            connection.execute(text("insert into order_parcels "
+                "(order_id, actor_id, carrier, tracking_number, shipped_at) "
+                "values (1, 1, 'TEST', 'A', '2026-11-03 10:00:00')"))
+        with self.assertRaisesRegex(RuntimeError, '禁止降级'):
+            command.downgrade(self.config, '0014_order_privacy')
+        assert_database_schema_ready(self.engine)
 
     def test_fulfillment_notice_blocks_downgrade(self):
         self._check_preserved('order_fulfillment_notices',

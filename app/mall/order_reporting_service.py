@@ -1,5 +1,6 @@
 """商城订单后台只读列表及订单快照详情。"""
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -8,12 +9,14 @@ from sqlalchemy import or_
 
 from ..models import Member, Order, OrderItem, OrderPointsGrantAllocation, OrderDeliverySnapshot, OrderPrivacyReceipt
 from ..time_utils import UTC8_TIMEZONE
+from .order_parcels import PARTIAL, display_status, parcels_for_order
 from .order_fulfillment_service import _validate_order_totals
 
 
 ORDER_STATUS_ALL = "ALL"
 ORDER_STATUS_LABELS = {
     "CREATED": "待处理", "CANCELLED": "已取消",
+    PARTIAL: "部分发货",
     "FULFILLING": "待发货", "SHIPPED": "已发货",
     "COMPLETED": "已完成", "REFUNDED": "已退款",
 }
@@ -44,6 +47,8 @@ class MallOrderPage:
 
 @dataclass(frozen=True)
 class MallOrderDetailItem:
+    item_id: int
+    remaining: int
     product_public_id: str
     product_name: str
     sku_code: str
@@ -67,6 +72,7 @@ class MallOrderDetail:
     refunded_at: datetime | None
     refund_reason: str | None
     items: tuple[MallOrderDetailItem, ...]
+    parcels: tuple = ()
     delivery_address: dict | None = None
     delivery_cleared: bool = False
 
@@ -79,14 +85,14 @@ def _time(value):
     return value
 
 
-def _listing_item(order, member_public_id):
-    label = ORDER_STATUS_LABELS.get(order.status)
+def _listing_item(order, member_public_id, status):
+    label = ORDER_STATUS_LABELS.get(status)
     if label is None:
         raise RuntimeError("商城订单状态异常")
     return MallOrderListItem(
         order_public_id=order.order_public_id,
         member_public_id=member_public_id,
-        status=order.status,
+        status=status,
         status_label=label,
         total_points=Decimal(order.total_points),
         total_cost_amount=Decimal(order.total_cost_amount),
@@ -109,11 +115,11 @@ def list_mall_orders(db, *, keyword="", status=ORDER_STATUS_ALL,
         raise ValueError("订单分页参数无效")
     keyword = " ".join(keyword.split())
     with db.no_autoflush:
-        query = db.query(Order, Member.member_public_id).join(
+        query = db.query(Order, Member.member_public_id, display_status()).join(
             Member, Member.id == Order.member_id
         )
         if status != ORDER_STATUS_ALL:
-            query = query.filter(Order.status == status)
+            query = query.filter(display_status() == status)
         if keyword:
             # Exact lookup avoids wildcard expansion and costly unbounded scans.
             query = query.filter(or_(
@@ -127,7 +133,7 @@ def list_mall_orders(db, *, keyword="", status=ORDER_STATUS_ALL,
             Order.created_at.desc(), Order.id.desc()
         ).offset((page - 1) * page_size).limit(page_size).all()
         return MallOrderPage(
-            items=tuple(_listing_item(order, member_id) for order, member_id in rows),
+            items=tuple(_listing_item(*row) for row in rows),
             keyword=keyword, status=status, page=page,
             page_size=page_size, total=total, total_pages=pages,
         )
@@ -138,12 +144,12 @@ def get_mall_order_detail(db, *, order_public_id: str) -> MallOrderDetail:
             or len(order_public_id) > 32):
         raise ValueError("商城订单编号无效")
     with db.no_autoflush:
-        row = db.query(Order, Member.member_public_id).join(
+        row = db.query(Order, Member.member_public_id, display_status()).join(
             Member, Member.id == Order.member_id
         ).filter(Order.order_public_id == order_public_id).one_or_none()
         if row is None:
             raise ValueError("商城订单不存在")
-        order, member_id = row
+        order, member_id, status = row
         items = tuple(db.query(OrderItem).filter(
             OrderItem.order_id == order.id
         ).order_by(OrderItem.id.asc()).all())
@@ -166,10 +172,16 @@ def get_mall_order_detail(db, *, order_public_id: str) -> MallOrderDetail:
         receipt = db.get(OrderPrivacyReceipt, order.id)
         if receipt and snapshot:
             raise RuntimeError('恢复后的收货资料尚未重新清理')
+        parcels = parcels_for_order(db, order.id)
+        sent = Counter()
+        for parcel in parcels:
+            for line in parcel["items"]:
+                sent[line["item_id"]] += line["quantity"]
         return MallOrderDetail(
             delivery_address={key:getattr(snapshot,key) for key in ("recipient_name","phone","province","city","district","detail")} if snapshot else None,
             delivery_cleared=bool(receipt),
-            order=_listing_item(order, member_id),
+            order=_listing_item(order, member_id, status),
+            parcels=tuple(parcels),
             shipping_carrier=order.shipping_carrier,
             tracking_number=order.tracking_number,
             shipped_at=_time(order.shipped_at),
@@ -177,6 +189,7 @@ def get_mall_order_detail(db, *, order_public_id: str) -> MallOrderDetail:
             refunded_at=_time(order.refunded_at),
             refund_reason=order.refund_reason,
             items=tuple(MallOrderDetailItem(
+                item_id=item.id, remaining=item.quantity - sent[item.id],
                 product_public_id=item.product_public_id_snapshot,
                 product_name=item.product_name_snapshot,
                 sku_code=item.sku_code_snapshot,

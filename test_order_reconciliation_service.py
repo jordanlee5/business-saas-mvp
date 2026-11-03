@@ -117,7 +117,17 @@ class CompletedOrderReconciliationTests(unittest.TestCase):
         self.fixture.db.flush()
         self.fixture.sku_two.supplier_id = second_supplier.id
         self.fixture.db.commit()
-        public_id = self.completed_order()
+        from app.mall.order_lifecycle_service import execute_order_shipping
+        from app.models import OrderItem
+        placed = self.fixture.place()
+        public_id = placed.order_public_id
+        self.fixture.fulfill(public_id)
+        for line in self.fixture.db.query(OrderItem).filter_by(order_id=placed.order_id):
+            execute_order_shipping(self.fixture.engine, actor_admin_id=self.fixture.operator.id,
+                                   order_public_id=public_id, shipping_carrier="测试物流",
+                                   tracking_number=f"TEST-{line.id}", quantities={line.id: line.quantity},
+                                   now=order_fixture.NOW + timedelta(minutes=1))
+        self.fixture.complete(public_id)
         self.generate()
         result = self.reconcile(public_id)
         self.assertEqual(result.pending_cost_amount, Decimal("24.00"))

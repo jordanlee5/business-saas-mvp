@@ -19,7 +19,11 @@
 {{detail.address.province}} {{detail.address.city}} {{detail.address.district}} {{detail.address.detail}}</text>
       <text wx:elif="{{detail.address_state === 'CLEARED'}}" class="copy">收货信息已按保存规则清理，订单交易记录仍保留。</text>
       <text wx:else class="copy">历史订单未保存收货信息</text>
-      <text wx:if="{{detail.tracking_number}}" class="copy">{{detail.shipping_carrier}} · {{detail.tracking_number}}</text>
+      <text wx:if="{{!detail.parcels.length && detail.tracking_number}}" class="copy">{{detail.shipping_carrier}} · {{detail.tracking_number}}</text>
+    </view>
+    <view wx:for="{{detail.parcels}}" wx:key="index" class="card mall-surface">
+      <text class="title">包裹 {{index + 1}}</text><text class="copy">{{item.carrier}} · {{item.tracking_number}}</text>
+      <view wx:for="{{item.items}}" wx:for-item="line" wx:key="index" class="copy">{{line.product_name}} · {{line.sku_name}} × {{line.quantity}}</view>
     </view>
     <template is="delivery-info" data="{{noticeExpanded, serviceContact: detail.fulfillment ? detail.fulfillment.operator_contact : ''}}" />
     <button wx:if="{{detail.status === 'CREATED' && !confirmCancel}}" bindtap="onCancel" disabled="{{busy}}">取消订单</button>

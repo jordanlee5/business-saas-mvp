@@ -9134,7 +9134,7 @@ def mall_order_detail_page(
             and can_perform_mall_audit_action(user, MallAuditActionType.ORDER_CANCEL)
         )
         can_ship = (
-            detail.order.status == "FULFILLING"
+            detail.order.status in ("FULFILLING", "PARTIALLY_SHIPPED")
             and can_perform_mall_audit_action(
                 user, MallAuditActionType.ORDER_SHIP
             )
@@ -9303,6 +9303,7 @@ def fulfill_mall_order_route(
     )
 
 
+@app.post("/mall-orders/{order_public_id}/parcel")
 @app.post("/mall-orders/{order_public_id}/ship")
 def ship_mall_order_route(
     request: Request,
@@ -9310,6 +9311,8 @@ def ship_mall_order_route(
     shipping_carrier: str = Form(""),
     tracking_number: str = Form(""),
     csrf_token: str = Form(""),
+    item_ids: list[int] = Form(default=[]),
+    amounts: list[int] = Form(default=[]),
 ):
     user = get_current_user(request)
     if user is None:
@@ -9333,8 +9336,14 @@ def ship_mall_order_route(
             status_code=303,
         )
     try:
+        quantities = None
+        if request.url.path.endswith("/parcel"):
+            if (not item_ids or len(item_ids) != len(amounts) or len(set(item_ids)) != len(item_ids)
+                    or any(amount < 0 for amount in amounts)):
+                raise ValueError("请核对包裹商品和数量")
+            quantities = {key: qty for key, qty in zip(item_ids, amounts) if qty}
         execute_order_shipping(
-            engine,
+            engine, quantities=quantities,
             actor_admin_id=user.id,
             order_public_id=order_public_id,
             shipping_carrier=shipping_carrier,

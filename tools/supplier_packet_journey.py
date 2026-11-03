@@ -9,6 +9,57 @@ from tools.activated_order_journey import SKU
 from tools.rehearse_member_fulfillment import ADDRESS, FormFields, admin_action, api
 
 
+def check_order_waybill(admin, member, oid, expected_items):
+    """Register one cup and two tea bags under the same redemption order."""
+    from app.database import SessionLocal
+    from app.models import Order, OrderItem
+
+    path = "/mall-orders/" + oid
+    page = admin.get(path)
+    assert page.status_code == 200
+    csrf = FormFields(page.text, path + "/parcel").values["csrf_token"]
+    with SessionLocal() as db:
+        order = db.query(Order).filter_by(order_public_id=oid).one()
+        lines = {line.product_name_snapshot: line.id for line in db.query(OrderItem).filter_by(order_id=order.id)}
+    cup, tea = lines["会员测试杯"], lines["测试茶包"]
+
+    def post(suffix, **data):
+        res = admin.post(path + suffix, data=dict(csrf_token=csrf, **data))
+        assert res.status_code == 303
+        return parse_qs(urlsplit(res.headers["location"]).query)
+
+    def ship(number, ids, amounts):
+        return post("/parcel", shipping_carrier="联调物流", tracking_number=number, item_ids=ids, amounts=amounts)
+
+    assert "error" in post("/ship", shipping_carrier="联调物流", tracking_number="ALL")
+    assert "error" in ship("MIXED", [cup, tea], [1, 1])
+    assert "message" in ship("PARCEL-A", [cup], [1])
+    assert "message" in ship("PARCEL-A", [cup], [1])
+    assert "error" in ship("OVER", [cup], [1])
+    assert "error" in ship("PARCEL-A", [tea], [2])
+    partial = api(member, "GET", "/orders/" + oid)
+    listing = api(member, "GET", "/orders")
+    assert next(i for i in listing["items"] if i["order_public_id"] == oid)["status"] == "PARTIALLY_SHIPPED"
+    assert partial["status"] == "PARTIALLY_SHIPPED" and len(partial["parcels"]) == 1
+    assert partial["parcels"][0]["items"] == [dict(product_name="会员测试杯", sku_name="标准款", quantity=1)]
+    assert "部分发货" in admin.get(path).text
+    # Reload after rendering the page so its form token matches the current cookie.
+    csrf = FormFields(admin.get(path).text, path + "/parcel").values["csrf_token"]
+    assert "message" in ship("PARCEL-B", [tea], [2])
+    assert "message" in ship("PARCEL-A", [cup], [1])
+    shipped = api(member, "GET", "/orders/" + oid)
+    assert shipped["status"] == "SHIPPED" and shipped["order_public_id"] == oid
+    assert [p["tracking_number"] for p in shipped["parcels"]] == ["PARCEL-A", "PARCEL-B"]
+    assert shipped["parcels"][1]["items"] == [dict(product_name="测试茶包", sku_name="独立装", quantity=2)]
+    assert all("supplier" not in str(parcel) for parcel in shipped["parcels"])
+    assert {i["product_name"]: i["quantity"] for i in shipped["items"]} == expected_items
+    admin_action(admin, path, path + "/complete")
+    assert api(member, "GET", "/orders/" + oid)["status"] == "COMPLETED"
+    return dict(order_count=1, parcel_count=2, quantities=[1, 2], first_status=partial["status"],
+                final_shipping_status=shipped["status"], duplicate_replay=True, mixed_suppliers_rejected=True,
+                overshipment_rejected=True, completion_verified=True)
+
+
 def check_supplier_packets(admin, member, profile, first_product):
     from app.database import SessionLocal
     from app.mall.catalog_service import (create_product, create_product_sku, create_supplier,
@@ -137,9 +188,15 @@ def check_supplier_packets(admin, member, profile, first_product):
         cached = db.query(Order).filter_by(order_public_id=oid).one()
     denied(second_id)
     verify(first_id, cup)
-    admin_action(admin, path, path + "/ship", shipping_carrier="联调物流", tracking_number="SPLIT-TEST-01")
-    assert api(member, "GET", "/orders/" + oid)["status"] == "SHIPPED"
+    # Restore eligibility before probing shipping so the second waybill failure
+    # cannot be attributed to the supplier being disabled.
+    with SessionLocal() as db:
+        update_supplier(db, actor_admin_id=actor, supplier_id=second_pk, is_active=True)
+        db.commit()
+    verify(second_id, tea)
+    shipping = check_order_waybill(admin, member, oid, {cup["product_name"]: 1, tea["product_name"]: 2})
     denied(first_id, cached)
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
+                shipping=shipping,
                 outsider_denied=True, catalog_reassignment_isolated=True, revoked_profile_denied=True,
                 inactive_supplier_denied=True, stale_order_denied=True, other_operator_confirmation_denied=True, operator_prepare_and_handoff_checked=True, external_dispatch=False)

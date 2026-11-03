@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-03",
+  "baseline": "d83b1b2c4b8066d0068ed223cfac5884dae91b4b",
+  "before": {
+    "scope": "whole_order",
+    "member_status": "SHIPPED",
+    "item_quantities": [
+      1,
+      2
+    ],
+    "second_waybill_rejected": true,
+    "first_waybill_preserved": true,
+    "shipment_audit_count": 1
+  },
+  "after": {
+    "order_count": 1,
+    "parcel_count": 2,
+    "quantities": [
+      1,
+      2
+    ],
+    "first_status": "PARTIALLY_SHIPPED",
+    "final_shipping_status": "SHIPPED",
+    "duplicate_replay": true,
+    "mixed_suppliers_rejected": true,
+    "overshipment_rejected": true,
+    "completion_verified": true
+  },
+  "local_http": true,
+  "synthetic_wechat_identity": true,
+  "real_supplier_dispatch": false,
+  "platform_review": false,
+  "legacy_upgrade_copy": {
+    "previous_revision": "0014_order_privacy",
+    "copy_revision": "0015_order_parcels",
+    "existing_tables_unchanged": true,
+    "source_unchanged": true,
+    "old_completed_waybill_visible_on_both_sides": true,
+    "invented_parcels": 0
+  },
+  "schema_revision": "0015_order_parcels",
+  "real_database_unchanged": true,
+  "full_tests": 794,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "final_shipping_replay_regression_tests": 80,
+  "dedicated_pg_tests": 46,
+  "offline_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 33.31
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.55
+    }
+  },
+  "evidence_sha256": {
+    "before.json": "0515ae4e7e3cf89c87a04f55de9718ba672052b0b25d1dd78f375cd8570f0d91",
+    "journey-final.json": "456b2d4b6e1f1a5c7feec92ab27ce0ba7f4260bddee65a048c56a3074b9986aa",
+    "full-final.stderr.txt": "53dcf6364e1b98e87129110d243c9ff914c0b1e51c5e7c8ee8f09298022d9aff",
+    "final-shipping.stderr.txt": "562de202ec3455ad11ab99b555be48be3da904c3575428f79d2b840a252e3604",
+    "orders-pg.stderr.txt": "0e57bb032997b6ea1bf3ceaa271c81a3c38cac694e4a68b92972a238be418496",
+    "legacy-result.json": "b49fc1a93f6d71b1040544d3963eadd6716fa6b347c42b10c7a1d7476b26b115",
+    "checks-result.json": "11e5166a9482459b67eeabaadbb9f5dda9ef1f9a83077a4ab22df4b3bc007472",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}

@@ -1996,3 +1996,22 @@ class OrderFulfillmentNotice(Base):
     order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
     digest = Column(String(64), nullable=False)
     payload = Column(Text, nullable=False)
+
+
+class OrderParcel(Base):
+    __tablename__ = "order_parcels"
+    __table_args__ = (UniqueConstraint("carrier", "tracking_number", name="uq_parcel_waybill"),)
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    carrier = Column(String(100), nullable=False)
+    tracking_number = Column(String(100), nullable=False)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    shipped_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class OrderParcelItem(Base):
+    __tablename__ = "order_parcel_items"
+    __table_args__ = (CheckConstraint("quantity > 0", name="ck_parcel_item_positive"),)
+    parcel_id = Column(Integer, ForeignKey("order_parcels.id"), primary_key=True)
+    item_id = Column(Integer, ForeignKey("order_items.id"), primary_key=True)
+    quantity = Column(Integer, nullable=False)

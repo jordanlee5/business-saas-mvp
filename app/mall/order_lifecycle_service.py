@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..time_utils import UTC8_TIMEZONE, utc8_now
+from .order_parcels import PARTIAL, record_parcel
 from .audit import MallAuditActionType
 from .order_fulfillment_service import (
     _validate_fulfillment_audit,
@@ -33,8 +34,9 @@ class OrderShippingResult:
     shipping_carrier: str
     tracking_number: str
     shipped_at: datetime
-    action_log_id: int
+    action_log_id: int | None
     replayed: bool
+    parcel_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -246,10 +248,11 @@ def ship_fulfilling_order(
     order_public_id,
     shipping_carrier,
     tracking_number,
+    quantities=None,
     now=None,
 ) -> OrderShippingResult:
     """把 FULFILLING 订单原子推进到 SHIPPED；调用方负责提交。"""
-    from ..models import AdminActionLog, Order
+    from ..models import AdminActionLog, Order, OrderParcel
 
     normalized_order_public_id = _normalize_required_text(
         order_public_id,
@@ -292,6 +295,13 @@ def ship_fulfilling_order(
         order=order,
         expect_completed=False,
     )
+    if transition.replayed and (quantities is not None or db.query(OrderParcel.id).filter_by(order_id=order.id).first()):
+        # Replay a specific earlier parcel without treating its number as the final waybill.
+        parcel, _, _ = record_parcel(db, order, actor, normalized_carrier, normalized_tracking_number,
+                                     quantities, operation_time)
+        log = _validate_shipping_evidence(db, order=order, expect_shipped=True)
+        return OrderShippingResult(order.id, order.order_public_id, order.status, parcel.carrier,
+                                   parcel.tracking_number, parcel.shipped_at, log.id, True, parcel.id)
     if transition.replayed:
         shipping_log = _validate_shipping_evidence(
             db,
@@ -318,17 +328,11 @@ def ship_fulfilling_order(
     )
     if _time_key(operation_time) < _time_key(fulfillment_log.created_at):
         raise ValueError("发货时间不能早于确认履约时间")
-    conflicting_order = (
-        db.query(Order.id)
-        .filter(
-            Order.id != order.id,
-            Order.shipping_carrier == normalized_carrier,
-            Order.tracking_number == normalized_tracking_number,
-        )
-        .one_or_none()
-    )
-    if conflicting_order is not None:
-        raise ValueError("物流公司与运单号已用于其他订单")
+    parcel, replayed, complete = record_parcel(db, order, actor, normalized_carrier,
+                                               normalized_tracking_number, quantities, operation_time)
+    if not complete:
+        return OrderShippingResult(order.id, order.order_public_id, PARTIAL, parcel.carrier,
+                                   parcel.tracking_number, parcel.shipped_at, None, replayed, parcel.id)
 
     order.shipping_carrier = normalized_carrier
     order.tracking_number = normalized_tracking_number

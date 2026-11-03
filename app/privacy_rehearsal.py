@@ -18,7 +18,7 @@ from .database import create_database_engine
 from .models import Order, OrderPrivacyReceipt
 from .order_delivery_migration_check import connect_readonly, snapshot, file_fingerprints
 from .mall.order_privacy import validate_policy, preview, clear_snapshot, export_receipts, restore_receipts
-from .schema_readiness import assert_database_schema_ready
+from .schema_readiness import CURRENT_SCHEMA_REVISION, assert_database_schema_ready
 from .time_utils import utc8_now
 
 
@@ -32,13 +32,13 @@ def rehearse(source, output, policy, reviews, now=None, receipt_journal=None):
     copied = output / 'rehearsal.db'
     with closing(connect_readonly(source)) as connection:
         before = snapshot(connection)
-        if before['revision'] not in ('0013_order_delivery_snapshot', '0014_order_privacy'):
+        if before['revision'] not in ('0013_order_delivery_snapshot', '0014_order_privacy', CURRENT_SCHEMA_REVISION):
             raise ValueError('源库版本不支持')
         with closing(sqlite3.connect(copied)) as target:
             connection.backup(target)
     config = Config(str(Path(__file__).resolve().parents[1] / 'alembic.ini'))
     config.attributes['database_url'] = 'sqlite:///' + copied.as_posix()
-    command.upgrade(config, '0014_order_privacy')
+    command.upgrade(config, CURRENT_SCHEMA_REVISION)
     engine = create_database_engine(config.attributes['database_url'])
     try:
         assert_database_schema_ready(engine)

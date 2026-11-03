@@ -30,7 +30,14 @@ export function resetDemo(){addresses=[copy(address)];orders=[];next=1;scenario=
 export function advance(id){const o=orders.find(x=>x.order_public_id===id);if(!o)return;
  const total=Number(o.total_points);
  if(o.status==='CREATED'){o.status='FULFILLING';movement('CONSUME',0,-total);}
- else if(o.status==='FULFILLING'){o.status='SHIPPED';o.shipping_carrier='演示物流';o.tracking_number='DEMO-NOT-A-REAL-PARCEL';}
+ else if(o.status==='FULFILLING'||o.status==='PARTIALLY_SHIPPED'){
+   const groups=o.fulfillment.suppliers;
+   const parcels=o.parcels||(o.parcels=[]);
+   const items=groups[parcels.length].items.map(({product_name,sku_name,quantity})=>({product_name,sku_name,quantity}));
+   parcels.push({carrier:'演示物流',tracking_number:'DEMO-PARCEL-'+(parcels.length+1),items});
+   o.status=parcels.length<groups.length?'PARTIALLY_SHIPPED':'SHIPPED';
+   if(groups.length===1){o.shipping_carrier=parcels[0].carrier;o.tracking_number=parcels[0].tracking_number;}
+ }
  else if(o.status==='SHIPPED')o.status='COMPLETED';
  else if(o.status==='COMPLETED'){o.status='REFUNDED';movement('REFUND',total,0);}
 }

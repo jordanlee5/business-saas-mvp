@@ -4,12 +4,13 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0014_order_privacy"
+CURRENT_SCHEMA_REVISION = "0015_order_parcels"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
         "members",
         "order_delivery_snapshots",
+        "order_parcels", "order_parcel_items",
         "order_privacy_receipts",
         "order_fulfillment_notices",
         "member_addresses",
@@ -50,6 +51,8 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "order_parcels": frozenset({"order_id","actor_id","carrier","tracking_number","shipped_at"}),
+    "order_parcel_items": frozenset({"parcel_id","item_id","quantity"}),
     'order_privacy_receipts': frozenset({'order_id', 'request_digest', 'policy_version', 'cleared_at'}),
     'order_fulfillment_notices': frozenset({'order_id', 'digest', 'payload'}),
     'order_delivery_snapshots': frozenset({'order_id','address_public_id','request_digest','recipient_name','phone','province','city','district','detail'}),

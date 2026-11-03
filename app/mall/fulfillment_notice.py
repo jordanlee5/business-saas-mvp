@@ -103,7 +103,8 @@ def supplier_packet(db, order, supplier_public_id):
     The caller must enforce operator authorization and record actual provision.
     This function alone does not send or grant a supplier access to information.
     """
-    from ..models import Order, OrderDeliverySnapshot, OrderPrivacyReceipt
+    from sqlalchemy import func
+    from ..models import Order, OrderDeliverySnapshot, OrderPrivacyReceipt, OrderParcelItem
     config = settings()
     profile = config and config['suppliers'].get(supplier_public_id)
     if not profile or not profile['enabled']:
@@ -111,10 +112,13 @@ def supplier_packet(db, order, supplier_public_id):
     # Read eligibility and packet fields together. Do not trust the status on
     # the caller's Order instance or use a SKU's present-day supplier.
     address_fields = ('recipient_name', 'phone', 'province', 'city', 'district', 'detail')
+    sent = (db.query(func.coalesce(func.sum(OrderParcelItem.quantity), 0))
+            .filter(OrderParcelItem.item_id == OrderItem.id).correlate(OrderItem).scalar_subquery())
+    remaining = OrderItem.quantity - sent
     rows = (
         db.query(Order.order_public_id, OrderFulfillmentNotice.payload,
                  *(getattr(OrderDeliverySnapshot, field) for field in address_fields),
-                 OrderItem.product_name_snapshot, OrderItem.sku_name_snapshot, OrderItem.quantity)
+                 OrderItem.product_name_snapshot, OrderItem.sku_name_snapshot, remaining.label("quantity"))
         .select_from(Order)
         .join(OrderItem, OrderItem.order_id == Order.id)
         .join(Supplier, Supplier.id == OrderItem.supplier_id)
@@ -124,7 +128,7 @@ def supplier_packet(db, order, supplier_public_id):
         .filter(Order.id == order.id, Order.status == 'FULFILLING',
                 Supplier.is_active.is_(True), Supplier.supplier_public_id == supplier_public_id,
                 OrderItem.supplier_public_id_snapshot == supplier_public_id,
-                OrderPrivacyReceipt.order_id.is_(None))
+                OrderPrivacyReceipt.order_id.is_(None), remaining > 0)
         .order_by(OrderItem.id)
         .all()
     )

@@ -265,6 +265,40 @@ class MemberOrderTests(unittest.TestCase):
             log = db.query(AdminActionLog).filter_by(action_type=CONFIRM.value).one()
             self.assertEqual((log.target_id, log.description, log.admin_id), (receipt, supplier, args[1]))
 
+    def test_two_waybills_split_one_sku_and_retries_do_not_overship(self):
+        from app.mall.order_lifecycle_service import execute_order_shipping, execute_order_completion
+        from app.models import OrderItem
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        with Session(self.f.engine) as db:
+            item_id = db.query(OrderItem.id).join(Order).filter(Order.order_public_id == oid).scalar()
+        args = dict(actor_admin_id=self.f.operator.id, order_public_id=oid)
+        def ship(number, quantity=1):
+            return execute_order_shipping(self.f.engine, **args, shipping_carrier='测试',
+                                          tracking_number=number, quantities={item_id: quantity})
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            results = list(workers.map(ship, ['A', 'A']))
+        self.assertEqual(sorted(x.replayed for x in results), [False, True])
+        with self.assertRaises(ValueError):
+            execute_order_completion(self.f.engine, **args)
+        with self.assertRaises(ValueError):
+            ship('B', 2)
+        ordered = self.call('GET', '/' + oid).json()
+        self.assertEqual((ordered['status'], len(ordered['parcels'])), ('PARTIALLY_SHIPPED', 1))
+        from app.mall.fulfillment_notice import supplier_packet
+        with Session(self.f.engine) as db:
+            order = db.query(Order).filter_by(order_public_id=oid).one()
+            packet = supplier_packet(db, order, self.f.supplier.supplier_public_id)
+            self.assertEqual(packet['items'][0]['quantity'], 1)
+        self.assertEqual(ship('B').status, 'SHIPPED')
+        self.assertTrue(ship('A').replayed)
+        with self.assertRaises(ValueError):
+            # The last parcel's number does not describe all units in this order.
+            execute_order_shipping(self.f.engine, **args, shipping_carrier='测试', tracking_number='B')
+        final = self.call('GET', '/' + oid).json()
+        self.assertEqual([p['items'][0]['quantity'] for p in final['parcels']], [1, 1])
+        self.assertEqual([p['tracking_number'] for p in final['parcels']], ['A','B'])
+
     def test_disabled_actor_cannot_prepare_or_attest(self):
         from app.mall.supplier_handoff import handle_packet, packet_history
         from app.models import User
