@@ -1,9 +1,12 @@
 """Check per-supplier packet preparation inside the isolated activation rehearsal."""
 import json
 import secrets
+from urllib.parse import urlsplit, parse_qs
+
+import httpx
 
 from tools.activated_order_journey import SKU
-from tools.rehearse_member_fulfillment import ADDRESS, admin_action, api
+from tools.rehearse_member_fulfillment import ADDRESS, FormFields, admin_action, api
 
 
 def check_supplier_packets(admin, member, profile, first_product):
@@ -70,6 +73,49 @@ def check_supplier_packets(admin, member, profile, first_product):
     verify(second_id, tea)
     denied(outside_id)
 
+    prepare = f"{path}/supplier-packets/{first_id}/prepare"
+    confirm = f"{path}/supplier-packets/{first_id}/confirm"
+    def form(action):
+        page = admin.get(path)
+        assert page.status_code == 200
+        return FormFields(page.text, action).values
+    def denied_post(action, data):
+        result = admin.post(action, data=data)
+        assert result.status_code == 303 and "error" in parse_qs(urlsplit(result.headers["location"]).query)
+    denied_post(prepare, {})
+    fields = form(prepare)
+    denied_post(f"{path}/supplier-packets/{outside_id}/prepare", fields)
+    view = admin.post(prepare, data=fields)
+    assert view.status_code == 200 and "no-store" in view.headers["cache-control"]
+    assert cup["product_name"] in view.text and tea["product_name"] not in view.text
+    assert "尚无交付登记" in admin.get(path).text
+    fields = form(confirm)
+    # A second authorized operator can prepare their own packet, but cannot
+    # attest to what the first operator did, even with a valid form token.
+    from app.admin_permissions import OPERATOR
+    from app.auth import get_password_hash
+    password = secrets.token_urlsafe(24)
+    with SessionLocal() as db:
+        db.add(User(username="test-handoff-peer", role="admin", admin_level=OPERATOR,
+                    password_hash=get_password_hash(password), is_active=True))
+        db.commit()
+    with httpx.Client(base_url=admin.base_url, trust_env=False) as peer:
+        guest = peer.post(prepare, data={})
+        assert guest.status_code == 302 and guest.headers["location"] == "/login"
+        login = peer.post("/login", data=dict(username="test-handoff-peer", password=password))
+        assert login.status_code == 302 and login.headers["location"] == "/dashboard"
+        peer_page = peer.get(path)
+        assert not FormFields(peer_page.text, confirm).values
+        peer_token = FormFields(peer_page.text, prepare).values["csrf_token"]
+        forged = peer.post(confirm, data=dict(fields, csrf_token=peer_token, confirmed="yes"))
+        assert forged.status_code == 303 and "error" in parse_qs(urlsplit(forged.headers["location"]).query)
+    denied_post(confirm, fields)
+    denied_post(f"{path}/supplier-packets/{second_id}/confirm", dict(fields, confirmed="yes"))
+    for _ in range(2):
+        result = admin.post(confirm, data=dict(fields, confirmed="yes"))
+        assert result.status_code == 303 and result.headers["location"] == path
+    assert admin.get(path).text.count("经办人已登记线下交付") == 1
+
     # A current catalog reassignment must not change who fulfills this order.
     with SessionLocal() as db:
         update_product_sku(db, actor_admin_id=actor, sku_id=sku_pk, supplier_id=outside_pk,
@@ -96,4 +142,4 @@ def check_supplier_packets(admin, member, profile, first_product):
     denied(first_id, cached)
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
                 outsider_denied=True, catalog_reassignment_isolated=True, revoked_profile_denied=True,
-                inactive_supplier_denied=True, stale_order_denied=True, external_dispatch=False)
+                inactive_supplier_denied=True, stale_order_denied=True, other_operator_confirmation_denied=True, operator_prepare_and_handoff_checked=True, external_dispatch=False)

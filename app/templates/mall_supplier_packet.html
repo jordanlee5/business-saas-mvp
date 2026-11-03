@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>备货资料</h1>
+<p>准备记录 #{{ receipt }} · 供应商 {{ supplier }} · 订单 {{ packet.order_public_id }}</p>
+<p>{{ packet.address.recipient_name }} · {{ packet.address.phone }}<br>
+{{ packet.address.province }} {{ packet.address.city }} {{ packet.address.district }} {{ packet.address.detail }}</p>
+<ul>{% for item in packet['items'] %}<li>{{ item.product_name }} · {{ item.sku_name }} × {{ item.quantity }}</li>{% endfor %}</ul>
+<p>线下交付完成后，请回到订单详情登记。</p>
+<a href="{{ detail_url }}">返回订单详情</a>
+{% endblock %}

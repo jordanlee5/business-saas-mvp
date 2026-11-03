@@ -142,6 +142,7 @@ from .mall.order_reporting_service import (
     get_mall_order_detail,
     list_mall_orders,
 )
+from .mall.supplier_handoff import handle_packet, packet_history
 from .mall.order_fulfillment_service import execute_order_fulfillment
 from .mall.order_lifecycle_service import execute_order_completion, execute_order_shipping
 from .mall.order_refund_service import execute_order_refund
@@ -9150,6 +9151,9 @@ def mall_order_detail_page(
                 user, MallAuditActionType.ORDER_REFUND
             )
         )
+        history = packet_history(db, order_public_id)
+        can_prepare = can_ship and detail.delivery_address and not detail.delivery_cleared
+        packet_csrf = secrets.token_urlsafe(32) if can_prepare or history else ""
         csrf_token = secrets.token_urlsafe(32) if can_fulfill else ""
         cancel_csrf_token = secrets.token_urlsafe(32) if can_cancel else ""
         ship_csrf_token = secrets.token_urlsafe(32) if can_ship else ""
@@ -9160,6 +9164,8 @@ def mall_order_detail_page(
             context=add_base_context(request, {
                 "request": request, "page_title": "商城订单详情",
                 "active_page": "mall_orders", "detail": detail,
+                "packet_history": history, "can_prepare_packet": can_prepare,
+                "packet_csrf": packet_csrf, "packet_actor": user.id,
                 "can_fulfill_order": can_fulfill,
                 "can_cancel_order": can_cancel,
                 "order_cancel_csrf_token": cancel_csrf_token,
@@ -9175,6 +9181,9 @@ def mall_order_detail_page(
             }),
         )
         response.headers["Cache-Control"] = "no-store, private"
+        if packet_csrf:
+            response.set_cookie("mall_packet_csrf", packet_csrf, httponly=True, samesite="strict",
+                                secure=request.url.scheme == "https", path="/mall-orders")
         if can_fulfill:
             response.set_cookie(
                 "mall_order_fulfill_csrf", csrf_token,
@@ -9212,6 +9221,42 @@ def mall_order_detail_page(
         return response
     finally:
         db.close()
+
+
+@app.post("/mall-orders/{order_public_id}/supplier-packets/{supplier_public_id}/{operation}")
+def mall_supplier_packet_action(
+    request: Request, order_public_id: str, supplier_public_id: str, operation: str,
+    csrf_token: str = Form(""), preparation_id: int = Form(0), confirmed: str = Form(""),
+):
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=302)
+    if not user.is_active or not can_manage_mall_orders(user):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    detail_url = f"/mall-orders/{quote(order_public_id, safe='')}"
+    cookie = request.cookies.get("mall_packet_csrf", "")
+    try:
+        if len(cookie) < 32 or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
+            raise ValueError("表单已失效，请刷新详情重试")
+        if operation not in ("prepare", "confirm"):
+            raise ValueError("备货操作无效")
+        if operation == "confirm" and (preparation_id <= 0 or confirmed != "yes"):
+            raise ValueError("请先确认已在线下交付此份资料")
+        receipt, packet = handle_packet(
+            engine, user.id, order_public_id, supplier_public_id,
+            preparation_id=preparation_id if operation == "confirm" else None,
+        )
+    except (ValueError, PermissionError, RuntimeError) as exc:
+        return RedirectResponse(url=f"{detail_url}?{urlencode({'error': str(exc)})}", status_code=303)
+    if packet is None:
+        return RedirectResponse(url=detail_url, status_code=303)
+    return templates.TemplateResponse(
+        request=request, name="mall_supplier_packet.html",
+        context=add_base_context(request, {"request": request, "page_title": "备货资料",
+            "packet": packet, "supplier": supplier_public_id, "receipt": receipt,
+            "detail_url": detail_url}),
+        headers={"Cache-Control": "no-store, private"},
+    )
 
 
 @app.post("/mall-orders/{order_public_id}/fulfill")

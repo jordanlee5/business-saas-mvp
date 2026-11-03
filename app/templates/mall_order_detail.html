@@ -57,6 +57,30 @@
     </form>
   </div>
   {% endif %}
+  {% if can_prepare_packet %}
+  <h2>按供应商准备资料</h2>
+  {% for item in detail.items | unique(attribute='supplier_public_id') %}
+  <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/supplier-packets/{{ item.supplier_public_id | urlencode }}/prepare">
+    <input type="hidden" name="csrf_token" value="{{ packet_csrf }}">
+    <button class="btn btn-secondary" type="submit">准备资料 · {{ item.supplier_name }}（{{ item.supplier_public_id }}）</button>
+  </form>
+  {% endfor %}
+  {% endif %}
+  {% if packet_history %}
+  <h2>备货及交付记录</h2>
+  {% for row in packet_history %}
+    <p>#{{ row.id }} · {{ row.supplier }} · 经办人编号 {{ row.admin_id }} · {{ row.created_at | format_utc8 }} 准备
+    {% if row.confirmed_at %} · {{ row.confirmed_at | format_utc8 }} 经办人已登记线下交付{% else %} · 尚无交付登记{% endif %}</p>
+    {% if not row.confirmed_at and row.admin_id == packet_actor %}
+    <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/supplier-packets/{{ row.supplier | urlencode }}/confirm">
+      <input type="hidden" name="csrf_token" value="{{ packet_csrf }}">
+      <input type="hidden" name="preparation_id" value="{{ row.id }}">
+      <label><input type="checkbox" name="confirmed" value="yes" required>我已向该供应商线下交付这份备货资料</label>
+      <button class="btn btn-secondary" type="submit">登记交付</button>
+    </form>
+    {% endif %}
+  {% endfor %}
+  {% endif %}
   {% if can_ship_order %}
   <div class="ship">
     <h2>录入物流并发货</h2>

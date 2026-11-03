@@ -239,6 +239,49 @@ class MemberOrderTests(unittest.TestCase):
             with patch('app.mall.fulfillment_notice.settings',return_value=changed):
                 with self.assertRaises(ValueError):supplier_packet(db,order,self.f.supplier.supplier_public_id)
 
+    def test_preparation_and_manual_handoff_are_scoped_and_replay_safe(self):
+        from app.mall.supplier_handoff import handle_packet, packet_history, CONFIRM
+        from app.models import AdminActionLog
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        supplier = self.f.supplier.supplier_public_id
+        args = (self.f.engine, self.f.operator.id, oid)
+        receipt, packet = handle_packet(*args, supplier)
+        self.assertEqual(packet['address'], BODY)
+        with Session(self.f.engine) as db:
+            row, = packet_history(db, oid)
+            self.assertIsNone(row.confirmed_at)
+            self.assertEqual(row.supplier, supplier)
+        with self.assertRaises(ValueError):
+            handle_packet(*args, 'OTHER', preparation_id=receipt)
+        self.f.ship(oid)
+        def confirm(_):
+            return handle_packet(*args, supplier, preparation_id=receipt)
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            self.assertEqual(list(workers.map(confirm, range(2))), [(receipt, None)] * 2)
+        with Session(self.f.engine) as db:
+            row, = packet_history(db, oid)
+            self.assertIsNotNone(row.confirmed_at)
+            log = db.query(AdminActionLog).filter_by(action_type=CONFIRM.value).one()
+            self.assertEqual((log.target_id, log.description, log.admin_id), (receipt, supplier, args[1]))
+
+    def test_disabled_actor_cannot_prepare_or_attest(self):
+        from app.mall.supplier_handoff import handle_packet, packet_history
+        from app.models import User
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        args = (self.f.engine, self.f.operator.id, oid, self.f.supplier.supplier_public_id)
+        receipt, _ = handle_packet(*args)
+        with Session(self.f.engine) as db:
+            db.get(User, self.f.operator.id).is_active = False
+            db.commit()
+        for prep in (None, receipt):
+            with self.assertRaises(PermissionError):
+                handle_packet(*args, preparation_id=prep)
+        with Session(self.f.engine) as db:
+            row, = packet_history(db, oid)
+            self.assertIsNone(row.confirmed_at)
+
     def test_packet_denies_inactive_supplier_even_with_enabled_profile(self):
         from app.models import Supplier
         from app.mall.fulfillment_notice import supplier_packet

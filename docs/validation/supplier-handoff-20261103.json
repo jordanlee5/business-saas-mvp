@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-03",
+  "baseline": "52294a47d7d8e8598cf0136d6661c2f4c42a2127",
+  "transport": "loopback_http",
+  "wechat_exchange": "synthetic_one_use_codes",
+  "packet_checks": {
+    "participating_suppliers": 2,
+    "authorized_quantities": [
+      1,
+      2
+    ],
+    "order_address_snapshot": true,
+    "outsider_denied": true,
+    "catalog_reassignment_isolated": true,
+    "revoked_profile_denied": true,
+    "inactive_supplier_denied": true,
+    "stale_order_denied": true,
+    "other_operator_confirmation_denied": true,
+    "operator_prepare_and_handoff_checked": true,
+    "external_dispatch": false
+  },
+  "full_tests": 792,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_postgresql_tests": 45,
+  "tested_on_both_databases": [
+    "disabled_actor_rejected",
+    "concurrent_confirmation_single_receipt",
+    "confirmation_after_shipping"
+  ],
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.73
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 32.73
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 5.62
+    }
+  },
+  "guest_smoke_checks": 5,
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "evidence_sha256": {
+    "journey-final.json": "59c1d8a4af63bd6fbd87581dee9613f9489a0a58c7d3a4f3a9f841c8bdaded04",
+    "full.stderr.txt": "decb5fec1450a012a1fe8a772f0d1747b1a550403b6f61b39a89f19b6724311d",
+    "orders-pg.stderr.txt": "1d51285cdc547885798121492753f8d2e1676b8cb426b0f7c902b0d6c5ec1336",
+    "checks-result.json": "6b5fad968041b2e0f7e5dc26f8396d569be268982ffdb5b44aba9c087628946e",
+    "runtime-result.json": "b5ee229eeb70c454244bd1d4cfbc1631a354757196e486d151d584bcb6c74cf5"
+  }
+}

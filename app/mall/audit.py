@@ -19,6 +19,8 @@ class MallAuditActionType(str, Enum):
     INVENTORY_ADJUST = "mall_inventory_adjust"
     ORDER_FULFILL = "mall_order_fulfill"
     ORDER_CANCEL = "mall_order_cancel"
+    PACKET_PREPARE = "mall_packet_prepare"
+    PACKET_HANDOFF = "mall_packet_handoff_confirm"
     ORDER_SHIP = "mall_order_ship"
     ORDER_COMPLETE = "mall_order_complete"
     ORDER_REFUND = "mall_order_refund"
