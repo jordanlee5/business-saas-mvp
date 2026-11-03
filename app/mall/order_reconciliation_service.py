@@ -7,6 +7,7 @@ from sqlalchemy import or_
 
 from .domain import SupplierSettlementStatus
 from .inventory_service import assert_inventory_balance_consistent
+from .order_parcels import verify_completed_parcels
 from .order_lifecycle_service import (
     ORDER_COMPLETED_STATUS,
     _load_and_validate_fulfillment_evidence,
@@ -80,6 +81,7 @@ def reconcile_completed_order(db, *, order_public_id) -> CompletedOrderReconcili
         _load_and_validate_fulfillment_evidence(db, order=order)
         _validate_shipping_evidence(db, order=order, expect_shipped=True)
         _validate_completion_evidence(db, order=order, expect_completed=True)
+        verify_completed_parcels(db, (order,))
 
         account = db.query(PointsAccount).filter(
             PointsAccount.member_id == order.member_id

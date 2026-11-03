@@ -69,6 +69,27 @@ class CompletedOrderReconciliationTests(unittest.TestCase):
         self.assertEqual(len(result.lines), 2)
         self.assertTrue(all(line.settlement_status is None for line in result.lines))
 
+    def test_parcel_quantity_mismatch_blocks_reconciliation_and_batch_generation(self):
+        from app.models import OrderParcelItem, SupplierSettlementBatch
+        public_id = self.completed_order()
+        with self.fixture.Session.begin() as db:
+            line = db.query(OrderParcelItem).first()
+            line.quantity += 1
+        with self.assertRaisesRegex(ValueError, "包裹"):
+            self.reconcile(public_id)
+        with self.assertRaisesRegex(ValueError, "包裹"):
+            self.generate()
+        with self.fixture.Session() as db:
+            self.assertEqual(db.query(SupplierSettlementBatch).count(), 0)
+
+    def test_legacy_order_without_parcels_can_still_reconcile(self):
+        from app.models import OrderParcelItem, OrderParcel
+        public_id = self.completed_order()
+        with self.fixture.Session.begin() as db:
+            db.query(OrderParcelItem).delete()
+            db.query(OrderParcel).delete()
+        self.assertEqual(self.reconcile(public_id).unbatched_cost_amount, Decimal("29.00"))
+
     def test_pending_then_confirmed_batch_matches_every_order_item(self):
         public_id = self.completed_order()
         batch = self.generate()

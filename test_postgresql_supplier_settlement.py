@@ -20,6 +20,8 @@ from app.models import (
     Member,
     Order,
     OrderItem,
+    OrderParcel,
+    OrderParcelItem,
     Product,
     ProductCategory,
     ProductSku,
@@ -191,6 +193,13 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     created_at=PERIOD_START,
                 )
                 db.add(order_item)
+                db.flush()
+                for tracking in ("SF-PG-FIRST", order.tracking_number):
+                    parcel = OrderParcel(order_id=order.id, carrier=order.shipping_carrier,
+                                         tracking_number=tracking, actor_id=operator.id, shipped_at=order.shipped_at)
+                    db.add(parcel)
+                    db.flush()
+                    db.add(OrderParcelItem(parcel_id=parcel.id, item_id=order_item.id, quantity=1))
                 db.commit()
                 operator_id = operator.id
                 super_admin_id = super_admin.id
@@ -249,6 +258,16 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                     1,
                 )
                 settlement_public_id = batch.settlement_public_id
+
+            with Session.begin() as db:
+                db.query(OrderParcelItem).order_by(OrderParcelItem.parcel_id).first().quantity = 2
+            with self.assertRaisesRegex(ValueError, "包裹"):
+                execute_supplier_settlement_confirmation(
+                    engine, actor_admin_id=super_admin_id, settlement_public_id=settlement_public_id, now=NOW)
+            with Session.begin() as db:
+                self.assertEqual(db.query(SupplierSettlementBatch).one().status, "PENDING_CONFIRMATION")
+                self.assertEqual(db.query(AdminActionLog).filter_by(action_type="mall_supplier_settlement_confirm").count(), 0)
+                db.query(OrderParcelItem).order_by(OrderParcelItem.parcel_id).first().quantity = 1
 
             confirmation_barrier = Barrier(2)
 
@@ -318,6 +337,8 @@ class PostgreSQLSupplierSettlementIntegrationTests(unittest.TestCase):
                         connection.execute(
                             SupplierSettlementBatch.__table__.delete()
                         )
+                        connection.execute(OrderParcelItem.__table__.delete())
+                        connection.execute(OrderParcel.__table__.delete())
                         connection.execute(OrderItem.__table__.delete())
                         connection.execute(Order.__table__.delete())
                 finally:

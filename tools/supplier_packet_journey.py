@@ -6,6 +6,7 @@ from urllib.parse import urlsplit, parse_qs
 import httpx
 
 from tools.activated_order_journey import SKU
+from tools.parcel_settlement_journey import check_settlements, verify_resources
 from tools.rehearse_member_fulfillment import ADDRESS, FormFields, admin_action, api
 
 
@@ -41,6 +42,7 @@ def check_order_waybill(admin, member, oid, expected_items):
     listing = api(member, "GET", "/orders")
     assert next(i for i in listing["items"] if i["order_public_id"] == oid)["status"] == "PARTIALLY_SHIPPED"
     assert partial["status"] == "PARTIALLY_SHIPPED" and len(partial["parcels"]) == 1
+    verify_resources(member, oid)
     assert partial["parcels"][0]["items"] == [dict(product_name="会员测试杯", sku_name="标准款", quantity=1)]
     assert "部分发货" in admin.get(path).text
     # Reload after rendering the page so its form token matches the current cookie.
@@ -49,6 +51,7 @@ def check_order_waybill(admin, member, oid, expected_items):
     assert "message" in ship("PARCEL-A", [cup], [1])
     shipped = api(member, "GET", "/orders/" + oid)
     assert shipped["status"] == "SHIPPED" and shipped["order_public_id"] == oid
+    verify_resources(member, oid)
     assert [p["tracking_number"] for p in shipped["parcels"]] == ["PARCEL-A", "PARCEL-B"]
     assert shipped["parcels"][1]["items"] == [dict(product_name="测试茶包", sku_name="独立装", quantity=2)]
     assert all("supplier" not in str(parcel) for parcel in shipped["parcels"])
@@ -76,7 +79,7 @@ def check_supplier_packets(admin, member, profile, first_product):
         outsider = create_supplier(db, actor_admin_id=actor, name="联调第三供应商").entity
         product = create_product(db, actor_admin_id=actor, category_id=category_id, name="测试茶包").entity
         sku = create_product_sku(db, actor_admin_id=actor, product_id=product.id, supplier_id=second.id,
-                                 sku_code="TEA-TEST", name="独立装", points_price="4.00", cost_price="1.00").entity
+                                 sku_code="TEA-TEST", name="独立装", points_price="4.00", cost_price="1.50").entity
         publish_product(db, actor_admin_id=actor, product_id=product.id)
         for supplier in (second, outsider):
             config["suppliers"][supplier.supplier_public_id] = dict(enabled=True, name=supplier.name,
@@ -170,7 +173,7 @@ def check_supplier_packets(admin, member, profile, first_product):
     # A current catalog reassignment must not change who fulfills this order.
     with SessionLocal() as db:
         update_product_sku(db, actor_admin_id=actor, sku_id=sku_pk, supplier_id=outside_pk,
-                           name="后续规格")
+                           name="后续规格", cost_price="9.99")
         db.commit()
     verify(second_id, tea)
     denied(outside_id)
@@ -196,7 +199,8 @@ def check_supplier_packets(admin, member, profile, first_product):
     verify(second_id, tea)
     shipping = check_order_waybill(admin, member, oid, {cup["product_name"]: 1, tea["product_name"]: 2})
     denied(first_id, cached)
+    settlement = check_settlements(admin, member, oid, (first_id, second_id, outside_id))
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
-                shipping=shipping,
+                shipping=shipping, settlement=settlement,
                 outsider_denied=True, catalog_reassignment_isolated=True, revoked_profile_denied=True,
                 inactive_supplier_denied=True, stale_order_denied=True, other_operator_confirmation_denied=True, operator_prepare_and_handoff_checked=True, external_dispatch=False)

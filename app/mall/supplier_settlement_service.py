@@ -212,6 +212,7 @@ def _confirmation_description(batch):
 
 
 def _validate_source_evidence(db, *, batch, items):
+    from .order_parcels import verify_completed_parcels
     from ..models import Order, OrderItem
 
     order_item_ids = tuple(item.order_item_id for item in items)
@@ -228,6 +229,7 @@ def _validate_source_evidence(db, *, batch, items):
     )
     if len(source_rows) != len(items):
         raise RuntimeError("供应商结算来源订单项不完整")
+    verify_completed_parcels(db, (order for _, order in source_rows))
     source_by_item_id = {
         source_item.id: (source_item, order)
         for source_item, order in source_rows
