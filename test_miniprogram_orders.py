@@ -49,6 +49,101 @@ class MemberOrderTests(unittest.TestCase):
     def place(self):
         r=self.call('POST',body=self.body);self.assertEqual(r.status_code,201,r.text);return r.json()
 
+    def test_beijing_month_boundary_september_then_october(self):
+        self._check_adjacent_settlement_months([9, 10])
+
+    def test_beijing_month_boundary_october_then_september(self):
+        self._check_adjacent_settlement_months([10, 9])
+
+    def _check_adjacent_settlement_months(self, months):
+        from datetime import datetime, timedelta, timezone
+        from io import BytesIO
+        from secrets import token_urlsafe
+        from urllib.parse import parse_qs, urlsplit
+        from openpyxl import load_workbook
+        from app.admin_permissions import SUPER_ADMIN
+        from app.auth import get_password_hash
+        from app.main import app
+        from app.mall import OrderLineRequest
+        from app.models import SupplierSettlementItem, User
+        from app.time_utils import UTC8_TIMEZONE
+        from tools.rehearse_member_fulfillment import FormFields
+
+        f = self.f
+        midnight = datetime(2026, 10, 1, tzinfo=UTC8_TIMEZONE)
+        expected = {9: {}, 10: {}}
+        for offset, sku, qty in [(-1, f.sku_one, 1), (0, f.sku_two, 1), (1, f.sku_one, 2)]:
+            placed = f.place(key=f"boundary-{offset}", lines=[OrderLineRequest(sku.id, qty)])
+            oid = placed.order_public_id
+            f.fulfill(oid)
+            f.ship(oid, tracking_number=f"TEST-{placed.order_id}")
+            completed = midnight + timedelta(microseconds=offset)
+            f.complete(oid, now=completed.astimezone(timezone.utc))
+            expected[completed.month][oid] = (completed.replace(tzinfo=None), qty, qty * sku.cost_price)
+
+        periods = {9: ("2026-09-01T00:00", "2026-10-01T00:00"),
+                   10: ("2026-10-01T00:00", "2026-11-01T00:00")}
+        password = token_urlsafe(24)
+        with f.Session.begin() as db:
+            db.add(User(username="month-reviewer", password_hash=get_password_hash(password),
+                        role="admin", admin_level=SUPER_ADMIN, is_active=True))
+        clock = datetime(2026, 11, 2, 12)
+        client = TestClient(app, follow_redirects=False)
+        self.addCleanup(client.close)
+        with (patch("app.main.SessionLocal", f.Session), patch("app.main.engine", f.engine),
+              patch("app.mall.supplier_settlement_service.utc8_now", return_value=clock),
+              patch("app.mall.supplier_settlement_reporting_service.utc8_now", return_value=clock)):
+            login = client.post("/login", data={"username": "month-reviewer", "password": password})
+            self.assertEqual((login.status_code, login.headers["location"]), (302, "/dashboard"))
+            for month in months:
+                start, end = periods[month]
+                action = "/mall-settlements/generate"
+                form = FormFields(client.get("/mall-settlements").text, action).values
+                form.update(supplier_id=f.supplier.id, period_start=start, period_end=end)
+                result = client.post(action, data=form)
+                self.assertEqual(result.status_code, 303)
+                path = result.headers["location"]
+                self.assertTrue(path.startswith("/mall-settlements/STL-"), path)
+                page = client.get(path)
+                self.assertEqual(page.status_code, 200)
+                for oid, (when, _, _) in expected[month].items():
+                    self.assertIn(oid, page.text)
+                    self.assertIn(when.strftime("%Y-%m-%d %H:%M:%S"), page.text)
+                other_month = 10 if month == 9 else 9
+                for oid in expected[other_month]:
+                    self.assertNotIn(oid, page.text)
+                confirm = path + "/confirm"
+                self.assertEqual(client.post(confirm, data=FormFields(page.text, confirm).values).headers["location"], path)
+                repeat = client.post(action, data=form)
+                self.assertEqual(parse_qs(urlsplit(repeat.headers["location"]).query).get("error"),
+                                 ["结算区间内没有未结算的已完成订单项"])
+                data = client.get(path + "/export")
+                self.assertEqual(data.status_code, 200)
+                book = load_workbook(BytesIO(data.content), read_only=True)
+                try:
+                    summary = dict(book["结算汇总"].values)
+                    self.assertEqual((summary["结算开始时间"], summary["结算结束时间"]),
+                                     (datetime.fromisoformat(start), datetime.fromisoformat(end)))
+                    self.assertEqual((summary["订单数"], summary["订单项数"], summary["商品数量"], summary["人民币成本总额"]),
+                                     (1, 1, 1, 12) if month == 9 else (2, 2, 3, 29))
+                    rows = book["结算明细"].values
+                    header = next(rows)
+                    columns = [header.index(k) for k in ("订单公开编号", "订单完成时间", "数量", "行成本")]
+                    self.assertCountEqual([tuple(row[i] for i in columns) for row in rows],
+                                          [(oid, when.replace(microsecond=0), qty, cost)
+                                           for oid, (when, qty, cost) in expected[month].items()])
+                finally:
+                    book.close()
+            client.get("/logout")
+        with f.Session() as db:
+            lines = db.query(SupplierSettlementItem).all()
+            self.assertEqual(len(lines), 3)
+            for line in lines:
+                when = line.order_completed_at
+                if when.tzinfo:
+                    when = when.astimezone(UTC8_TIMEZONE).replace(tzinfo=None)
+                self.assertEqual(when, expected[when.month][line.order_public_id_snapshot][0])
+
     def test_refund_rejects_inconsistent_completed_parcel(self):
         from app.models import OrderParcelItem
         oid = self.place()['order_public_id']

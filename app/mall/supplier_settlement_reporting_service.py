@@ -433,6 +433,9 @@ def _append_table(sheet, headers, rows, *, money_columns=()):
     for row in sheet.iter_rows(min_row=2):
         for cell in row:
             if isinstance(cell.value, datetime):
+                # Match the back-office display. XLSX readers can otherwise round
+                # a final fractional second into the following settlement period.
+                cell.value = cell.value.replace(microsecond=0)
                 cell.number_format = "yyyy-mm-dd hh:mm:ss"
             elif cell.column in money_indices and isinstance(
                 cell.value, (int, float)

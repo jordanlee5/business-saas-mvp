@@ -1,0 +1,119 @@
+{
+  "date": "2026-11-03",
+  "baseline": "5d7084f7067f95d8dec39e43ee2d0d694c21027f",
+  "before_fix": "September batch included the correct order, but the exported completion time read back as October 1 00:00:00.",
+  "local_test_databases": [
+    "SQLite",
+    "PostgreSQL"
+  ],
+  "cutoff": "2026-10-01T00:00:00+08:00",
+  "offsets_microseconds": [
+    -1,
+    0,
+    1
+  ],
+  "generation_orders": [
+    "September then October",
+    "October then September"
+  ],
+  "september": {
+    "orders": 1,
+    "quantity": 1,
+    "cost": "12.00"
+  },
+  "october": {
+    "orders": 2,
+    "quantity": 3,
+    "cost": "29.00"
+  },
+  "original_microseconds_verified": true,
+  "duplicate_period_generation_rejected": true,
+  "export_precision": "whole seconds, truncated",
+  "exercised": "admin login and forms, confirmed export download, workbook rows and database snapshots; local ASGI client",
+  "full_tests": 800,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_unique_tests": 57,
+  "final_boundary_tests_per_database": 2,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.56
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.78
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 41.41
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.67
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.55
+    }
+  },
+  "guest_http_checks": 5,
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "log_sha256": {
+    "before.txt": "bf7abaaaee9075c03e7007310ec016028cbee5a8e77f60913bda792f0b4e940d",
+    "sqlite-final.txt": "9acfe82b2736d26019550a90166ca823b17bb753ada2393b61c05fc9b9729cbb",
+    "full-final.stderr.txt": "f66a367be030cdbc2dd29a1c96db1224636fe609d034a39cf64da8e8f5c79a05",
+    "orders-pg.stderr.txt": "a68cecf7b3c1159baa40d50948928d490741dca288346c15b7d746a162aa51a9",
+    "settlement-pg.stderr.txt": "60457ec5b181d4763c0d5ef1987d2a566fd0ab6f965c50a0df469744e40e104d",
+    "month-boundary.stderr.txt": "f363911ffe8c5b86d836833bd7f07526cc3f681f0c1837516490a7d09516a677",
+    "journey.json": "57b873efa7b328a3502b6a2a354b760b103fec99de0d95ad29c9227d52d5507a",
+    "checks-result.json": "64f72adf2549a44e18e95f2e943e994364d23aa7132c14d63d5774c76cfdd1e3",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}
