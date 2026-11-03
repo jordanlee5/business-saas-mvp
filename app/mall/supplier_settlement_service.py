@@ -212,22 +212,23 @@ def _confirmation_description(batch):
     )
 
 
-def _validate_source_evidence(db, *, batch, items):
+def _validate_source_evidence(db, *, batch, items, lock_sources):
     from .order_parcels import verify_completed_parcels
     from ..models import Order, OrderItem
 
     order_item_ids = tuple(item.order_item_id for item in items)
     if len(set(order_item_ids)) != len(order_item_ids):
         raise RuntimeError("供应商结算明细来源重复")
-    source_rows = tuple(
+    source_query = (
         db.query(OrderItem, Order)
         .join(Order, Order.id == OrderItem.order_id)
         .filter(OrderItem.id.in_(order_item_ids))
         .order_by(OrderItem.id.asc())
-        .with_for_update()
         .populate_existing()
-        .all()
     )
+    if lock_sources:
+        source_query = source_query.with_for_update()
+    source_rows = tuple(source_query.all())
     if len(source_rows) != len(items):
         raise RuntimeError("供应商结算来源订单项不完整")
     verify_completed_parcels(db, (order for _, order in source_rows))
@@ -271,7 +272,7 @@ def _validate_source_evidence(db, *, batch, items):
             raise RuntimeError("供应商结算明细与来源订单项不一致")
 
 
-def _validate_generation_evidence(db, *, batch):
+def _validate_generation_evidence(db, *, batch, lock_sources=True):
     from ..models import AdminActionLog, SupplierSettlementItem
 
     items = tuple(
@@ -299,7 +300,7 @@ def _validate_generation_evidence(db, *, batch):
     ):
         raise RuntimeError("供应商结算批次合计或状态证据不完整")
 
-    _validate_source_evidence(db, batch=batch, items=items)
+    _validate_source_evidence(db, batch=batch, items=items, lock_sources=lock_sources)
 
     action_logs = tuple(
         db.query(AdminActionLog)

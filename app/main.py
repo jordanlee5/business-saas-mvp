@@ -9642,6 +9642,8 @@ def mall_settlement_detail_page(
     db = SessionLocal()
     try:
         try:
+            if db.get_bind().dialect.name == "postgresql":
+                db.connection(execution_options={"isolation_level": "REPEATABLE READ", "postgresql_readonly": True})
             detail = get_supplier_settlement_detail(
                 db,
                 settlement_public_id=settlement_public_id,

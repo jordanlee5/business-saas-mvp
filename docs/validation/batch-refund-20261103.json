@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-03",
+  "baseline": "ff2256f0b14aef1f1652acc0d034509fbc413e92",
+  "before_fix": "PostgreSQL ReadOnlySqlTransaction when inspecting a pending multi-order batch",
+  "contention_evidence": "pg_blocking_pids, two distinct operators, three eligible orders from one supplier",
+  "refund_first": {
+    "order_count": 2,
+    "line_count": 2,
+    "total_quantity": 3,
+    "cost": "22.00",
+    "member_available": 80,
+    "refunded_points": 65,
+    "stock": [
+      4,
+      2
+    ],
+    "refund_units": [
+      1,
+      1
+    ]
+  },
+  "batch_first": {
+    "order_count": 3,
+    "line_count": 4,
+    "total_quantity": 5,
+    "cost": "39.00",
+    "member_available": 15,
+    "refunded_points": 0,
+    "stock": [
+      3,
+      1
+    ],
+    "refund_units": [
+      0,
+      0
+    ]
+  },
+  "generation_replay_no_duplicate": true,
+  "refund_replay_checked": true,
+  "read_only_repeatable_read_snapshot": true,
+  "concurrent_confirmation_committed_with_open_reader": true,
+  "refreshed_html_checked": true,
+  "exported_excel_lines_and_totals_checked": true,
+  "full_tests": 798,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_unique_tests": 55,
+  "batch_rerun": 2,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.53
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.73
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 36.41
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.58
+    }
+  },
+  "guest_http_checks": 5,
+  "synthetic_member_loopback_http": true,
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "payment_executed": false,
+  "log_sha256": {
+    "read-only-before.stderr.txt": "ff237bb9544fda337fb8b0c2ef4b353d884567eab448b5046f2f28d70c1a0a7e",
+    "batch-race.stderr.txt": "b30737f83a906873a06844135ff7e48f0278f6cbdb312bc335f26b67e198767c",
+    "orders-pg.stderr.txt": "e364ae144081856f3f3e0793904b96c7482882064da51ccaa6a5dde2871ae10b",
+    "settlement-pg.stderr.txt": "9d710cb843653c6356e587d2f47a56b124eb4901c1a0e149855d84a8d7dab129",
+    "full-final.stderr.txt": "88e443808086cf09741ac341137921abcd1f4d89965243f77fe471f8863da09c",
+    "settlement.json": "57b873efa7b328a3502b6a2a354b760b103fec99de0d95ad29c9227d52d5507a",
+    "checks-result.json": "c4005d565aafc4adc42cbbf598642185d8a886211f92bcca48867cb35759b8b5",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}

@@ -50,6 +50,137 @@ class PostgreSQLMemberOrderTests(cases.MemberOrderTests):
     def test_settlement_then_refund_in_two_sessions_of_same_operator(self):
         self._race_refund_and_settlement("settle", same_operator=True)
 
+    def test_batch_settles_remaining_orders_after_competing_refund(self):
+        self._race_multi_order_batch(refund_first=True)
+
+    def test_batch_includes_all_orders_when_it_precedes_competing_refund(self):
+        self._race_multi_order_batch(refund_first=False)
+
+    def _race_multi_order_batch(self, *, refund_first):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from app.admin_permissions import OPERATOR, SUPER_ADMIN
+        from app.mall import (OrderLineRequest, confirm_supplier_settlement, execute_supplier_settlement_export,
+                              execute_supplier_settlement_generation)
+        from app.mall.supplier_settlement_reporting_service import get_supplier_settlement_detail
+        from app.models import (AdminActionLog, InventoryBalance, InventoryMovement, Order, PointsAccount,
+                                PointsLedgerEntry, SupplierSettlementBatch, User)
+        from test_order_service import NOW
+
+        f = self.f
+        sku_a, sku_b = f.sku_one.id, f.sku_two.id
+        supplier_id, refund_actor = f.supplier.id, f.operator.id
+        with f.Session.begin() as db:
+            operator = User(username="batch-operator", password_hash="test-only", role="admin",
+                            admin_level=OPERATOR, is_active=True)
+            db.add(operator)
+            db.flush()
+            batch_actor = operator.id
+
+        # The middle order has two lines, so both must enter or leave the batch together.
+        orders = []
+        for index, quantities in enumerate([[(sku_a, 1)], [(sku_a, 1), (sku_b, 1)], [(sku_b, 2)]]):
+            order = f.place(key=f"batch-order-{index}", lines=[OrderLineRequest(sku, qty) for sku, qty in quantities])
+            f.fulfill(order.order_public_id)
+            f.ship(order.order_public_id, tracking_number=f"BATCH-PARCEL-{index}")
+            f.complete(order.order_public_id)
+            orders.append(order.order_public_id)
+        left, middle, right = orders
+
+        def settle():
+            return execute_supplier_settlement_generation(
+                f.engine, actor_admin_id=batch_actor, supplier_id=supplier_id,
+                period_start=NOW, period_end=NOW + timedelta(days=1), now=NOW + timedelta(days=2))
+
+        def refund():
+            return f.refund(middle, actor_admin_id=refund_actor)
+
+        if refund_first:
+            run_with_order_lock_wait(self, f.engine, refund, settle, None, batch_actor)
+            self.assertTrue(refund().replayed)
+        else:
+            run_with_order_lock_wait(self, f.engine, settle, refund, "已进入供应商结算", batch_actor)
+            with self.assertRaisesRegex(ValueError, "已进入供应商结算"):
+                refund()
+        with self.assertRaisesRegex(ValueError, "没有未结算"):
+            settle()
+
+        with f.Session() as db:
+            db.connection(execution_options={"isolation_level": "REPEATABLE READ", "postgresql_readonly": True})
+            self.assertEqual(db.scalar(text("SHOW transaction_read_only")), "on")
+            batch = db.query(SupplierSettlementBatch).one()
+            batch_public_id = batch.settlement_public_id
+            detail = get_supplier_settlement_detail(db, settlement_public_id=batch_public_id)
+            expected_lines = [(left, f.sku_one.sku_code, 1, 12), (right, f.sku_two.sku_code, 2, 10)]
+            if not refund_first:
+                expected_lines += [(middle, f.sku_one.sku_code, 1, 12), (middle, f.sku_two.sku_code, 1, 5)]
+            self.assertCountEqual([(i.order_public_id_snapshot, i.sku_code_snapshot, i.quantity, i.line_cost_amount)
+                                   for i in detail.items], expected_lines)
+            self.assertEqual((detail.status, detail.order_count, detail.item_count, detail.total_quantity,
+                              detail.total_cost_amount),
+                             ("PENDING_CONFIRMATION", 2, 2, 3, 22) if refund_first
+                             else ("PENDING_CONFIRMATION", 3, 4, 5, 39))
+            self.assertEqual(dict(db.query(Order.order_public_id, Order.status).all()),
+                             {left: "COMPLETED", middle: "REFUNDED" if refund_first else "COMPLETED", right: "COMPLETED"})
+            account = db.get(PointsAccount, f.account.id)
+            self.assertEqual((account.available_points, account.reserved_points), (80 if refund_first else 15, 0))
+            refunds = db.query(PointsLedgerEntry).filter_by(entry_type="REFUND")
+            self.assertCountEqual([(row.reference_id, row.grant_id, row.available_points_delta) for row in refunds],
+                                  [(middle, f.early_grant.id, 30), (middle, f.later_grant.id, 35)] if refund_first else [])
+            stock = db.query(InventoryBalance).order_by(InventoryBalance.sku_id)
+            self.assertEqual([(b.on_hand_quantity, b.reserved_quantity) for b in stock],
+                             [(4, 0), (2, 0)] if refund_first else [(3, 0), (1, 0)])
+            returns = db.query(InventoryMovement).filter_by(movement_type="RETURN")
+            self.assertCountEqual([(m.reference_id, m.sku_id, m.quantity_delta) for m in returns],
+                                  [(middle, sku_a, 1), (middle, sku_b, 1)] if refund_first else [])
+            logs = db.query(AdminActionLog).filter(AdminActionLog.action_type.in_(
+                ["mall_order_refund", "mall_supplier_settlement_generate"]))
+            expected_logs = [("mall_supplier_settlement_generate", batch_actor)]
+            if refund_first:
+                expected_logs.append(("mall_order_refund", refund_actor))
+            self.assertCountEqual([(log.action_type, log.admin_id) for log in logs], expected_logs)
+
+            # A viewer keeps one coherent version while a different connection confirms.
+            with f.Session.begin() as writer:
+                writer.execute(text("SET LOCAL lock_timeout = '2s'"))
+                reviewer = User(username="batch-reviewer", password_hash="test-only", role="admin",
+                                admin_level=SUPER_ADMIN, is_active=True)
+                writer.add(reviewer)
+                writer.flush()
+                confirm_supplier_settlement(writer, actor_admin_id=reviewer.id,
+                                            settlement_public_id=batch_public_id, now=NOW + timedelta(days=3))
+            db.expire_all()
+            self.assertEqual(get_supplier_settlement_detail(db, settlement_public_id=batch_public_id).status,
+                             "PENDING_CONFIRMATION")
+
+        from app.main import mall_settlement_detail_page
+        from test_supplier_settlement_routes import request
+        path = f"/mall-settlements/{batch_public_id}"
+        with patch("app.main.SessionLocal", f.Session), patch("app.main.get_current_user", return_value=f.operator):
+            page = mall_settlement_detail_page(request(path), batch_public_id)
+        self.assertEqual(page.status_code, 200)
+        html = page.body.decode()
+        self.assertIn("<dt>状态</dt><dd>已确认</dd>", html)
+        self.assertIn(f"<dd>¥ {detail.total_cost_amount:.2f}</dd>", html)
+        self.assertIn(left, html)
+        self.assertIn(right, html)
+        self.assertEqual(middle in html, not refund_first)
+
+        exported = execute_supplier_settlement_export(
+            f.engine, actor_admin_id=batch_actor, settlement_public_id=batch_public_id, now=NOW + timedelta(days=4))
+        self.assertEqual(exported.status, "CONFIRMED")
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        try:
+            summary = dict(workbook["结算汇总"].values)
+            self.assertEqual((summary["订单数"], summary["订单项数"], summary["人民币成本总额"]),
+                             (detail.order_count, detail.item_count, detail.total_cost_amount))
+            rows = workbook["结算明细"].values
+            header = next(rows)
+            columns = [header.index(key) for key in ("订单公开编号", "SKU编码", "数量", "行成本")]
+            self.assertCountEqual([tuple(row[i] for i in columns) for row in rows], expected_lines)
+        finally:
+            workbook.close()
+
     def _race_refund_and_settlement(self, first, *, same_operator=False):
         from app.admin_permissions import OPERATOR
         from app.mall import execute_order_shipping, execute_supplier_settlement_generation
@@ -186,8 +317,11 @@ def run_with_order_lock_wait(test, engine, first_action, second_action, rejectio
             finally:
                 release.set()
             first.result(timeout=15)
-            with test.assertRaisesRegex(ValueError, rejection):
+            if rejection is None:
                 second.result(timeout=15)
+            else:
+                with test.assertRaisesRegex(ValueError, rejection):
+                    second.result(timeout=15)
     finally:
         event.remove(engine, "begin", begin)
         event.remove(engine, "after_cursor_execute", after_query)

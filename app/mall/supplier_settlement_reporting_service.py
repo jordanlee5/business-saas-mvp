@@ -336,8 +336,9 @@ def get_supplier_settlement_detail(
     db,
     *,
     settlement_public_id,
+    lock_sources=False,
 ) -> SupplierSettlementDetail:
-    """读取并完整复核一个结算批次、来源订单和审计证据。"""
+    """在调用方的快照内复核批次、来源订单和审计；写事务可锁定来源记录。"""
     from ..models import SupplierSettlementBatch
 
     normalized_public_id = _normalize_public_id(settlement_public_id)
@@ -349,7 +350,7 @@ def get_supplier_settlement_detail(
         if batch is None:
             raise ValueError("供应商结算批次不存在")
         items, _generation_log = _validate_generation_evidence(
-            db, batch=batch
+            db, batch=batch, lock_sources=lock_sources
         )
         is_confirmed = (
             batch.status == SupplierSettlementStatus.CONFIRMED.value
@@ -601,6 +602,7 @@ def execute_supplier_settlement_export(
                 detail = get_supplier_settlement_detail(
                     db,
                     settlement_public_id=settlement_public_id,
+                    lock_sources=True,
                 )
                 workbook = build_supplier_settlement_workbook(
                     detail,
