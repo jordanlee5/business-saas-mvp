@@ -63,7 +63,7 @@ def check_order_waybill(admin, member, oid, expected_items):
                 overshipment_rejected=True, completion_verified=True)
 
 
-def check_supplier_packets(admin, member, profile, first_product):
+def check_supplier_packets(admin, member, profile, first_product, *, refund_first=False):
     from app.database import SessionLocal
     from app.mall.catalog_service import (create_product, create_product_sku, create_supplier,
                                           publish_product, update_product_sku, update_supplier)
@@ -199,7 +199,7 @@ def check_supplier_packets(admin, member, profile, first_product):
     verify(second_id, tea)
     shipping = check_order_waybill(admin, member, oid, {cup["product_name"]: 1, tea["product_name"]: 2})
     denied(first_id, cached)
-    settlement = check_settlements(admin, member, oid, (first_id, second_id, outside_id))
+    settlement = check_settlements(admin, member, oid, (first_id, second_id, outside_id), refund_first=refund_first)
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
                 shipping=shipping, settlement=settlement,
                 outsider_denied=True, catalog_reassignment_isolated=True, revoked_profile_denied=True,

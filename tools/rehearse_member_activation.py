@@ -166,7 +166,8 @@ def journey(admin, member, identities, records, password):
     return history, identity["member_public_id"]
 
 
-def run(*, supplier_split=False):
+def run(*, supplier_split=False, refund_first=False):
+    supplier_split = supplier_split or refund_first
     if not __debug__ or "app.database" in sys.modules:
         raise RuntimeError("Run in a fresh Python process with assertions enabled")
     app_id = json.loads(Path("miniprogram/project.config.json").read_text("utf-8"))["appid"]
@@ -194,7 +195,7 @@ def run(*, supplier_split=False):
                         history, public_member_id = journey(admin, member, identities, records, password)
                         redemption = redeem_and_cancel(admin, member, product_id, sku_id, public_member_id)
                         if supplier_split:
-                            packets = check_supplier_packets(admin, member, profile, product_id)
+                            packets = check_supplier_packets(admin, member, profile, product_id, refund_first=refund_first)
             finally:
                 engine.dispose()
     result = dict(result="PASS", transport="loopback_http", wechat_exchange="synthetic_one_use_codes",
@@ -207,4 +208,6 @@ def run(*, supplier_split=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--supplier-split", action="store_true", help="also check two suppliers on one order")
-    print(json.dumps(run(supplier_split=parser.parse_args().supplier_split), indent=2))
+    parser.add_argument("--refund-before-settlement", action="store_true", help="refund the completed two-parcel order before batching")
+    args = parser.parse_args()
+    print(json.dumps(run(supplier_split=args.supplier_split, refund_first=args.refund_before_settlement), indent=2))

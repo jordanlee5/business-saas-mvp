@@ -48,6 +48,38 @@ class MemberOrderTests(unittest.TestCase):
         self.assertEqual(r.headers['cache-control'],'no-store, private');return r
     def place(self):
         r=self.call('POST',body=self.body);self.assertEqual(r.status_code,201,r.text);return r.json()
+
+    def test_refund_rejects_inconsistent_completed_parcel(self):
+        from app.models import OrderParcelItem
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        self.f.ship(oid)
+        self.f.complete(oid)
+        with self.f.Session.begin() as db:
+            db.query(OrderParcelItem).one().quantity -= 1
+        with self.assertRaisesRegex(ValueError, '包裹'):
+            self.f.refund(oid)
+        self.assertEqual(self.call('GET', '/' + oid).json()['status'], 'COMPLETED')
+
+    def test_refund_follows_settled_item_even_if_order_reference_disagrees(self):
+        from datetime import timedelta
+        from app.mall import execute_supplier_settlement_generation
+        from app.models import SupplierSettlementItem
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        self.f.ship(oid)
+        self.f.complete(oid)
+        self.body['request_id'] = 'b' * 32
+        other = self.place()['order_public_id']
+        execute_supplier_settlement_generation(
+            self.f.engine, actor_admin_id=self.f.operator.id, supplier_id=self.f.supplier.id,
+            period_start=fixtures.NOW, period_end=fixtures.NOW + timedelta(days=1),
+            now=fixtures.NOW + timedelta(days=2))
+        with self.f.Session.begin() as db:
+            db.query(SupplierSettlementItem).one().order_id = db.query(Order.id).filter_by(order_public_id=other).scalar()
+        with self.assertRaisesRegex(ValueError, '已进入供应商结算'):
+            self.f.refund(oid)
+        self.assertEqual(self.call('GET', '/' + oid).json()['status'], 'COMPLETED')
     def test_checkout_snapshot_and_private_response(self):
         result=self.place();self.assertEqual(result['total_points'],'80.00');self.assertEqual(result['address'],BODY)
         self.assertNotIn('cost',str(result));self.assertEqual(self.call('GET').json()['total'],1)

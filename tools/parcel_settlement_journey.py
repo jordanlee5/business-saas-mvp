@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 
 from tools.rehearse_member_fulfillment import FormFields, api
+from tools.parcel_refund_journey import check_refund
 
 
 def verify_resources(member, oid):
@@ -33,7 +34,7 @@ def verify_resources(member, oid):
                 ("OUTBOUND", -quantity, -quantity), ("RESERVE", 0, quantity)]
 
 
-def check_settlements(admin, member, oid, supplier_ids):
+def check_settlements(admin, member, oid, supplier_ids, *, refund_first=False):
     from app.admin_permissions import SUPER_ADMIN
     from app.auth import get_password_hash
     from app.database import SessionLocal
@@ -66,11 +67,20 @@ def check_settlements(admin, member, oid, supplier_ids):
         return urlsplit(result.headers["location"])
 
     amounts(5, 0, 0)
-    batches = []
     cup, tea, outsider = supplier_ids
     # Move only the fixture's settlement clock beyond the minute-granularity cutoff.
     with patch("app.mall.supplier_settlement_service.utc8_now", return_value=end + timedelta(minutes=1)):
-        for supplier, name, quantity, cost in [(cup, "会员测试杯", 1, 2), (tea, "测试茶包", 2, 3)]:
+        if refund_first:
+            check_refund(admin, member, oid, blocked=False)
+            for supplier in supplier_ids:
+                assert parse_qs(generate(supplier).query)["error"] == ["结算区间内没有未结算的已完成订单项"]
+            with SessionLocal() as db:
+                assert db.query(SupplierSettlementBatch).count() == db.query(SupplierSettlementItem).count() == 0
+            return dict(refunded_points="16.00", original_grant_credits=["12.50", "3.50"], member_available="20.00",
+                        returned_units=[1, 2], remaining_stock=[2, 2], parcel_count=2, settlement_batches=0,
+                        duplicate_refund_unchanged=True)
+
+        def generate_checked(supplier, name, quantity, cost):
             target = generate(supplier)
             assert target.path.startswith("/mall-settlements/STL-") and not target.query
             page = admin.get(target.path)
@@ -81,25 +91,35 @@ def check_settlements(admin, member, oid, supplier_ids):
                         batch.total_cost_amount) == (supplier_pks[supplier], 1, 1, quantity, cost)
                 line = db.query(SupplierSettlementItem).filter_by(settlement_batch_id=batch.id).one()
                 assert (line.order_public_id_snapshot, line.product_name_snapshot, line.line_cost_amount) == (oid, name, cost)
-            batches.append(target.path)
-            amounts(3 if supplier == cup else 0, 2 if supplier == cup else 5, 0)
-        for supplier in (cup, tea, outsider):
-            assert parse_qs(generate(supplier).query)["error"] == ["结算区间内没有未结算的已完成订单项"]
-        with SessionLocal() as db:
-            assert db.query(SupplierSettlementBatch).count() == 2
-            assert db.query(SupplierSettlementBatch).filter_by(supplier_id=supplier_pks[outsider]).count() == 0
+            return target.path
         with httpx.Client(base_url=admin.base_url, trust_env=False) as reviewer:
             login = reviewer.post("/login", data=dict(username="test-settlement-reviewer", password=password))
             assert login.status_code == 302 and login.headers["location"] == "/dashboard"
-            for index, path in enumerate(batches):
+            for supplier, name, quantity, cost in [(cup, "会员测试杯", 1, 2), (tea, "测试茶包", 2, 3)]:
+                path = generate_checked(supplier, name, quantity, cost)
+                if supplier == cup:
+                    amounts(3, 2, 0)
+                    check_refund(admin, member, oid, blocked=True)
+                else:
+                    amounts(0, 3, 2)
                 action = path + "/confirm"
                 fields = FormFields(reviewer.get(path).text, action).values
                 for _ in range(2):
                     response = reviewer.post(action, data=fields)
                     assert response.status_code == 303 and response.headers["location"] == path
-                amounts(0, 3 if index == 0 else 0, 2 if index == 0 else 5)
+                if supplier == cup:
+                    amounts(3, 0, 2)
+                    check_refund(admin, member, oid, blocked=True)
+                else:
+                    amounts(0, 0, 5)
+        for supplier in supplier_ids:
+            assert parse_qs(generate(supplier).query)["error"] == ["结算区间内没有未结算的已完成订单项"]
+        with SessionLocal() as db:
+            assert db.query(SupplierSettlementBatch).count() == 2
+            assert db.query(SupplierSettlementBatch).filter_by(supplier_id=supplier_pks[outsider]).count() == 0
     verify_resources(member, oid)
     return dict(member_available="4.00", order_points="16.00", outbound_quantities=[1, 2],
                 remaining_stock=[1, 0], confirmed_supplier_costs=["2.00", "3.00"], total_cost="5.00",
                 duplicate_generation_blocked=True, unrelated_supplier_excluded=True,
-                payment_executed=False)
+                partial_pending_refund_blocked=True, partial_confirmed_refund_blocked=True,
+                rejected_refunds_unchanged=True, payment_executed=False)

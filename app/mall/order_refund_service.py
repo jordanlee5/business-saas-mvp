@@ -109,11 +109,16 @@ def _require_actor(db, *, actor_admin_id):
 
 
 def _assert_order_not_in_supplier_settlement(db, *, order_id):
-    from ..models import SupplierSettlementItem
+    from sqlalchemy import or_, select
+    from ..models import OrderItem, SupplierSettlementItem
 
+    order_item_ids = select(OrderItem.id).where(OrderItem.order_id == order_id)
     settlement_item = (
         db.query(SupplierSettlementItem.id)
-        .filter(SupplierSettlementItem.order_id == order_id)
+        .filter(or_(
+            SupplierSettlementItem.order_id == order_id,
+            SupplierSettlementItem.order_item_id.in_(order_item_ids),
+        ))
         .first()
     )
     if settlement_item is not None:
@@ -319,6 +324,7 @@ def refund_completed_order(
 ) -> OrderRefundResult:
     """把 COMPLETED 订单整单退款并原子恢复积分和库存。"""
     from ..models import AdminActionLog, Order, PointsLedgerEntry
+    from .order_parcels import verify_completed_parcels
 
     normalized_order_public_id = _normalize_required_text(
         order_public_id,
@@ -355,6 +361,7 @@ def refund_completed_order(
     )
     _validate_shipping_evidence(db, order=order, expect_shipped=True)
     _validate_completion_evidence(db, order=order, expect_completed=True)
+    verify_completed_parcels(db, (order,))
 
     if transition.replayed:
         refund_log = _validate_refund_evidence(
