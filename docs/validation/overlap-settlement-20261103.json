@@ -1,0 +1,118 @@
+{
+  "date": "2026-11-03",
+  "baseline": "1594ad31e512fa7919e7408c1ca431d496aeea9b",
+  "before_fix": "A one-microsecond expansion of the start date still allowed confirmation when every item remained in range.",
+  "after_fix": "New generation logs bind both Beijing-time endpoints. The changed batch remains pending. Exact legacy summaries still work without rewriting historical logs.",
+  "ranges_beijing_start_inclusive_end_exclusive": [
+    [
+      "2026-09-01",
+      "2026-10-01"
+    ],
+    [
+      "2026-09-22",
+      "2026-10-08"
+    ]
+  ],
+  "monthly_first_cost_cny": {
+    "monthly": 29,
+    "supplement": 10
+  },
+  "supplement_first_cost_cny": {
+    "monthly": 12,
+    "supplement": 27
+  },
+  "unique_orders": 3,
+  "unique_order_lines": 4,
+  "units": 5,
+  "cost_cny": 39,
+  "verified": [
+    "concurrent operators with a verified PostgreSQL lock wait in both generation orders",
+    "retry each period and their union without creating another batch",
+    "per-batch order membership in rendered admin details and per-line order, SKU, quantity and cost in confirmed Excel exports"
+  ],
+  "full_tests": 804,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_unique_tests": 59,
+  "overlap_pg_cases_included_in_59": 2,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.75
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 44.11
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.55
+    }
+  },
+  "isolated_http": "loopback with synthetic data",
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "log_sha256": {
+    "before.txt": "0eaf97e77cb317cd0f58ebfa56d366769c6d9c2bf40a4ca69d4b0aed48f639f2",
+    "full-final.stderr.txt": "bca8786a3bb0ba4b19260997edf135b2f244a21ef8ee4b035f6149e601376785",
+    "orders-pg.stderr.txt": "913f229d979cd9208aef0a92618fca556548a34f2bd77792fc0d65bded948e34",
+    "settlement-pg.stderr.txt": "0d215692c8fe49d4d6a63d48ab0d08df45f26e0bc5b652c64bf3d86e942bfd7b",
+    "overlap.stderr.txt": "44931c06036adb435888a6d6735f01a9587bf537785f471cf2e13a1dd134c4a2",
+    "journey-final.json": "57b873efa7b328a3502b6a2a354b760b103fec99de0d95ad29c9227d52d5507a",
+    "checks-result.json": "008eed546ac877e9c9f49b1881592b390130e78ea58e4ca29079022f3c7555d5",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}

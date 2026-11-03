@@ -41,6 +41,11 @@ class PostgreSQLMemberOrderTests(cases.MemberOrderTests):
     def test_refund_commits_while_first_settlement_is_waiting(self):
         self._race_refund_and_settlement("refund")
 
+    def _submit_overlap_pair(self, first_action, second_action, second_actor):
+        # Hold the first batch transaction open until PostgreSQL reports the
+        # second operator waiting for it on the same supplier.
+        run_with_order_lock_wait(self, self.f.engine, first_action, second_action, None, second_actor)
+
     def test_first_settlement_commits_while_refund_is_waiting(self):
         self._race_refund_and_settlement("settle")
 

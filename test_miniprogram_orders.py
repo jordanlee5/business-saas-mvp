@@ -55,6 +55,112 @@ class MemberOrderTests(unittest.TestCase):
     def test_beijing_month_boundary_october_then_september(self):
         self._check_adjacent_settlement_months([10, 9])
 
+    def test_monthly_batch_first_then_overlapping_supplement(self):
+        self._check_overlapping_settlements(monthly_first=True)
+
+    def test_overlapping_supplement_first_then_monthly_batch(self):
+        self._check_overlapping_settlements(monthly_first=False)
+
+    def _submit_overlap_pair(self, first_action, second_action, second_actor):
+        first_action()
+        second_action()
+
+    def _check_overlapping_settlements(self, *, monthly_first):
+        from datetime import datetime, timedelta
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from app.admin_permissions import OPERATOR, SUPER_ADMIN
+        from app.main import mall_settlement_detail_page
+        from app.mall import (OrderLineRequest, execute_supplier_settlement_confirmation,
+                              execute_supplier_settlement_export, execute_supplier_settlement_generation)
+        from app.mall.supplier_settlement_reporting_service import get_supplier_settlement_detail
+        from app.models import AdminActionLog, SupplierSettlementBatch, SupplierSettlementItem, User
+        from test_supplier_settlement_routes import request
+
+        f = self.f
+        a, b = f.sku_one, f.sku_two
+        monthly = (datetime(2026, 9, 1), datetime(2026, 10, 1))
+        supplement = (datetime(2026, 9, 22), datetime(2026, 10, 8))
+        now = datetime(2026, 10, 9)
+        orders = []
+        for i, (completed, lines) in enumerate([
+            (datetime(2026, 9, 20), [(a.id, 1)]),
+            (datetime(2026, 9, 27), [(a.id, 1), (b.id, 1)]),
+            (datetime(2026, 10, 4), [(b.id, 2)]),
+        ]):
+            placed = f.place(key=f"overlap-{i}", lines=[OrderLineRequest(sku, qty) for sku, qty in lines])
+            oid = placed.order_public_id
+            f.fulfill(oid)
+            f.ship(oid, tracking_number=f"OVERLAP-{i}")
+            f.complete(oid, now=completed)
+            orders.append(oid)
+
+        with f.Session.begin() as db:
+            other = User(username="supplement-operator", role="admin", admin_level=OPERATOR, is_active=True)
+            reviewer = User(username="supplement-reviewer", role="admin", admin_level=SUPER_ADMIN, is_active=True)
+            db.add_all([other, reviewer])
+            db.flush()
+            other_id, reviewer_id = other.id, reviewer.id
+        supplier_id, operator_id = f.supplier.id, f.operator.id
+
+        def generate(period, actor):
+            return execute_supplier_settlement_generation(
+                f.engine, actor_admin_id=actor, supplier_id=supplier_id,
+                period_start=period[0], period_end=period[1], now=now)
+
+        first, second = (monthly, supplement) if monthly_first else (supplement, monthly)
+        self._submit_overlap_pair(lambda: generate(first, operator_id), lambda: generate(second, other_id), other_id)
+        left, shared, right = orders
+        shared_lines = [(shared, a.sku_code, 1, 12), (shared, b.sku_code, 1, 5)]
+        expected = {monthly: [(left, a.sku_code, 1, 12)], supplement: [(right, b.sku_code, 2, 10)]}
+        expected[first].extend(shared_lines)
+
+        for period, actor in ((first, operator_id), (second, other_id)):
+            with self.assertRaisesRegex(ValueError, "没有未结算"):
+                generate(period, actor)
+            with f.Session() as db:
+                batch = db.query(SupplierSettlementBatch).filter_by(generated_by_admin_id=actor).one()
+                public_id = batch.settlement_public_id
+                detail = get_supplier_settlement_detail(db, settlement_public_id=public_id)
+                lines = expected[period]
+                self.assertCountEqual([(i.order_public_id_snapshot, i.sku_code_snapshot, i.quantity, i.line_cost_amount)
+                                       for i in detail.items], lines)
+                self.assertEqual((detail.period_start, detail.period_end), period)
+                self.assertEqual((detail.order_count, detail.item_count, detail.total_quantity, detail.total_cost_amount),
+                                 (len({line[0] for line in lines}), len(lines),
+                                  sum(line[2] for line in lines), sum(line[3] for line in lines)))
+            with patch("app.main.SessionLocal", f.Session), patch("app.main.get_current_user", return_value=f.operator):
+                page = mall_settlement_detail_page(request(f"/mall-settlements/{public_id}"), public_id)
+            self.assertEqual(page.status_code, 200)
+            for oid in orders:
+                self.assertEqual(oid in page.body.decode(), oid in {line[0] for line in lines})
+            execute_supplier_settlement_confirmation(f.engine, actor_admin_id=reviewer_id,
+                settlement_public_id=public_id, now=now + timedelta(minutes=1))
+            exported = execute_supplier_settlement_export(f.engine, actor_admin_id=actor,
+                settlement_public_id=public_id, now=now + timedelta(minutes=2))
+            book = load_workbook(BytesIO(exported.content), read_only=True)
+            try:
+                summary = dict(book["结算汇总"].values)
+                self.assertEqual((summary["结算编号"], summary["订单数"], summary["人民币成本总额"]),
+                                 (public_id, detail.order_count, detail.total_cost_amount))
+                rows = book["结算明细"].values
+                headers = next(rows)
+                indices = [headers.index(key) for key in ("订单公开编号", "SKU编码", "数量", "行成本")]
+                self.assertCountEqual([tuple(row[i] for i in indices) for row in rows], lines)
+            finally:
+                book.close()
+
+        with self.assertRaisesRegex(ValueError, "没有未结算"):
+            generate((monthly[0], supplement[1]), operator_id)
+        with f.Session() as db:
+            batches = db.query(SupplierSettlementBatch).all()
+            self.assertEqual(len(batches), 2)
+            self.assertEqual(sum(batch.total_cost_amount for batch in batches), 39)
+            items = db.query(SupplierSettlementItem).all()
+            self.assertEqual(len(items), 4)
+            self.assertEqual(len({item.order_item_id for item in items}), 4)
+            self.assertEqual(db.query(AdminActionLog).filter_by(action_type="mall_supplier_settlement_generate").count(), 2)
+
     def _check_adjacent_settlement_months(self, months):
         from datetime import datetime, timedelta, timezone
         from io import BytesIO

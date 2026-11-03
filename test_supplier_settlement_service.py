@@ -454,6 +454,37 @@ class SupplierSettlementServiceTests(unittest.TestCase):
                 {first_items[0].id, second_items[0].id},
             )
 
+    def test_widening_batch_period_without_changing_items_blocks_confirmation(self):
+        self.add_order(suffix="SUPPLEMENT", completed_at=PERIOD_START + timedelta(days=1),
+                       lines=((self.sku_one, 1),))
+        self.db.commit()
+        generated = self.generate()
+        batch = self.db.get(SupplierSettlementBatch, generated.batch_id)
+        # All original lines still fall inside the changed interval.
+        batch.period_start -= timedelta(microseconds=1)
+        self.db.commit()
+        with self.assertRaisesRegex(RuntimeError, "生成审计"):
+            self.confirm(generated.settlement_public_id)
+        self.db.expire_all()
+        self.assertEqual(batch.status, "PENDING_CONFIRMATION")
+        self.assertIsNone(batch.confirmed_at)
+
+    def test_legacy_generation_log_still_confirms_without_rewriting_history(self):
+        self.add_order(suffix="LEGACY-AUDIT", completed_at=PERIOD_START + timedelta(days=1),
+                       lines=((self.sku_one, 1),))
+        self.db.commit()
+        generated = self.generate()
+        log = self.db.query(AdminActionLog).filter_by(
+            target_type="supplier_settlement_batch", target_id=generated.batch_id,
+            action_type="mall_supplier_settlement_generate").one()
+        legacy = (f"生成供应商结算 {generated.settlement_public_id}；"
+                  f"供应商 {self.supplier.supplier_public_id}；订单 1；明细 1；数量 1；成本 12.50")
+        log.description = legacy
+        self.db.commit()
+        self.confirm(generated.settlement_public_id)
+        self.db.refresh(log)
+        self.assertEqual(log.description, legacy)
+
     def test_rejects_unauthorized_or_inactive_actor_without_writes(self):
         self.add_order(
             suffix="PERMISSION",

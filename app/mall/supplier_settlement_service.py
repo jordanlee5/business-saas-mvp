@@ -192,9 +192,14 @@ def _validate_source_row(*, order, item, supplier_id, period_start, period_end):
         raise RuntimeError("供应商结算来源订单项成本快照异常")
 
 
-def _generation_description(batch):
+def _generation_description(batch, *, include_period=True):
+    period = ""
+    if include_period:
+        start = _time_key(batch.period_start).isoformat(sep=" ")
+        end = _time_key(batch.period_end).isoformat(sep=" ")
+        period = f"结算区间（北京时间）[{start}, {end})；"
     return (
-        f"生成供应商结算 {batch.settlement_public_id}；"
+        f"{period}生成供应商结算 {batch.settlement_public_id}；"
         f"供应商 {batch.supplier_public_id_snapshot}；"
         f"订单 {batch.order_count}；明细 {batch.item_count}；"
         f"数量 {batch.total_quantity}；"
@@ -317,7 +322,10 @@ def _validate_generation_evidence(db, *, batch, lock_sources=True):
         len(action_logs) != 1
         or action_logs[0].admin_id is None
         or action_logs[0].admin_id != batch.generated_by_admin_id
-        or action_logs[0].description != _generation_description(batch)
+        # Older generation logs predate the period field; require an exact match for either format.
+        or action_logs[0].description not in (
+            _generation_description(batch), _generation_description(batch, include_period=False),
+        )
         or _time_key(action_logs[0].created_at)
         != _time_key(batch.generated_at)
     ):
