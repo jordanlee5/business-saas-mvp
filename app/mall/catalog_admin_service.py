@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import and_, func, or_
 
 from .domain import ProductMediaRole, ProductStatus
 
@@ -112,6 +113,7 @@ class CatalogAdminSnapshot:
     products: tuple[CatalogProductItem, ...]
     sku_count: int
     media_count: int
+    product_count: int
 
 
 def normalize_catalog_section(value) -> str:
@@ -121,7 +123,37 @@ def normalize_catalog_section(value) -> str:
     return normalized
 
 
-def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
+CATALOG_PAGE_SIZE = 25
+
+
+def catalog_listing(db, keyword, page):
+    from ..models import InventoryBalance, Product, ProductMedia, ProductSku, Supplier
+
+    query = (db.query(Product.id.label("product_id"), Product.name.label("product_name"),
+                      Product.status, ProductSku.id.label("sku_id"), ProductSku.sku_code,
+                      ProductSku.name.label("sku_name"), ProductSku.is_active, ProductSku.cost_price,
+                      ProductSku.points_price, Supplier.name.label("supplier_name"),
+                      func.coalesce(InventoryBalance.on_hand_quantity - InventoryBalance.reserved_quantity, 0)
+                      .label("available"), ProductMedia.image_path)
+             .select_from(Product)
+             .outerjoin(ProductSku, ProductSku.product_id == Product.id)
+             .outerjoin(Supplier, Supplier.id == ProductSku.supplier_id)
+             .outerjoin(InventoryBalance, InventoryBalance.sku_id == ProductSku.id)
+             .outerjoin(ProductMedia, and_(ProductMedia.product_id == Product.id,
+                                           ProductMedia.media_role == "MAIN", ProductMedia.is_active.is_(True))))
+    if keyword:
+        fields = (Product.name, Product.product_public_id, ProductSku.sku_code, ProductSku.name,
+                  ProductSku.supplier_sku_code, Supplier.name)
+        query = query.filter(or_(*(column.icontains(keyword, autoescape=True) for column in fields)))
+    total = query.count()
+    pages = max(1, (total + CATALOG_PAGE_SIZE - 1) // CATALOG_PAGE_SIZE)
+    page = min(max(page, 1), pages)
+    rows = (query.order_by(Product.sort_order, Product.id, ProductSku.sort_order, ProductSku.id)
+            .offset((page - 1) * CATALOG_PAGE_SIZE).limit(CATALOG_PAGE_SIZE).all())
+    return dict(rows=rows, total=total, page=page, pages=pages)
+
+
+def get_catalog_admin_snapshot(db, *, include_products=True, product_id=None, sku_id=None) -> CatalogAdminSnapshot:
     """读取后台目录快照，不刷新、不修复，也不写入任何数据。"""
     from ..models import (
         Product,
@@ -142,22 +174,31 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
             .order_by(Supplier.name.asc(), Supplier.id.asc())
             .all()
         )
+        products = db.query(Product)
+        skus = db.query(ProductSku)
+        media = db.query(ProductMedia)
+        if product_id is not None:
+            products = products.filter_by(id=product_id)
+            skus = skus.filter_by(product_id=product_id)
+            media = media.filter_by(product_id=product_id)
+        if sku_id is not None:
+            skus = skus.filter_by(id=sku_id)
         product_rows = (
-            db.query(Product)
+            products
             .order_by(Product.sort_order.asc(), Product.id.asc())
             .all()
-        )
+        ) if include_products else []
         sku_rows = (
-            db.query(ProductSku)
+            skus
             .order_by(
                 ProductSku.product_id.asc(),
                 ProductSku.sort_order.asc(),
                 ProductSku.id.asc(),
             )
             .all()
-        )
+        ) if include_products else []
         media_rows = (
-            db.query(ProductMedia)
+            media
             .order_by(
                 ProductMedia.product_id.asc(),
                 ProductMedia.media_role.asc(),
@@ -165,7 +206,7 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
                 ProductMedia.id.asc(),
             )
             .all()
-        )
+        ) if include_products else []
 
     categories = tuple(
         CatalogCategoryItem(
@@ -252,12 +293,16 @@ def get_catalog_admin_snapshot(db) -> CatalogAdminSnapshot:
         )
         for row in product_rows
     )
+    if include_products and product_id is None and sku_id is None:
+        totals = len(products), len(sku_rows), len(media_rows)
+    else:
+        totals = db.query(*(db.query(func.count(model.id)).scalar_subquery()
+                            for model in (Product, ProductSku, ProductMedia))).one()
     return CatalogAdminSnapshot(
         categories=categories,
         active_categories=tuple(item for item in categories if item.is_active),
         suppliers=suppliers,
         active_suppliers=tuple(item for item in suppliers if item.is_active),
         products=products,
-        sku_count=len(sku_rows),
-        media_count=len(media_rows),
+        product_count=totals[0], sku_count=totals[1], media_count=totals[2],
     )

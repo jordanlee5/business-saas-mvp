@@ -39,6 +39,7 @@ from app.mall import (
 )
 from app.models import (
     AdminActionLog,
+    InventoryBalance,
     Product,
     ProductCategory,
     ProductMedia,
@@ -402,6 +403,62 @@ class CatalogRouteTests(unittest.TestCase):
             )
             self.assertFalse(db.new)
             self.assertFalse(db.dirty)
+
+    def test_large_sku_list_search_detail_and_return(self):
+        from fastapi import HTTPException
+        from urllib.parse import parse_qs, urlsplit
+        with self.Session.begin() as db:
+            category = ProductCategory(name="家居", slug="home")
+            supplier = Supplier(name="上海日用百货用品供应服务有限公司", supplier_public_id="SUP-TEST")
+            db.add_all([category, supplier])
+            db.flush()
+            product = Product(product_public_id="PRD-CUPS", name="随行杯", category_id=category.id)
+            draft = Product(product_public_id="PRD-DRAFT", name="待建规格的新品", category_id=category.id, sort_order=1)
+            db.add_all([product, draft])
+            db.flush()
+            db.bulk_insert_mappings(ProductSku, [
+                dict(product_id=product.id, supplier_id=supplier.id, sku_code=f"CUP-{i:04}",
+                     name=f"规格 {i}", cost_price=8, points_price=25) for i in range(2000)])
+            sku = db.query(ProductSku).filter_by(sku_code="CUP-0025").one()
+            sku_id, product_id, draft_id = sku.id, product.id, draft.id
+            sku.supplier_sku_code = "T%25"
+            db.add(InventoryBalance(sku_id=sku.id, on_hand_quantity=17, reserved_quantity=4))
+            db.add(ProductMedia(product_id=product.id, media_role="MAIN", image_path="/uploads/mall_products/PRD-CUPS/main.webp",
+                                uploaded_by_id=self.operator.id))
+
+        def page(**kwargs):
+            return self.call_route(self.operator, mall_catalog_page, make_request(), **kwargs)
+
+        first = page()
+        self.assertEqual(first.context['listing']['total'], 2001)
+        second = page(page=2, keyword="随行杯")
+        rows = second.context['listing']['rows']
+        self.assertEqual(len(rows), 25)
+        self.assertEqual((rows[0].sku_id, rows[0].available, rows[0].cost_price, rows[0].points_price), (sku_id, 13, 8, 25))
+        self.assertEqual(rows[1].available, 0)
+        body = second.body.decode()
+        self.assertEqual(body.count('class="sku-row"'), 25)
+        self.assertIn('main.webp', body)
+        self.assertNotIn('上传商品图片', body)
+        self.assertEqual(page(keyword='%').context['listing']['total'], 1)
+        self.assertEqual(page(keyword='SUP-NOT-FOUND').context['listing']['total'], 0)
+        self.assertIsNone(page(keyword='PRD-DRAFT').context['listing']['rows'][0].sku_id)
+        self.assertIn('新增 SKU', page(product_id=draft_id).body.decode())
+        with self.assertRaises(HTTPException) as missing:
+            page(product_id=draft_id, sku_id=sku_id)
+        self.assertEqual(missing.exception.status_code, 404)
+        detail = page(page=2, keyword="随行杯", product_id=product_id, sku_id=sku_id)
+        body = detail.body.decode()
+        for label in ('编辑商品资料', '商品图片', '上传商品图片', 'SKU 明细', '新增 SKU', 'CUP-0025'):
+            self.assertIn(label, body)
+        self.assertNotIn('CUP-0026', body)
+        request = make_request(method="POST")
+        request.scope['query_string'] = detail.context['detail_query'].encode()
+        saved = self.call_route(self.operator, update_catalog_product_route, request, product_id,
+                                category.id, "新版随行杯", "", "", 0)
+        query = parse_qs(urlsplit(saved.headers['location']).query)
+        self.assertEqual([query[k][0] for k in ('product_id','sku_id','keyword','page')],
+                         [str(product_id), str(sku_id), "随行杯", "2"])
 
     def test_unexpected_failure_is_rolled_back_and_reraised(self):
         def fail_after_pending_write(db, **_kwargs):

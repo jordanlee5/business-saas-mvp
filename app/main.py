@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Form, UploadFile, File, Query
+from fastapi import FastAPI, Request, Form, UploadFile, File, Query, HTTPException
 from fastapi.responses import (
     HTMLResponse,
     RedirectResponse,
@@ -25,6 +25,7 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 from .database import engine, SessionLocal
+from .mall.catalog_admin_service import catalog_listing, PRODUCT_STATUS_LABELS
 from . import models
 from .api import (
     MINIPROGRAM_API_PREFIX,
@@ -8169,10 +8170,22 @@ def export_my_settlement(
 def _mall_catalog_redirect(
     section: str,
     *,
+    request: Request,
+    created_product_id=None,
     message: str = "",
     error: str = "",
 ):
     query = {"section": section}
+    if section == CATALOG_SECTION_PRODUCTS:
+        for key in ("product_id", "sku_id", "page"):
+            value = request.query_params.get(key, "")
+            if value.isascii() and value.isdigit() and len(value) <= 18:
+                query[key] = value
+        if keyword := request.query_params.get("keyword", "")[:160]:
+            query["keyword"] = keyword
+        if created_product_id is not None:
+            query["product_id"] = created_product_id
+            query.pop("sku_id", None)
     if message:
         query["message"] = message
     if error:
@@ -8189,6 +8202,7 @@ def _run_catalog_mutation(
     section: str,
     success_message: str,
     operation,
+    open_created_product=False,
 ):
     user = get_current_user(request)
     if not user:
@@ -8203,11 +8217,12 @@ def _run_catalog_mutation(
             db.commit()
         except (ValueError, PermissionError) as exc:
             db.rollback()
-            return _mall_catalog_redirect(section, error=str(exc))
+            return _mall_catalog_redirect(section, request=request, error=str(exc))
         except IntegrityError:
             db.rollback()
             return _mall_catalog_redirect(
                 section,
+                request=request,
                 error="商品目录数据存在唯一或关联冲突",
             )
         except Exception:
@@ -8215,6 +8230,8 @@ def _run_catalog_mutation(
             raise
         return _mall_catalog_redirect(
             section,
+            request=request,
+            created_product_id=result.entity.id if open_created_product else None,
             message=(
                 success_message
                 if result.changed
@@ -8228,9 +8245,13 @@ def _run_catalog_mutation(
 @app.get("/mall-catalog", response_class=HTMLResponse)
 def mall_catalog_page(
     request: Request,
-    section: str = Query(CATALOG_SECTION_PRODUCTS),
-    message: str = Query(""),
-    error: str = Query(""),
+    section: str = CATALOG_SECTION_PRODUCTS,
+    message: str = "",
+    error: str = "",
+    keyword: str = "",
+    page: int = 1,
+    product_id: int | None = None,
+    sku_id: int | None = None,
 ):
     user = get_current_user(request)
     if not user:
@@ -8246,12 +8267,28 @@ def mall_catalog_page(
 
     db = SessionLocal()
     try:
-        catalog = get_catalog_admin_snapshot(db)
+        keyword = keyword.strip()[:160]
+        detail = normalized_section == CATALOG_SECTION_PRODUCTS and product_id is not None
+        catalog = get_catalog_admin_snapshot(db, include_products=detail, product_id=product_id, sku_id=sku_id)
+        if detail and (not catalog.products or (sku_id is not None and not catalog.products[0].skus)):
+            raise HTTPException(status_code=404, detail="商品或 SKU 不存在")
+        listing = catalog_listing(db, keyword, page) if normalized_section == CATALOG_SECTION_PRODUCTS and not detail else None
+        list_params = {"page": listing["page"] if listing else max(1, page), "keyword": keyword}
+        detail_params = dict(list_params, product_id=product_id)
+        if sku_id is not None:
+            detail_params["sku_id"] = sku_id
         context = add_base_context(request, {
             "request": request,
             "page_title": "商品目录",
             "active_page": "mall_catalog",
             "catalog": catalog,
+            "detail": detail,
+            "listing": listing,
+            "keyword": keyword,
+            "status_labels": PRODUCT_STATUS_LABELS,
+            "list_query": urlencode(list_params),
+            "detail_query": urlencode(detail_params),
+            "focused_sku": sku_id,
             "section": normalized_section,
             "section_products": CATALOG_SECTION_PRODUCTS,
             "section_categories": CATALOG_SECTION_CATEGORIES,
@@ -8385,6 +8422,7 @@ def create_catalog_product_route(
         request,
         section=CATALOG_SECTION_PRODUCTS,
         success_message="草稿商品已创建",
+        open_created_product=True,
         operation=lambda db, actor_id: create_product(
             db,
             actor_admin_id=actor_id,
@@ -8548,6 +8586,7 @@ async def upload_catalog_product_media_route(
     except Exception:
         return _mall_catalog_redirect(
             CATALOG_SECTION_PRODUCTS,
+            request=request,
             error="商品图片读取失败，请重试",
         )
     finally:
@@ -8561,6 +8600,7 @@ async def upload_catalog_product_media_route(
         if product is None:
             return _mall_catalog_redirect(
                 CATALOG_SECTION_PRODUCTS,
+                request=request,
                 error="商品编号不存在",
             )
         try:
@@ -8592,6 +8632,7 @@ async def upload_catalog_product_media_route(
                     pass
             return _mall_catalog_redirect(
                 CATALOG_SECTION_PRODUCTS,
+                request=request,
                 error=str(exc),
             )
         except IntegrityError:
@@ -8603,6 +8644,7 @@ async def upload_catalog_product_media_route(
                     pass
             return _mall_catalog_redirect(
                 CATALOG_SECTION_PRODUCTS,
+                request=request,
                 error="商品图片数据存在唯一或关联冲突",
             )
         except Exception:
@@ -8623,6 +8665,7 @@ async def upload_catalog_product_media_route(
             pass
     return _mall_catalog_redirect(
         CATALOG_SECTION_PRODUCTS,
+        request=request,
         message=(
             "商品主图已替换"
             if replaced_image_url
@@ -8680,6 +8723,7 @@ def delete_catalog_product_media_route(
             db.rollback()
             return _mall_catalog_redirect(
                 CATALOG_SECTION_PRODUCTS,
+                request=request,
                 error=str(exc),
             )
         except Exception:
@@ -8696,6 +8740,7 @@ def delete_catalog_product_media_route(
             cleanup_failed = True
     return _mall_catalog_redirect(
         CATALOG_SECTION_PRODUCTS,
+        request=request,
         message=(
             "商品图片记录已删除；原文件清理失败，请检查磁盘权限"
             if cleanup_failed

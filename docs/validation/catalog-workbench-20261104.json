@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-04",
+  "baseline": "d1d0b86bdc7f5831583dec48f2420e910d2a2fe3",
+  "scope": "Authenticated administrator SKU list and product maintenance on isolated local databases.",
+  "directory_test": {
+    "skus": 2000,
+    "products_without_skus": 1,
+    "page_size": 25,
+    "stock_on_hand": 17,
+    "reserved": 4,
+    "displayed_available": 13,
+    "literal_percent_search": true,
+    "missing_balance_zero": true,
+    "selected_sku_verified": true
+  },
+  "browser": {
+    "authenticated": true,
+    "thumbnail_loaded": true,
+    "first_page_rows": 25,
+    "last_page_rows": 2,
+    "clicked_inventory_cell": true,
+    "saved_product": true,
+    "restored_keyword_and_page": true
+  },
+  "catalog_route_tests": 11,
+  "full_tests": 807,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 60,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.8
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 38.25
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.56
+    }
+  },
+  "http_guest_checks": 5,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_database_unchanged": true,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted-final.log": "3d5b6eafd0228df7bd3d6a573e094a2351a1ac40c4b9e25f939facdfb35a8d62",
+    "browser-result.json": "8f69a0c3545d5044f5de10a0276c0f531159a074add571d9f6caedb66aafeef6",
+    "商品目录-列表.png": "ca61e9cf14b348a0a58f27dd25f0d54c77fb30a0f73fdae8adb6cc5c6ed92886",
+    "商品目录-详情.png": "59a371ea39a288de0247db494051633845d0da4480ac215bc75145b667655c2e",
+    "full.log": "f28f2ee146abf0760133182855d64a0dd11e7713ee08da774213687741a7c77b",
+    "orders-pg.stderr.txt": "8ba8107f72f850cccb1a6cb45041d7cd35f12014285dc75d11421407dd69b63a",
+    "settlement-pg.stderr.txt": "082b50b85b6a6114e17e3585dfbd3097c6848a34038ed5567cf404da6afc626e",
+    "checks-result.json": "097e4f1ec48e3a31c14cd103433076e90a7925b485709908b930309d1d492962",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  }
+}

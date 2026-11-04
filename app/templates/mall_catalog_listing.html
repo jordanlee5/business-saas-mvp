@@ -1,0 +1,44 @@
+<form class="sku-search" method="get" action="/mall-catalog">
+    <label for="sku-keyword">查找商品或规格</label>
+    <input id="sku-keyword" name="keyword" type="search" maxlength="160" value="{{ keyword }}"
+           placeholder="商品名称、SKU 编码、供应商或货号">
+    <button class="ui-button-primary compact-button" type="submit">搜索</button>
+    {% if keyword %}<a href="/mall-catalog">清除搜索</a>{% endif %}
+</form>
+<div class="catalog-table-wrap">
+    <table class="catalog-table sku-list">
+        <caption>共 {{ listing.total }} 条 · 每页 25 条 · 含待建规格的商品</caption>
+        <thead><tr><th scope="col">商品 / 规格</th><th scope="col">供应商</th><th scope="col">可售库存</th>
+            <th scope="col">成本（元）</th><th scope="col">积分售价</th><th scope="col">状态</th></tr></thead>
+        <tbody>
+        {% for row in listing.rows %}
+        <tr class="sku-row">
+            <td><a class="sku-entry" href="/mall-catalog?product_id={{ row.product_id }}{% if row.sku_id %}&amp;sku_id={{ row.sku_id }}{% endif %}&amp;{{ list_query }}">
+                {% if row.image_path %}<img src="{{ row.image_path }}" alt="" loading="lazy" width="44" height="44">
+                {% else %}<span class="sku-no-image" aria-hidden="true">无图</span>{% endif %}
+                <span><strong>{{ row.product_name }}</strong>
+                    <small>{{ row.sku_name or '待建 SKU' }}{% if row.sku_code %} · {{ row.sku_code }}{% endif %}</small></span>
+            </a></td>
+            <td title="{{ row.supplier_name or '' }}">{{ row.supplier_name | truncate(12, true, '…', 0) if row.supplier_name else '—' }}</td>
+            <td class="sku-number">{{ row.available if row.sku_id else '—' }}</td>
+            <td class="sku-number">{{ '%.2f' | format(row.cost_price) if row.sku_id else '—' }}</td>
+            <td class="sku-number">{{ '%.2f' | format(row.points_price) if row.sku_id else '—' }}</td>
+            <td>{{ status_labels.get(row.status, '未知') }}{% if row.sku_id and not row.is_active %} · SKU 停用{% endif %}</td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="empty-state">{% if keyword %}没有匹配的商品或 SKU。请尝试名称或编码。{% else %}暂无商品。可先创建草稿商品。{% endif %}</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if listing.pages > 1 %}<nav class="sku-pages" aria-label="商品目录分页">
+    {% if listing.page > 1 %}<a href="/mall-catalog?page={{ listing.page - 1 }}&amp;keyword={{ keyword | urlencode }}">上一页</a>{% endif %}
+    <span>第 {{ listing.page }} / {{ listing.pages }} 页</span>
+    {% if listing.page < listing.pages %}<a href="/mall-catalog?page={{ listing.page + 1 }}&amp;keyword={{ keyword | urlencode }}">下一页</a>{% endif %}
+</nav>{% endif %}
+<script>
+    document.querySelector('.sku-list tbody').addEventListener('click', function (event) {
+        const row = event.target.closest('.sku-row');
+        if (row && !event.target.closest('a') && !window.getSelection().toString()) {
+            row.querySelector('.sku-entry').click();
+        }
+    });
+</script>
