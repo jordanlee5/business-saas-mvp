@@ -1,0 +1,128 @@
+{
+  "date": "2026-11-04",
+  "baseline": "f5ccd5690228056b9e961d96e78655e2ad530ac5",
+  "scope": "PRIV-02 report-only preview on a temporary SQLite copy",
+  "synthetic_orders": {
+    "due_and_reviewed": 1,
+    "review_required": 1,
+    "active_order": 1
+  },
+  "preview": {
+    "eligible": 1,
+    "cleared": 0,
+    "persisted_files": [
+      "report.json"
+    ],
+    "recipient_fields_absent": true
+  },
+  "separate_apply": {
+    "cleared": 1,
+    "matched_preview": true,
+    "source_unchanged": true
+  },
+  "cli": {
+    "source_revision": "0013_order_delivery_snapshot",
+    "synthetic": true,
+    "source_unchanged": true,
+    "report_only": true,
+    "receipt_replay_option_rejected": true,
+    "report": {
+      "source_unchanged": true,
+      "migration_existing_tables_preserved": true,
+      "scope": "preview_only",
+      "policy_version": "synthetic-only",
+      "approved_policy": false,
+      "counts": {
+        "reviewed": 0,
+        "cleared": 0,
+        "eligible": 0
+      },
+      "non_target_tables_unchanged": true
+    }
+  },
+  "full_tests": 806,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 60,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 38.84
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.61
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.55
+    }
+  },
+  "http_guest_checks": 5,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_database_unchanged": true,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted.log": "cbb99237ab14f1d6872386dd78886bb1587b8830a55ffe82213f1f555e811b16",
+    "cli-result.json": "6e259c405cd1e78d777373e69cf5d36f64d9cfe675535d1a0f362ba5353134c3",
+    "full.log": "52ab257c06251921a66a16be39ed9c5151dc8da0a12384ca8c618b07ce00a613",
+    "orders-pg.stderr.txt": "80cc5dc45c8fa33a6e7ce80aeeb2571ce04e6bdef00be13cff7f17f30ef07efc",
+    "settlement-pg.stderr.txt": "34ffb728a1e0b1d44dc994ea9c64c4be80e64d43cf2cd4253c3fcdb7eebd3533",
+    "checks-result.json": "4271d1c645b24f32fc51b249761b5d77d0300e32f7d0f03eacfeedd38482cc60",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  }
+}
