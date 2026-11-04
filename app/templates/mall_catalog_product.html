@@ -1,3 +1,25 @@
+{% macro image_card(media) %}
+    <div class="media-card">
+        <img class="media-preview" src="{{ media.image_path }}" alt="{{ media.alt_text or product.name }}" loading="lazy">
+        <div class="media-card-meta">
+            <span class="catalog-badge {{ 'ok' if media.is_active else 'off' }}">{{ media.role_label }} · {{ '启用' if media.is_active else '停用' }}</span>
+            <span class="product-meta">排序 {{ media.sort_order }}</span>
+        </div>
+        <details class="catalog-details media-settings"><summary>管理这张图片</summary>
+        <form class="catalog-form" method="post" action="/mall-catalog/media/{{ media.id }}/update?{{ detail_query }}">
+            <label class="wide">替代文字<input name="alt_text" maxlength="200" value="{{ media.alt_text or '' }}"></label>
+            <label>排序<input name="sort_order" type="number" min="0" value="{{ media.sort_order }}" required></label>
+            <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if media.is_active %}checked{% endif %}>启用图片</label>
+            <div class="full catalog-actions">
+                <button class="ui-button-primary compact-button" type="submit">保存图片资料</button>
+            </div>
+        </form>
+        <form method="post" action="/mall-catalog/media/{{ media.id }}/delete?{{ detail_query }}">
+            <button class="ui-button-danger ui-button-compact compact-button" type="submit">删除图片</button>
+        </form>
+        </details>
+    </div>
+{% endmacro %}
         <article class="product-card">
             <div class="product-head">
                 <div>
@@ -33,28 +55,15 @@
                 <div class="media-panel">
                     <h4>商品图片</h4>
                     {% if product.media %}
-                    <div class="media-grid">
-                        {% for media in product.media %}
-                        <div class="media-card">
-                            <img class="media-preview" src="{{ media.image_path }}" alt="{{ media.alt_text or product.name }}" loading="lazy">
-                            <div class="media-card-meta">
-                                <span class="catalog-badge {{ 'ok' if media.is_active else 'off' }}">{{ media.role_label }} · {{ '启用' if media.is_active else '停用' }}</span>
-                                <span class="product-meta">排序 {{ media.sort_order }}</span>
-                            </div>
-                            <form class="catalog-form" method="post" action="/mall-catalog/media/{{ media.id }}/update?{{ detail_query }}">
-                                <label class="wide">替代文字<input name="alt_text" maxlength="200" value="{{ media.alt_text or '' }}"></label>
-                                <label>排序<input name="sort_order" type="number" min="0" value="{{ media.sort_order }}" required></label>
-                                <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if media.is_active %}checked{% endif %}>启用图片</label>
-                                <div class="full catalog-actions">
-                                    <button class="ui-button-primary compact-button" type="submit">保存图片资料</button>
-                                </div>
-                            </form>
-                            <form method="post" action="/mall-catalog/media/{{ media.id }}/delete?{{ detail_query }}">
-                                <button class="ui-button-danger ui-button-compact compact-button" type="submit">删除图片</button>
-                            </form>
+                    <div class="media-grid">{{ image_card(product.media[0]) }}</div>
+                    {% if product.media | length > 1 %}
+                    <details class="catalog-details">
+                        <summary>其余图片（{{ product.media | length - 1 }} 张）</summary>
+                        <div class="media-grid">
+                            {% for media in product.media[1:] %}{{ image_card(media) }}{% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
+                    </details>
+                    {% endif %}
                     {% else %}<div class="empty-state">该商品尚未上传图片。</div>{% endif %}
 
                     <details class="catalog-details" {% if not product.media %}open{% endif %}>
@@ -71,15 +80,20 @@
                 </div>
 
                 <div class="sku-panel">
-                    <h4>SKU 明细</h4>{% if focused_sku %}<p><a href="/mall-catalog?keyword={{ product.product_public_id | urlencode }}">查看此商品的全部规格</a></p>{% endif %}
+                    <div class="sku-panel-head"><h4>SKU 明细</h4>{% if focused_sku %}<a href="/mall-catalog?keyword={{ product.product_public_id | urlencode }}">查看此商品的全部规格</a>{% endif %}</div>
                     {% if product.skus %}
-                    <div class="catalog-table-wrap"><table class="catalog-table">
-                        <thead><tr><th>SKU 编码</th><th>名称</th><th>供应商</th><th>积分售价</th><th>人民币成本</th><th>预警阈值</th><th>状态</th><th>操作</th></tr></thead>
-                        <tbody>{% for sku in product.skus %}<tr>
-                            <td>{{ sku.sku_code }}</td><td>{{ sku.name }}</td><td>{{ sku.supplier_name }}</td>
-                            <td>{{ '%.2f' | format(sku.points_price) }}</td><td>{{ '%.2f' | format(sku.cost_price) }}</td><td>{{ sku.low_stock_threshold }}</td>
-                            <td><span class="catalog-badge {{ 'ok' if sku.is_active else 'off' }}">{{ '启用' if sku.is_active else '停用' }}</span></td>
-                            <td><details class="catalog-details"><summary>编辑</summary>
+                    {% for sku in product.skus %}
+                        <section class="sku-record">
+                            <div class="sku-identity"><strong>{{ sku.name }}</strong><code>{{ sku.sku_code }}</code>
+                                <span class="catalog-badge {{ 'ok' if sku.is_active else 'off' }}">{{ '启用' if sku.is_active else '停用' }}</span>
+                            </div>
+                            <dl class="sku-facts">
+                                <div><dt>积分售价</dt><dd>{{ '%.2f' | format(sku.points_price) }}</dd></div>
+                                <div><dt>人民币成本（元）</dt><dd>{{ '%.2f' | format(sku.cost_price) }}</dd></div>
+                                <div><dt>预警阈值</dt><dd>{{ sku.low_stock_threshold }}</dd></div>
+                                <div class="sku-supplier"><dt>供应商</dt><dd>{{ sku.supplier_name }}</dd></div>
+                            </dl>
+                            <details class="catalog-details"><summary>编辑 SKU</summary>
                                 <form class="catalog-form" method="post" action="/mall-catalog/skus/{{ sku.id }}/update?{{ detail_query }}">
                                     <label>供应商<select name="supplier_id" required>{% for supplier in catalog.suppliers %}{% if supplier.is_active or supplier.id == sku.supplier_id %}<option value="{{ supplier.id }}" {% if supplier.id == sku.supplier_id %}selected{% endif %}>{{ supplier.name }}{% if not supplier.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}</select></label>
                                     <label>SKU 名称<input name="name" maxlength="160" value="{{ sku.name }}" required></label>
@@ -91,9 +105,9 @@
                                     <label class="catalog-check"><input name="is_active" type="checkbox" value="true" {% if sku.is_active %}checked{% endif %}>启用 SKU</label>
                                     <div class="full"><button class="ui-button-primary compact-button" type="submit">保存 SKU</button></div>
                                 </form>
-                            </details></td>
-                        </tr>{% endfor %}</tbody>
-                    </table></div>
+                            </details>
+                        </section>
+                    {% endfor %}
                     {% else %}<div class="empty-state">该商品尚未创建 SKU，不能上架。</div>{% endif %}
 
                     <details class="catalog-details" {% if not product.skus %}open{% endif %}>
