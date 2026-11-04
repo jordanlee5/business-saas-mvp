@@ -54,6 +54,7 @@
 
                 <div class="media-panel">
                     <h4>商品图片</h4>
+                    <p class="product-meta">本商品所有 SKU 共用图片。启用的主图用于小程序商品列表及详情首图，轮播图和详情图在商品详情展示。</p>
                     {% if product.media %}
                     <div class="media-grid">{{ image_card(product.media[0]) }}</div>
                     {% if product.media | length > 1 %}

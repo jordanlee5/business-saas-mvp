@@ -19,6 +19,12 @@ function event(p,kind='gallery',index=0){return {currentTarget:{dataset:{kind,in
 let count=0;
 async function test(name,run){await run();assert.equal(requests.length,0);count++;console.log('PASS '+name);}
 (async()=>{
+ await test('the product main photo precedes earlier sorted carousel photos',async()=>{
+  const p=page(), [main,carousel,detail]=product.images;
+  await load(p,{...product,images:[carousel,detail,main]});
+  assert.deepEqual(p.data.gallery.map(i=>i.url),[main,carousel].map(i=>catalog.productImageUrl(i.url,'PRD-TEST')));
+  assert.equal(p.data.detailImages.length,1);
+ });
  await test('gallery failure keeps sibling images, chosen SKU and add-to-cart usable',async()=>{
   const p=page();await load(p);p.onSkuTap({currentTarget:{dataset:{code:'S1'}}});const e=event(p);p.onImageError(e);
   assert.equal(p.data.gallery[0].failed,true);assert.equal(p.data.gallery[1].failed,false);assert.equal(p.data.selectedSkuCode,'S1');

@@ -91,7 +91,8 @@ Page({
         url: productImageUrl(item.url, product.product_public_id),
         alt: item.alt_text || product.name,
       })).filter((item) => item.url);
-      const gallery = images.filter((item) => item.role !== 'detail');
+      const gallery = images.filter((item) => item.role === 'main')
+        .concat(images.filter((item) => item.role === 'carousel'));
       const detailImages = images.filter((item) => item.role === 'detail');
       const skus = product.skus.map((sku: ProductSku) => ({
         ...sku,

@@ -1,0 +1,121 @@
+{
+  "baseline": "0834aa3fa4e526b266afcf912ce16e61a36a8079",
+  "date": "2026-11-04",
+  "scope": "isolated loopback joint acceptance",
+  "image_journey": {
+    "result": "PASS",
+    "backend": "Edge using SaaS upload form",
+    "client": "compiled review Mini Program page handlers, loopback HTTP; wx.request adapted to fetch",
+    "product": "PRD-IMAGE-REVIEW",
+    "sku_codes": [
+      "CUP-350",
+      "CUP-500"
+    ],
+    "product_shared_main": true,
+    "main_first_even_after_carousel": true,
+    "old_main_http_after_replace": 404,
+    "main_sha256": "29fb68e6c08f8ea2a051a09f002e05d5d48474da930d66d691a7b89ab185e55e",
+    "carousel_and_detail_sha256": [
+      "3c32fd9768ddbab6014f3da962516b70c8726ff394023310d24de54447dc7aed",
+      "d45a034a683024f0bd333f85cabe86b79e540e7f64a7164c5728a1def122613e"
+    ],
+    "admin_preview_decoded": true
+  },
+  "known_public_deployment_blocker": [
+    {
+      "directory": "vouchers",
+      "guest_http": 200,
+      "synthetic_bytes_matched": true
+    },
+    {
+      "directory": "excel",
+      "guest_http": 200,
+      "synthetic_bytes_matched": true
+    }
+  ],
+  "screenshot": "docs/validation/product-image-review-20261104.png",
+  "native_wechat_acceptance": "pending manual DevTools import; local IDE automation service port disabled",
+  "full_tests": 814,
+  "expected_postgres_class_skips": 9,
+  "dedicated_pg_tests": 66,
+  "targeted_tests": 16,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.58
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 48.66
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.67
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.48
+    }
+  },
+  "source_database": {
+    "source_unchanged": true,
+    "revision": "0013_order_delivery_snapshot",
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "integrity": "ok",
+    "foreign_key_violations": 0
+  },
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "final-full.log": "41d9fff22c4d318b04ca6ad5f8ee9fd2db771ce8ec0c18c636ca522eb41e2a49",
+    "final-targeted.log": "a128b0896c8a0147bc62395272ee57e764d291e7b842b84974fa068f5a26e747",
+    "orders-pg.stderr.txt": "4ff29abdfb4509876cd435928567461f02a38e4f16fd3d0ffdb62376d125de5c",
+    "settlement-pg.stderr.txt": "85e0ab6852982b0ad6d87e6453c0e5ea92367a547e272db6f0be17fe33edc399",
+    "checks-result.json": "62e550d9ab59cd5809c812dae12a98723b2474180b4d6716d3e0f8c738a14885",
+    "runtime-result.json": "3b48a89651707fa0631bb812378de7f611d3c59d2351331af0196963a0d0850a",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e",
+    "upload-review.png": "a24c0f5f31f6d1e2b860fb401d20aec986d6059965e1c62870406b55c7072639",
+    "journey.json": "f350048a4f072fa964c7dd4aba0de8cb2f9b155c212e5bf0b62eb858aec0d693",
+    "deployment-probe.json": "fda8b342b1fd6384718400a7947e8136cdab8f9a1cb903f3b99309d12c096f62",
+    "client-detail.stdout.txt": "ced59ceb2f8e5ba543650a6679896a05108e499b34f2b334534d4f2e1f4d4c05"
+  }
+}

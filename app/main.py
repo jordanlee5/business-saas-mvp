@@ -8,6 +8,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
+import mimetypes
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -303,6 +304,8 @@ os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 os.makedirs("uploads", exist_ok=True)
+# Product uploads are encoded as WebP even on hosts without a registered WebP MIME type.
+mimetypes.add_type("image/webp", ".webp")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def admin_navigation_context(
