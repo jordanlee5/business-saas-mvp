@@ -1,0 +1,143 @@
+{
+  "date": "2026-11-04",
+  "baseline": "d6b4d3c19a82714f34f2c492cbada6533d7f1796",
+  "scope": "Local loopback HTTP, synthetic WeChat identity and test orders, isolated SQLite. Separate PostgreSQL regression suite.",
+  "first_batch": {
+    "sku": "NEW-MEMBER-SKU",
+    "quantity": 1,
+    "unit_cost_cny": "2.00",
+    "line_cost_cny": "2.00"
+  },
+  "wider_supplement": {
+    "sku": "TEA-TEST",
+    "quantity": 2,
+    "unit_cost_cny": "1.50",
+    "line_cost_cny": "3.00"
+  },
+  "settlement": {
+    "member_available": "4.00",
+    "order_points": "16.00",
+    "outbound_quantities": [
+      1,
+      2
+    ],
+    "remaining_stock": [
+      1,
+      0
+    ],
+    "confirmed_supplier_costs": [
+      "2.00",
+      "3.00"
+    ],
+    "total_cost": "5.00",
+    "duplicate_generation_blocked": true,
+    "unrelated_supplier_excluded": true,
+    "overlapping_supplier_exports_verified": 2,
+    "first_supplier_wider_retry_blocked": true,
+    "partial_pending_refund_blocked": true,
+    "partial_confirmed_refund_blocked": true,
+    "rejected_refunds_unchanged": true,
+    "payment_executed": false
+  },
+  "refund_before_settlement": {
+    "refunded_points": "16.00",
+    "original_grant_credits": [
+      "12.50",
+      "3.50"
+    ],
+    "member_available": "20.00",
+    "returned_units": [
+      1,
+      2
+    ],
+    "remaining_stock": [
+      2,
+      2
+    ],
+    "parcel_count": 2,
+    "settlement_batches": 0,
+    "duplicate_refund_unchanged": true
+  },
+  "full_tests": 804,
+  "expected_pg_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 59,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.56
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.78
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 42.77
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.59
+    }
+  },
+  "real_database_unchanged": true,
+  "wechat_platform_acceptance": false,
+  "log_sha256": {
+    "journey-0.json": "97735932923b9d56e825c978e944d2c97109af2a55446d871ae0b202a699cca2",
+    "journey-1.json": "174966ebaf451ef876bdab49f7c5fb17d6101825a1b7b80d8f6dd2efed6bab53",
+    "full-final.stderr.txt": "d0447123d0c9d17ff33e803aefb7017087b1a31253beac63217ef8dd0ebd732f",
+    "orders-pg.stderr.txt": "8948472d0e52fdc14803f545ea54ac5fa096c57dd3be810cd98fc57487ef624d",
+    "settlement-pg.stderr.txt": "0f5555e4e05d50f75698da16f8c172d4b5ac0fbea244aa04311b8910ed3e53f4",
+    "checks-result.json": "94a9f0b985cccafa68b2b0ee56c84d2a2d575ff9678ce6c84b1de8495c10020e",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43"
+  }
+}
