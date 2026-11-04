@@ -6,11 +6,14 @@
 .rights table { width:100%; border-collapse:collapse; } .rights td,.rights th { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
 .rights form { display:grid; gap:12px; max-width:680px; } .rights label { display:grid; gap:5px; }
 .rights select,.rights textarea { padding:8px; } .rights li { margin-bottom:12px; } .rights .note { white-space:pre-wrap; }
+.rights form.queue-filter { display:flex; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; }
+.rights .queue-filter button { padding:8px 16px; }
+.rights td:last-child { white-space:nowrap; }
 </style>
 <h1>会员权益申请</h1>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 {% if case %}
-<a href="/mall-rights?page={{ page }}">返回申请列表</a>
+<a href="/mall-rights?page={{ page }}&amp;idle_days={{ idle_days }}">返回申请列表</a>
 <h2>{{ rights.KINDS[case.kind] }}申请 · {{ rights.STATES[case.status] }}</h2>
 <p>{{ case.public_id }} · 会员 {{ member_no }} · {{ case.created_at | format_utc8 }} 提交</p>
 <p class="note">{{ case.description }}</p>
@@ -20,6 +23,7 @@
 <div class="note">{{ event.note }}</div></li>{% else %}<li>等待运营核验本人身份</li>{% endfor %}</ol>
 {% if token %}<form method="post" action="/mall-rights/{{ case.public_id }}/handle">
 <input name="csrf_token" type="hidden" value="{{ token }}"><input name="version" type="hidden" value="{{ case.version }}">
+<input name="page" type="hidden" value="{{ page }}"><input name="idle_days" type="hidden" value="{{ idle_days }}">
 {% if case.status == 'PENDING' %}
 <label>已实际采用的人工核验方式<select name="method" required><option value="">请选择</option>{% for code,label in rights.METHODS.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></label>
 {% endif %}
@@ -28,9 +32,20 @@
 <small>请勿填写证件号、联系电话或核验材料。办结前请核实实际处理结果。</small>
 <button type="submit" class="ui-button-primary">登记办理记录</button></form>{% endif %}
 {% else %}
-<table><thead><tr><th>申请事项</th><th>会员编号</th><th>提交时间</th><th>进度</th></tr></thead>
-<tbody>{% for item, member in queue %}<tr><td><a href="/mall-rights?case_id={{ item.public_id }}&amp;page={{ page }}">{{ rights.KINDS[item.kind] }} · {{ item.public_id }}</a></td><td>{{ member }}</td><td>{{ item.created_at | format_utc8 }}</td><td>{{ rights.STATES[item.status] }}</td></tr>{% else %}<tr><td colspan="4">暂无权益申请</td></tr>{% endfor %}</tbody></table>
-{% if page > 1 %}<a href="/mall-rights?page={{ page - 1 }}">上一页</a>{% endif %}
-{% if more %}<a href="/mall-rights?page={{ page + 1 }}">下一页</a>{% endif %}
+<form class="queue-filter" method="get" action="/mall-rights">
+  <label>跟进范围<select name="idle_days">
+    <option value="0">全部申请</option>
+    {% for days in rights.FOLLOWUP_DAYS %}<option value="{{ days }}" {% if idle_days == days %}selected{% endif %}>未结束且至少 {{ days }} 天无办理记录</option>{% endfor %}
+  </select></label>
+  <button type="submit" class="ui-button-primary">筛选申请</button>
+</form>
+{% if idle_days %}<p>按等待时间从长到短排列。尚未办理的申请从提交时间起算，每满 24 小时计一天。</p>{% endif %}
+<table><thead><tr><th>申请事项</th><th>会员编号</th><th>提交时间</th><th>最近活动时间</th><th>进度</th></tr></thead>
+<tbody>{% for item, member, last_activity in queue %}<tr>
+<td><a href="/mall-rights?case_id={{ item.public_id }}&amp;page={{ page }}&amp;idle_days={{ idle_days }}">{{ rights.KINDS[item.kind] }} · {{ item.public_id }}</a></td>
+<td>{{ member }}</td><td>{{ item.created_at | format_utc8 }}</td><td>{{ last_activity | format_utc8 }}</td><td>{{ rights.STATES[item.status] }}</td>
+</tr>{% else %}<tr><td colspan="5">{{ '当前页无符合跟进条件的申请' if idle_days else '暂无权益申请' }}</td></tr>{% endfor %}</tbody></table>
+{% if page > 1 %}<a href="/mall-rights?page={{ page - 1 }}&amp;idle_days={{ idle_days }}">上一页</a>{% endif %}
+{% if more %}<a href="/mall-rights?page={{ page + 1 }}&amp;idle_days={{ idle_days }}">下一页</a>{% endif %}
 {% endif %}</div>
 {% endblock %}

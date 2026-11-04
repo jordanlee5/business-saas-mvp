@@ -1,6 +1,8 @@
 """Member rights requests are handled manually. A decision never mutates the member account."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
+
+from sqlalchemy import func, select
 
 from ..admin_permissions import can_manage_mall_orders
 from ..models import Member, MemberRightsRequest, MemberRightsEvent, User
@@ -15,6 +17,26 @@ ALLOWED = {"PENDING": ("verify", "fail"), "VERIFIED": ("progress", "finish"),
            "PROCESSING": ("progress", "finish"), "COMPLETED": (), "UNVERIFIED": ()}
 NEXT = {"verify": "VERIFIED", "fail": "UNVERIFIED", "progress": "PROCESSING", "finish": "COMPLETED"}
 PAGE_SIZE = 20
+FOLLOWUP_DAYS = (1, 3, 7, 14, 30)
+
+
+def operator_queue(db, page, idle_days, now):
+    case = MemberRightsRequest
+    last_event = (select(func.max(MemberRightsEvent.created_at))
+                  .where(MemberRightsEvent.request_id == case.id)
+                  .correlate(case).scalar_subquery())
+    last_activity = func.coalesce(last_event, case.created_at)
+    query = (db.query(case, Member.member_public_id, last_activity.label("last_activity"))
+             .join(Member, Member.id == case.member_id))
+    if idle_days:
+        open_states = [state for state, actions in ALLOWED.items() if actions]
+        query = (query.filter(case.status.in_(open_states),
+                              last_activity <= now - timedelta(days=idle_days))
+                 .order_by(last_activity, case.id))
+    else:
+        query = query.order_by(case.id.desc())
+    rows = query.offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).all()
+    return rows[:PAGE_SIZE], len(rows) > PAGE_SIZE
 
 
 def submit(db, member_id, key, kind, description):

@@ -49,6 +49,52 @@ class MemberOrderTests(unittest.TestCase):
     def place(self):
         r=self.call('POST',body=self.body);self.assertEqual(r.status_code,201,r.text);return r.json()
 
+    def test_member_rights_followup_uses_last_activity_and_excludes_closed_cases(self):
+        from datetime import datetime, timedelta
+        from app.mall import rights_service as rights
+        from app.models import MemberRightsEvent
+        from app.time_utils import UTC8_TIMEZONE
+
+        now = datetime(2026, 11, 4, 12, tzinfo=UTC8_TIMEZONE)
+        day = timedelta(days=1)
+        with self.f.Session.begin() as db:
+            def create(age, actions=()):
+                case, _ = rights.submit(db, self.f.member.id, f'{len(cases):032x}', 'ACCESS', '隔离跟进演练')
+                case.created_at = now - age
+                cases.append(case)
+                for action, age_at_event in actions:
+                    rights.update(db, case.public_id, self.f.operator.id, case.version, action,
+                                  'IN_PERSON', '虚拟办理记录')
+                    event = db.query(MemberRightsEvent).filter_by(request_id=case.id).order_by(
+                        MemberRightsEvent.id.desc()).first()
+                    event.created_at = now - age_at_event
+                db.flush()
+                return case.public_id
+
+            cases = []
+            oldest = create(10*day)
+            boundary = create(3*day)
+            same_time = create(8*day, [('verify', 3*day)])
+            create(3*day - timedelta(seconds=1))
+            create(20*day, [('verify', 10*day), ('progress', day)])
+            create(19*day, [('verify', 18*day), ('finish', 17*day)])
+            create(11*day, [('fail', 10*day)])
+            with patch.object(rights, 'PAGE_SIZE', 2):
+                first, more = rights.operator_queue(db, 1, 3, now)
+                second, end = rights.operator_queue(db, 2, 3, now)
+                self.assertEqual([row[0].public_id for row in first], [oldest, boundary])
+                self.assertEqual([row[0].public_id for row in second], [same_time])
+                self.assertTrue(more)
+                self.assertFalse(end)
+            rows, _ = rights.operator_queue(db, 1, 0, now)
+            self.assertEqual([row[0] for row in rows], list(reversed(cases)))
+            rights.update(db, oldest, self.f.operator.id, 1, 'verify', 'IN_PERSON', '')
+            event = db.query(MemberRightsEvent).filter_by(request_id=cases[0].id).one()
+            event.created_at = now
+            db.flush()
+            rows, _ = rights.operator_queue(db, 1, 3, now)
+            self.assertEqual([row[0].public_id for row in rows], [boundary, same_time])
+
     def test_member_rights_application_private_manual_workflow(self):
         from secrets import token_urlsafe
         from urllib.parse import parse_qs, urlsplit

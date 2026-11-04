@@ -76,7 +76,7 @@ from .business_status_service import (
     normalize_allocation_amount_status_filter,
     normalize_business_status_filter,
 )
-from .time_utils import format_utc8, utc8_now
+from .time_utils import UTC8_TIMEZONE, format_utc8, utc8_now
 from .mall import (
     ACCEPTED_BATCH_STATUS,
     BUSINESS_CHANNEL_ALL,
@@ -8244,7 +8244,7 @@ def _run_catalog_mutation(
 
 
 @app.get("/mall-rights", response_class=HTMLResponse)
-def mall_rights_page(request: Request, case_id: str = "", page: int = 1, error: str = ""):
+def mall_rights_page(request: Request, case_id: str = "", page: int = 1, error: str = "", idle_days: int = 0):
     user = get_current_user(request)
     if not user or not user.is_active or not can_manage_mall_orders(user):
         return RedirectResponse("/dashboard" if user else "/login", status_code=302)
@@ -8254,23 +8254,21 @@ def mall_rights_page(request: Request, case_id: str = "", page: int = 1, error: 
         queue = []
         more = False
         page = max(1, min(1000000, page))
+        if idle_days and idle_days not in rights.FOLLOWUP_DAYS:
+            raise HTTPException(422, "跟进天数无效")
         if case_id:
             case = db.query(models.MemberRightsRequest).filter_by(public_id=case_id).one_or_none()
             if not case:
                 raise HTTPException(404, "申请不存在")
             history = rights.events(db, case)
         else:
-            rows = (db.query(models.MemberRightsRequest, models.Member.member_public_id)
-                    .join(models.Member, models.Member.id == models.MemberRightsRequest.member_id)
-                    .order_by(models.MemberRightsRequest.id.desc()).offset((page-1)*rights.PAGE_SIZE)
-                    .limit(rights.PAGE_SIZE+1).all())
-            queue, more = rows[:rights.PAGE_SIZE], len(rows) > rights.PAGE_SIZE
+            queue, more = rights.operator_queue(db, page, idle_days, datetime.now(UTC8_TIMEZONE))
         token = secrets.token_urlsafe(32) if case and rights.ALLOWED[case.status] else ""
         response = templates.TemplateResponse(request=request, name="mall_rights.html", context=add_base_context(request, {
             "request": request, "page_title": "会员权益申请", "active_page": "mall_rights", "case": case,
             "member_no": db.get(models.Member, case.member_id).member_public_id if case else "",
             "history": history, "queue": queue, "more": more, "page": page, "error": error,
-            "rights": rights, "token": token}))
+            "rights": rights, "token": token, "idle_days": idle_days}))
         response.headers["Cache-Control"] = "no-store, private"
         if token:
             response.set_cookie("mall_rights_csrf", token, httponly=True, samesite="strict",
@@ -8280,11 +8278,16 @@ def mall_rights_page(request: Request, case_id: str = "", page: int = 1, error: 
 
 @app.post("/mall-rights/{public_id}/handle")
 def mall_rights_handle(request: Request, public_id: str, action: str = Form(...), version: int = Form(...),
-                       csrf_token: str = Form(""), method: str = Form(""), note: str = Form("")):
+                       csrf_token: str = Form(""), method: str = Form(""), note: str = Form(""),
+                       page: int = Form(1), idle_days: int = Form(0)):
     user = get_current_user(request)
     if not user or not user.is_active or not can_manage_mall_orders(user):
         return RedirectResponse("/dashboard" if user else "/login", status_code=302)
     query = {"case_id": public_id}
+    if idle_days in rights.FOLLOWUP_DAYS:
+        query["idle_days"] = idle_days
+    if 1 < page <= 1000000:
+        query["page"] = page
     try:
         cookie = request.cookies.get("mall_rights_csrf", "")
         if len(cookie) < 32 or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):

@@ -1,0 +1,194 @@
+{
+  "date": "2026-11-04",
+  "baseline": "43101f39185cfbecf48b2c61f50ae36ec802cb7b",
+  "scope": "Synthetic members, local HTTP service and isolated databases. Operator actions use the rendered SaaS form.",
+  "operator_followup": {
+    "transport": "loopback HTTP",
+    "operator_client": "Edge",
+    "virtual_open_cases_at_start": 22,
+    "selected_idle_days": 7,
+    "matched_before": 21,
+    "matched_after_handling": 20,
+    "first_page_size": 20,
+    "oldest_first": "RGT-f675d874169e47a8bd9236fbd13fb0c8",
+    "handled_id": "RGT-71eee9c91ac244e899334e74426a169e",
+    "action": "人工核验通过",
+    "filter_and_page_retained": true,
+    "fresh_submission_excluded": true
+  },
+  "member_workflow_regression": {
+    "result": "PASS",
+    "transport": "loopback_http",
+    "client": "compiled mini program page handlers, synthetic WeChat session exchange",
+    "operator": "Edge browser",
+    "public_id": "RGT-1389f395d20743f18bf77ac388800657",
+    "statuses": [
+      "待身份核验",
+      "身份已核验",
+      "处理中",
+      "已办结"
+    ],
+    "history": [
+      {
+        "action": "核验通过",
+        "note": "已完成人工身份核验",
+        "time": "2026-11-04 14:20:00",
+        "sequence": 1
+      },
+      {
+        "action": "更新进度",
+        "note": "已核对虚拟资料，正在办理更正。",
+        "time": "2026-11-04 14:20:00",
+        "sequence": 2
+      },
+      {
+        "action": "记录结果",
+        "note": "虚拟资料已人工更正并复核。",
+        "time": "2026-11-04 14:20:00",
+        "sequence": 3
+      }
+    ],
+    "audit": [
+      "2026-11-04 14:20:00 · 核验通过 · 经办账号 #1\n · 通过既有绑定渠道人工核对\n已完成人工身份核验",
+      "2026-11-04 14:20:00 · 更新进度 · 经办账号 #1\n\n已核对虚拟资料，正在办理更正。",
+      "2026-11-04 14:20:00 · 记录结果 · 经办账号 #1\n\n虚拟资料已人工更正并复核。"
+    ],
+    "reopen_during_submission": true,
+    "other_member_list_count": 0,
+    "other_member_detail_status": 404
+  },
+  "queue_regressions": [
+    "exact threshold included",
+    "one second short excluded",
+    "recent progress overrides original submission time",
+    "terminal cases excluded",
+    "stable ties across pages",
+    "all cases default in original order",
+    "handled case leaves filtered queue"
+  ],
+  "targeted_tests": 16,
+  "full_tests": 811,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 63,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 47.86
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.47
+    }
+  },
+  "http_guest_checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/status",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/orders",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/addresses",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+      "status": 401,
+      "cache_control": null
+    }
+  ],
+  "database": {
+    "schema": "0016_member_rights",
+    "isolated_empty_upgrade_downgrade_reupgrade": true,
+    "isolated_copy_integrity": "ok",
+    "real_readonly": {
+      "source_unchanged": true,
+      "revision": "0013_order_delivery_snapshot",
+      "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+      "integrity": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted.log": "c865e467e64b35ca1d06532713fc995a38a747d9599ad010b4f4eee82c9c5bd8",
+    "followup.json": "037d67476e0d1a0010d95cad74903ce861e5f25af45c89d3d660ab0ecd5221ba",
+    "rights-journey.json": "a17b634add405d96ea617d070fe98528f5f2168e78415734d4f347f44e4355b1",
+    "followup-queue.png": "c13d17b2a8c7a7582069c1ff5d82ed3ce4c533a1a59db049314016126eec06a5",
+    "full-final.log": "7e7ff23801227283c035b99f95d30041426632d2a9a54275c1b4e50eb0d73cdc",
+    "orders-pg.stderr.txt": "42c4c0159ab1de4184e72c3c8d0f7b335ad24395de701aba2f74a4f994b159cd",
+    "settlement-pg.stderr.txt": "ad5282bddb282d3584a65f880f042a2d27a80edbcbf0d402864bf3b3b9064ae5",
+    "checks-result.json": "599bd6999b31f051426e0bbb4a62b32740a8d3c3cf9459aa98b26bd407f61575",
+    "runtime-result.json": "3b48a89651707fa0631bb812378de7f611d3c59d2351331af0196963a0d0850a",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  },
+  "operator_result_screenshot": "docs/validation/rights-followup-20261104.png"
+}
