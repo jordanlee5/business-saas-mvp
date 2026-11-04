@@ -346,6 +346,76 @@ class MemberOrderTests(unittest.TestCase):
         self.assertEqual(sorted(r.status_code for r in results),[200,201])
         self.assertEqual(self.call('GET').json()['total'],1)
 
+    def test_members_retry_same_request_id_after_competing_for_stock(self):
+        from datetime import timedelta
+        from threading import Barrier
+
+        f = self.f
+        other = f.db.query(Member).filter_by(member_public_id='MEM-OTHER-ORDER').one()
+        account = PointsAccount(member_id=other.id)
+        f.db.add(account)
+        f.db.flush()
+        f.add_grant(public_no='BR-OTHER-STOCK', points='100.00', account_id=account.id,
+                    expires_at=fixtures.NOW + timedelta(days=10))
+        other_address = dict(BODY, detail='第二位会员的测试地址')
+        address = create_member_address(f.db, other.id, other_address)
+        member_ids = [f.member.id, other.id]
+        sku_id = f.sku_two.id
+        f.db.commit()
+
+        lines = [dict(self.body['lines'][0], sku_code=f.sku_two.sku_code, quantity=4, expected_points_price='25.00')]
+        requests = [dict(self.body, lines=lines),
+                    dict(self.body, lines=lines, expected_address=other_address, address_public_id=address['address_public_id'])]
+        for owner, body in enumerate(requests):
+            preview = self.call('POST', '/fulfillment-preview', {'lines': lines}, owner=owner)
+            self.assertEqual(preview.status_code, 200)
+            body['fulfillment_digest'] = preview.json()['digest']
+
+        def check_reservations(active_owner, order_count):
+            with Session(f.engine) as db:
+                balance = db.query(InventoryBalance).filter_by(sku_id=sku_id).one()
+                self.assertEqual((balance.on_hand_quantity, balance.reserved_quantity),
+                                 (4, 0 if active_owner is None else 4))
+                for owner, starting in enumerate([170, 100]):
+                    points = db.query(PointsAccount).filter_by(member_id=member_ids[owner]).one()
+                    reserved = 100 if owner == active_owner else 0
+                    self.assertEqual((points.available_points, points.reserved_points), (starting - reserved, reserved))
+                self.assertEqual(db.query(Order).count(), order_count)
+                self.assertEqual(db.query(OrderDeliverySnapshot).count(), order_count)
+
+        start = Barrier(2)
+        def checkout(owner):
+            start.wait(timeout=10)
+            return self.call('POST', body=requests[owner], owner=owner)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            responses = list(pool.map(checkout, range(2)))
+        codes = [response.status_code for response in responses]
+        self.assertCountEqual(codes, [201, 409])
+        winner, waiting = codes.index(201), codes.index(409)
+        first = responses[winner].json()['order_public_id']
+        lookup = '/request/' + self.body['request_id']
+        check_reservations(winner, 1)
+        self.assertEqual(self.call('GET', lookup, owner=waiting).status_code, 404)
+        self.assertEqual(self.call('POST', '/' + first + '/cancel', owner=waiting).status_code, 404)
+        self.assertEqual(self.call('POST', '/' + first + '/cancel', owner=winner).json()['status'], 'CANCELLED')
+        check_reservations(None, 1)
+
+        retried = self.call('POST', body=requests[waiting], owner=waiting)
+        self.assertEqual(retried.status_code, 201)
+        second = retried.json()['order_public_id']
+        self.assertNotEqual(first, second)
+        for owner, oid, status in ((winner, first, 'CANCELLED'), (waiting, second, 'CREATED')):
+            replay = self.call('POST', body=requests[owner], owner=owner)
+            self.assertEqual(replay.status_code, 200)
+            found = self.call('GET', lookup, owner=owner)
+            self.assertEqual(found.status_code, 200)
+            self.assertEqual(replay.json(), found.json())
+            self.assertEqual((found.json()['order_public_id'], found.json()['status'], found.json()['address']),
+                             (oid, status, requests[owner]['expected_address']))
+            self.assertEqual(self.call('GET', '/' + oid, owner=1-owner).status_code, 404)
+        check_reservations(waiting, 2)
+
 
     def test_snapshot_failure_rolls_back_order_points_and_inventory(self):
         with patch('app.api.member_orders.OrderDeliverySnapshot',side_effect=RuntimeError('test-only failure')):

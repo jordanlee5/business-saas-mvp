@@ -188,7 +188,7 @@ class OrderServiceTests(unittest.TestCase):
         self.engine.dispose()
         self.temp.cleanup()
 
-    def add_grant(self, *, public_no, points, expires_at):
+    def add_grant(self, *, public_no, points, expires_at, account_id=None):
         business = BusinessRecord(
             user_id=self.partner.id,
             batch_id=self.batch.id,
@@ -205,7 +205,7 @@ class OrderServiceTests(unittest.TestCase):
         self.db.add(business)
         self.db.flush()
         grant = PointsGrant(
-            account_id=self.account.id,
+            account_id=self.account.id if account_id is None else account_id,
             business_record_id=business.id,
             granted_points=Decimal(points),
             available_points=ZERO,

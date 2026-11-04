@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-04",
+  "baseline": "b11aff1b9498287336d2a1fb70a4858ebe3b3404",
+  "scope": "Two synthetic members submit the same request ID for all remaining units of one SKU through the member order API.",
+  "regression_test": "test_members_retry_same_request_id_after_competing_for_stock",
+  "sqlite_additional_traces": 3,
+  "initial_checkouts": [
+    201,
+    409
+  ],
+  "units": 4,
+  "points_per_unit": 25,
+  "after_first_checkout": {
+    "orders": 1,
+    "address_snapshots": 1,
+    "reserved_units": 4,
+    "winner_reserved_points": 100,
+    "other_reserved_points": 0
+  },
+  "after_cancellation": {
+    "reserved_units": 0,
+    "both_accounts_reserved_points": 0
+  },
+  "after_retry": {
+    "orders": 2,
+    "address_snapshots": 2,
+    "reserved_units": 4,
+    "first_member_reserved_points": 0,
+    "retrying_member_reserved_points": 100,
+    "original_request_returns_own_order": true
+  },
+  "full_tests": 805,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 60,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 38.28
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.52
+    }
+  },
+  "http_guest_checks": 5,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_database_unchanged": true,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted.log": "b1f12fe060291ebd9c57b91adace1cc510d2c5d08b9cff9d72473cc4f4e1688d",
+    "retry-traces.json": "9d5b40380c2b19dc6ae8c181188f12eedee83016feb8c237e80bd842674c7a0d",
+    "full.log": "8d89f60c32429bdec624ae8d54857bbfbb2fa93b9588b6c194526e397554f18e",
+    "orders-pg.stderr.txt": "6a96bf679d758c8c0e6044eddd7703ac3f263bafc69a3293afa9b7162a056b19",
+    "settlement-pg.stderr.txt": "daff5633b4da6164554376f127aa9711b70a3a268c613170fecc33bdd455040d",
+    "checks-result.json": "ca8b9534333ec40743be2e442d71e3c49c999c2c5d2a2a9ab4224ad46f5083cb",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  }
+}
