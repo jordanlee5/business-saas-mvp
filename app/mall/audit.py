@@ -21,6 +21,8 @@ class MallAuditActionType(str, Enum):
     ORDER_CANCEL = "mall_order_cancel"
     PACKET_PREPARE = "mall_packet_prepare"
     PACKET_HANDOFF = "mall_packet_handoff_confirm"
+    PACKET_RETURN = "mall_packet_return_receipt"
+    PACKET_DELETE = "mall_packet_delete_receipt"
     ORDER_SHIP = "mall_order_ship"
     ORDER_COMPLETE = "mall_order_complete"
     ORDER_REFUND = "mall_order_refund"

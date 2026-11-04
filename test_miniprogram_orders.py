@@ -568,6 +568,70 @@ class MemberOrderTests(unittest.TestCase):
             log = db.query(AdminActionLog).filter_by(action_type=CONFIRM.value).one()
             self.assertEqual((log.target_id, log.description, log.admin_id), (receipt, supplier, args[1]))
 
+    def test_supplier_receipts_follow_confirmed_handoff_and_keep_first_registration(self):
+        from datetime import datetime
+        from app.mall.order_privacy import aware
+        from app.time_utils import UTC8_TIMEZONE
+        from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER
+        from app.mall.supplier_handoff import handle_packet, packet_history, record_disposition, receipts_by_handoff
+        from app.models import User
+
+        f = self.f
+        first = self.place()['order_public_id']
+        self.body['request_id'] = 'b' * 32
+        other = self.place()['order_public_id']
+        f.fulfill(first)
+        supplier = f.supplier.supplier_public_id
+        actor = f.operator.id
+        args = f.engine, actor, first, supplier
+        with f.Session.begin() as db:
+            peer = User(username='receipt-operator', role='admin', admin_level=OPERATOR, is_active=True)
+            reviewer = User(username='receipt-reviewer', role='admin', admin_level=PRIMARY_REVIEWER, is_active=True)
+            db.add_all([peer, reviewer])
+            db.flush()
+            peer_id, reviewer_id = peer.id, reviewer.id
+        started = datetime.now(UTC8_TIMEZONE)
+        prep, _ = handle_packet(*args)
+        with self.assertRaises(ValueError):
+            record_disposition(*args, prep, 'returned', 'RET-1')
+        handle_packet(*args, preparation_id=prep)
+        with f.Session() as db:
+            row, = packet_history(db, first)
+            handoff = row.handoff_id
+        another_prep, _ = handle_packet(*args)
+        handle_packet(*args, preparation_id=another_prep)
+        with f.Session() as db:
+            another_handoff, = [r.handoff_id for r in packet_history(db, first) if r.id == another_prep]
+        f.ship(first)
+        for target_order, target_supplier in [(other, supplier), (first, 'SUP-WRONG')]:
+            with self.assertRaises(ValueError):
+                record_disposition(f.engine, peer_id, target_order, target_supplier, handoff, 'returned', 'RET-1')
+        with self.assertRaises(PermissionError):
+            record_disposition(f.engine, reviewer_id, first, supplier, handoff, 'returned', 'RET-1')
+        for outcome, ref in [('unknown', 'RET-1'), ('returned', ' '), ('returned', 'X' * 81)]:
+            with self.assertRaises(ValueError):
+                record_disposition(*args, handoff, outcome, ref)
+
+        def register(operator):
+            return record_disposition(f.engine, operator, first, supplier, handoff, 'returned', 'RET-1')
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ids = list(pool.map(register, (peer_id, actor)))
+        self.assertEqual(ids[0], ids[1])
+        with self.assertRaisesRegex(ValueError, '其他回执编号'):
+            record_disposition(*args, handoff, 'returned', 'RET-2')
+        record_disposition(f.engine, peer_id, first, supplier, handoff, 'deleted', 'DEL-1')
+        with f.Session() as db:
+            by_handoff = receipts_by_handoff(db, packet_history(db, first))
+            self.assertEqual(by_handoff[another_handoff], {})
+            records = by_handoff[handoff]
+            self.assertEqual(set(records), {'returned', 'deleted'})
+            self.assertIn(records['returned'].admin_id, (peer_id, actor))
+            self.assertEqual(records['returned'].description, 'RET-1')
+            self.assertEqual((records['deleted'].username, records['deleted'].admin_id, records['deleted'].description),
+                             ('receipt-operator', peer_id, 'DEL-1'))
+            self.assertTrue(all(started <= aware(r.created_at) <= datetime.now(UTC8_TIMEZONE) for r in records.values()))
+            self.assertFalse(receipts_by_handoff(db, packet_history(db, other)))
+
     def test_two_waybills_split_one_sku_and_retries_do_not_overship(self):
         from app.mall.order_lifecycle_service import execute_order_shipping, execute_order_completion
         from app.models import OrderItem

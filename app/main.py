@@ -143,7 +143,7 @@ from .mall.order_reporting_service import (
     get_mall_order_detail,
     list_mall_orders,
 )
-from .mall.supplier_handoff import handle_packet, packet_history
+from .mall.supplier_handoff import handle_packet, packet_history, receipts_by_handoff, record_disposition
 from .mall.order_fulfillment_service import execute_order_fulfillment
 from .mall.order_lifecycle_service import execute_order_completion, execute_order_shipping
 from .mall.order_refund_service import execute_order_refund
@@ -9210,6 +9210,7 @@ def mall_order_detail_page(
                 "request": request, "page_title": "商城订单详情",
                 "active_page": "mall_orders", "detail": detail,
                 "packet_history": history, "can_prepare_packet": can_prepare,
+                "handoff_receipts": receipts_by_handoff(db, history),
                 "packet_csrf": packet_csrf, "packet_actor": user.id,
                 "can_fulfill_order": can_fulfill,
                 "can_cancel_order": can_cancel,
@@ -9272,6 +9273,7 @@ def mall_order_detail_page(
 def mall_supplier_packet_action(
     request: Request, order_public_id: str, supplier_public_id: str, operation: str,
     csrf_token: str = Form(""), preparation_id: int = Form(0), confirmed: str = Form(""),
+    handoff_id: int = Form(0), outcome: str = Form(""), reference: str = Form(""),
 ):
     user = get_current_user(request)
     if user is None:
@@ -9283,6 +9285,11 @@ def mall_supplier_packet_action(
     try:
         if len(cookie) < 32 or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
             raise ValueError("表单已失效，请刷新详情重试")
+        if operation == "receipt":
+            if confirmed != "yes":
+                raise ValueError("请先核对供应商的线下回执")
+            record_disposition(engine, user.id, order_public_id, supplier_public_id, handoff_id, outcome, reference)
+            return RedirectResponse(url=f"{detail_url}?{urlencode({'message': '回执已登记'})}", status_code=303)
         if operation not in ("prepare", "confirm"):
             raise ValueError("备货操作无效")
         if operation == "confirm" and (preparation_id <= 0 or confirmed != "yes"):

@@ -169,6 +169,11 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
         result = admin.post(confirm, data=dict(fields, confirmed="yes"))
         assert result.status_code == 303 and result.headers["location"] == path
     assert admin.get(path).text.count("经办人已登记线下交付") == 1
+    other_prepare = f"{path}/supplier-packets/{second_id}/prepare"
+    other_confirm = f"{path}/supplier-packets/{second_id}/confirm"
+    assert admin.post(other_prepare, data=form(other_prepare)).status_code == 200
+    other_handoff = admin.post(other_confirm, data=dict(form(other_confirm), confirmed="yes"))
+    assert other_handoff.status_code == 303 and other_handoff.headers["location"] == path
 
     # A current catalog reassignment must not change who fulfills this order.
     with SessionLocal() as db:
@@ -200,7 +205,53 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
     shipping = check_order_waybill(admin, member, oid, {cup["product_name"]: 1, tea["product_name"]: 2})
     denied(first_id, cached)
     settlement = check_settlements(admin, member, oid, (first_id, second_id, outside_id), refund_first=refund_first)
+    return_action = f"{path}/supplier-packets/{first_id}/receipt"
+    delete_action = f"{path}/supplier-packets/{second_id}/receipt"
+    with httpx.Client(base_url=admin.base_url, trust_env=False) as peer:
+        assert peer.post(return_action, data={}).headers["location"] == "/login"
+        assert peer.post("/login", data=dict(username="test-handoff-peer", password=password)).headers["location"] == "/dashboard"
+        fields = FormFields(peer.get(path).text, return_action).values
+        returned = dict(fields, confirmed="yes", outcome="returned", reference="DEMO-RETURN-01")
+        for _ in range(2):
+            result = peer.post(return_action, data=returned)
+            assert result.status_code == 303 and "message" in parse_qs(urlsplit(result.headers["location"]).query)
+    deleted = dict(form(delete_action), confirmed="yes", outcome="deleted", reference="DEMO-DELETE-02")
+    assert deleted["handoff_id"] != returned["handoff_id"]
+    denied_post(delete_action, dict(deleted, csrf_token="invalid"))
+    denied_post(delete_action, dict(deleted, confirmed=""))
+    denied_post(delete_action, dict(deleted, handoff_id=returned["handoff_id"]))
+    for _ in range(2):
+        result = admin.post(delete_action, data=deleted)
+        assert result.status_code == 303 and "message" in parse_qs(urlsplit(result.headers["location"]).query)
+    denied_post(delete_action, dict(deleted, reference="DEMO-CONFLICT"))
+    page = admin.get(path)
+    assert page.status_code == 200 and "no-store" in page.headers["cache-control"]
+    for ref, operator in [("DEMO-RETURN-01","test-handoff-peer"),("DEMO-DELETE-02","test-issuer")]:
+        assert page.text.count(ref) == 1 and f"{ref} · 登记人 {operator}" in page.text
+    from app.mall.supplier_handoff import packet_history, receipts_by_handoff
+    from app.time_utils import format_utc8
+    disposition_trace = []
+    with SessionLocal() as db:
+        history = packet_history(db, oid)
+        receipts = receipts_by_handoff(db, history)
+        for supplier, outcome, fields in [(first_id, "returned", returned), (second_id, "deleted", deleted)]:
+            handoff, = [row for row in history if row.supplier == supplier]
+            group = receipts[handoff.handoff_id]
+            assert handoff.handoff_id == int(fields["handoff_id"]) and set(group) == {outcome}
+            receipt = group[outcome]
+            assert receipt.description == fields["reference"]
+            display = f"登记人 {receipt.username}（#{receipt.admin_id}） · 登记时间 {format_utc8(receipt.created_at)}"
+            assert display in page.text
+            disposition_trace.append(dict(order=oid, supplier=supplier, preparation_id=handoff.id,
+                                          handoff_id=handoff.handoff_id, outcome=outcome, reference=receipt.description,
+                                          operator=receipt.username, operator_id=receipt.admin_id,
+                                          registered_at_beijing=format_utc8(receipt.created_at)))
+    member_view = str(api(member, "GET", "/orders/" + oid))
+    assert all(fields["reference"] not in member_view for fields in (returned, deleted))
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
+                disposition_receipts=dict(returned=1, deleted=1, supplier_handoff_actor_time_verified=True,
+                                          duplicate_replays=True, conflicting_reference_rejected=True, member_view_isolated=True,
+                                          trace=disposition_trace),
                 shipping=shipping, settlement=settlement,
                 outsider_denied=True, catalog_reassignment_isolated=True, revoked_profile_denied=True,
                 inactive_supplier_denied=True, stale_order_denied=True, other_operator_confirmation_denied=True, operator_prepare_and_handoff_checked=True, external_dispatch=False)

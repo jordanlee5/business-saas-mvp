@@ -73,7 +73,31 @@
   <h2>备货及交付记录</h2>
   {% for row in packet_history %}
     <p>#{{ row.id }} · {{ row.supplier }} · 经办人编号 {{ row.admin_id }} · {{ row.created_at | format_utc8 }} 准备
-    {% if row.confirmed_at %} · {{ row.confirmed_at | format_utc8 }} 经办人已登记线下交付{% else %} · 尚无交付登记{% endif %}</p>
+    {% if row.confirmed_at %} · 交付 #{{ row.handoff_id }} · {{ row.confirmed_at | format_utc8 }} 经办人已登记线下交付{% else %} · 尚无交付登记{% endif %}</p>
+    {% if row.handoff_id %}
+    {% set recorded = handoff_receipts[row.handoff_id] %}
+    {% set outcomes = [('returned', '返还'), ('deleted', '删除')] %}
+    {% for key, label in outcomes if key in recorded %}
+    {% set receipt = recorded[key] %}
+    <p>资料{{ label }}回执 · {{ receipt.description }} · 登记人 {{ receipt.username or '' }}（#{{ receipt.admin_id }}） · 登记时间 {{ receipt.created_at | format_utc8 }}</p>
+    {% endfor %}
+    {% if recorded | length < 2 %}
+    <details><summary>登记供应商回执 · 交付 #{{ row.handoff_id }}</summary>
+      <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/supplier-packets/{{ row.supplier | urlencode }}/receipt">
+        <input type="hidden" name="csrf_token" value="{{ packet_csrf }}">
+        <input type="hidden" name="handoff_id" value="{{ row.handoff_id }}">
+        <label>回执事项<select name="outcome" required>
+          <option value="">请选择</option>
+          {% for key, label in outcomes if key not in recorded %}<option value="{{ key }}">资料{{ label }}</option>{% endfor %}
+        </select></label>
+        <label>线下回执编号<input name="reference" required maxlength="80" placeholder="例如 HZ-20261104-01"></label>
+        <p>按编号保管原件。请勿填写收件人、电话或地址。</p>
+        <label><input type="checkbox" name="confirmed" value="yes" required>我已核对该供应商对此次交付的回执</label>
+        <button class="btn btn-secondary" type="submit">登记回执</button>
+      </form>
+    </details>
+    {% endif %}
+    {% endif %}
     {% if not row.confirmed_at and row.admin_id == packet_actor %}
     <form method="post" action="/mall-orders/{{ detail.order.order_public_id | urlencode }}/supplier-packets/{{ row.supplier | urlencode }}/confirm">
       <input type="hidden" name="csrf_token" value="{{ packet_csrf }}">

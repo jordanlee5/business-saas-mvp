@@ -1,0 +1,158 @@
+{
+  "date": "2026-11-04",
+  "baseline": "a273d59aacf083f67ac5fb04213e45be6f0dbe5e",
+  "scope": "Local HTTP with synthetic orders and supplier receipt references. Independent PostgreSQL regression.",
+  "supplier_disposition_journeys": {
+    "normal": {
+      "returned": 1,
+      "deleted": 1,
+      "supplier_handoff_actor_time_verified": true,
+      "duplicate_replays": true,
+      "conflicting_reference_rejected": true,
+      "member_view_isolated": true,
+      "trace": [
+        {
+          "order": "ORD-3FEKZLWKCH6ZXAFU",
+          "supplier": "SUP-K9M8CXNW3CWK",
+          "preparation_id": 16,
+          "handoff_id": 17,
+          "outcome": "returned",
+          "reference": "DEMO-RETURN-01",
+          "operator": "test-handoff-peer",
+          "operator_id": 3,
+          "registered_at_beijing": "2026-11-04 13:53:48"
+        },
+        {
+          "order": "ORD-3FEKZLWKCH6ZXAFU",
+          "supplier": "SUP-MB5MQ4PNDUVW",
+          "preparation_id": 18,
+          "handoff_id": 19,
+          "outcome": "deleted",
+          "reference": "DEMO-DELETE-02",
+          "operator": "test-issuer",
+          "operator_id": 1,
+          "registered_at_beijing": "2026-11-04 13:53:48"
+        }
+      ]
+    },
+    "refund": {
+      "returned": 1,
+      "deleted": 1,
+      "supplier_handoff_actor_time_verified": true,
+      "duplicate_replays": true,
+      "conflicting_reference_rejected": true,
+      "member_view_isolated": true,
+      "trace": [
+        {
+          "order": "ORD-FZS8L865T4B9EUPN",
+          "supplier": "SUP-RN2UU3HU6G36",
+          "preparation_id": 16,
+          "handoff_id": 17,
+          "outcome": "returned",
+          "reference": "DEMO-RETURN-01",
+          "operator": "test-handoff-peer",
+          "operator_id": 3,
+          "registered_at_beijing": "2026-11-04 13:53:57"
+        },
+        {
+          "order": "ORD-FZS8L865T4B9EUPN",
+          "supplier": "SUP-623C2CW9H2QK",
+          "preparation_id": 18,
+          "handoff_id": 19,
+          "outcome": "deleted",
+          "reference": "DEMO-DELETE-02",
+          "operator": "test-issuer",
+          "operator_id": 1,
+          "registered_at_beijing": "2026-11-04 13:53:57"
+        }
+      ]
+    }
+  },
+  "targeted_tests": 13,
+  "full_tests": 808,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 61,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 38.97
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 1.02
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.59
+    }
+  },
+  "http_guest_checks": 5,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_database_unchanged": true,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted-final.log": "70419e5a2f94f86e426a615f825e08c56c862ca8595e9be14a0144f3c840ee5b",
+    "normal-final.json": "aa9bfd49d5f0f9bca6a3dea8be8dac3fa2f3ccdd002dffefffdb89d5cbf18da8",
+    "refund-final.json": "1b8bfb039496a0e4418c7fd0a8b798d3a1c2e6b8850fe1ff38527bd346b33635",
+    "full.log": "a51e7d640c996b4d045181dd17d9d1ae24846e02c3993519e9bc66b53f0fbd91",
+    "orders-pg.stderr.txt": "2362dbd253e53638acccd4361b16c875cc0de1b2214f4e39b8438c40041855ba",
+    "settlement-pg.stderr.txt": "fbae393ceb2607772c5a636e5f2412e5ae905651bba662b200326d08a4a0e1d7",
+    "checks-result.json": "f86993d9c19a75e75710fe7a52cee9b09a453b7c81a463df9d18246a7689d692",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  }
+}
