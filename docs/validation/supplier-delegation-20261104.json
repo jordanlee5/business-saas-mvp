@@ -1,0 +1,198 @@
+{
+  "date": "2026-11-04",
+  "baseline": "217fbdbeb77d32580c6461c6bee534d638e2e6f8",
+  "scope": "Synthetic suppliers, temporary fulfillment settings, loopback HTTP and isolated test databases.",
+  "admin_browser": {
+    "result": "PASS",
+    "operator_client": "Edge loopback HTTP",
+    "guest_denied": true,
+    "reviewer_get_and_post_denied": true,
+    "unconfigured_cannot_enable": true,
+    "untouched_supplier": "SUP-DEMO-B",
+    "toggled_supplier": "SUP-DEMO-A",
+    "explicit_version": "2026.11-v2",
+    "reenabled": true
+  },
+  "dual_supplier_journeys": {
+    "normal": {
+      "controls": {
+        "order": "ORD-L6HRXYWRWZXGPBQE",
+        "disabled_supplier": "SUP-ZTW8LT58C7X3",
+        "unaffected_supplier": "SUP-JX5VZ4WXG38W",
+        "internal_version_absent_from_member_preview": true,
+        "agreement_version": "demo-v2",
+        "new_packet_blocked": true,
+        "pending_handoff_blocked": true,
+        "second_handoff_during_suspension": true,
+        "reenabled": true,
+        "stale_form_rejected": true
+      },
+      "confirmed_handoffs": [
+        {
+          "supplier": "SUP-ZTW8LT58C7X3",
+          "handoff_id": 19
+        },
+        {
+          "supplier": "SUP-JX5VZ4WXG38W",
+          "handoff_id": 18
+        }
+      ]
+    },
+    "refund": {
+      "controls": {
+        "order": "ORD-WEATTDBQ9TNRAAA9",
+        "disabled_supplier": "SUP-HK6YU8MGC3K2",
+        "unaffected_supplier": "SUP-BA8932DGX5XN",
+        "internal_version_absent_from_member_preview": true,
+        "agreement_version": "demo-v2",
+        "new_packet_blocked": true,
+        "pending_handoff_blocked": true,
+        "second_handoff_during_suspension": true,
+        "reenabled": true,
+        "stale_form_rejected": true
+      },
+      "confirmed_handoffs": [
+        {
+          "supplier": "SUP-HK6YU8MGC3K2",
+          "handoff_id": 19
+        },
+        {
+          "supplier": "SUP-BA8932DGX5XN",
+          "handoff_id": 18
+        }
+      ]
+    }
+  },
+  "service_regressions": [
+    "pending handoff denied until re-enabled",
+    "confirmed handoff replay preserved",
+    "concurrent unrelated switches both saved",
+    "failed publication preserves original configuration"
+  ],
+  "targeted_tests": 16,
+  "full_tests": 813,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 65,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.61
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 3.03
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 53.62
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.5
+    }
+  },
+  "http_guest_checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/status",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/orders",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/addresses",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+      "status": 401,
+      "cache_control": null
+    }
+  ],
+  "database": {
+    "schema": "0016_member_rights",
+    "schema_change": false,
+    "isolated_copy_integrity": "ok",
+    "real_readonly": {
+      "source_unchanged": true,
+      "revision": "0013_order_delivery_snapshot",
+      "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+      "integrity": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted-final.log": "45d3b9910aaeab08b6128ac2a8f18c196a3e29d0a3caf59beb6c12a5221838ba",
+    "normal.json": "73d5792b32f63db19a8da2da9fbc5fc2a0f2c8312fe44ed2dee225b678a3e874",
+    "refund.json": "c439d4e4cdf156d87a0fa85d8d7790d302faf5df84587aa21977b5cba46955c8",
+    "browser.json": "407e3618391855d69a50df524d00e309f584d883209854cc72332a15c5db09f7",
+    "delegation.png": "1c2ebd8da1e22ed5c441f7ecb54d36800dad6a9154665ddac1aab98032c3f264",
+    "suite-final.log": "9938b32a6f63dfdfab21eccf10f78f3ee036df0f1c4283a6ad52da02d06dc888",
+    "orders-pg.stderr.txt": "1507d4276f314006ca55b2af460d60c12bc9c918ffe026bbc949318899ae799e",
+    "settlement-pg.stderr.txt": "52d66c587dd2a02de96d32c443e17e36ffc48fed5c5a27267bc4ae2059a20b59",
+    "checks-result.json": "a772221cfc940ff261d5b6ecf2c48294053ba76b9fa478da1cbff38abc242422",
+    "runtime-result.json": "3b48a89651707fa0631bb812378de7f611d3c59d2351331af0196963a0d0850a",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  },
+  "operator_result_screenshot": "docs/validation/supplier-delegation-20261104.png"
+}

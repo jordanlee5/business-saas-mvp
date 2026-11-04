@@ -18,6 +18,7 @@ import io
 import secrets
 import zipfile
 from datetime import datetime, date, time
+import re
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import quote, urlencode
 import pandas as pd
@@ -145,6 +146,7 @@ from .mall.order_reporting_service import (
     list_mall_orders,
 )
 from .mall.supplier_handoff import handle_packet, packet_history, receipts_by_handoff, record_disposition
+from .mall import supplier_delegation
 from .mall.order_fulfillment_service import execute_order_fulfillment
 from .mall.order_lifecycle_service import execute_order_completion, execute_order_shipping
 from .mall.order_refund_service import execute_order_refund
@@ -8300,6 +8302,59 @@ def mall_rights_handle(request: Request, public_id: str, action: str = Form(...)
     except (ValueError, PermissionError) as exc:
         query["error"] = str(exc)
     return RedirectResponse("/mall-rights?" + urlencode(query), status_code=303)
+
+
+@app.get("/mall-delegations", response_class=HTMLResponse)
+def mall_delegations_page(request: Request, supplier_id: int = 0, page: int = 1, error: str = "", message: str = ""):
+    user = get_current_user(request)
+    if not user or not user.is_active or not can_manage_mall_catalog(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    try:
+        config = supplier_delegation.settings()
+    except RuntimeError as exc:
+        config = None
+        error = str(exc)
+    token = request.cookies.get("mall_delegation_csrf", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+        token = secrets.token_urlsafe(32)
+    with SessionLocal() as db:
+        query = db.query(models.Supplier)
+        if supplier_id:
+            query = query.filter_by(id=supplier_id)
+        page = max(1, min(1000000, page))
+        rows = query.order_by(models.Supplier.id).offset((page-1)*20).limit(21).all()
+        response = templates.TemplateResponse(request=request, name="mall_delegations.html",
+            context=add_base_context(request, {"request": request, "page_title": "供应商委托", "active_page": "mall_delegations",
+                "suppliers": rows[:20], "profiles": config["suppliers"] if config else {}, "token": token,
+                "revision": supplier_delegation.profile_revision, "error": error, "message": message,
+                "page": page, "more": len(rows)>20, "selected": supplier_id}),
+            headers={"Cache-Control": "no-store, private"})
+        response.set_cookie("mall_delegation_csrf", token, httponly=True, samesite="strict",
+                            secure=request.url.scheme == "https", path="/mall-delegations")
+        return response
+
+
+@app.post("/mall-delegations/{supplier_id}/status")
+def mall_set_delegation(request: Request, supplier_id: int, state: str = Form(""),
+                        revision: str = Form(""), csrf_token: str = Form("")):
+    user = get_current_user(request)
+    if not user or not user.is_active or not can_manage_mall_catalog(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    query = {"supplier_id": supplier_id}
+    try:
+        cookie = request.cookies.get("mall_delegation_csrf", "")
+        if len(cookie) < 32 or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
+            raise ValueError("表单已失效，请刷新后重试")
+        if state not in ("enable", "disable"):
+            raise ValueError("请选择启用或停用")
+        with SessionLocal.begin() as db:
+            supplier_delegation.set_enabled(db, user.id, supplier_id, state == "enable", revision)
+        query["message"] = "委托已启用" if state == "enable" else "委托已停用"
+    except (ValueError, RuntimeError) as exc:
+        query["error"] = str(exc)
+    except OSError:
+        query["error"] = "委托配置暂不可写，请刷新核对或联系管理员"
+    return RedirectResponse("/mall-delegations?" + urlencode(query), status_code=303)
 
 
 @app.get("/mall-catalog", response_class=HTMLResponse)

@@ -28,11 +28,18 @@ def settings():
         for public_id, profile in data['suppliers'].items():
             if not isinstance(public_id, str) or not public_id or len(public_id) > 32:
                 raise ValueError()
-            if set(profile) != {'name', 'agreement_ref', 'enabled'}:
+            required = {'name', 'agreement_ref', 'enabled'}
+            if not required <= set(profile) <= required | {'agreement_version', 'last_change'}:
                 raise ValueError()
             if type(profile['enabled']) is not bool:
                 raise ValueError()
-            for key in ('name', 'agreement_ref'):
+            if 'last_change' in profile:
+                change = profile['last_change']
+                if (not isinstance(change, dict) or set(change) != {'actor_id', 'time', 'revision'}
+                        or type(change['actor_id']) is not int or change['actor_id'] <= 0
+                        or not all(isinstance(change[k], str) and 1 <= len(change[k]) <= 40 for k in ('time','revision'))):
+                    raise ValueError()
+            for key in {'name', 'agreement_ref', 'agreement_version'}.intersection(profile):
                 if not isinstance(profile[key], str) or not 1 <= len(profile[key].strip()) <= 200:
                     raise ValueError()
         return data
@@ -75,6 +82,10 @@ def checkout_notice(db, lines):
         group['items'].sort(key=lambda x: (x['product_public_id'], x['sku_code']))
     # Include agreement revisions in the fingerprint without publishing contract IDs.
     evidence = {key: config['suppliers'][key]['agreement_ref'] for key in groups}
+    for key in groups:
+        profile = config['suppliers'][key]
+        if 'agreement_version' in profile:
+            evidence[key] = [profile['agreement_ref'], profile['agreement_version']]
     payload['digest'] = hashlib.sha256(json.dumps([payload, evidence], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return payload
 

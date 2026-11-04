@@ -72,6 +72,7 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
 
     config = json.loads(profile.read_text("utf-8"))
     first_id, = config["suppliers"]
+    config["suppliers"][first_id]["agreement_version"] = "demo-v2"
     with SessionLocal() as db:
         actor = db.query(User).filter_by(username="test-issuer").one().id
         category_id = db.query(Product.category_id).filter_by(product_public_id=first_product).scalar()
@@ -96,6 +97,7 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
     address = api(member, "POST", "/addresses", 201, json=ADDRESS)
     notice = api(member, "POST", "/orders/fulfillment-preview", json={"lines": lines})
     assert notice["ready"] and {g["supplier_public_id"] for g in notice["suppliers"]} == {first_id, second_id}
+    assert "demo-v2" not in str(notice) and "agreement_ref" not in str(notice)
     order = api(member, "POST", "/orders", 201, json=dict(request_id=secrets.token_hex(16), lines=lines,
                 address_public_id=address["address_public_id"], expected_address=ADDRESS, fulfillment_digest=notice["digest"]))
     oid = order["order_public_id"]
@@ -165,15 +167,45 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
         assert forged.status_code == 303 and "error" in parse_qs(urlsplit(forged.headers["location"]).query)
     denied_post(confirm, fields)
     denied_post(f"{path}/supplier-packets/{second_id}/confirm", dict(fields, confirmed="yes"))
-    for _ in range(2):
-        result = admin.post(confirm, data=dict(fields, confirmed="yes"))
-        assert result.status_code == 303 and result.headers["location"] == path
-    assert admin.get(path).text.count("经办人已登记线下交付") == 1
+    from app.models import Supplier
+    with SessionLocal() as db:
+        first_pk = db.query(Supplier.id).filter_by(supplier_public_id=first_id).scalar()
+    switch = f"/mall-delegations/{first_pk}/status"
+    def controls():
+        view = admin.get("/mall-delegations", params={"supplier_id":first_pk})
+        assert view.status_code == 200 and "no-store" in view.headers["cache-control"]
+        assert "demo-v2" in view.text and config["suppliers"][first_id]["agreement_ref"] in view.text
+        return FormFields(view.text, switch).values
+    def toggle(data, accepted):
+        result = admin.post(switch, data=data)
+        query = parse_qs(urlsplit(result.headers["location"]).query)
+        assert result.status_code == 303 and ("message" in query if accepted else "error" in query)
+    before = controls()
+    assert before["state"] == "disable"
+    toggle(dict(before, csrf_token="bad"), False)
+    toggle(before, True)
+    toggle(before, False)
+    denied(first_id)
+    denied_post(prepare, form(prepare))
+    denied_post(confirm, dict(form(confirm), confirmed="yes"))
+    assert not api(member,"POST","/orders/fulfillment-preview",json={"lines":lines})["ready"]
+    assert api(member,"POST","/orders/fulfillment-preview",json={"lines":lines[1:]})["ready"]
+    assert "经办人已登记线下交付" not in admin.get(path).text
+    verify(second_id, tea)
     other_prepare = f"{path}/supplier-packets/{second_id}/prepare"
     other_confirm = f"{path}/supplier-packets/{second_id}/confirm"
     assert admin.post(other_prepare, data=form(other_prepare)).status_code == 200
     other_handoff = admin.post(other_confirm, data=dict(form(other_confirm), confirmed="yes"))
     assert other_handoff.status_code == 303 and other_handoff.headers["location"] == path
+    after = controls()
+    assert after["state"] == "enable"
+    toggle(after, True)
+    verify(first_id, cup)
+    for _ in range(2):
+        result = admin.post(confirm, data=dict(fields, confirmed="yes", csrf_token=form(prepare)["csrf_token"]))
+        assert result.status_code == 303 and result.headers["location"] == path
+    assert admin.get(path).text.count("经办人已登记线下交付") == 2
+    config = json.loads(profile.read_text("utf-8"))
 
     # A current catalog reassignment must not change who fulfills this order.
     with SessionLocal() as db:
@@ -249,6 +281,10 @@ def check_supplier_packets(admin, member, profile, first_product, *, refund_firs
     member_view = str(api(member, "GET", "/orders/" + oid))
     assert all(fields["reference"] not in member_view for fields in (returned, deleted))
     return dict(participating_suppliers=2, authorized_quantities=[1, 2], order_address_snapshot=True,
+                delegation_controls=dict(order=oid, disabled_supplier=first_id, unaffected_supplier=second_id,
+                    internal_version_absent_from_member_preview=True,
+                    agreement_version="demo-v2", new_packet_blocked=True, pending_handoff_blocked=True,
+                    second_handoff_during_suspension=True, reenabled=True, stale_form_rejected=True),
                 disposition_receipts=dict(returned=1, deleted=1, supplier_handoff_actor_time_verified=True,
                                           duplicate_replays=True, conflicting_reference_rejected=True, member_view_isolated=True,
                                           trace=disposition_trace),

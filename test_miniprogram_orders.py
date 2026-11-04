@@ -669,6 +669,87 @@ class MemberOrderTests(unittest.TestCase):
             with patch('app.mall.fulfillment_notice.settings',return_value=changed):
                 with self.assertRaises(ValueError):supplier_packet(db,order,self.f.supplier.supplier_public_id)
 
+    def test_supplier_delegation_toggle_rechecks_prepared_handoff(self):
+        from app.mall.supplier_delegation import profile_revision, set_enabled, settings
+        from app.mall.supplier_handoff import handle_packet, packet_history
+
+        oid = self.place()['order_public_id']
+        self.f.fulfill(oid)
+        pk = self.f.supplier.id
+        supplier = self.f.supplier.supplier_public_id
+        args = (self.f.engine, self.f.operator.id, oid, supplier)
+        preparation, _ = handle_packet(*args)
+
+        def revision():
+            return profile_revision(pk, settings()['suppliers'][supplier])
+
+        def set_status(enabled, version):
+            with self.f.Session.begin() as db:
+                set_enabled(db, self.f.operator.id, pk, enabled, version)
+
+        original = revision()
+        set_status(False, original)
+        with self.assertRaisesRegex(ValueError, '已变化'):
+            set_status(True, original)
+        with self.assertRaises(ValueError):
+            handle_packet(*args)
+        with self.assertRaises(ValueError):
+            handle_packet(*args, preparation_id=preparation)
+        with self.f.Session() as db:
+            row, = packet_history(db, oid)
+            self.assertIsNone(row.handoff_id)
+        set_status(True, revision())
+        self.assertNotEqual(original, revision())
+        handle_packet(*args, preparation_id=preparation)
+        set_status(False, revision())
+        # Replaying an existing confirmation is a read-only acknowledgement.
+        handle_packet(*args, preparation_id=preparation)
+        with self.f.Session() as db:
+            row, = packet_history(db, oid)
+            self.assertIsNotNone(row.handoff_id)
+        self.assertEqual(settings()['suppliers'][supplier]['last_change']['actor_id'], self.f.operator.id)
+
+    def test_concurrent_delegation_switches_preserve_other_profiles(self):
+        import secrets
+        from pathlib import Path
+        from threading import Barrier
+        from app.admin_permissions import OPERATOR
+        from app.models import Supplier, User
+        from app.mall.supplier_delegation import profile_revision, set_enabled, settings
+
+        with self.f.Session.begin() as db:
+            other = Supplier(supplier_public_id='SUP-DEMO-CONCURRENT', name='隔离并发供应商', is_active=True)
+            peer = User(username='delegation-peer', role='admin', admin_level=OPERATOR, is_active=True,
+                        password_hash=secrets.token_hex(32))
+            db.add_all([other, peer])
+            db.flush()
+            participants = [(self.f.operator.id, self.f.supplier.id, self.f.supplier.supplier_public_id),
+                            (peer.id, other.id, other.supplier_public_id)]
+        path = Path(os.environ['MALL_FULFILLMENT_SETTINGS'])
+        config = settings()
+        config['suppliers'][participants[1][2]] = dict(name='隔离供应商', agreement_ref='DEMO-B', enabled=True)
+        path.write_text(json.dumps(config), encoding='utf-8')
+        ready = Barrier(2)
+        def suspend(participant):
+            actor, pk, key = participant
+            version = profile_revision(pk, config['suppliers'][key])
+            ready.wait(timeout=10)
+            with self.f.Session.begin() as db:
+                set_enabled(db, actor, pk, False, version)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(suspend, participants))
+        final = settings()
+        for actor, pk, key in participants:
+            profile = final['suppliers'][key]
+            self.assertFalse(profile['enabled'])
+            self.assertEqual(profile['last_change']['actor_id'], actor)
+        # If the configuration cannot be published, keep all previously saved decisions.
+        actor, pk, key = participants[0]
+        with patch('app.mall.supplier_delegation._publish', side_effect=OSError("test")), self.assertRaises(OSError):
+            with self.f.Session.begin() as db:
+                set_enabled(db, actor, pk, True, profile_revision(pk, final['suppliers'][key]))
+        self.assertEqual(settings(), final)
+
     def test_preparation_and_manual_handoff_are_scoped_and_replay_safe(self):
         from app.mall.supplier_handoff import handle_packet, packet_history, CONFIRM
         from app.models import AdminActionLog

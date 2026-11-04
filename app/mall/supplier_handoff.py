@@ -6,10 +6,10 @@ import re
 from sqlalchemy.orm import Session, aliased
 
 from ..admin_permissions import can_perform_mall_audit_action
-from ..models import AdminActionLog, Order, User
+from ..models import AdminActionLog, Order, Supplier, User
 from ..time_utils import UTC8_TIMEZONE
 from .audit import MallAuditActionType
-from .fulfillment_notice import supplier_packet
+from .fulfillment_notice import settings, supplier_packet
 
 
 PREPARE = MallAuditActionType.PACKET_PREPARE
@@ -35,6 +35,8 @@ def handle_packet(engine, actor_id, order_public_id, supplier_public_id, *, prep
     action = PREPARE if preparation_id is None else CONFIRM
     with _locked_order(engine, actor_id, order_public_id, action) as (db, actor, order):
         logs = db.query(AdminActionLog)
+        # Serialize new releases with changes to this supplier's delegation.
+        supplier = db.query(Supplier).filter_by(supplier_public_id=supplier_public_id).with_for_update().one_or_none()
         if preparation_id is None:
             packet = supplier_packet(db, order, supplier_public_id)
             receipt = AdminActionLog(admin_id=actor.id, action_type=action.value,
@@ -54,6 +56,10 @@ def handle_packet(engine, actor_id, order_public_id, supplier_public_id, *, prep
         existing = logs.filter_by(action_type=CONFIRM.value, target_type="mall_packet_preparation",
                                   target_id=preparation.id).one_or_none()
         if existing is None:
+            config = settings()
+            profile = config and config['suppliers'].get(supplier_public_id)
+            if not supplier or not supplier.is_active or not profile or not profile['enabled']:
+                raise ValueError("受托发货授权不可用")
             db.add(AdminActionLog(admin_id=actor.id, action_type=CONFIRM.value,
                                   target_type="mall_packet_preparation", target_id=preparation.id,
                                   description=supplier_public_id, created_at=datetime.now(UTC8_TIMEZONE)))
