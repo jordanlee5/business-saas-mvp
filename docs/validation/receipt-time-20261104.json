@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-04",
+  "baseline": "f073d84227c4e7e4073f03fb37baeec635628395",
+  "scope": "PRIV-04 offline erasure receipt restore. Synthetic order and isolated copies.",
+  "regression_test": "test_separate_receipt_journal_reapplies_erasure_to_older_backup",
+  "before_fix_sqlite_export_offset_error_hours": -8,
+  "after_fix": {
+    "utc_import_matches_original_after_reopen": true,
+    "original_journal_replay": true,
+    "one_second_conflict_rejected": true,
+    "non_target_tables_unchanged": true
+  },
+  "full_tests": 804,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 59,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.5
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 38.44
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.47
+    }
+  },
+  "http_guest_checks": 5,
+  "real_database_revision": "0013_order_delivery_snapshot",
+  "real_database_unchanged": true,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "before-fix-repro.log": "a4b432546e8fbb07b729799d71aff0dc09766e7e5e02418e2cac23099dc7a574",
+    "targeted.log": "6e7b0623eb93786094bccb005bd3083e9c45bd6cff6772b74580f3c2af5110f1",
+    "roundtrip.log": "6aad23db045c4b5f21175cc93735cd62521538897baf6e4516de8a20af1513c0",
+    "full.log": "568eead22ca1b7816fc0c87b493114fc81f912f4a53b95750ae1286c5da4fe30",
+    "orders-pg.stderr.txt": "2637f5584500d93aebbbeebdb3692da2598ab6f804b69b62103335c664cf9d39",
+    "settlement-pg.stderr.txt": "9324c0b5861074d47e7cf037cd48f2cea4aca071d94bbb39bc77a2c74ab158cd",
+    "checks-result.json": "84aa0cc6a0cd0d8692ba80c222ec84d42b3fd6c94c9f32890727598e6958c921",
+    "runtime-result.json": "b66209ea3746385278da60f86db1a6856cc71754ab0600a3ec097871551dab43",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  }
+}

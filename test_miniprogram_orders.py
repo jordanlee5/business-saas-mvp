@@ -607,7 +607,7 @@ class MemberOrderTests(unittest.TestCase):
                 self.assertEqual(packet['items'][0]['sku_name'],self.f.sku_two.name)
 
     def test_separate_receipt_journal_reapplies_erasure_to_older_backup(self):
-        from datetime import timedelta
+        from datetime import datetime, timedelta, timezone
         from app.models import OrderPrivacyReceipt
         from app.mall.order_privacy import clear_snapshot,review_fingerprint,aware,export_receipts,restore_receipts
         oid=self._cancel_for_privacy()
@@ -620,6 +620,13 @@ class MemberOrderTests(unittest.TestCase):
             journal=export_receipts(db)
             self.assertNotIn(BODY['phone'],json.dumps(journal));self.assertNotIn(BODY['detail'],json.dumps(journal))
             db.delete(db.get(OrderPrivacyReceipt,order.id));db.flush();db.add(OrderDeliverySnapshot(**values));db.flush()
-            restore_receipts(db,journal);restore_receipts(db,journal)
+            cleared_at = datetime.fromisoformat(journal[0]['cleared_at'])
+            utc_journal = [dict(journal[0], cleared_at=cleared_at.astimezone(timezone.utc).isoformat())]
+            restore_receipts(db, utc_journal)
             self.assertIsNone(db.get(OrderDeliverySnapshot,order.id));db.commit()
+        with Session(self.f.engine) as db:
+            self.assertEqual(export_receipts(db), journal)
+            restore_receipts(db, journal)
+            with self.assertRaisesRegex(ValueError, '清理凭据冲突'):
+                restore_receipts(db, [dict(journal[0], cleared_at=(cleared_at + timedelta(seconds=1)).isoformat())])
         self.assertEqual(self.call('POST',body=self.body).status_code,200)

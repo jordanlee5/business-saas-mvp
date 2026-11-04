@@ -116,10 +116,13 @@ def restore_receipts(db, records):
             raise ValueError('清理凭据字段无效')
         erased=datetime.fromisoformat(entry['cleared_at'])
         if erased.tzinfo is None:raise ValueError('清理凭据缺少时区')
+        # SQLite drops the offset on write. Persist the same Shanghai wall time
+        # used by clear_snapshot so the journal survives a database round trip.
+        erased = aware(erased)
         order=db.query(Order).filter_by(order_public_id=entry['order_public_id']).with_for_update().one_or_none()
         if order is None or order.status not in TERMINAL:raise ValueError('清理凭据与恢复订单不匹配')
         receipt=db.get(OrderPrivacyReceipt,order.id)
-        if receipt and (receipt.request_digest!=entry['request_digest'] or receipt.policy_version!=entry['policy_version'] or aware(receipt.cleared_at)!=aware(erased)):
+        if receipt and (receipt.request_digest!=entry['request_digest'] or receipt.policy_version!=entry['policy_version'] or aware(receipt.cleared_at)!=erased):
             raise ValueError('清理凭据冲突')
         if not receipt:
             receipt=OrderPrivacyReceipt(order_id=order.id,request_digest=entry['request_digest'],policy_version=entry['policy_version'],cleared_at=erased)
