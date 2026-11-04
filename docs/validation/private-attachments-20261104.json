@@ -1,0 +1,165 @@
+{
+  "baseline": "96d2f575e3ebc935e0e940f50fa8bff4ed21d119",
+  "date": "2026-11-04",
+  "user_visual_acceptance": {
+    "views": [
+      "SaaS product images at SKU detail",
+      "Mini Program home, detail and cart"
+    ],
+    "remarks": "商品易见、积分价格易读、确认兑换按钮好找，保留首页渐变绿。"
+  },
+  "private_access_coverage": [
+    "original voucher and Excel direct URLs blocked",
+    "reviewer can preview pending proof from matching and business screens",
+    "partner download requires approved match on own business",
+    "single and settlement ZIP downloads respect record scope",
+    "legacy local image allowed, traversal and out-of-scope stored paths denied",
+    "same-second exports from two partners contain only their own rows"
+  ],
+  "cold_backup_restore": {
+    "result": "PASS",
+    "scope": "synthetic stopped local SQLite service with uploads",
+    "before": {
+      "anonymous_raw_voucher": 404,
+      "anonymous_raw_excel": 404,
+      "other_owner": 404,
+      "linked_reviewer_preview": 200,
+      "owner_download": 200,
+      "public_webp": 200
+    },
+    "after": {
+      "anonymous_raw_voucher": 404,
+      "anonymous_raw_excel": 404,
+      "other_owner": 404,
+      "linked_reviewer_preview": 200,
+      "owner_download": 200,
+      "public_webp": 200
+    },
+    "restored_sha256": {
+      "review.db": "d609790d604d62f9937b6a4cd831a1ceb088018660dc8c4b125192e7fd419abb",
+      "uploads/excel/source.xlsx": "9fd8e8972a122788c02c5ac513a4fb036ce0b954e2f0dc2ffe5e5e07693b8618",
+      "uploads/vouchers/proof.png": "fd298a04c9d501c6bc2f4900c902cbe49f5031717600c7a0de9a6ebe83803ee9",
+      "uploads/mall_products/PRD-REVIEW/main.webp": "de295b8d5e2d21c4b2417a0a7ecae4b6b95ed653dfe80b4c7e7c4fc42ccb90a3"
+    }
+  },
+  "sqlite_discovery": {
+    "tests": 818,
+    "skipped_postgres_classes": 9
+  },
+  "dedicated_postgres_tests": 66,
+  "focused_tests": 14,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.59
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.8
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 48.12
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.52
+    }
+  },
+  "http_copy": {
+    "result": "PASS",
+    "scope": "isolated_copy_only",
+    "actual_local_http_guest_checks": [
+      {
+        "path": "/health",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/status",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/orders",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/addresses",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+        "status": 401,
+        "cache_control": null
+      }
+    ],
+    "database_files_unchanged": true,
+    "rehearsal_database_revision": "0016_member_rights",
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "server_stopped": true,
+    "wechat_platform_acceptance": false
+  },
+  "real_database_readonly": {
+    "source_unchanged": true,
+    "revision": "0013_order_delivery_snapshot",
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "integrity": "ok",
+    "foreign_key_violations": 0
+  },
+  "public_server_tested": false,
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted.log": "a0993cede49d852d4823e04687980fe888e27430f34974c2bc29deddafd44d44",
+    "suite-final.log": "aed56f466e7ac9eb11838e3ea37868926dadedd65ac292ad64e2f0bc8283e3b7",
+    "orders-pg.stderr.txt": "27067f653e9d65576238a7e9c98927d3aecc2b83f746b66766c6a0b92476f301",
+    "settlement-pg.stderr.txt": "7bece6ccdd568ac78fbd88b4428f64efb514c312c56b895e5cec0018790ca90b",
+    "restore.log": "3d38d287ae57203ad3659199170a7a3eda3a516d76a6e9ff60642c460d56b6d5",
+    "restore.json": "36a8996b6cb8c987b0c52baab8fed447ac59be214541f4e8c456b8fdc8a2301f",
+    "runtime-result.json": "3b48a89651707fa0631bb812378de7f611d3c59d2351331af0196963a0d0850a",
+    "checks-result.json": "27a9c9baa33e3a2a74b62a3ae973ffee712aaf23c698983e178b037b277a82d5"
+  }
+}

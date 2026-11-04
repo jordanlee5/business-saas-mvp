@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, UploadFile, File, Query, HTTPException
 from fastapi.responses import (
     HTMLResponse,
+    Response,
     RedirectResponse,
     FileResponse,
     StreamingResponse,
@@ -26,6 +27,7 @@ import pandas as pd
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
+from .private_vouchers import PRIVATE_HEADERS, PREVIEW_TYPES, voucher_path
 from .database import engine, SessionLocal
 from .mall import rights_service as rights
 from .mall.catalog_admin_service import catalog_listing, PRODUCT_STATUS_LABELS
@@ -306,7 +308,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 os.makedirs("uploads", exist_ok=True)
 # Product uploads are encoded as WebP even on hosts without a registered WebP MIME type.
 mimetypes.add_type("image/webp", ".webp")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+for media_dir in ("mall_products", "promotion_pages"):
+    media_root = os.path.join("uploads", media_dir)
+    os.makedirs(media_root, exist_ok=True)
+    app.mount(f"/uploads/{media_dir}", StaticFiles(directory=media_root), name=media_dir)
 
 def admin_navigation_context(
     request: Request,
@@ -2288,76 +2293,39 @@ def update_administrator_status(
     )
 
 
+@app.get("/vouchers/{review_id}/preview")
+def preview_voucher(request: Request, review_id: int):
+    return _serve_voucher(request, review_id, preview=True)
+
+
 @app.get("/vouchers/{review_id}/download")
-def download_approved_voucher(
-    request: Request,
-    review_id: int,
-):
+def download_approved_voucher(request: Request, review_id: int):
+    return _serve_voucher(request, review_id, preview=False)
+
+
+def _serve_voucher(request, review_id, *, preview):
     user = get_current_user(request)
-
     if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    db = SessionLocal()
-
-    try:
-        review = db.query(MatchReview).filter(MatchReview.id == review_id).first()
-
-        if not review:
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        # 下载入口只允许下载“已通过”的凭证
-        if review.review_status != "已通过":
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        business_record = (
-            db.query(BusinessRecord)
-            .filter(BusinessRecord.id == review.business_record_id)
-            .first()
-        )
-
-        voucher = (
-            db.query(VoucherRecord)
-            .filter(VoucherRecord.id == review.voucher_id)
-            .first()
-        )
-
-        if not business_record or not voucher:
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        # 权限隔离：
-        # 管理员可以下载已通过凭证；
-        # 上传方只能下载自己业务数据关联的已通过凭证。
-        if user.role == "partner" and business_record.user_id != user.id:
-            return RedirectResponse(url="/dashboard", status_code=302)
-
-        if user.role not in ["admin", "partner"]:
-            return RedirectResponse(url="/dashboard", status_code=302)
-
-        if not voucher.file_path:
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        relative_path = voucher.file_path.replace("\\", "/").lstrip("/")
-        absolute_file_path = os.path.abspath(relative_path)
-        uploads_root = os.path.abspath("uploads")
-
-        # 防止下载 uploads 目录外的文件
-        if os.path.commonpath([uploads_root, absolute_file_path]) != uploads_root:
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        if not os.path.exists(absolute_file_path):
-            return RedirectResponse(url="/business-records", status_code=302)
-
-        download_filename = voucher.filename or os.path.basename(absolute_file_path)
-
-        return FileResponse(
-            path=absolute_file_path,
-            filename=download_filename,
-            media_type="application/octet-stream",
-        )
-
-    finally:
-        db.close()
+        return RedirectResponse("/login", status_code=302, headers=PRIVATE_HEADERS)
+    with SessionLocal() as db:
+        query = (db.query(VoucherRecord)
+                 .join(MatchReview, MatchReview.voucher_id == VoucherRecord.id)
+                 .join(BusinessRecord, BusinessRecord.id == MatchReview.business_record_id)
+                 .filter(MatchReview.id == review_id))
+        if not preview:
+            query = query.filter(MatchReview.review_status == "已通过")
+        if user.role == "partner" and not preview:
+            query = query.filter(BusinessRecord.user_id == user.id)
+        elif user.role != "admin" or not can_view_business_records(user):
+            raise HTTPException(404, headers=PRIVATE_HEADERS)
+        voucher = query.one_or_none()
+        path = voucher_path(voucher.file_path) if voucher else None
+        if path is None:
+            raise HTTPException(404, headers=PRIVATE_HEADERS)
+        mime = PREVIEW_TYPES.get(path.suffix.lower()) if preview else None
+        return FileResponse(path, filename=os.path.basename((voucher.filename or path.name).replace("\\", "/")),
+                            content_disposition_type="inline" if mime else "attachment",
+                            media_type=mime or "application/octet-stream", headers=PRIVATE_HEADERS)
 
 
 @app.get("/business-records/{record_id}/vouchers/download-all")
@@ -2413,7 +2381,6 @@ def download_all_approved_vouchers(
                 status_code=302,
             )
 
-        uploads_root = os.path.abspath("uploads")
         zip_buffer = io.BytesIO()
 
         added_file_count = 0
@@ -2439,29 +2406,8 @@ def download_all_approved_vouchers(
                     .first()
                 )
 
-                if not voucher or not voucher.file_path:
-                    continue
-
-                relative_path = (
-                    voucher.file_path
-                    .replace("\\", "/")
-                    .lstrip("/")
-                )
-
-                absolute_file_path = os.path.abspath(relative_path)
-
-                # 防止访问 uploads 目录之外的文件。
-                try:
-                    common_path = os.path.commonpath(
-                        [uploads_root, absolute_file_path]
-                    )
-                except ValueError:
-                    continue
-
-                if common_path != uploads_root:
-                    continue
-
-                if not os.path.isfile(absolute_file_path):
+                absolute_file_path = voucher_path(voucher.file_path) if voucher else None
+                if absolute_file_path is None:
                     continue
 
                 added_file_count += 1
@@ -2511,6 +2457,7 @@ def download_all_approved_vouchers(
             zip_buffer,
             media_type="application/zip",
             headers={
+                **PRIVATE_HEADERS,
                 "Content-Disposition": (
                     f'attachment; filename="{download_filename}"'
                 )
@@ -2621,7 +2568,6 @@ def download_my_settlement_vouchers(
                 status_code=302,
             )
 
-        uploads_root = os.path.abspath("uploads")
         zip_buffer = io.BytesIO()
         total_added_file_count = 0
 
@@ -2688,34 +2634,8 @@ def download_my_settlement_vouchers(
                         .first()
                     )
 
-                    if not voucher or not voucher.file_path:
-                        continue
-
-                    relative_path = (
-                        voucher.file_path
-                        .replace("\\", "/")
-                        .lstrip("/")
-                    )
-
-                    absolute_file_path = os.path.abspath(
-                        relative_path
-                    )
-
-                    # 防止 ZIP 下载访问 uploads 目录之外的文件。
-                    try:
-                        common_path = os.path.commonpath(
-                            [
-                                uploads_root,
-                                absolute_file_path,
-                            ]
-                        )
-                    except ValueError:
-                        continue
-
-                    if common_path != uploads_root:
-                        continue
-
-                    if not os.path.isfile(absolute_file_path):
+                    absolute_file_path = voucher_path(voucher.file_path) if voucher else None
+                    if absolute_file_path is None:
                         continue
 
                     business_file_count += 1
@@ -2767,6 +2687,7 @@ def download_my_settlement_vouchers(
             zip_buffer,
             media_type="application/zip",
             headers={
+                **PRIVATE_HEADERS,
                 "Content-Disposition": (
                     f'attachment; filename="{download_filename}"'
                 )
@@ -4225,6 +4146,12 @@ def correct_upload_batch_channel(
     )
 
 
+def _private_workbook(buffer, filename):
+    return Response(buffer.getvalue(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={**PRIVATE_HEADERS, "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"})
+
+
 @app.get("/business-records/export")
 def export_business_records(
     request: Request,
@@ -4250,10 +4177,7 @@ def export_business_records(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    if (
-        user.role == "admin"
-        and not can_export_business_records(user)
-    ):
+    if user.role != "partner" and not can_export_business_records(user):
         return RedirectResponse(
             url="/dashboard",
             status_code=302,
@@ -4399,12 +4323,11 @@ def export_business_records(
 
     summary_df = pd.DataFrame(summary_rows)
 
-    os.makedirs("exports", exist_ok=True)
+    workbook = io.BytesIO()
 
     filename = f"business_records_{utc8_now().strftime('%Y%m%d%H%M%S')}.xlsx"
-    file_path = os.path.join("exports", filename)
 
-    with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
         summary_df.to_excel(writer, index=False, sheet_name="汇总说明")
         df.to_excel(writer, index=False, sheet_name="业务数据")
 
@@ -4474,11 +4397,7 @@ def export_business_records(
 
     db.close()
 
-    return FileResponse(
-        path=file_path,
-        filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return _private_workbook(workbook, filename)
 
 
 @app.get("/business-records/{record_id}", response_class=HTMLResponse)
@@ -4593,20 +4512,7 @@ def business_record_detail_page(
         if not voucher:
             continue
 
-        voucher_url = ""
-
-        if voucher.file_path:
-            normalized_path = voucher.file_path.replace("\\", "/")
-
-            if "/uploads/" in normalized_path:
-                relative_path = normalized_path.split("/uploads/", 1)[1]
-                voucher_url = "/uploads/" + relative_path
-            elif normalized_path.startswith("uploads/"):
-                voucher_url = "/" + normalized_path
-            else:
-                voucher_url = "/uploads/" + os.path.basename(normalized_path)
-        elif voucher.filename:
-            voucher_url = "/uploads/vouchers/" + voucher.filename
+        voucher_url = f"/vouchers/{review.id}/preview" if voucher.file_path else ""
 
         voucher_amount = money2(voucher.voucher_amount or 0)
 
@@ -6968,20 +6874,7 @@ def match_reviews_page(
         if voucher and record:
             uploader = db.query(User).filter(User.id == record.user_id).first()
 
-            voucher_url = ""
-
-            if voucher.file_path:
-                normalized_path = voucher.file_path.replace("\\", "/")
-
-                if "/uploads/" in normalized_path:
-                    relative_path = normalized_path.split("/uploads/", 1)[1]
-                    voucher_url = "/uploads/" + relative_path
-                elif normalized_path.startswith("uploads/"):
-                    voucher_url = "/" + normalized_path
-                else:
-                    voucher_url = "/uploads/" + os.path.basename(normalized_path)
-            elif voucher.filename:
-                voucher_url = "/uploads/vouchers/" + voucher.filename
+            voucher_url = f"/vouchers/{review.id}/preview" if voucher.file_path else ""
             
 
 
@@ -7913,10 +7806,9 @@ def export_stats_dashboard(
         end_date=end_date,
     )
 
-    os.makedirs("exports", exist_ok=True)
+    workbook = io.BytesIO()
 
     timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
-    export_path = os.path.join("exports", f"settlement_summary_{timestamp}.xlsx")
 
     selected_partner_name = "全部上传方"
 
@@ -8032,18 +7924,14 @@ def export_stats_dashboard(
                 }
             )
 
-    with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
         pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
         pd.DataFrame(partner_summary_rows).to_excel(writer, sheet_name="上传方汇总", index=False)
         detail_df.to_excel(writer, sheet_name="明细", index=False)
         
         format_excel_file(writer)
 
-    return FileResponse(
-        export_path,
-        filename=f"结算汇总_{timestamp}.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return _private_workbook(workbook, f"结算汇总_{timestamp}.xlsx")
 
 @app.get("/my-settlement", response_class=HTMLResponse)
 def my_settlement_page(
@@ -8102,10 +7990,9 @@ def export_my_settlement(
         end_date=end_date,
     )
 
-    os.makedirs("exports", exist_ok=True)
+    workbook = io.BytesIO()
 
     timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
-    export_path = os.path.join("exports", f"my_settlement_{user.id}_{timestamp}.xlsx")
 
     export_time = utc8_now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -8160,17 +8047,13 @@ def export_my_settlement(
         detail_df = detail_df[internal_columns]
         detail_df = detail_df.rename(columns=customer_column_names)
 
-    with pd.ExcelWriter(export_path, engine="openpyxl") as writer:
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
         pd.DataFrame(summary_rows).to_excel(writer, sheet_name="汇总", index=False)
         detail_df.to_excel(writer, sheet_name="明细", index=False)
 
         format_excel_file(writer)
 
-    return FileResponse(
-        export_path,
-        filename=f"我的结算报表_{timestamp}.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return _private_workbook(workbook, f"我的结算报表_{timestamp}.xlsx")
 
 
 def _mall_catalog_redirect(

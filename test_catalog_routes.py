@@ -493,8 +493,8 @@ class CatalogRouteTests(unittest.TestCase):
         image = directory / "mall_products" / "PRD-TEST" / "main.webp"
         image.parent.mkdir(parents=True)
         Image.new("RGB", (20, 20)).save(image, "WEBP")
-        mount = next(route.app for route in app.routes if route.name == "uploads")
-        with patch.object(mount, "all_directories", [str(directory)]):
+        mount = next(route.app for route in app.routes if route.name == "mall_products")
+        with patch.object(mount, "all_directories", [str(directory / "mall_products")]):
             response = TestClient(app).get("/uploads/mall_products/PRD-TEST/main.webp")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "image/webp")
