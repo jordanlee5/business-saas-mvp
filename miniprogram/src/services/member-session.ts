@@ -258,6 +258,7 @@ export async function getCurrentMemberPointsLedger(page: number, availableOnly =
 export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE',
                                            data?: Record<string, unknown>): Promise<unknown> {
   if (!/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path) &&
+      !/^\/rights-requests(?:\?page=[1-9][0-9]{0,5}|\/RGT-[0-9a-f]{32})?$/.test(path) &&
       !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/fulfillment-preview|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel)?)?$/.test(path)) {
     throw new MemberSessionError('收货地址请求无效');
   }
@@ -271,13 +272,15 @@ export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' 
       ...(data ? { data } : {}),
       success(response) {
         const expected = method === 'POST' ? 201 : method === 'DELETE' ? 204 : 200;
-        if (response.statusCode === expected || (path.startsWith('/orders') && response.statusCode === 200)) { resolve(response.data); return; }
+        if (response.statusCode === expected || ((path.startsWith('/orders') || path === '/rights-requests') && response.statusCode === 200)) { resolve(response.data); return; }
         const messages: Record<number, string> = {
           401: '会员会话已失效，请重新登录', 404: '地址已不存在，请刷新列表',
           409: '最多保存20条地址，请先删除不再使用的地址', 422: '地址格式不正确，请检查后重试',
         };
         const orderMessages: Record<number, string> = {401: '会员会话已失效，请重新登录', 404: '尚未查询到订单或地址，请核对后重试', 409: '商品、价格、地址、积分、库存或订单状态已变化，请重新核对', 422: '订单请求格式不正确'};
-        reject(new MemberSessionError((path.startsWith('/orders') ? orderMessages : messages)[response.statusCode] || '服务暂不可用，请查询确认操作结果', response.statusCode));
+        const rightsMessages: Record<number,string> = {401:'会员会话已失效，请重新登录',404:'申请不存在',409:'申请内容无效或已变化，请核对申请记录',422:'请检查申请事项和说明'};
+        const errors = path.startsWith('/rights-requests') ? rightsMessages : path.startsWith('/orders') ? orderMessages : messages;
+        reject(new MemberSessionError(errors[response.statusCode] || '服务暂不可用，请查询确认操作结果', response.statusCode));
       },
       fail() { reject(new MemberSessionError('网络连接失败，请刷新后核对操作结果')); },
     }));

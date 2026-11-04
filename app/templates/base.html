@@ -325,6 +325,9 @@
                 </a >
                 {% endif %}
                 {% if can_view_mall_orders | default(false) %}
+                <a class="side-link {% if active_page == 'mall_rights' %}active{% endif %}" href="/mall-rights">
+                    <span class="side-icon">📋</span><span>会员权益申请</span>
+                </a>
                 <a class="side-link {% if active_page == 'mall_orders' %}active{% endif %}" href="/mall-orders">
                     <span class="side-icon">🧾</span><span>商城订单</span>
                 </a>

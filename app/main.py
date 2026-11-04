@@ -25,6 +25,7 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 from .database import engine, SessionLocal
+from .mall import rights_service as rights
 from .mall.catalog_admin_service import catalog_listing, PRODUCT_STATUS_LABELS
 from . import models
 from .api import (
@@ -8240,6 +8241,62 @@ def _run_catalog_mutation(
         )
     finally:
         db.close()
+
+
+@app.get("/mall-rights", response_class=HTMLResponse)
+def mall_rights_page(request: Request, case_id: str = "", page: int = 1, error: str = ""):
+    user = get_current_user(request)
+    if not user or not user.is_active or not can_manage_mall_orders(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    with SessionLocal() as db:
+        case = None
+        history = []
+        queue = []
+        more = False
+        page = max(1, min(1000000, page))
+        if case_id:
+            case = db.query(models.MemberRightsRequest).filter_by(public_id=case_id).one_or_none()
+            if not case:
+                raise HTTPException(404, "申请不存在")
+            history = rights.events(db, case)
+        else:
+            rows = (db.query(models.MemberRightsRequest, models.Member.member_public_id)
+                    .join(models.Member, models.Member.id == models.MemberRightsRequest.member_id)
+                    .order_by(models.MemberRightsRequest.id.desc()).offset((page-1)*rights.PAGE_SIZE)
+                    .limit(rights.PAGE_SIZE+1).all())
+            queue, more = rows[:rights.PAGE_SIZE], len(rows) > rights.PAGE_SIZE
+        token = secrets.token_urlsafe(32) if case and rights.ALLOWED[case.status] else ""
+        response = templates.TemplateResponse(request=request, name="mall_rights.html", context=add_base_context(request, {
+            "request": request, "page_title": "会员权益申请", "active_page": "mall_rights", "case": case,
+            "member_no": db.get(models.Member, case.member_id).member_public_id if case else "",
+            "history": history, "queue": queue, "more": more, "page": page, "error": error,
+            "rights": rights, "token": token}))
+        response.headers["Cache-Control"] = "no-store, private"
+        if token:
+            response.set_cookie("mall_rights_csrf", token, httponly=True, samesite="strict",
+                                secure=request.url.scheme == "https", path="/mall-rights")
+        return response
+
+
+@app.post("/mall-rights/{public_id}/handle")
+def mall_rights_handle(request: Request, public_id: str, action: str = Form(...), version: int = Form(...),
+                       csrf_token: str = Form(""), method: str = Form(""), note: str = Form("")):
+    user = get_current_user(request)
+    if not user or not user.is_active or not can_manage_mall_orders(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    query = {"case_id": public_id}
+    try:
+        cookie = request.cookies.get("mall_rights_csrf", "")
+        if len(cookie) < 32 or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
+            raise ValueError("表单已失效，请刷新申请")
+        with SessionLocal() as db:
+            if db.get_bind().dialect.name == "sqlite":
+                db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            rights.update(db, public_id, user.id, version, action, method, note)
+            db.commit()
+    except (ValueError, PermissionError) as exc:
+        query["error"] = str(exc)
+    return RedirectResponse("/mall-rights?" + urlencode(query), status_code=303)
 
 
 @app.get("/mall-catalog", response_class=HTMLResponse)

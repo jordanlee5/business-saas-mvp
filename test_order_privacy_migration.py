@@ -23,7 +23,8 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
         command.upgrade(self.config, 'head')
         assert_database_schema_ready(self.engine)
         self.assertEqual(set(inspect(self.engine).get_table_names()) - before,
-                         {'order_privacy_receipts', 'order_fulfillment_notices', 'order_parcels', 'order_parcel_items'})
+                         {'order_privacy_receipts', 'order_fulfillment_notices', 'order_parcels', 'order_parcel_items',
+                          'member_rights_requests', 'member_rights_events'})
         command.downgrade(self.config, '0013_order_delivery_snapshot')
         self.assertEqual(set(inspect(self.engine).get_table_names()), before)
         command.upgrade(self.config, 'head')
@@ -55,6 +56,19 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
                 "values (1, 1, 'TEST', 'A', '2026-11-03 10:00:00')"))
         with self.assertRaisesRegex(RuntimeError, '禁止降级'):
             command.downgrade(self.config, '0014_order_privacy')
+        with self.engine.connect() as connection:
+            self.assertEqual(connection.execute(text('select count(*) from order_parcels')).scalar(), 1)
+        command.upgrade(self.config, 'head')
+        assert_database_schema_ready(self.engine)
+
+    def test_rights_application_blocks_downgrade(self):
+        command.upgrade(self.config, 'head')
+        with self.engine.begin() as connection:
+            connection.execute(text("insert into member_rights_requests "
+                "(public_id, member_id, request_key, kind, description, status, version, created_at) "
+                "values ('synthetic',1,'synthetic','ACCESS','test','PENDING',1,'2026-11-04 12:00:00')"))
+        with self.assertRaisesRegex(RuntimeError, '禁止降级'):
+            command.downgrade(self.config, '0015_order_parcels')
         assert_database_schema_ready(self.engine)
 
     def test_fulfillment_notice_blocks_downgrade(self):

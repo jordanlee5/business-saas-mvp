@@ -1,0 +1,185 @@
+{
+  "date": "2026-11-04",
+  "baseline": "9838e505bcd05c61d5809f1c8f8001dc67e8c8f4",
+  "scope": "Synthetic members, local HTTP service and isolated databases. Operator actions use the rendered SaaS form.",
+  "rights_journey": {
+    "result": "PASS",
+    "transport": "loopback_http",
+    "client": "compiled mini program page handlers, synthetic WeChat session exchange",
+    "operator": "Edge browser",
+    "public_id": "RGT-81efbdd5fd004d13b947744d8266bd47",
+    "statuses": [
+      "待身份核验",
+      "身份已核验",
+      "处理中",
+      "已办结"
+    ],
+    "history": [
+      {
+        "action": "核验通过",
+        "note": "已完成人工身份核验",
+        "time": "2026-11-04 14:12:04",
+        "sequence": 1
+      },
+      {
+        "action": "更新进度",
+        "note": "已核对虚拟资料，正在办理更正。",
+        "time": "2026-11-04 14:12:05",
+        "sequence": 2
+      },
+      {
+        "action": "记录结果",
+        "note": "虚拟资料已人工更正并复核。",
+        "time": "2026-11-04 14:12:05",
+        "sequence": 3
+      }
+    ],
+    "audit": [
+      "2026-11-04 14:12:04 · 核验通过 · 经办账号 #1\n · 通过既有绑定渠道人工核对\n已完成人工身份核验",
+      "2026-11-04 14:12:05 · 更新进度 · 经办账号 #1\n\n已核对虚拟资料，正在办理更正。",
+      "2026-11-04 14:12:05 · 记录结果 · 经办账号 #1\n\n虚拟资料已人工更正并复核。"
+    ],
+    "reopen_during_submission": true,
+    "other_member_list_count": 0,
+    "other_member_detail_status": 404
+  },
+  "regression_cases": [
+    "guest refused",
+    "each member lists only own requests",
+    "cross-member lookup returns 404 in both directions",
+    "idempotent submit",
+    "changed payload rejected",
+    "operator permission",
+    "CSRF",
+    "verification required",
+    "stale form rejected",
+    "blank result rejected",
+    "closed case immutable",
+    "failed identity verification recorded",
+    "nonempty downgrade blocked"
+  ],
+  "targeted_tests": 15,
+  "full_tests": 810,
+  "expected_pg_class_skips": [
+    "member_addresses",
+    "member_orders",
+    "migration",
+    "miniprogram_activation",
+    "miniprogram_points_ledger",
+    "order_cancellation",
+    "order_fulfillment",
+    "public_catalog",
+    "supplier_settlement"
+  ],
+  "dedicated_pg_tests": 62,
+  "client_checks": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 48.33
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.09
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.47
+    }
+  },
+  "http_guest_checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/status",
+      "status": 200,
+      "cache_control": null
+    },
+    {
+      "path": "/api/miniprogram/v1/orders",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/addresses",
+      "status": 401,
+      "cache_control": "no-store, private"
+    },
+    {
+      "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+      "status": 401,
+      "cache_control": null
+    }
+  ],
+  "database": {
+    "schema": "0016_member_rights",
+    "isolated_empty_upgrade_downgrade_reupgrade": true,
+    "isolated_copy_integrity": "ok",
+    "real_readonly": {
+      "source_unchanged": true,
+      "revision": "0013_order_delivery_snapshot",
+      "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+      "integrity": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "wechat_review_submitted": false,
+  "log_sha256": {
+    "targeted.log": "a6a23b2bea08e0e38441f4eb39d8ad747932df3a399c1dbc271ec45af30957df",
+    "rights-journey.json": "f4df93cb34ea65d6556f3271327831ee898d3d6ed00f3b2c2c548620721fd9f6",
+    "operator-result.png": "fee12dafdddff0be8113a6e4b5dd0a09b432287eac39b101de52bcf6bef497c3",
+    "full-final.log": "a64344fd17c9e41a2de9fda7acaed3f3f080371126ada894a5978d165847a1b0",
+    "orders-pg.stderr.txt": "d81b152619c65560dc193f779a3524733b757fc6e233b4ce9c6839504fee3f4c",
+    "settlement-pg.stderr.txt": "1f1946efbed8af300d2d8b89b05362ed93924382458dd38453cf72d50f0c12ae",
+    "checks-result.json": "2e1ed042809b0f7eca988c3cf3ddc3314f81396857e8dd746d419cf7d847f4f7",
+    "runtime-result.json": "3b48a89651707fa0631bb812378de7f611d3c59d2351331af0196963a0d0850a",
+    "real-readonly-result.json": "6d04ec608b9f186fb2741f57aed55cfe3ca6aa661fa68c0d79bb7ea7a847c90e"
+  },
+  "operator_result_screenshot": "docs/validation/member-rights-operator-20261104.png"
+}

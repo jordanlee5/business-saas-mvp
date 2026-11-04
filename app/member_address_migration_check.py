@@ -98,7 +98,7 @@ def rehearse(source, output):
             # Keep the historical 0012 gate strict while excluding only the explicitly
             # registered later tables. Historical rehearsal is not current readiness.
             later_tables = {'order_delivery_snapshots', 'order_privacy_receipts', 'order_fulfillment_notices',
-                            'order_parcels', 'order_parcel_items'}
+                            'order_parcels', 'order_parcel_items', 'member_rights_requests', 'member_rights_events'}
             with engine.connect() as connection:
                 inspector = inspect(connection)
                 if connection.execute(text('select version_num from alembic_version')).scalar() != CURRENT:

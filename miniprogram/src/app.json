@@ -6,6 +6,7 @@
     "pages/cart/index",
     "pages/points/index",
     "pages/profile/index",
+    "pages/rights/index",
     "pages/activation/index",
     "pages/addresses/index",
     "pages/checkout/index",

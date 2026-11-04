@@ -45,7 +45,7 @@ def _rehearse_copy(source, copied, policy, reviews, now, receipt_journal, previe
     original = file_fingerprints(source)
     with closing(connect_readonly(source)) as connection:
         before = snapshot(connection)
-        if before['revision'] not in ('0013_order_delivery_snapshot', '0014_order_privacy', CURRENT_SCHEMA_REVISION):
+        if before['revision'] not in ('0013_order_delivery_snapshot', '0014_order_privacy', '0015_order_parcels', CURRENT_SCHEMA_REVISION):
             raise ValueError('源库版本不支持')
         with closing(sqlite3.connect(copied)) as target:
             connection.backup(target)

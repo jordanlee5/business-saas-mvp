@@ -23,6 +23,7 @@
     <button class="action" bindtap="onOrdersTap">我的订单<text class="arrow">›</text></button>
     <button class="action" bindtap="onAddressesTap">我的收货地址<text class="arrow">›</text></button>
     <button class="action" bindtap="onPrivacyTap">微信隐私保护指引<text class="arrow">›</text></button>
+    <button class="action" bindtap="onRightsTap">会员权益申请<text class="arrow">›</text></button>
     <button class="action" bindtap="onCatalogTap">返回积分商城<text class="arrow">›</text></button>
   </view>
 </view>

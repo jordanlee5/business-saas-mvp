@@ -60,6 +60,7 @@ Page({
     this.setData({ signedIn: false, memberPublicId: '', error: '', signingIn: false, loading: false });
   },
   onOrdersTap() { wx.navigateTo({ url: '/pages/orders/index' }); },
+  onRightsTap() { wx.navigateTo({ url: '/pages/rights/index' }); },
   onAddressesTap() { wx.navigateTo({ url: '/pages/addresses/index' }); },
   onCategoriesTap() { wx.reLaunch({ url: '/pages/categories/index' }); },
   onPointsTap() { wx.navigateTo({ url: '/pages/points/index' }); },

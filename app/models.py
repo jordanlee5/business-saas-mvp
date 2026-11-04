@@ -28,6 +28,33 @@ from .mall.domain import (
 )
 from .time_utils import utc8_now
 
+class MemberRightsRequest(Base):
+    __tablename__ = "member_rights_requests"
+    __table_args__ = (UniqueConstraint("member_id", "request_key", name="uq_rights_member_key"),)
+
+    id = Column(Integer, primary_key=True)
+    public_id = Column(String(36), nullable=False, unique=True)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
+    request_key = Column(String(32), nullable=False)
+    kind = Column(String(20), nullable=False)
+    description = Column(String(800), nullable=False)
+    status = Column(String(20), nullable=False)
+    version = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class MemberRightsEvent(Base):
+    __tablename__ = "member_rights_events"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey("member_rights_requests.id"), nullable=False, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(String(20), nullable=False)
+    note = Column(String(800), nullable=False)
+    verification_method = Column(String(30), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+
 # 用户表
 class User(Base):
     __tablename__ = "users"

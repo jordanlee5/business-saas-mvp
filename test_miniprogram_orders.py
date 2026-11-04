@@ -49,6 +49,87 @@ class MemberOrderTests(unittest.TestCase):
     def place(self):
         r=self.call('POST',body=self.body);self.assertEqual(r.status_code,201,r.text);return r.json()
 
+    def test_member_rights_application_private_manual_workflow(self):
+        from secrets import token_urlsafe
+        from urllib.parse import parse_qs, urlsplit
+        from app.admin_permissions import OPERATOR, PRIMARY_REVIEWER
+        from app.auth import get_password_hash
+        from app.main import app
+        from app.models import MemberRightsEvent, User
+        from tools.rehearse_member_fulfillment import FormFields
+
+        base = '/api/miniprogram/v1/rights-requests'
+        def member(method, path='', owner=0, **kwargs):
+            headers = {} if owner is None else {'Authorization': 'Bearer '+self.tokens[owner]}
+            response = self.client.request(method, base+path, headers=headers, **kwargs)
+            self.assertEqual(response.headers['cache-control'], 'no-store, private')
+            return response
+
+        form = dict(request_key='d'*32, kind='CORRECT', description='请更正虚拟会员资料')
+        self.assertEqual(member('POST', owner=None, json=form).status_code, 401)
+        new = member('POST', json=form)
+        self.assertEqual(new.status_code, 201)
+        oid = new.json()['public_id']
+        self.assertEqual(member('POST', json=form).json()['public_id'], oid)
+        self.assertEqual(member('POST', json=dict(form,description='其他事项')).status_code, 409)
+        self.assertEqual(member('GET', owner=1).json()['total'], 0)
+        self.assertEqual(member('GET','/'+oid,owner=1).status_code, 404)
+        second = member('POST', owner=1, json=dict(form,kind='ACCESS')).json()['public_id']
+        self.assertNotEqual(oid, second)
+        self.assertEqual(member('GET','/'+second).status_code, 404)
+        password = token_urlsafe(20)
+        with self.f.Session.begin() as db:
+            for name,level in [('rights-ops',OPERATOR),('rights-reviewer',PRIMARY_REVIEWER)]:
+                db.add(User(username=name, password_hash=get_password_hash(password), role='admin', admin_level=level,is_active=True))
+
+        admin = TestClient(app, follow_redirects=False)
+        self.addCleanup(admin.close)
+        with patch('app.main.SessionLocal', self.f.Session):
+            self.assertEqual(admin.get('/mall-rights').headers['location'],'/login')
+            def login(name):
+                self.assertEqual(admin.post('/login',data=dict(username=name,password=password)).headers['location'],'/dashboard')
+            login('rights-reviewer')
+            self.assertEqual(admin.get('/mall-rights').headers['location'],'/dashboard')
+            login('rights-ops')
+            self.assertIn(oid,admin.get('/mall-rights').text)
+            def fields(case_id):
+                view=admin.get('/mall-rights',params={'case_id':case_id})
+                self.assertEqual(view.headers['cache-control'],'no-store, private')
+                return FormFields(view.text,'/mall-rights/'+case_id+'/handle').values
+            def send(case_id, data, accepted):
+                res=admin.post('/mall-rights/'+case_id+'/handle',data=data)
+                self.assertEqual(res.status_code,303)
+                self.assertEqual('error' not in parse_qs(urlsplit(res.headers['location']).query),accepted)
+            initial=fields(oid)
+            send(oid,dict(initial,action='finish',note='未经核验'),False)
+            send(oid,dict(initial,action='verify',method='IN_PERSON',csrf_token='bad'),False)
+            send(oid,dict(initial,action='verify'),False)
+            send(oid,dict(initial,action='verify',method='BOUND_CONTACT'),True)
+            send(oid,dict(initial,action='verify',method='BOUND_CONTACT'),False)
+            send(oid,dict(fields(oid),action='progress',note='已转交资料维护人员核对'),True)
+            self.assertEqual(member('GET','/'+oid).json()['status'],'处理中')
+            current=fields(oid)
+            send(oid,dict(current,action='finish',note=' '),False)
+            send(oid,dict(current,action='finish',note='已完成虚拟资料更正'),True)
+            send(oid,dict(current,action='finish',note='覆盖结果'),False)
+            self.assertNotIn('csrf_token',fields(oid))
+            send(second,dict(fields(second),action='fail',method='IN_PERSON',note='资料未能匹配，请核对后重新申请'),True)
+            self.assertIn('通过既有绑定渠道人工核对',admin.get('/mall-rights',params={'case_id':oid}).text)
+        result=member('GET','/'+oid).json()
+        self.assertEqual(result['status'],'已办结')
+        self.assertEqual([event['action'] for event in result['history']],['核验通过','更新进度','记录结果'])
+        self.assertEqual(result['history'][-1]['note'],'已完成虚拟资料更正')
+        self.assertNotIn('BOUND_CONTACT',str(result))
+        self.assertEqual(member('GET','/'+oid,owner=1).status_code,404)
+        self.assertEqual([r['public_id'] for r in member('GET',owner=1).json()['items']],[second])
+        self.assertEqual(member('GET','/'+second,owner=1).json()['status'],'核验未通过')
+        with self.f.Session() as db:
+            actor=db.query(User).filter_by(username='rights-ops').one()
+            logs=db.query(MemberRightsEvent).order_by(MemberRightsEvent.id).all()
+            self.assertEqual(len(logs),4)
+            self.assertTrue(all(e.actor_id==actor.id and e.created_at is not None for e in logs))
+            self.assertEqual(logs[0].verification_method,'BOUND_CONTACT')
+
     def test_beijing_month_boundary_september_then_october(self):
         self._check_adjacent_settlement_months([9, 10])
 

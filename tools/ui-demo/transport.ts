@@ -22,11 +22,12 @@ const products=[
 let addresses=[copy(address)], orders=[], next=1, scenario='normal', available=1200, reserved=0;
 let ledger=[{entry_type:'GRANT',available_points_delta:'1200.00',reserved_points_delta:'0.00',created_at:stamp()}];
 let tokenValid=true;
+const rightsCases=[];
 const money=n=>n.toFixed(2);
 function movement(type,a,r){available+=a;reserved+=r;ledger.unshift({entry_type:type,available_points_delta:money(a),reserved_points_delta:money(r),created_at:stamp()});}
 export function setScenario(value){scenario=value;tokenValid=true;}
 export function demoState(){return {scenario,available:money(available),orders:copy(orders)};}
-export function resetDemo(){addresses=[copy(address)];orders=[];next=1;scenario='normal';available=1200;reserved=0;tokenValid=true;ledger=[{entry_type:'GRANT',available_points_delta:'1200.00',reserved_points_delta:'0.00',created_at:stamp()}];}
+export function resetDemo(){rightsCases.length=0;addresses=[copy(address)];orders=[];next=1;scenario='normal';available=1200;reserved=0;tokenValid=true;ledger=[{entry_type:'GRANT',available_points_delta:'1200.00',reserved_points_delta:'0.00',created_at:stamp()}];}
 export function advance(id){const o=orders.find(x=>x.order_public_id===id);if(!o)return;
  const total=Number(o.total_points);
  if(o.status==='CREATED'){o.status='FULFILLING';movement('CONSUME',0,-total);}
@@ -70,6 +71,17 @@ export function dispatch(options){
  if(path==='/activation/redeem')return response(200,{status:'activated'});
  if(scenario==='expired'||!tokenValid)return response(401,{detail:'演示会话失效'});
  if(path==='/auth/me')return response(200,{member_public_id:'MEM-DEMO-001'});
+ if(path==='/rights-requests' && method==='POST'){
+   const kinds={ACCESS:'查阅',CORRECT:'更正',DELETE:'删除',WITHDRAW:'撤回',CLOSE:'注销'};
+   const old=rightsCases.find(row=>row.key===body.request_key);
+   if(old)return old.kind===kinds[body.kind] && old.description===body.description ? response(200,old):response(409,{});
+   if(!kinds[body.kind] || !body.description?.trim())return response(422,{});
+   const row={public_id:'RGT-'+String(next++).padStart(32,'0'),key:body.request_key,kind:kinds[body.kind],description:body.description,
+     created_at:stamp(),status:'待身份核验',history:[]};
+   rightsCases.unshift(row);return response(201,row);
+ }
+ if(path==='/rights-requests'){const page=Number(params.page||1);return response(200,{items:rightsCases.slice((page-1)*20,page*20),total:rightsCases.length});}
+ if(path.startsWith('/rights-requests/')){const row=rightsCases.find(x=>x.public_id===path.split('/').pop());return row?response(200,row):response(404,{});}
  if(path==='/points/summary')return response(200,{available_points:money(available),reserved_points:money(reserved),grant_count:1,nearest_expires_at:'2027-10-28T23:59:59+08:00'});
  if(path.startsWith('/points/')){const page=Number(params.page||1),rows=path.endsWith('ledger')?(params.available_only==='true'?ledger.filter(e=>Number(e.available_points_delta)!==0):ledger):[{granted_points:'1200.00',available_points:money(available),reserved_points:money(reserved),activated_at:'2026-10-28T09:00:00+08:00',expires_at:'2027-10-28T23:59:59+08:00',status:'ACTIVE'}];return response(200,{items:rows.slice((page-1)*20,page*20),total:rows.length,page,page_size:20});}
  if(path==='/addresses'&&method==='GET')return response(200,{items:addresses,total:addresses.length,limit:20});

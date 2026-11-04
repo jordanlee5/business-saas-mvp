@@ -32,6 +32,8 @@ POST_BASELINE_TABLES = frozenset(
         "order_privacy_receipts",
         "order_parcels",
         "order_parcel_items",
+        "member_rights_requests",
+        "member_rights_events",
         "order_fulfillment_notices",
         "member_addresses",
         "member_address_events",

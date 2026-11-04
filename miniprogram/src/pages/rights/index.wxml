@@ -1,0 +1,23 @@
+<view class="screen mall-screen">
+  <view wx:if="{{error}}" class="panel" role="alert">{{error}}</view><view wx:if="{{notice}}" class="panel">{{notice}}</view>
+  <view wx:if="{{!signedIn}}" class="panel">请先返回个人中心登录，再提交或查询本人的申请。</view>
+  <block wx:elif="{{detail}}">
+    <view class="panel"><text class="heading">{{detail.kind}}申请 · {{detail.status}}</text>
+      <text>{{detail.public_id}}</text><text>{{detail.description}}</text>
+      <text>{{detail.created_at}} 提交</text>
+      <view class="record" wx:for="{{detail.history}}" wx:key="sequence"><text>{{item.time}} · {{item.action}}</text><text>{{item.note}}</text></view>
+      <button bindtap="back">返回申请记录</button></view>
+  </block>
+  <block wx:else>
+    <view class="panel"><text class="heading">提交权益申请</text>
+      <picker range="{{labels}}" value="{{kind}}" bindchange="pick" disabled="{{busy}}"><view>申请事项　{{labels[kind]}}　⌄</view></picker>
+      <textarea maxlength="800" value="{{description}}" bindinput="input" disabled="{{busy}}" placeholder="说明希望查阅或处理的内容。请勿填写证件号、密码或验证码。" />
+      <button class="mall-primary-action" disabled="{{busy}}" bindtap="submit">提交申请</button></view>
+    <view class="panel"><text class="heading">我的申请</text><button disabled="{{busy}}" bindtap="refresh">刷新进度</button>
+      <text wx:if="{{!busy && !error && !items.length}}">暂无申请记录</text>
+      <button class="record" wx:for="{{items}}" wx:key="public_id" data-id="{{item.public_id}}" bindtap="open" disabled="{{busy}}">
+        {{item.kind}} · {{item.status}}　›<text>{{item.created_at}}</text></button>
+      <button wx:if="{{page>1}}" bindtap="previous" disabled="{{busy}}">上一页</button>
+      <button wx:if="{{page*20<total}}" bindtap="next" disabled="{{busy}}">下一页</button></view>
+  </block>
+</view>

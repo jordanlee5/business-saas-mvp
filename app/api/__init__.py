@@ -9,6 +9,8 @@ from .member_addresses import address_router
 miniprogram_v1_router.include_router(address_router)
 from .member_orders import order_router
 miniprogram_v1_router.include_router(order_router)
+from .member_rights import router as rights_router
+miniprogram_v1_router.include_router(rights_router)
 
 __all__ = [
     "MINIPROGRAM_API_PREFIX",

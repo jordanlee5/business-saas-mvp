@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-card rights">
+<style>
+.rights { max-width:1100px; margin:auto; overflow-wrap:anywhere; }
+.rights table { width:100%; border-collapse:collapse; } .rights td,.rights th { padding:10px; border-bottom:1px solid #ddd; text-align:left; }
+.rights form { display:grid; gap:12px; max-width:680px; } .rights label { display:grid; gap:5px; }
+.rights select,.rights textarea { padding:8px; } .rights li { margin-bottom:12px; } .rights .note { white-space:pre-wrap; }
+</style>
+<h1>会员权益申请</h1>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if case %}
+<a href="/mall-rights?page={{ page }}">返回申请列表</a>
+<h2>{{ rights.KINDS[case.kind] }}申请 · {{ rights.STATES[case.status] }}</h2>
+<p>{{ case.public_id }} · 会员 {{ member_no }} · {{ case.created_at | format_utc8 }} 提交</p>
+<p class="note">{{ case.description }}</p>
+<h3>办理记录</h3>
+<ol>{% for event in history %}<li>{{ event.created_at | format_utc8 }} · {{ rights.ACTIONS[event.action] }} · 经办账号 #{{ event.actor_id }}
+{% if event.verification_method %} · {{ rights.METHODS[event.verification_method] }}{% endif %}
+<div class="note">{{ event.note }}</div></li>{% else %}<li>等待运营核验本人身份</li>{% endfor %}</ol>
+{% if token %}<form method="post" action="/mall-rights/{{ case.public_id }}/handle">
+<input name="csrf_token" type="hidden" value="{{ token }}"><input name="version" type="hidden" value="{{ case.version }}">
+{% if case.status == 'PENDING' %}
+<label>已实际采用的人工核验方式<select name="method" required><option value="">请选择</option>{% for code,label in rights.METHODS.items() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></label>
+{% endif %}
+<label>办理动作<select name="action" required><option value="">请选择</option>{% for code in rights.ALLOWED[case.status] %}<option value="{{ code }}">{{ rights.ACTIONS[code] }}</option>{% endfor %}</select></label>
+<label>会员可见说明<textarea rows="3" name="note" maxlength="800" {% if case.status != 'PENDING' %}required{% endif %} placeholder="填写处理进度、结果或核验未通过原因。核验通过时系统自动记录。"></textarea></label>
+<small>请勿填写证件号、联系电话或核验材料。办结前请核实实际处理结果。</small>
+<button type="submit" class="ui-button-primary">登记办理记录</button></form>{% endif %}
+{% else %}
+<table><thead><tr><th>申请事项</th><th>会员编号</th><th>提交时间</th><th>进度</th></tr></thead>
+<tbody>{% for item, member in queue %}<tr><td><a href="/mall-rights?case_id={{ item.public_id }}&amp;page={{ page }}">{{ rights.KINDS[item.kind] }} · {{ item.public_id }}</a></td><td>{{ member }}</td><td>{{ item.created_at | format_utc8 }}</td><td>{{ rights.STATES[item.status] }}</td></tr>{% else %}<tr><td colspan="4">暂无权益申请</td></tr>{% endfor %}</tbody></table>
+{% if page > 1 %}<a href="/mall-rights?page={{ page - 1 }}">上一页</a>{% endif %}
+{% if more %}<a href="/mall-rights?page={{ page + 1 }}">下一页</a>{% endif %}
+{% endif %}</div>
+{% endblock %}
