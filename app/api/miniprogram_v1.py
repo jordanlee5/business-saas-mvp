@@ -9,11 +9,11 @@ from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from ..database import SessionLocal
 from ..models import (
-    Member, MemberWechatBinding, PointsAccount, PointsGrant, PointsLedgerEntry,
+    BusinessRecord, Member, MemberWechatBinding, PointsAccount, PointsGrant, PointsLedgerEntry,
 )
 from ..time_utils import format_utc8, utc8_now
 from ..mall.points_ledger_service import audit_points_account_balance
@@ -195,6 +195,21 @@ def redeem_member_activation(
         )
         # Wrong attempts and lockout are committed just like a successful grant.
         db.commit()
+    except IntegrityError:
+        db.rollback()
+        # SQLite cannot lock an individual business row. A competing claim may
+        # commit first and hit the unique grant constraint in this transaction.
+        try:
+            claimed = (db.query(PointsGrant.id)
+                       .join(BusinessRecord, BusinessRecord.id == PointsGrant.business_record_id)
+                       .filter(BusinessRecord.public_business_no == body.business_public_no)
+                       .first()) is not None
+        except SQLAlchemyError:
+            db.rollback()
+            claimed = False
+        if claimed:
+            raise HTTPException(status_code=400, detail=ACTIVATION_FAILURE_MESSAGE) from None
+        raise HTTPException(status_code=503, detail="权益激活暂不可用") from None
     except (SQLAlchemyError, ValueError):
         db.rollback()
         raise HTTPException(status_code=503, detail="权益激活暂不可用") from None

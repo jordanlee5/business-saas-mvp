@@ -11,6 +11,7 @@ from unittest.mock import patch
 from fastapi import HTTPException, Response
 from pydantic import ValidationError
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.api.miniprogram_v1 import (
@@ -92,6 +93,27 @@ class MiniprogramActivationRouteTests(unittest.TestCase):
         exchange.assert_called_once_with("one-use-wechat-code")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
         return result
+
+    def test_competing_committed_claim_returns_normal_rejection(self):
+        body = self.body()
+        self.redeem(body)
+        with patch("app.api.miniprogram_v1.activate_mall_business",
+                   side_effect=IntegrityError("private statement", {}, Exception("private error"))):
+            with self.assertRaises(HTTPException) as caught:
+                self.redeem(body)
+        self.assertEqual(caught.exception.status_code, 400)
+        self.assertEqual(caught.exception.detail, ACTIVATION_FAILURE_MESSAGE)
+        self.assertEqual(self.db.query(PointsGrant).count(), 1)
+        self.assertEqual(self.db.query(PointsLedgerEntry).count(), 1)
+
+    def test_unrelated_integrity_failure_stays_unavailable(self):
+        with patch("app.api.miniprogram_v1.activate_mall_business",
+                   side_effect=IntegrityError("private statement", {}, Exception("private error"))):
+            with self.assertRaises(HTTPException) as caught:
+                self.redeem()
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertEqual(caught.exception.detail, "权益激活暂不可用")
+        self.assertEqual(self.db.query(PointsGrant).count(), 0)
 
     def test_success_commits_one_grant_and_binding_without_token_or_private_data(self):
         result = self.redeem()

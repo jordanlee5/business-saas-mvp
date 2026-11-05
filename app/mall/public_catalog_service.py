@@ -1,6 +1,6 @@
 """小程序公开目录的只读投影；不暴露供应商和采购成本。"""
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 
 from .domain import (
     InventoryStockStatus, ProductStatus, classify_inventory_stock,
@@ -71,15 +71,22 @@ def list_public_products(db, *, category_slug=None, search_term=None,
             row.id: row.slug for row in db.query(ProductCategory)
             .filter(ProductCategory.id.in_({product.category_id for product in products}))
         }
-        sku_rows = (db.query(ProductSku, InventoryBalance)
+        # The list needs only price and availability, even for products with many SKUs.
+        sku_rows = (db.query(
+                        ProductSku.product_id,
+                        func.min(ProductSku.points_price).label("min_points_price"),
+                        func.max(case(
+                            (InventoryBalance.on_hand_quantity > InventoryBalance.reserved_quantity, 1),
+                            else_=0,
+                        )).label("in_stock"),
+                    )
                     .join(Supplier, Supplier.id == ProductSku.supplier_id)
                     .outerjoin(InventoryBalance, InventoryBalance.sku_id == ProductSku.id)
                     .filter(ProductSku.product_id.in_(ids),
                             ProductSku.is_active.is_(True), Supplier.is_active.is_(True))
+                    .group_by(ProductSku.product_id)
                     .all())
-        skus_by_product = {product_id: [] for product_id in ids}
-        for sku, balance in sku_rows:
-            skus_by_product[sku.product_id].append((sku, balance))
+        skus_by_product = {row.product_id: row for row in sku_rows}
         media_rows = (db.query(ProductMedia)
                       .filter(ProductMedia.product_id.in_(ids),
                               ProductMedia.media_role == "MAIN",
@@ -97,12 +104,8 @@ def list_public_products(db, *, category_slug=None, search_term=None,
                 name=product.name,
                 subtitle=product.subtitle,
                 category_slug=categories[product.category_id],
-                min_points_price=f"{min(sku.points_price for sku, _ in choices):.2f}",
-                in_stock=any(
-                    balance is not None
-                    and balance.on_hand_quantity > balance.reserved_quantity
-                    for _, balance in choices
-                ),
+                min_points_price=f"{choices.min_points_price:.2f}",
+                in_stock=bool(choices.in_stock),
                 main_image_url=images.get(product.id),
             ))
         return dict(items=items, page=page, page_size=page_size, total=total)
