@@ -1,0 +1,76 @@
+name: saas-pg-test-default
+services:
+  database:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: staging_owner
+      POSTGRES_DB: saas_staging
+      POSTGRES_PASSWORD_FILE: /run/secrets/staging_owner_password
+    secrets:
+      - staging_owner_password
+      - staging_app_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./10-app-role.sql:/docker-entrypoint-initdb.d/10-app-role.sql:ro
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_owner -d saas_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt: [no-new-privileges:true]
+  app:
+    build:
+      context: ../..
+    image: ${STAGING_APP_IMAGE:-business-saas-pg-staging:local}
+    command: ["python", "-m", "tools.staging_postgres", "serve"]
+    restart: unless-stopped
+    environment:
+      WECHAT_MINIPROGRAM_APP_ID: ${WECHAT_MINIPROGRAM_APP_ID:-}
+      MALL_FULFILLMENT_SETTINGS: /data/fulfillment.json
+    secrets:
+      - staging_app_password
+    volumes:
+      - business_data:/data
+    networks: [backend, frontend]
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 8
+      start_period: 45s
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  gateway:
+    profiles: [https]
+    image: caddy:2.11.8-alpine
+    restart: unless-stopped
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:-localhost}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ../staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+    networks: [frontend]
+    depends_on:
+      app:
+        condition: service_healthy
+networks:
+  backend:
+    internal: true
+  frontend:
+volumes:
+  postgres_data:
+  business_data:
+  certificates:
+  caddy_config:
+secrets:
+  staging_owner_password:
+    file: ${STAGING_SECRET_DIR:?Set a private secret directory outside the repository}/owner-password
+  staging_app_password:
+    file: ${STAGING_SECRET_DIR:?Set a private secret directory outside the repository}/app-password

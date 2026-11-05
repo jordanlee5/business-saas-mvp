@@ -61,7 +61,7 @@ class DatabaseTiming:
             return (self.statements, self.seconds, self.write_lock_seconds)
 
 
-def seed(profile, count, stock):
+def seed(profile, count, stock, *, products=100, skus_per_product=10):
     from app.auth import get_password_hash
     from app.database import SessionLocal
     from app.mall.activation_service import issue_one_time_activation_code
@@ -81,12 +81,12 @@ def seed(profile, count, stock):
         supplier = Supplier(supplier_public_id="SUP-LOAD", name="虚拟供应商")
         db.add_all([batch, category, supplier])
         db.flush()
-        for product_index in range(100):
+        for product_index in range(products):
             product = Product(product_public_id=f"PRD-LOAD-{product_index}", category_id=category.id,
                               name=f"虚拟商品 {product_index}", status="PUBLISHED", published_at=utc8_now())
             db.add(product)
             db.flush()
-            for sku_index in range(10):
+            for sku_index in range(skus_per_product):
                 sku = ProductSku(product_id=product.id, supplier_id=supplier.id,
                                  sku_code=f"LOAD-{product_index}-{sku_index}", name=f"规格 {sku_index}",
                                  points_price=PRICE, cost_price=Decimal("2.00"))
@@ -143,7 +143,7 @@ async def wave(client, label, requests, concurrency, timing):
     return result, values
 
 
-async def exercise(origin, identities, credentials, sku_id, levels, timing):
+async def exercise(origin, identities, credentials, sku_id, levels, timing, *, products=100, catalog_only=False, repetitions=1):
     from app.database import SessionLocal
     from app.mall.inventory_service import audit_inventory_balance
     from app.mall.points_ledger_service import audit_points_account_balance
@@ -171,10 +171,24 @@ async def exercise(origin, identities, credentials, sku_id, levels, timing):
                 business_public_no=number,phone="13800000001",plate_number="京A00001",
                 activation_code=credential,wechat_code=identities.fresh_code("load-"+str(index))))
 
+        if catalog_only:
+            # Warm the HTTP path before repeated measurements; no mutations in this mode.
+            assert (await client.get("/products")).status_code == 200
+            for repetition in range(repetitions):
+                for width in levels:
+                    requests = [dict(method="GET",url="/products?page="+str(i%math.ceil(products/20)+1))
+                                for i in range(max(60,width*6))]
+                    values = await measure("catalog",requests,width)
+                    history[-1]["repetition"] = repetition+1
+                    assert all(status == 200 and response.json()["total"] == products for status,_,response in values)
+            return dict(result="PASS",availability_pass=True,service_unavailable_responses=0,
+                        measurements=history,database_errors=dict(timing.errors),
+                        correctness=dict(catalog_total=products,all_catalog_requests_200=True))
+
         for width in levels:
-            requests = [dict(method="GET",url="/products?page="+str(i%5+1)) for i in range(max(60,width*3))]
+            requests = [dict(method="GET",url="/products?page="+str(i%math.ceil(products/20)+1)) for i in range(max(60,width*3))]
             values = await measure("catalog",requests,width)
-            assert all(status == 200 and response.json()["total"] == 100 for status,_,response in values)
+            assert all(status == 200 and response.json()["total"] == products for status,_,response in values)
 
             count = max(8,width*2)
             indices = list(range(offset,offset+count))
@@ -262,10 +276,10 @@ async def exercise(origin, identities, credentials, sku_id, levels, timing):
         cancellation_restored_balances=True,other_member_order_status=404))
 
 
-def run(levels, *, postgres=False):
+def run(levels, *, postgres=False, products=100, skus_per_product=10, catalog_only=False, repetitions=1):
     if not __debug__ or "app.database" in sys.modules:
         raise RuntimeError("Use a fresh process with assertions enabled.")
-    count = sum(max(8,width*2) for width in levels)+1
+    count = 0 if catalog_only else sum(max(8,width*2) for width in levels)+1
     with tempfile.TemporaryDirectory(prefix="mall-concurrency-") as directory:
         root = Path(directory)
         database = root/"synthetic.db"
@@ -299,12 +313,14 @@ def run(levels, *, postgres=False):
             try:
                 command.upgrade(Config("alembic.ini"),"head")
                 initialized = True
-                credentials,sku_id = seed(profile,count,min(sum(max(8,w*2) for w in levels),max(levels))//2)
+                credentials,sku_id = seed(profile,count,min(sum(max(8,w*2) for w in levels),max(levels))//2,
+                                          products=products,skus_per_product=skus_per_product)
                 from app.main import app
                 timing = DatabaseTiming(engine)
                 identities = TestIdentities(APP_ID)
                 with patch("app.mall.wechat_identity_service._fetch_response",identities.exchange), serve(app) as origin:
-                    result = asyncio.run(exercise(origin,identities,credentials,sku_id,levels,timing))
+                    result = asyncio.run(exercise(origin,identities,credentials,sku_id,levels,timing,
+                        products=products,catalog_only=catalog_only,repetitions=repetitions))
             finally:
                 if postgres and initialized:
                     from app.database import Base
@@ -317,7 +333,7 @@ def run(levels, *, postgres=False):
                         assert connection.execute(text("select count(*) from alembic_version")).scalar_one() == 0
                 engine.dispose()
     result.update(platform=platform.platform(),python=platform.python_version(),cpu_count=os.cpu_count(),
-                  catalog_products=100,catalog_skus=1000,load_model="bounded closed loop, latency excludes client semaphore queue",
+                  catalog_products=products,catalog_skus=products*skus_per_product,load_model="bounded closed loop, latency excludes client semaphore queue",
                   measurement_scope="loopback HTTP, client and server share one process; synthetic WeChat exchange")
     result["database_backend"] = "postgresql" if postgres else "sqlite"
     if postgres:
@@ -330,8 +346,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--levels",default="1,8,24,48")
     parser.add_argument("--postgres",action="store_true",help="only a newly created disposable Docker test database")
+    parser.add_argument("--catalog-only",action="store_true",help="read-only HTTP browse waves after synthetic seeding")
+    parser.add_argument("--products",type=int,default=100)
+    parser.add_argument("--skus-per-product",type=int,default=10)
+    parser.add_argument("--repetitions",type=int,default=1)
     args = parser.parse_args()
     levels = [int(value) for value in args.levels.split(",")]
-    if not levels or any(value<1 or value>64 for value in levels) or max(levels)<2:
-        parser.error("Choose concurrency levels from 1 to 64 with a maximum of at least 2.")
-    print(json.dumps(run(levels,postgres=args.postgres),ensure_ascii=False,indent=2))
+    maximum = 128 if args.catalog_only else 64
+    if not levels or any(value<1 or value>maximum for value in levels) or max(levels)<2:
+        parser.error("Invalid concurrency levels for the selected workload.")
+    if not (1 <= args.products <= 1000 and 1 <= args.skus_per_product <= 100 and args.products*args.skus_per_product <= 10000
+            and 1 <= args.repetitions <= 5):
+        parser.error("Choose up to 10000 synthetic SKUs and 1 to 5 repetitions.")
+    print(json.dumps(run(levels,postgres=args.postgres,products=args.products,skus_per_product=args.skus_per_product,
+                         catalog_only=args.catalog_only,repetitions=args.repetitions),ensure_ascii=False,indent=2))

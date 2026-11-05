@@ -1,0 +1,913 @@
+{
+  "baseline": "96003b7f752cb6dc48c70bb11be5978ebc5d25c5",
+  "date": "2026-11-05",
+  "scope": "new local Docker PostgreSQL test projects, synthetic members and artifacts",
+  "code_sha256": {
+    "tools/staging_server.py": "d43f2ae4fd81e0aa8b35739275b6ce143d75b330e2713f79fae11969d86fc457",
+    "tools/staging_postgres.py": "177e3f6dea0dd6995ed21b5c9307d7012dd9e5902d029a0723ed29849a90cd6c",
+    "tools/staging_pg_backup.py": "08378b7a6a75680baa65ae8da256721e3c5730bf74b4be5133438d50561f9698",
+    "tools/rehearse_concurrent_mall.py": "6c1653ea02a6980aa91b124ec488e14d14f67a1712a3be561fcc6c9c60c728fd",
+    "test_staging_postgres.py": "cc404858fcc0e96450dff5c31bf5658ec4549eca0299bfc21461d8f8835352e4",
+    "deploy/staging-postgres/compose.yaml": "ac0f8898d969e6c91f4e9edcda6301d501c703f6e3785e43a2b2290fd311776b",
+    "deploy/staging-postgres/10-app-role.sql": "97109b425520b9137b2f6c82377c41f9a568bc1201ccff3e112712d92822104c"
+  },
+  "deployment": {
+    "result": "PASS",
+    "initial": {
+      "result": "PASS",
+      "phase": "initial_business",
+      "history": [
+        {
+          "stage": "seeded",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 5,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "admin_received",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "created_and_replayed",
+          "available_points": 90,
+          "reserved_points": 80,
+          "stock_on_hand": 6,
+          "stock_reserved": 2
+        },
+        {
+          "stage": "FULFILLING",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "SHIPPED",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "COMPLETED",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "REFUNDED",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "second_created",
+          "available_points": 90,
+          "reserved_points": 80,
+          "stock_on_hand": 6,
+          "stock_reserved": 2
+        },
+        {
+          "stage": "cancelled_and_replayed",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        }
+      ]
+    },
+    "restarted": {
+      "result": "PASS",
+      "phase": "after_restart",
+      "old_admin_session_rejected": true,
+      "member_token_survived": true,
+      "admin_relogin": true,
+      "private_file_authorized": true,
+      "private_direct_link": 404,
+      "image_sha256": "f93ac2814c91b123ecf286b8382e6c50c52ed62f4a8f4f5c2922de378ab22385",
+      "cross_member": 404,
+      "order_replay": true,
+      "cancel_replay": true,
+      "balances_restored": true
+    },
+    "restored": {
+      "result": "PASS",
+      "phase": "after_restore",
+      "old_admin_session_rejected": true,
+      "member_token_survived": true,
+      "admin_relogin": true,
+      "private_file_authorized": true,
+      "private_direct_link": 404,
+      "image_sha256": "f93ac2814c91b123ecf286b8382e6c50c52ed62f4a8f4f5c2922de378ab22385",
+      "cross_member": 404,
+      "order_replay": true,
+      "cancel_replay": true,
+      "balances_restored": true
+    },
+    "schema_and_files_identical_after_restart": true,
+    "database_and_files_identical_after_restore": true,
+    "reinitialize_rejected": true,
+    "missing_admin_rejected": true,
+    "restore_existing_target_rejected": true,
+    "app_role_superuser": false,
+    "ports_published": false,
+    "real_database_used": false,
+    "backup_seconds": 4.428,
+    "restore_seconds": 24.953,
+    "backup_files": 6,
+    "backup_bytes": 189936,
+    "database_tables": 37,
+    "app_image_id": "sha256:612d711fcf20156463de26fcc3f5be6d3b0d12665f3f914100860029e471152b",
+    "postgres_major": 16,
+    "transport": "internal Docker HTTP; public HTTPS not configured in this round"
+  },
+  "deployment_log_sha256": "6ca3622c230ea112543f8ae7112df9e2553488750eb5c5b19c93d2ad74c2f16b",
+  "initial_failure": {
+    "log_sha256": "6fce51669c2b92993c9e282cb489fe1e44bc7b028f3a8399f5241f6f6dd4008a",
+    "reason": "One-off file ownership repair originally lacked CHOWN capability because the app drops ALL capabilities.",
+    "correction": "Explicit capabilities only on the fresh-volume repair container; restored file hashes and full workflow rerun passed."
+  },
+  "complete_regression": {
+    "tests": 832,
+    "expected_postgres_class_skips": 9,
+    "seconds": 279.729,
+    "log_sha256": "030e4dc110352b10f99b368a0af2b8ff4ad655ecf9fbbde0ee03e049b3e99771"
+  },
+  "focused_regression": {
+    "tests": 12,
+    "expected_postgres_class_skips": 0,
+    "seconds": 11.068,
+    "log_sha256": "dd0cdae2731cd2e1830fc8b969a2092b625a2fe104f0e7f0ab6dc15afdad6806"
+  },
+  "postgres_regression": {
+    "orders": {
+      "exit_code": 0,
+      "elapsed_seconds": 100.83,
+      "pre_tables": [
+        "alembic_version"
+      ],
+      "post_tables": [
+        "alembic_version"
+      ],
+      "post_revision": null,
+      "target_verified": true,
+      "summaries": [
+        "Ran 65 tests in 98.760s",
+        "OK"
+      ],
+      "environment_cleared": true
+    },
+    "settlement": {
+      "exit_code": 0,
+      "elapsed_seconds": 2.2,
+      "pre_tables": [
+        "alembic_version"
+      ],
+      "post_tables": [
+        "alembic_version"
+      ],
+      "post_revision": null,
+      "target_verified": true,
+      "summaries": [
+        "Ran 1 test in 1.257s",
+        "OK"
+      ],
+      "environment_cleared": true
+    }
+  },
+  "clients": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.7
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 48.62
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.05
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.55
+    }
+  },
+  "http_copy": {
+    "result": "PASS",
+    "scope": "isolated_copy_only",
+    "actual_local_http_guest_checks": [
+      {
+        "path": "/health",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/status",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/orders",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/addresses",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+        "status": 401,
+        "cache_control": null
+      }
+    ],
+    "database_files_unchanged": true,
+    "rehearsal_database_revision": "0016_member_rights",
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "server_stopped": true,
+    "wechat_platform_acceptance": false
+  },
+  "real_database": {
+    "source_unchanged": true,
+    "revision": "0013_order_delivery_snapshot",
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "integrity": "ok",
+    "foreign_key_violations": 0
+  },
+  "capacity_profiles": {
+    "4core-8gb": {
+      "measurements": {
+        "result": "PASS",
+        "availability_pass": true,
+        "service_unavailable_responses": 0,
+        "measurements": [
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 51.98,
+            "p95_ms": 52.24,
+            "max_ms": 129.69,
+            "elapsed_seconds": 3.254,
+            "requests_per_second": 18.44,
+            "process_cpu_seconds": 1.141,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.282,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 247.72,
+            "p95_ms": 731.92,
+            "max_ms": 1406.22,
+            "elapsed_seconds": 2.086,
+            "requests_per_second": 71.89,
+            "process_cpu_seconds": 2.286,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.138,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 470.33,
+            "p95_ms": 1786.04,
+            "max_ms": 3339.8,
+            "elapsed_seconds": 4.105,
+            "requests_per_second": 73.09,
+            "process_cpu_seconds": 4.499,
+            "sql_statements": 1500,
+            "sql_total_seconds": 5.695,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 850.76,
+            "p95_ms": 3439.44,
+            "max_ms": 7627.73,
+            "elapsed_seconds": 7.901,
+            "requests_per_second": 75.94,
+            "process_cpu_seconds": 8.719,
+            "sql_statements": 3000,
+            "sql_total_seconds": 13.957,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 51.96,
+            "p95_ms": 52.22,
+            "max_ms": 56.03,
+            "elapsed_seconds": 3.087,
+            "requests_per_second": 19.43,
+            "process_cpu_seconds": 0.455,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.283,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 247.8,
+            "p95_ms": 721.4,
+            "max_ms": 1522.66,
+            "elapsed_seconds": 1.97,
+            "requests_per_second": 76.13,
+            "process_cpu_seconds": 2.189,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.499,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 429.1,
+            "p95_ms": 1715.38,
+            "max_ms": 2595.2,
+            "elapsed_seconds": 3.789,
+            "requests_per_second": 79.17,
+            "process_cpu_seconds": 4.215,
+            "sql_statements": 1500,
+            "sql_total_seconds": 5.922,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 925.34,
+            "p95_ms": 3876.72,
+            "max_ms": 8431.86,
+            "elapsed_seconds": 8.464,
+            "requests_per_second": 70.89,
+            "process_cpu_seconds": 9.364,
+            "sql_statements": 3000,
+            "sql_total_seconds": 13.26,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 51.99,
+            "p95_ms": 52.37,
+            "max_ms": 56.07,
+            "elapsed_seconds": 3.131,
+            "requests_per_second": 19.16,
+            "process_cpu_seconds": 0.457,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.263,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 238.24,
+            "p95_ms": 680.85,
+            "max_ms": 1376.63,
+            "elapsed_seconds": 1.994,
+            "requests_per_second": 75.22,
+            "process_cpu_seconds": 2.189,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.214,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 482.98,
+            "p95_ms": 1607.37,
+            "max_ms": 3353.01,
+            "elapsed_seconds": 4.059,
+            "requests_per_second": 73.9,
+            "process_cpu_seconds": 4.444,
+            "sql_statements": 1500,
+            "sql_total_seconds": 6.02,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 843.62,
+            "p95_ms": 3435.18,
+            "max_ms": 7228.24,
+            "elapsed_seconds": 7.549,
+            "requests_per_second": 79.48,
+            "process_cpu_seconds": 8.445,
+            "sql_statements": 3000,
+            "sql_total_seconds": 16.489,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          }
+        ],
+        "database_errors": {},
+        "correctness": {
+          "catalog_total": 400,
+          "all_catalog_requests_200": true
+        },
+        "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+        "python": "3.12.16",
+        "cpu_count": 20,
+        "catalog_products": 400,
+        "catalog_skus": 4000,
+        "load_model": "bounded closed loop, latency excludes client semaphore queue",
+        "measurement_scope": "loopback HTTP, client and server share one process; synthetic WeChat exchange",
+        "database_backend": "postgresql",
+        "disposable_postgres_target_verified": true,
+        "disposable_postgres_schema_cleaned": true
+      },
+      "resource_limits": {
+        "app_cpus": 3,
+        "database_cpus": 1,
+        "app_memory_gib": 6,
+        "database_memory_gib": 2,
+        "total_cpus": 4,
+        "total_memory_gib": 8,
+        "exit_code": 0,
+        "oom_killed": false,
+        "client_and_server_share_app_limits": true,
+        "image": "business-saas-pg-review:20261105"
+      },
+      "log_sha256": "10bc74db1b1933e1ea93cf828ac3a0f252ee99b42322ae4bcffbdb63dd60d9c7"
+    },
+    "8core-16gb": {
+      "measurements": {
+        "result": "PASS",
+        "availability_pass": true,
+        "service_unavailable_responses": 0,
+        "measurements": [
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 52.0,
+            "p95_ms": 55.84,
+            "max_ms": 72.1,
+            "elapsed_seconds": 3.154,
+            "requests_per_second": 19.02,
+            "process_cpu_seconds": 0.827,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.277,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 243.44,
+            "p95_ms": 727.05,
+            "max_ms": 1090.15,
+            "elapsed_seconds": 1.982,
+            "requests_per_second": 75.67,
+            "process_cpu_seconds": 2.219,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.104,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 517.82,
+            "p95_ms": 1643.86,
+            "max_ms": 3226.44,
+            "elapsed_seconds": 4.246,
+            "requests_per_second": 70.66,
+            "process_cpu_seconds": 4.66,
+            "sql_statements": 1500,
+            "sql_total_seconds": 6.079,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 906.61,
+            "p95_ms": 3563.28,
+            "max_ms": 6973.91,
+            "elapsed_seconds": 7.924,
+            "requests_per_second": 75.72,
+            "process_cpu_seconds": 8.773,
+            "sql_statements": 3000,
+            "sql_total_seconds": 14.582,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 1
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 51.97,
+            "p95_ms": 52.25,
+            "max_ms": 56.09,
+            "elapsed_seconds": 3.084,
+            "requests_per_second": 19.45,
+            "process_cpu_seconds": 0.477,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.281,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 235.98,
+            "p95_ms": 753.16,
+            "max_ms": 1481.26,
+            "elapsed_seconds": 2.014,
+            "requests_per_second": 74.47,
+            "process_cpu_seconds": 2.197,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.151,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 427.06,
+            "p95_ms": 1354.66,
+            "max_ms": 3012.0,
+            "elapsed_seconds": 3.684,
+            "requests_per_second": 81.43,
+            "process_cpu_seconds": 4.093,
+            "sql_statements": 1500,
+            "sql_total_seconds": 7.643,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 822.61,
+            "p95_ms": 3367.83,
+            "max_ms": 5882.36,
+            "elapsed_seconds": 7.641,
+            "requests_per_second": 78.52,
+            "process_cpu_seconds": 8.483,
+            "sql_statements": 3000,
+            "sql_total_seconds": 16.507,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 2
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 1,
+            "requests": 60,
+            "status_counts": {
+              "200": 60
+            },
+            "p50_ms": 51.99,
+            "p95_ms": 52.37,
+            "max_ms": 55.85,
+            "elapsed_seconds": 3.127,
+            "requests_per_second": 19.19,
+            "process_cpu_seconds": 0.443,
+            "sql_statements": 300,
+            "sql_total_seconds": 0.258,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 25,
+            "requests": 150,
+            "status_counts": {
+              "200": 150
+            },
+            "p50_ms": 219.08,
+            "p95_ms": 700.49,
+            "max_ms": 1277.77,
+            "elapsed_seconds": 1.882,
+            "requests_per_second": 79.7,
+            "process_cpu_seconds": 2.06,
+            "sql_statements": 750,
+            "sql_total_seconds": 3.181,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 50,
+            "requests": 300,
+            "status_counts": {
+              "200": 300
+            },
+            "p50_ms": 519.41,
+            "p95_ms": 1785.29,
+            "max_ms": 2800.37,
+            "elapsed_seconds": 4.322,
+            "requests_per_second": 69.41,
+            "process_cpu_seconds": 4.79,
+            "sql_statements": 1500,
+            "sql_total_seconds": 7.908,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          },
+          {
+            "scenario": "catalog",
+            "concurrency": 100,
+            "requests": 600,
+            "status_counts": {
+              "200": 600
+            },
+            "p50_ms": 921.77,
+            "p95_ms": 3778.1,
+            "max_ms": 7760.21,
+            "elapsed_seconds": 8.395,
+            "requests_per_second": 71.47,
+            "process_cpu_seconds": 9.239,
+            "sql_statements": 3000,
+            "sql_total_seconds": 13.611,
+            "sqlite_write_lock_total_seconds": 0.0,
+            "repetition": 3
+          }
+        ],
+        "database_errors": {},
+        "correctness": {
+          "catalog_total": 400,
+          "all_catalog_requests_200": true
+        },
+        "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+        "python": "3.12.16",
+        "cpu_count": 20,
+        "catalog_products": 400,
+        "catalog_skus": 4000,
+        "load_model": "bounded closed loop, latency excludes client semaphore queue",
+        "measurement_scope": "loopback HTTP, client and server share one process; synthetic WeChat exchange",
+        "database_backend": "postgresql",
+        "disposable_postgres_target_verified": true,
+        "disposable_postgres_schema_cleaned": true
+      },
+      "resource_limits": {
+        "app_cpus": 6,
+        "database_cpus": 2,
+        "app_memory_gib": 12,
+        "database_memory_gib": 4,
+        "total_cpus": 8,
+        "total_memory_gib": 16,
+        "exit_code": 0,
+        "oom_killed": false,
+        "client_and_server_share_app_limits": true,
+        "image": "business-saas-pg-review:20261105"
+      },
+      "log_sha256": "75ef8e36a7cf5ef08a2023c177a9105c5337cbfce83285bd7fd8fc0da064118d"
+    }
+  },
+  "capacity_summary": {
+    "4core-8gb": {
+      "1": {
+        "p95_ms": [
+          52.24,
+          52.22,
+          52.37
+        ],
+        "median_p95_ms": 52.24,
+        "median_rps": 19.16,
+        "requests": 180
+      },
+      "25": {
+        "p95_ms": [
+          731.92,
+          721.4,
+          680.85
+        ],
+        "median_p95_ms": 721.4,
+        "median_rps": 75.22,
+        "requests": 450
+      },
+      "50": {
+        "p95_ms": [
+          1786.04,
+          1715.38,
+          1607.37
+        ],
+        "median_p95_ms": 1715.38,
+        "median_rps": 73.9,
+        "requests": 900
+      },
+      "100": {
+        "p95_ms": [
+          3439.44,
+          3876.72,
+          3435.18
+        ],
+        "median_p95_ms": 3439.44,
+        "median_rps": 75.94,
+        "requests": 1800
+      }
+    },
+    "8core-16gb": {
+      "1": {
+        "p95_ms": [
+          55.84,
+          52.25,
+          52.37
+        ],
+        "median_p95_ms": 52.37,
+        "median_rps": 19.19,
+        "requests": 180
+      },
+      "25": {
+        "p95_ms": [
+          727.05,
+          753.16,
+          700.49
+        ],
+        "median_p95_ms": 727.05,
+        "median_rps": 75.67,
+        "requests": 450
+      },
+      "50": {
+        "p95_ms": [
+          1643.86,
+          1354.66,
+          1785.29
+        ],
+        "median_p95_ms": 1643.86,
+        "median_rps": 70.66,
+        "requests": 900
+      },
+      "100": {
+        "p95_ms": [
+          3563.28,
+          3367.83,
+          3778.1
+        ],
+        "median_p95_ms": 3563.28,
+        "median_rps": 75.72,
+        "requests": 1800
+      }
+    }
+  },
+  "host_resources": {
+    "measurement_time": "after_capacity_runs",
+    "source": "WSL Ubuntu free -m and getconf _NPROCESSORS_ONLN",
+    "visible_logical_cpus": 20,
+    "wsl_total_memory_mib": 7835,
+    "wsl_swap_mib": 2048,
+    "interpretation": "Docker 16 GiB combined ceilings exceed actual WSL RAM; this is a CPU-quota comparison, not a real 16 GiB memory-capacity test. No memory-utilization samples were collected during the workload."
+  },
+  "capacity_conclusion": "No clear benefit of increased CPU quota for this single-process workload. Actual 16 GiB RAM benefit was NOT tested: WSL has only 7835 MiB RAM.",
+  "limitations": [
+    "Same WSL2 host with 7835 MiB actual RAM and 2048 MiB swap; the 16 GiB container ceilings exceed actual RAM. Not a 16 GiB server test. Memory utilization not measured.",
+    "Client and service share process/resources; finite closed-loop waves exclude client semaphore queue.",
+    "400 products with 10 SKUs each; one SKU has an inventory balance; only public catalog JSON, not image bytes or admin rendering.",
+    "Three repetitions per level, 4-core group before 8-core group; no statistical confidence interval.",
+    "No actual WeChat exchange, public TLS, OCR mixed load, sustained soak or multi-worker test in this round.",
+    "Restore uses new project and exact application image; production SQLite migration not performed."
+  ],
+  "runner_sha256": {
+    "deployment-review.py": "fbaea430cfcefa74654f56125e3c92eecb4b56bba0f0c3c6ea6c4aca1e317d7a",
+    "stage-journey.py": "c607a501dfb638da35c1ecef519ea4d1e596804fbfb6befbab9a1c61912c2a67",
+    "capacity-review.py": "02b93ce7eaacd789f7606f1fade3ab3a8339464f620caa94e6d1e11e1c3565c5",
+    "validate.py": "493563ceed1e32dc3e59c44cc030f37e154956481a76cd965b6e7ece98038aa3",
+    "regression.py": "5414ad7f393eac8ebc7baeee9d1ba9bb33fa9c82c922cf34cbab00afbcf6bb47"
+  },
+  "source_archive_sha256": "3b9a98e022c442f58e1963ab2ac702c372eafc32d7578949d006f4ccabe35e86",
+  "official_references": [
+    "https://docs.docker.com/compose/how-tos/use-secrets/",
+    "https://www.postgresql.org/docs/16/app-pgdump.html"
+  ],
+  "server_purchase": false,
+  "public_server_deployed": false,
+  "wechat_review_submitted": false,
+  "real_database_written": false
+}

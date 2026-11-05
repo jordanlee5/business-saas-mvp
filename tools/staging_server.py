@@ -35,8 +35,8 @@ def initialize():
     print("Empty staging store created. Run python -m app.init_admin before starting the service.")
 
 
-def preflight():
-    if os.environ.get("DATABASE_URL") != DATABASE_URL or not (STORE / "staging.db").is_file():
+def preflight(*, database_url=None):
+    if database_url is None and (os.environ.get("DATABASE_URL") != DATABASE_URL or not (STORE / "staging.db").is_file()):
         raise ValueError("Dedicated staging database is missing or incorrectly configured.")
     key_path = STORE / "session.key"
     if key_path.is_symlink() or key_path.stat().st_size > 256:
@@ -44,7 +44,7 @@ def preflight():
     key = key_path.read_text(encoding="ascii")
     if not 32 <= len(key) <= 256 or any(ord(char) < 33 for char in key):
         raise ValueError("Invalid staging session key.")
-    engine = create_database_engine(DATABASE_URL)
+    engine = create_database_engine(database_url or DATABASE_URL)
     try:
         assert_database_schema_ready(engine)
         with engine.connect() as connection:
