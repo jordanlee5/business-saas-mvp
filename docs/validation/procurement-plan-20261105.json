@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-05",
+  "baseline": "949d39a4990c34f0e5b004efa6253cb83cf72e2d",
+  "scope": "documentation_and_read_only_review",
+  "checks": {
+    "relative_document_links_checked": 81,
+    "database_sha256_before": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "database_sha256_after": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "runtime_tests_run": false,
+    "logistics_provider_connected": false,
+    "cloud_resources_purchased": false,
+    "wechat_review_submitted": false,
+    "app_id_changed": false
+  },
+  "reviewed_source": [
+    "app/api/member_orders.py:detail/owned",
+    "app/mall/order_parcels.py",
+    "docs/test-server-purchase.md",
+    "docs/mall-business-rules-decisions.md"
+  ],
+  "document_sha256": {
+    "docs/test-server-purchase.md": "6fe7128b4cfa0345be7a7399f1ef2d199979f07c9fb904d0e4e0d05bfd3ed919",
+    "docs/development-progress.md": "579bfb332892b2d3e8887f823703f489723b47ff016b84d7390716574e384cb2",
+    "docs/mall-business-rules-decisions.md": "e877ae178cebd529cba4e3c8df2d1a3ab70b6a2df96b0dce1c676f045a6f6d45",
+    "docs/procurement-and-logistics-plan.md": "65b5733bf4ee852f4c3cc26bbf74e7fe13b5b1deea5e3100ae4c59c1bdf44534"
+  },
+  "private_evidence": "Screenshots, original-document copies and handoff are retained locally; not committed.",
+  "limitations": [
+    "No final network/bandwidth quote",
+    "Operating company and enterprise cloud account not selected",
+    "Live tracking not implemented or tested",
+    "Filing eligibility requires actual company materials and official pre-check"
+  ]
+}
