@@ -1,0 +1,39 @@
+name: business-saas-staging
+services:
+  app:
+    build:
+      context: ../..
+    image: business-saas-staging:local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:////data/staging.db
+    volumes:
+      - business_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+  gateway:
+    image: caddy:2.11.8-alpine
+    restart: unless-stopped
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?请先在本目录的 .env 中填写测试子域名}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  business_data:
+  certificates:
+  caddy_config:

@@ -23,6 +23,9 @@ def voucher_path(stored):
         legacy = len(parts) == 1 and path.suffix.lower() in (*PREVIEW_TYPES, ".pdf")
         if not legacy and not (len(parts) == 2 and parts[0] == "vouchers"):
             return None
+        # The configured uploads root may point to a persistent container volume.
+        # Reject symlinks below that root, as before.
+        path = root.resolve(strict=True).joinpath(*parts)
         if path.resolve(strict=True) != path or not path.is_file():
             return None
     except (OSError, ValueError, RuntimeError):
