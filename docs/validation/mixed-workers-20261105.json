@@ -1,0 +1,1464 @@
+{
+  "baseline": "35b6aa4a72280247d003546782e498253ee15603",
+  "date": "2026-11-05",
+  "production_changes": "Acquire/use/release member API connections within worker execution; release public API owned sessions before response serialization. No pool size or schema change.",
+  "code_sha256": {
+    "app/api/miniprogram_v1.py": "642dd1f29f461e45a11e546e84ddea02bd09cef17e494b200334d95857d7debe",
+    "app/api/member_addresses.py": "8a7ad7f46507dcddc0c217f432091bd974e1a6fce2e2ed96f25813629e4d9f82",
+    "app/api/member_orders.py": "c9413fe0ecb777902871c85f1e1579807e51745fa67a288a10a37c7aad7b8aa9",
+    "app/api/member_rights.py": "6a8d399e4fd3b4f9c9f428eb57ebb1eca423985350998ff3e83efd7c345e54f2",
+    "tools/rehearse_mixed_workers.py": "132f41aae8eb897a76db15ee330388c35a8358854596ac9a8c6cc5ba37d1cb94",
+    "tools/mixed_load_fixture.py": "41639d6a5501f0dae5dfcb679e99a9c0a7dc181bade1c297d50f87457fe4cc15",
+    "tools/mixed_load_client.py": "a298121ca1c492ca6d22dcb65f24e0522b3e8ffcb5b1a92cfa55453fa2edbaa6",
+    "test_mixed_load_tools.py": "64a55e4623460a1adc0ea13ba8a1357ce10c26216482234da94c69b05eecd5d8",
+    "test_catalog_connection_release.py": "85135fe55b04e80f8f1b73d1f893f65fa11c15d325f3b4a49a483fdc1049758b"
+  },
+  "cases": [
+    {
+      "result": "PASS",
+      "workers": 1,
+      "observed_workers": 1,
+      "seed": {
+        "seed": "PASS",
+        "products": 400,
+        "skus": 4000,
+        "inventory_rows": 4000,
+        "image_bytes": 327009
+      },
+      "started_unix": 1793854550.6707783,
+      "workload": {
+        "result": "PASS",
+        "phases": [
+          {
+            "repetition": 1,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.425,
+            "metrics": {
+              "catalog": {
+                "requests": 4433,
+                "statuses": {
+                  "200": 4433
+                },
+                "p50_ms": 671.16,
+                "p95_ms": 889.55,
+                "max_ms": 1398.24,
+                "requests_per_second": 145.7,
+                "response_bytes": 18667681,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.425
+              }
+            }
+          },
+          {
+            "repetition": 1,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 61.764,
+            "metrics": {
+              "image": {
+                "requests": 1527,
+                "statuses": {
+                  "200": 1527
+                },
+                "p50_ms": 914.92,
+                "p95_ms": 1880.52,
+                "max_ms": 10654.32,
+                "requests_per_second": 24.72,
+                "response_bytes": 499342743,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 60.311
+              },
+              "detail": {
+                "requests": 1517,
+                "statuses": {
+                  "200": 1517
+                },
+                "p50_ms": 484.33,
+                "p95_ms": 789.09,
+                "max_ms": 9024.03,
+                "requests_per_second": 24.56,
+                "response_bytes": 1938041,
+                "first_start_offset_s": 0.002,
+                "last_end_offset_s": 60.288
+              },
+              "catalog": {
+                "requests": 4570,
+                "statuses": {
+                  "200": 4570
+                },
+                "p50_ms": 508.92,
+                "p95_ms": 1472.62,
+                "max_ms": 9754.5,
+                "requests_per_second": 73.99,
+                "response_bytes": 19251840,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.29
+              },
+              "admin_read": {
+                "requests": 15,
+                "statuses": {
+                  "200": 15
+                },
+                "p50_ms": 770.46,
+                "p95_ms": 4849.03,
+                "max_ms": 4849.03,
+                "requests_per_second": 0.24,
+                "response_bytes": 583281,
+                "first_start_offset_s": 0.145,
+                "last_end_offset_s": 59.131
+              },
+              "admin_write": {
+                "requests": 15,
+                "statuses": {
+                  "303": 15
+                },
+                "p50_ms": 554.21,
+                "p95_ms": 6702.76,
+                "max_ms": 6702.76,
+                "requests_per_second": 0.24,
+                "response_bytes": 0,
+                "first_start_offset_s": 1.53,
+                "last_end_offset_s": 59.762
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 7671.0,
+                "p95_ms": 8680.22,
+                "max_ms": 8680.22,
+                "requests_per_second": 0.03,
+                "response_bytes": 47621,
+                "first_start_offset_s": 0.174,
+                "last_end_offset_s": 21.578
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 7793.83,
+                "p95_ms": 8309.15,
+                "max_ms": 8326.26,
+                "requests_per_second": 0.39,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.178,
+                "last_end_offset_s": 10.506
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 5331.17,
+                "p95_ms": 6790.19,
+                "max_ms": 6967.71,
+                "requests_per_second": 0.39,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.177,
+                "last_end_offset_s": 12.149
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 727.63,
+                "p95_ms": 1469.55,
+                "max_ms": 1534.32,
+                "requests_per_second": 0.39,
+                "response_bytes": 8808,
+                "first_start_offset_s": 9.265,
+                "last_end_offset_s": 11.164
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 714.59,
+                "p95_ms": 2148.13,
+                "max_ms": 2533.33,
+                "requests_per_second": 0.39,
+                "response_bytes": 29904,
+                "first_start_offset_s": 12.149,
+                "last_end_offset_s": 15.345
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 689.1,
+                "p95_ms": 2006.92,
+                "max_ms": 2006.92,
+                "requests_per_second": 0.19,
+                "response_bytes": 336,
+                "first_start_offset_s": 13.161,
+                "last_end_offset_s": 15.797
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 2328.6,
+                "p95_ms": 7813.61,
+                "max_ms": 7930.84,
+                "requests_per_second": 0.39,
+                "response_bytes": 29952,
+                "first_start_offset_s": 13.509,
+                "last_end_offset_s": 25.547
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.476,
+            "metrics": {
+              "catalog": {
+                "requests": 4286,
+                "statuses": {
+                  "200": 4286
+                },
+                "p50_ms": 687.5,
+                "p95_ms": 941.66,
+                "max_ms": 1453.67,
+                "requests_per_second": 140.64,
+                "response_bytes": 18048863,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.476
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 61.261,
+            "metrics": {
+              "detail": {
+                "requests": 1500,
+                "statuses": {
+                  "200": 1500
+                },
+                "p50_ms": 500.34,
+                "p95_ms": 898.62,
+                "max_ms": 8433.05,
+                "requests_per_second": 24.49,
+                "response_bytes": 1916160,
+                "first_start_offset_s": 0.003,
+                "last_end_offset_s": 60.314
+              },
+              "catalog": {
+                "requests": 4518,
+                "statuses": {
+                  "200": 4518
+                },
+                "p50_ms": 524.85,
+                "p95_ms": 1394.18,
+                "max_ms": 8571.18,
+                "requests_per_second": 73.75,
+                "response_bytes": 19032487,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.325
+              },
+              "image": {
+                "requests": 1506,
+                "statuses": {
+                  "200": 1506
+                },
+                "p50_ms": 945.31,
+                "p95_ms": 2156.4,
+                "max_ms": 9910.26,
+                "requests_per_second": 24.58,
+                "response_bytes": 492475554,
+                "first_start_offset_s": 0.001,
+                "last_end_offset_s": 60.359
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 7861.87,
+                "p95_ms": 8134.59,
+                "max_ms": 8134.59,
+                "requests_per_second": 0.03,
+                "response_bytes": 51169,
+                "first_start_offset_s": 0.186,
+                "last_end_offset_s": 21.24
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 7222.24,
+                "p95_ms": 7572.4,
+                "max_ms": 7602.58,
+                "requests_per_second": 0.39,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.188,
+                "last_end_offset_s": 9.804
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 4767.22,
+                "p95_ms": 6205.78,
+                "max_ms": 6494.5,
+                "requests_per_second": 0.39,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.19,
+                "last_end_offset_s": 11.692
+              },
+              "admin_read": {
+                "requests": 14,
+                "statuses": {
+                  "200": 14
+                },
+                "p50_ms": 734.41,
+                "p95_ms": 9310.19,
+                "max_ms": 9310.19,
+                "requests_per_second": 0.23,
+                "response_bytes": 555278,
+                "first_start_offset_s": 0.168,
+                "last_end_offset_s": 58.625
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 795.45,
+                "p95_ms": 1162.44,
+                "max_ms": 1545.37,
+                "requests_per_second": 0.39,
+                "response_bytes": 8808,
+                "first_start_offset_s": 8.618,
+                "last_end_offset_s": 10.473
+              },
+              "admin_write": {
+                "requests": 14,
+                "statuses": {
+                  "303": 14
+                },
+                "p50_ms": 613.37,
+                "p95_ms": 2817.0,
+                "max_ms": 2817.0,
+                "requests_per_second": 0.23,
+                "response_bytes": 0,
+                "first_start_offset_s": 9.478,
+                "last_end_offset_s": 59.26
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 1236.01,
+                "p95_ms": 4862.68,
+                "max_ms": 5355.81,
+                "requests_per_second": 0.39,
+                "response_bytes": 29904,
+                "first_start_offset_s": 11.696,
+                "last_end_offset_s": 20.397
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 1210.24,
+                "p95_ms": 5205.25,
+                "max_ms": 5205.25,
+                "requests_per_second": 0.2,
+                "response_bytes": 336,
+                "first_start_offset_s": 12.872,
+                "last_end_offset_s": 21.198
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 2548.36,
+                "p95_ms": 6626.76,
+                "max_ms": 6821.01,
+                "requests_per_second": 0.39,
+                "response_bytes": 29952,
+                "first_start_offset_s": 13.832,
+                "last_end_offset_s": 25.86
+              }
+            }
+          }
+        ],
+        "image_sha256": "8dcf775fbb7d271e0206615d016f820725ecd9b557c7742c2f60d69dbc62ad87",
+        "logout_revoked": true,
+        "model": "100 closed-loop browsing clients plus parallel operational tasks; no artificial browser think time",
+        "measured_latency": "request start to complete body; includes httpx pool wait, excludes next closed-loop iteration"
+      },
+      "audit": {
+        "result": "PASS",
+        "accounts": 72,
+        "grants": 72,
+        "orders": 24,
+        "all_orders_cancelled": true,
+        "all_4000_inventory_balances_consistent": true,
+        "all_points_balances_consistent": true,
+        "duplicate_reservations": false,
+        "ocr_uploads": 4,
+        "ocr_nonempty": 4,
+        "maintenance_rows": 29
+      },
+      "samples": 165,
+      "sample_errors": [],
+      "sampled_peaks": {
+        "app": {
+          "cpu_cores": 3.086,
+          "memory_mib": 790.87,
+          "working_set_mib": 566.01
+        },
+        "database": {
+          "cpu_cores": 0.67,
+          "memory_mib": 193.04,
+          "working_set_mib": 109.57
+        },
+        "load": {
+          "cpu_cores": 1.007,
+          "memory_mib": 207.78,
+          "working_set_mib": 206.91
+        }
+      },
+      "pg_stats": {
+        "numbackends": 6,
+        "xact_commit": 1569,
+        "xact_rollback": 21419,
+        "blks_read": 542,
+        "blks_hit": 16662829,
+        "deadlocks": 0,
+        "temp_files": 0,
+        "temp_bytes": 0,
+        "blk_read_time": 3.896,
+        "blk_write_time": 13.203
+      },
+      "max_connections": 15,
+      "max_lock_waiters": 7,
+      "oom_killed": {
+        "app": false,
+        "database": false,
+        "load": false
+      },
+      "quota": {
+        "app_cpu": 3,
+        "app_memory_gib": 4,
+        "database_cpu": 1,
+        "database_memory_gib": 1,
+        "client_cpu": 2,
+        "client_memory_gib": 1
+      },
+      "published_ports": {},
+      "image_id": "sha256:f8fded0434c4bcbe83b5dbd274ab08ca7cfa0d7ec1dc41b3d2977bf952160b39",
+      "load_separate_container": true,
+      "host_memory": [
+        "MemTotal:        8023948 kB",
+        "MemFree:         5028140 kB",
+        "MemAvailable:    6679612 kB"
+      ],
+      "disposable_project_removed": true
+    },
+    {
+      "result": "PASS",
+      "workers": 2,
+      "observed_workers": 2,
+      "seed": {
+        "seed": "PASS",
+        "products": 400,
+        "skus": 4000,
+        "inventory_rows": 4000,
+        "image_bytes": 327009
+      },
+      "started_unix": 1793854818.3812852,
+      "workload": {
+        "result": "PASS",
+        "phases": [
+          {
+            "repetition": 1,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.386,
+            "metrics": {
+              "catalog": {
+                "requests": 6691,
+                "statuses": {
+                  "200": 6691
+                },
+                "p50_ms": 420.69,
+                "p95_ms": 734.58,
+                "max_ms": 1600.13,
+                "requests_per_second": 220.2,
+                "response_bytes": 28175705,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.385
+              }
+            }
+          },
+          {
+            "repetition": 1,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 60.72,
+            "metrics": {
+              "image": {
+                "requests": 1753,
+                "statuses": {
+                  "200": 1753
+                },
+                "p50_ms": 403.37,
+                "p95_ms": 2267.78,
+                "max_ms": 10626.83,
+                "requests_per_second": 28.87,
+                "response_bytes": 573246777,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 60.631
+              },
+              "detail": {
+                "requests": 1754,
+                "statuses": {
+                  "200": 1754
+                },
+                "p50_ms": 352.42,
+                "p95_ms": 2175.43,
+                "max_ms": 9340.49,
+                "requests_per_second": 28.89,
+                "response_bytes": 2242178,
+                "first_start_offset_s": 0.002,
+                "last_end_offset_s": 60.651
+              },
+              "catalog": {
+                "requests": 5270,
+                "statuses": {
+                  "200": 5270
+                },
+                "p50_ms": 357.96,
+                "p95_ms": 2246.88,
+                "max_ms": 7919.25,
+                "requests_per_second": 86.79,
+                "response_bytes": 22200161,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.659
+              },
+              "admin_read": {
+                "requests": 14,
+                "statuses": {
+                  "200": 14
+                },
+                "p50_ms": 872.91,
+                "p95_ms": 5991.77,
+                "max_ms": 5991.77,
+                "requests_per_second": 0.23,
+                "response_bytes": 543965,
+                "first_start_offset_s": 0.15,
+                "last_end_offset_s": 57.978
+              },
+              "admin_write": {
+                "requests": 14,
+                "statuses": {
+                  "303": 14
+                },
+                "p50_ms": 470.96,
+                "p95_ms": 2522.05,
+                "max_ms": 2522.05,
+                "requests_per_second": 0.23,
+                "response_bytes": 0,
+                "first_start_offset_s": 1.319,
+                "last_end_offset_s": 58.719
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 9590.23,
+                "p95_ms": 9710.6,
+                "max_ms": 9868.83,
+                "requests_per_second": 0.4,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.2,
+                "last_end_offset_s": 12.07
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 7114.07,
+                "p95_ms": 10209.82,
+                "max_ms": 10209.82,
+                "requests_per_second": 0.03,
+                "response_bytes": 47621,
+                "first_start_offset_s": 0.177,
+                "last_end_offset_s": 22.518
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 6432.25,
+                "p95_ms": 7799.62,
+                "max_ms": 7950.36,
+                "requests_per_second": 0.4,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.179,
+                "last_end_offset_s": 13.139
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 669.73,
+                "p95_ms": 1249.17,
+                "max_ms": 3731.28,
+                "requests_per_second": 0.4,
+                "response_bytes": 8808,
+                "first_start_offset_s": 8.368,
+                "last_end_offset_s": 12.677
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 994.9,
+                "p95_ms": 2864.47,
+                "max_ms": 5945.55,
+                "requests_per_second": 0.4,
+                "response_bytes": 29904,
+                "first_start_offset_s": 13.254,
+                "last_end_offset_s": 22.081
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 878.51,
+                "p95_ms": 6346.54,
+                "max_ms": 6346.54,
+                "requests_per_second": 0.2,
+                "response_bytes": 336,
+                "first_start_offset_s": 14.507,
+                "last_end_offset_s": 22.555
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 2600.96,
+                "p95_ms": 7328.77,
+                "max_ms": 7413.34,
+                "requests_per_second": 0.4,
+                "response_bytes": 29952,
+                "first_start_offset_s": 14.675,
+                "last_end_offset_s": 27.486
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.521,
+            "metrics": {
+              "catalog": {
+                "requests": 7032,
+                "statuses": {
+                  "200": 7032
+                },
+                "p50_ms": 416.35,
+                "p95_ms": 667.95,
+                "max_ms": 1087.17,
+                "requests_per_second": 230.4,
+                "response_bytes": 29611242,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.521
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 62.246,
+            "metrics": {
+              "detail": {
+                "requests": 1666,
+                "statuses": {
+                  "200": 1666
+                },
+                "p50_ms": 377.05,
+                "p95_ms": 2109.53,
+                "max_ms": 9110.02,
+                "requests_per_second": 26.76,
+                "response_bytes": 2129302,
+                "first_start_offset_s": 0.002,
+                "last_end_offset_s": 60.453
+              },
+              "image": {
+                "requests": 1666,
+                "statuses": {
+                  "200": 1666
+                },
+                "p50_ms": 420.7,
+                "p95_ms": 2503.33,
+                "max_ms": 9603.62,
+                "requests_per_second": 26.76,
+                "response_bytes": 544796994,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 60.416
+              },
+              "catalog": {
+                "requests": 4996,
+                "statuses": {
+                  "200": 4996
+                },
+                "p50_ms": 404.2,
+                "p95_ms": 2333.15,
+                "max_ms": 9409.67,
+                "requests_per_second": 80.26,
+                "response_bytes": 21045030,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.415
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 7686.68,
+                "p95_ms": 10445.66,
+                "max_ms": 10445.66,
+                "requests_per_second": 0.03,
+                "response_bytes": 51169,
+                "first_start_offset_s": 0.185,
+                "last_end_offset_s": 23.334
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 6505.24,
+                "p95_ms": 7290.97,
+                "max_ms": 7291.8,
+                "requests_per_second": 0.39,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.189,
+                "last_end_offset_s": 12.485
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 9324.12,
+                "p95_ms": 9657.01,
+                "max_ms": 9744.96,
+                "requests_per_second": 0.39,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.188,
+                "last_end_offset_s": 11.942
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 54.45,
+                "p95_ms": 1014.97,
+                "max_ms": 1350.83,
+                "requests_per_second": 0.39,
+                "response_bytes": 8808,
+                "first_start_offset_s": 10.929,
+                "last_end_offset_s": 12.366
+              },
+              "admin_read": {
+                "requests": 15,
+                "statuses": {
+                  "200": 15
+                },
+                "p50_ms": 599.74,
+                "p95_ms": 11243.62,
+                "max_ms": 11243.62,
+                "requests_per_second": 0.24,
+                "response_bytes": 594594,
+                "first_start_offset_s": 0.167,
+                "last_end_offset_s": 59.958
+              },
+              "admin_write": {
+                "requests": 15,
+                "statuses": {
+                  "303": 15
+                },
+                "p50_ms": 402.89,
+                "p95_ms": 1060.71,
+                "max_ms": 1060.71,
+                "requests_per_second": 0.24,
+                "response_bytes": 0,
+                "first_start_offset_s": 11.411,
+                "last_end_offset_s": 60.243
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 978.8,
+                "p95_ms": 2518.3,
+                "max_ms": 2623.34,
+                "requests_per_second": 0.39,
+                "response_bytes": 29904,
+                "first_start_offset_s": 12.548,
+                "last_end_offset_s": 15.625
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 328.42,
+                "p95_ms": 1101.57,
+                "max_ms": 1101.57,
+                "requests_per_second": 0.19,
+                "response_bytes": 336,
+                "first_start_offset_s": 13.964,
+                "last_end_offset_s": 15.993
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 2837.54,
+                "p95_ms": 8652.96,
+                "max_ms": 8728.67,
+                "requests_per_second": 0.39,
+                "response_bytes": 29952,
+                "first_start_offset_s": 14.07,
+                "last_end_offset_s": 26.8
+              }
+            }
+          }
+        ],
+        "image_sha256": "8dcf775fbb7d271e0206615d016f820725ecd9b557c7742c2f60d69dbc62ad87",
+        "logout_revoked": true,
+        "model": "100 closed-loop browsing clients plus parallel operational tasks; no artificial browser think time",
+        "measured_latency": "request start to complete body; includes httpx pool wait, excludes next closed-loop iteration"
+      },
+      "audit": {
+        "result": "PASS",
+        "accounts": 72,
+        "grants": 72,
+        "orders": 24,
+        "all_orders_cancelled": true,
+        "all_4000_inventory_balances_consistent": true,
+        "all_points_balances_consistent": true,
+        "duplicate_reservations": false,
+        "ocr_uploads": 4,
+        "ocr_nonempty": 4,
+        "maintenance_rows": 29
+      },
+      "samples": 166,
+      "sample_errors": [],
+      "sampled_peaks": {
+        "app": {
+          "cpu_cores": 3.194,
+          "memory_mib": 1036.45,
+          "working_set_mib": 1036.36
+        },
+        "database": {
+          "cpu_cores": 1.043,
+          "memory_mib": 198.49,
+          "working_set_mib": 136.34
+        },
+        "load": {
+          "cpu_cores": 1.017,
+          "memory_mib": 173.28,
+          "working_set_mib": 173.28
+        }
+      },
+      "pg_stats": {
+        "numbackends": 11,
+        "xact_commit": 1412,
+        "xact_rollback": 27988,
+        "blks_read": 542,
+        "blks_hit": 19075170,
+        "deadlocks": 0,
+        "temp_files": 0,
+        "temp_bytes": 0,
+        "blk_read_time": 4.872,
+        "blk_write_time": 15.397
+      },
+      "max_connections": 30,
+      "max_lock_waiters": 21,
+      "oom_killed": {
+        "app": false,
+        "database": false,
+        "load": false
+      },
+      "quota": {
+        "app_cpu": 3,
+        "app_memory_gib": 4,
+        "database_cpu": 1,
+        "database_memory_gib": 1,
+        "client_cpu": 2,
+        "client_memory_gib": 1
+      },
+      "published_ports": {},
+      "image_id": "sha256:f8fded0434c4bcbe83b5dbd274ab08ca7cfa0d7ec1dc41b3d2977bf952160b39",
+      "load_separate_container": true,
+      "host_memory": [
+        "MemTotal:        8023948 kB",
+        "MemFree:         4412668 kB",
+        "MemAvailable:    6074036 kB"
+      ],
+      "disposable_project_removed": true
+    },
+    {
+      "result": "PASS",
+      "workers": 2,
+      "observed_workers": 2,
+      "seed": {
+        "seed": "PASS",
+        "products": 400,
+        "skus": 4000,
+        "inventory_rows": 4000,
+        "image_bytes": 327009
+      },
+      "started_unix": 1793855105.7967598,
+      "workload": {
+        "result": "PASS",
+        "phases": [
+          {
+            "repetition": 1,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.431,
+            "metrics": {
+              "catalog": {
+                "requests": 8267,
+                "statuses": {
+                  "200": 8267
+                },
+                "p50_ms": 322.39,
+                "p95_ms": 660.02,
+                "max_ms": 1344.21,
+                "requests_per_second": 271.67,
+                "response_bytes": 34813467,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.431
+              }
+            }
+          },
+          {
+            "repetition": 1,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 60.674,
+            "metrics": {
+              "image": {
+                "requests": 2162,
+                "statuses": {
+                  "200": 2162
+                },
+                "p50_ms": 429.97,
+                "p95_ms": 1832.05,
+                "max_ms": 5444.35,
+                "requests_per_second": 35.63,
+                "response_bytes": 706993458,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 60.205
+              },
+              "detail": {
+                "requests": 2151,
+                "statuses": {
+                  "200": 2151
+                },
+                "p50_ms": 325.08,
+                "p95_ms": 1818.03,
+                "max_ms": 6751.41,
+                "requests_per_second": 35.45,
+                "response_bytes": 2752047,
+                "first_start_offset_s": 0.002,
+                "last_end_offset_s": 60.196
+              },
+              "catalog": {
+                "requests": 6485,
+                "statuses": {
+                  "200": 6485
+                },
+                "p50_ms": 326.63,
+                "p95_ms": 1752.31,
+                "max_ms": 5565.34,
+                "requests_per_second": 106.88,
+                "response_bytes": 27319043,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.195
+              },
+              "admin_read": {
+                "requests": 16,
+                "statuses": {
+                  "200": 16
+                },
+                "p50_ms": 706.27,
+                "p95_ms": 3689.25,
+                "max_ms": 3689.25,
+                "requests_per_second": 0.26,
+                "response_bytes": 622651,
+                "first_start_offset_s": 0.154,
+                "last_end_offset_s": 57.941
+              },
+              "admin_write": {
+                "requests": 16,
+                "statuses": {
+                  "303": 16
+                },
+                "p50_ms": 419.6,
+                "p95_ms": 1620.94,
+                "max_ms": 1620.94,
+                "requests_per_second": 0.26,
+                "response_bytes": 0,
+                "first_start_offset_s": 1.336,
+                "last_end_offset_s": 58.672
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 5552.91,
+                "p95_ms": 7333.48,
+                "max_ms": 7500.34,
+                "requests_per_second": 0.4,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.205,
+                "last_end_offset_s": 9.717
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 468.67,
+                "p95_ms": 2728.01,
+                "max_ms": 3794.99,
+                "requests_per_second": 0.4,
+                "response_bytes": 8808,
+                "first_start_offset_s": 2.857,
+                "last_end_offset_s": 12.275
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 3514.98,
+                "p95_ms": 4559.7,
+                "max_ms": 4563.3,
+                "requests_per_second": 0.4,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.187,
+                "last_end_offset_s": 9.754
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 3781.55,
+                "p95_ms": 6934.7,
+                "max_ms": 6934.7,
+                "requests_per_second": 0.03,
+                "response_bytes": 47621,
+                "first_start_offset_s": 0.184,
+                "last_end_offset_s": 15.918
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 711.89,
+                "p95_ms": 2194.58,
+                "max_ms": 2666.25,
+                "requests_per_second": 0.4,
+                "response_bytes": 29904,
+                "first_start_offset_s": 9.808,
+                "last_end_offset_s": 13.05
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 360.52,
+                "p95_ms": 1033.35,
+                "max_ms": 1033.35,
+                "requests_per_second": 0.2,
+                "response_bytes": 336,
+                "first_start_offset_s": 11.041,
+                "last_end_offset_s": 14.083
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 2030.35,
+                "p95_ms": 5390.01,
+                "max_ms": 5532.52,
+                "requests_per_second": 0.4,
+                "response_bytes": 29952,
+                "first_start_offset_s": 11.682,
+                "last_end_offset_s": 20.125
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "browse",
+            "browser_concurrency": 100,
+            "seconds": 30.263,
+            "metrics": {
+              "catalog": {
+                "requests": 7442,
+                "statuses": {
+                  "200": 7442
+                },
+                "p50_ms": 371.03,
+                "p95_ms": 699.09,
+                "max_ms": 2858.99,
+                "requests_per_second": 245.91,
+                "response_bytes": 31338252,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 30.263
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "scenario": "mixed",
+            "browser_concurrency": 100,
+            "seconds": 60.231,
+            "metrics": {
+              "detail": {
+                "requests": 1965,
+                "statuses": {
+                  "200": 1965
+                },
+                "p50_ms": 366.24,
+                "p95_ms": 2073.21,
+                "max_ms": 4298.43,
+                "requests_per_second": 32.62,
+                "response_bytes": 2513061,
+                "first_start_offset_s": 0.003,
+                "last_end_offset_s": 60.212
+              },
+              "image": {
+                "requests": 1977,
+                "statuses": {
+                  "200": 1977
+                },
+                "p50_ms": 466.12,
+                "p95_ms": 1962.77,
+                "max_ms": 4721.74,
+                "requests_per_second": 32.82,
+                "response_bytes": 646496793,
+                "first_start_offset_s": 0.0,
+                "last_end_offset_s": 60.231
+              },
+              "catalog": {
+                "requests": 5918,
+                "statuses": {
+                  "200": 5918
+                },
+                "p50_ms": 357.66,
+                "p95_ms": 1885.32,
+                "max_ms": 4442.71,
+                "requests_per_second": 98.25,
+                "response_bytes": 24930219,
+                "first_start_offset_s": 0.004,
+                "last_end_offset_s": 60.211
+              },
+              "activation": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 4611.87,
+                "p95_ms": 4993.59,
+                "max_ms": 5048.68,
+                "requests_per_second": 0.4,
+                "response_bytes": 528,
+                "first_start_offset_s": 2.177,
+                "last_end_offset_s": 7.227
+              },
+              "admin_read": {
+                "requests": 14,
+                "statuses": {
+                  "200": 14
+                },
+                "p50_ms": 639.95,
+                "p95_ms": 5035.93,
+                "max_ms": 5035.93,
+                "requests_per_second": 0.23,
+                "response_bytes": 556034,
+                "first_start_offset_s": 0.152,
+                "last_end_offset_s": 57.809
+              },
+              "ocr_upload": {
+                "requests": 2,
+                "statuses": {
+                  "200": 2
+                },
+                "p50_ms": 4545.64,
+                "p95_ms": 5910.22,
+                "max_ms": 5910.22,
+                "requests_per_second": 0.03,
+                "response_bytes": 51169,
+                "first_start_offset_s": 0.166,
+                "last_end_offset_s": 15.678
+              },
+              "member_login": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 761.64,
+                "p95_ms": 2545.84,
+                "max_ms": 2639.17,
+                "requests_per_second": 0.4,
+                "response_bytes": 8808,
+                "first_start_offset_s": 4.272,
+                "last_end_offset_s": 7.92
+              },
+              "checkout": {
+                "requests": 24,
+                "statuses": {
+                  "201": 12,
+                  "409": 12
+                },
+                "p50_ms": 2047.79,
+                "p95_ms": 3513.37,
+                "max_ms": 3676.34,
+                "requests_per_second": 0.4,
+                "response_bytes": 16080,
+                "first_start_offset_s": 5.169,
+                "last_end_offset_s": 8.849
+              },
+              "admin_write": {
+                "requests": 14,
+                "statuses": {
+                  "303": 14
+                },
+                "p50_ms": 807.61,
+                "p95_ms": 2303.82,
+                "max_ms": 2303.82,
+                "requests_per_second": 0.23,
+                "response_bytes": 0,
+                "first_start_offset_s": 5.188,
+                "last_end_offset_s": 58.172
+              },
+              "checkout_replay": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 671.44,
+                "p95_ms": 2782.87,
+                "max_ms": 2797.67,
+                "requests_per_second": 0.4,
+                "response_bytes": 29904,
+                "first_start_offset_s": 8.849,
+                "last_end_offset_s": 12.329
+              },
+              "cross_member": {
+                "requests": 12,
+                "statuses": {
+                  "404": 12
+                },
+                "p50_ms": 528.36,
+                "p95_ms": 2240.85,
+                "max_ms": 2240.85,
+                "requests_per_second": 0.2,
+                "response_bytes": 336,
+                "first_start_offset_s": 9.743,
+                "last_end_offset_s": 13.479
+              },
+              "cancel": {
+                "requests": 24,
+                "statuses": {
+                  "200": 24
+                },
+                "p50_ms": 3345.24,
+                "p95_ms": 6418.94,
+                "max_ms": 6500.73,
+                "requests_per_second": 0.4,
+                "response_bytes": 29952,
+                "first_start_offset_s": 10.803,
+                "last_end_offset_s": 21.681
+              }
+            }
+          }
+        ],
+        "image_sha256": "8dcf775fbb7d271e0206615d016f820725ecd9b557c7742c2f60d69dbc62ad87",
+        "logout_revoked": true,
+        "model": "100 closed-loop browsing clients plus parallel operational tasks; no artificial browser think time",
+        "measured_latency": "request start to complete body; includes httpx pool wait, excludes next closed-loop iteration"
+      },
+      "audit": {
+        "result": "PASS",
+        "accounts": 72,
+        "grants": 72,
+        "orders": 24,
+        "all_orders_cancelled": true,
+        "all_4000_inventory_balances_consistent": true,
+        "all_points_balances_consistent": true,
+        "duplicate_reservations": false,
+        "ocr_uploads": 4,
+        "ocr_nonempty": 4,
+        "maintenance_rows": 30
+      },
+      "samples": 166,
+      "sample_errors": [],
+      "sampled_peaks": {
+        "app": {
+          "cpu_cores": 6.116,
+          "memory_mib": 864.67,
+          "working_set_mib": 864.64
+        },
+        "database": {
+          "cpu_cores": 1.34,
+          "memory_mib": 210.5,
+          "working_set_mib": 148.31
+        },
+        "load": {
+          "cpu_cores": 1.018,
+          "memory_mib": 184.53,
+          "working_set_mib": 184.53
+        }
+      },
+      "pg_stats": {
+        "numbackends": 11,
+        "xact_commit": 2251,
+        "xact_rollback": 32814,
+        "blks_read": 542,
+        "blks_hit": 27860577,
+        "deadlocks": 0,
+        "temp_files": 0,
+        "temp_bytes": 0,
+        "blk_read_time": 3.326,
+        "blk_write_time": 14.175
+      },
+      "max_connections": 30,
+      "max_lock_waiters": 11,
+      "oom_killed": {
+        "app": false,
+        "database": false,
+        "load": false
+      },
+      "quota": {
+        "app_cpu": 6,
+        "app_memory_gib": 4,
+        "database_cpu": 2,
+        "database_memory_gib": 1,
+        "client_cpu": 2,
+        "client_memory_gib": 1
+      },
+      "published_ports": {},
+      "image_id": "sha256:f8fded0434c4bcbe83b5dbd274ab08ca7cfa0d7ec1dc41b3d2977bf952160b39",
+      "load_separate_container": true,
+      "host_memory": [
+        "MemTotal:        8023948 kB",
+        "MemFree:         4604592 kB",
+        "MemAvailable:    6281308 kB"
+      ],
+      "disposable_project_removed": true
+    }
+  ],
+  "full_regression": {
+    "tests": 851,
+    "environment_skips": 9,
+    "log_sha256": "a221564ff49bebfd9ce136fd398892f553f7aa72c1d50721bffca0a84f192063"
+  },
+  "final_tools": {
+    "tests": 4,
+    "log_sha256": "4c7b7d0b6216be73fbfc670527c709e8ec6525eea27bd844c111c91661cba2a1",
+    "production_files_match_measured_image": true
+  },
+  "connection_regression": {
+    "before": "two failures",
+    "after": "two passed",
+    "before_log_sha256": "dec5cb43d7ea9d0d15adba6303de02996d5f21d335bda7cc5843f123a5a02634",
+    "after_log_sha256": "536c916f2682dfec1d2d3d4a00d6d9e41bbbd0f0b372134ea1e66d6c2abbd42c"
+  },
+  "failures_retained": {
+    "initial_catalog_pool_timeout": "87aaf03f986bac6afa7d8b5fcd4680e609916f0e739d46a07eeddf43b8033c16",
+    "mixed_checkout_pool_timeout": "3994b8a30d46d4f6b2a8f8fdda0a3cf82a028b8446c9778f653ecbe61fc1299f",
+    "interrupted_client_connection": "78a6d17315e823634ac31a09e85a389bea095bad01c16e8b96195462d7b54ba8"
+  },
+  "raw_evidence_sha256": {
+    "comparison3/workers-1-app.log": "684c4e4b47324ecde825c4fc17a2bcab3712171a14e569d384304dc6b37623b4",
+    "comparison3/workers-1-client.log": "006640ead772834e85caa9ba3cde7bfd59222f007f0d54ef097d610df68f3551",
+    "comparison3/workers-1-result.json": "61369167a3184261a93599ecc703068af58a697f990787d291de4cc93a12f754",
+    "comparison3/workers-1-samples.json": "6ab7d6df867b23d26e0264c0a971bc2f26cbab54e7a528ea90c859950f513683",
+    "comparison3/workers-1-states.json": "d256c6f2c9dd6c4a35f492cee32134dfd6ebc101b4c59326e54ed855572fc2dd",
+    "comparison3/workers-1.log": "0e0763150d528a1882d0a26ca1dab22fd8f4ce084f3056b2db9818327f7d8c09",
+    "comparison3/workers-2-app.log": "6f1a95adfd778c6be5f9e6d48f0a0145ff1bfb180c7187d9f2432687cf24210a",
+    "comparison3/workers-2-client.log": "7d35d3373504d641f5bf733a5f12b7518d45aee159c2920d3160101e6a843ec3",
+    "comparison3/workers-2-result.json": "bc95f04cb86dfd0aa0288865804946ff99810de837c52659c971e08d12140caa",
+    "comparison3/workers-2-samples.json": "c9573fea9d6b631545fdd299ac4a5fb7bf778b908712c3432855d54173ed15d7",
+    "comparison3/workers-2-states.json": "62ccde8485a5663421e4c0026cd97c3ad158863f9e256813d40ca2118231a3b8",
+    "comparison3/workers-2.log": "e972bc514cef87aa5dab954fce6700d51fddc4069a7f24e1ee5b27a49dfc9b56",
+    "cpu8/workers-2-app.log": "6aadece245d1bccff84a018ae1fd23c24d546dd066ad09b41fda32498d5840c5",
+    "cpu8/workers-2-client.log": "bd33ae943686aa9d858f27ebfd2015a4fe0d28771d3481c473fe46f01d5f53ed",
+    "cpu8/workers-2-result.json": "fcdb45913728a702f824d3c352c50d90930c803261cbfdcc04ccb717dd8c28b6",
+    "cpu8/workers-2-samples.json": "2c0d3448ae6373b4195a667c792c8a09cc7fa46228174aecc9807657dbcbdee6",
+    "cpu8/workers-2-states.json": "51890603094f4531441c35efb120b1bec68b8b479045986c3a0b9a12179c3377",
+    "cpu8/workers-2.log": "a8ead116a6a9f2700da3e856503d6bd8a61231a26da43d170d473216c168e166"
+  },
+  "limitations": [
+    "Local WSL2, shared host, service quotas 3 app CPU + 1 PostgreSQL CPU versus 6 app CPU + 2 PostgreSQL CPU; not physical cloud servers.",
+    "Application RAM cap 4GiB, PostgreSQL 1GiB; independent load generator 2 CPU/1GiB outside service quota. Host roughly 7.65GiB.",
+    "Two repeated 30s browse and 60s mixed phases per worker count, closed loop; not a long soak, fixed-arrival-rate or internet/HTTPS latency test.",
+    "Synthetic WeChat exchange; normal activation password derivation and business transactions retained.",
+    "400 products with 10 SKUs each; all 4000 inventory rows ledger-backed; 400 synthetic image files with identical generated JPEG content.",
+    "100 continuous browser tasks, plus 24 parallel activations and 24 scarce-stock checkout attempts per mixed phase; two serial OCR uploads per mixed phase.",
+    "No simultaneous multiple-operator OCR batch capacity claim; images served by application, no CDN or public bandwidth shaping.",
+    "9 PostgreSQL environment test classes skipped by full suite; new mixed correctness explicitly exercised PostgreSQL16. Prior round standalone66 not claimed rerun.",
+    "Actual cloud SKU, disk, network and pricing still need validation on purchased test server."
+  ],
+  "real_database": {
+    "unchanged": true,
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "upgraded": false
+  },
+  "server_purchased": false,
+  "wechat_review_submitted": false,
+  "public_server_deployed": false
+}

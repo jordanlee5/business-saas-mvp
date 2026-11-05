@@ -1,6 +1,7 @@
 """微信小程序 v1 API 路由骨架。"""
 
 import os
+from functools import wraps
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
@@ -90,11 +91,31 @@ def get_miniprogram_api_status() -> MiniprogramApiStatus:
 
 def public_catalog_session():
     db = SessionLocal()
+    db.info["miniprogram_request_owned"] = True
     try:
         yield db
     finally:
         db.rollback()
         db.close()
+
+
+def release_owned_session(handler):
+    """Release this request's DB connection before response validation needs a thread.
+
+    These sync endpoints return fully materialized DTOs, never lazy ORM rows.
+    Keeping a checked-out connection until serialization can exhaust both the
+    database pool and the shared worker-thread pool under concurrent requests.
+    Caller-provided sessions used by domain tests remain caller-owned.
+    """
+    @wraps(handler)
+    def wrapped(*args, **kwargs):
+        db = kwargs.get("db")
+        try:
+            return handler(*args, **kwargs)
+        finally:
+            if db is not None and db.info.get("miniprogram_request_owned"):
+                db.close()
+    return wrapped
 
 
 class WechatLoginRequest(BaseModel):
@@ -167,6 +188,7 @@ class MemberPointsLedgerPage(BaseModel):
     operation_id="redeem_miniprogram_member_activation",
     summary="使用一次性激活码与微信身份领取商城积分权益",
 )
+@release_owned_session
 def redeem_member_activation(
     body: MemberActivationRequest, response: Response,
     db=Depends(public_catalog_session),
@@ -225,6 +247,7 @@ def redeem_member_activation(
     operation_id="create_miniprogram_member_session",
     summary="使用微信登录 code 创建已绑定会员短期会话",
 )
+@release_owned_session
 def create_member_session(
     body: WechatLoginRequest, response: Response,
     db=Depends(public_catalog_session),
@@ -264,6 +287,7 @@ def create_member_session(
     operation_id="get_miniprogram_current_member",
     summary="读取当前有效会话所绑定的会员身份",
 )
+@release_owned_session
 def get_current_member(
     response: Response, authorization: str | None = Header(None),
     db=Depends(public_catalog_session),
@@ -310,6 +334,7 @@ def _require_current_member(authorization, db) -> Member:
     operation_id="get_miniprogram_member_points_summary",
     summary="读取当前会员积分汇总",
 )
+@release_owned_session
 def get_member_points_summary(
     response: Response, authorization: str | None = Header(None),
     db=Depends(public_catalog_session),
@@ -362,6 +387,7 @@ def get_member_points_summary(
     operation_id="list_miniprogram_member_points_grants",
     summary="分页读取当前会员的积分批次",
 )
+@release_owned_session
 def get_member_points_grants(
     response: Response, authorization: str | None = Header(None),
     page: int = Query(1, ge=1, le=1000000),
@@ -407,6 +433,7 @@ def get_member_points_grants(
     operation_id="list_miniprogram_member_points_ledger",
     summary="分页读取当前会员积分流水",
 )
+@release_owned_session
 def get_member_points_ledger(
     response: Response, authorization: str | None = Header(None),
     page: int = Query(1, ge=1, le=1000000),
@@ -496,6 +523,7 @@ class PublicProductDetail(PublicProduct):
     "/categories", response_model=list[PublicCategory],
     operation_id="list_miniprogram_categories", summary="读取上架商品分类",
 )
+@release_owned_session
 def get_public_categories(db=Depends(public_catalog_session)):
     return list_public_categories(db)
 
@@ -504,6 +532,7 @@ def get_public_categories(db=Depends(public_catalog_session)):
     "/products", response_model=PublicProductPage,
     operation_id="list_miniprogram_products", summary="读取上架商品列表",
 )
+@release_owned_session
 def get_public_products(
     category: str | None = Query(None, min_length=1, max_length=80),
     q: str | None = Query(None, min_length=1, max_length=80, pattern=r"\S"),
@@ -519,6 +548,7 @@ def get_public_products(
     "/products/{product_public_id}", response_model=PublicProductDetail,
     operation_id="get_miniprogram_product_detail", summary="读取上架商品详情",
 )
+@release_owned_session
 def get_public_product(
     product_public_id: str = Path(..., min_length=1, max_length=32,
                                   pattern=r"^[A-Z0-9-]+$"),

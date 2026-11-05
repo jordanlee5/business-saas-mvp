@@ -9,7 +9,7 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from .member_addresses import address_session, AddressBody, _commit
+from .member_addresses import address_session, AddressBody, _commit, with_member_session
 from .miniprogram_v1 import _require_current_member
 from ..models import Member, MemberAddress, Order, OrderItem, OrderDeliverySnapshot, Product, ProductSku, OrderPrivacyReceipt
 from ..mall.order_parcels import PARTIAL, display_status, parcels_for_order
@@ -89,6 +89,7 @@ def owned(db,member_id,public_id):
     return order
 
 @order_router.post('',status_code=201)
+@with_member_session
 def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     # Match address-book serialization. Identical member requests cannot create twice.
@@ -133,12 +134,14 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     return result
 
 @order_router.get('')
+@with_member_session
 def orders(page:int=Query(1,ge=1,le=1000000),authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     query=db.query(Order).filter_by(member_id=member.id)
     return {'items':[summary(order,status) for order,status in query.add_columns(display_status()).order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
 
 @order_router.post('/fulfillment-preview')
+@with_member_session
 def fulfillment_preview(body:NoticeBody,authorization:str|None=Header(None),db:Session=Depends(address_session)):
     _require_current_member(authorization,db)
     lines=[line.model_dump() for line in body.lines]
@@ -147,6 +150,7 @@ def fulfillment_preview(body:NoticeBody,authorization:str|None=Header(None),db:S
     return checkout_notice(db,lines)
 
 @order_router.get('/request/{request_id}')
+@with_member_session
 def by_request(request_id:str,authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     import re
@@ -156,11 +160,13 @@ def by_request(request_id:str,authorization:str|None=Header(None),db:Session=Dep
     return detail(db,order)
 
 @order_router.get('/{order_public_id}')
+@with_member_session
 def order_detail(order_public_id:str,authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     return detail(db,owned(db,member.id,order_public_id))
 
 @order_router.post('/{order_public_id}/cancel')
+@with_member_session
 def cancel(order_public_id:str,authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     order=owned(db,member.id,order_public_id)

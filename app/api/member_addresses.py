@@ -1,5 +1,7 @@
 """Private member address endpoints with sanitized errors and no-store replies."""
 
+from contextlib import contextmanager
+from functools import wraps
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -70,7 +72,8 @@ class AddressListResponse(BaseModel):
     limit: int = 20
 
 
-def address_session(request: Request):
+@contextmanager
+def _member_session(request: Request):
     # Begin the SQLite write transaction BEFORE authentication takes a snapshot.
     # Each request gets its own connection, with no process-global member state.
     with engine.connect() as connection:
@@ -85,6 +88,27 @@ def address_session(request: Request):
             connection.rollback()
 
 
+def address_session(request: Request):
+    return _member_session(request)
+
+
+def with_member_session(handler):
+    """Acquire, use and release the connection in the same worker invocation.
+
+    Dependency resolution returns an unopened context manager. It must not hold
+    a connection while waiting for an endpoint worker or response serialization.
+    SQLite's write lock still precedes authentication and every business read.
+    """
+    @wraps(handler)
+    def wrapped(*args, **kwargs):
+        supplied = kwargs["db"]
+        if isinstance(supplied, Session):
+            return handler(*args, **kwargs)  # Explicit caller-owned service tests.
+        with supplied as db:
+            return handler(*args, **{**kwargs, "db": db})
+    return wrapped
+
+
 def _commit(db):
     # This session is joined to the connection's explicit outer transaction.
     db.flush()
@@ -92,6 +116,7 @@ def _commit(db):
 
 
 @address_router.get("", response_model=AddressListResponse)
+@with_member_session
 def get_addresses(authorization: str | None = Header(None), db=Depends(address_session)):
     member = _require_current_member(authorization, db)
     items = list_member_addresses(db, member.id)
@@ -99,6 +124,7 @@ def get_addresses(authorization: str | None = Header(None), db=Depends(address_s
 
 
 @address_router.post("", response_model=AddressResponse, status_code=201)
+@with_member_session
 def create_address(body: AddressBody, authorization: str | None = Header(None),
                    db=Depends(address_session)):
     member = _require_current_member(authorization, db)
@@ -108,6 +134,7 @@ def create_address(body: AddressBody, authorization: str | None = Header(None),
 
 
 @address_router.put("/{address_public_id}", response_model=AddressResponse)
+@with_member_session
 def update_address(address_public_id: str, body: AddressBody,
                    authorization: str | None = Header(None), db=Depends(address_session)):
     member = _require_current_member(authorization, db)
@@ -117,6 +144,7 @@ def update_address(address_public_id: str, body: AddressBody,
 
 
 @address_router.put("/{address_public_id}/default", response_model=AddressResponse)
+@with_member_session
 def default_address(address_public_id: str, authorization: str | None = Header(None),
                     db=Depends(address_session)):
     member = _require_current_member(authorization, db)
@@ -126,6 +154,7 @@ def default_address(address_public_id: str, authorization: str | None = Header(N
 
 
 @address_router.delete("/{address_public_id}", status_code=204)
+@with_member_session
 def delete_address(address_public_id: str, authorization: str | None = Header(None),
                    db=Depends(address_session)):
     member = _require_current_member(authorization, db)

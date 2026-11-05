@@ -5,7 +5,7 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 
-from .member_addresses import address_session, _commit
+from .member_addresses import address_session, _commit, with_member_session
 from .miniprogram_v1 import _require_current_member
 from ..mall import rights_service as rights
 from ..models import MemberRightsRequest
@@ -39,6 +39,7 @@ class Application(BaseModel):
 
 
 @router.post("", status_code=201)
+@with_member_session
 def apply(body: Application, response: Response, authorization: str | None = Header(None), db=Depends(address_session)):
     member = _require_current_member(authorization, db)
     try:
@@ -54,6 +55,7 @@ def apply(body: Application, response: Response, authorization: str | None = Hea
 
 
 @router.get("")
+@with_member_session
 def mine(page: int = 1, authorization: str | None = Header(None), db=Depends(address_session)):
     member = _require_current_member(authorization, db)
     if not 1 <= page <= 1000000:
@@ -64,6 +66,7 @@ def mine(page: int = 1, authorization: str | None = Header(None), db=Depends(add
 
 
 @router.get("/{public_id}")
+@with_member_session
 def detail(public_id: str, authorization: str | None = Header(None), db=Depends(address_session)):
     member = _require_current_member(authorization, db)
     case = db.query(MemberRightsRequest).filter_by(member_id=member.id, public_id=public_id).one_or_none()
