@@ -1,4 +1,4 @@
-"""Revocable browser sessions for the single-process back office."""
+"""Browser cookie contract and a process-local store retained for isolated tests."""
 import hashlib
 import secrets
 import time
@@ -53,7 +53,7 @@ class BrowserSessions:
             with self._lock:
                 self._sessions.pop(fingerprint(token), None)
 
-    def revoke_user(self, user_id: int) -> None:
+    def revoke_user(self, user_id: int, *, db=None) -> None:
         with self._lock:
             for key in [key for key, item in self._sessions.items() if item.user_id == user_id]:
                 del self._sessions[key]

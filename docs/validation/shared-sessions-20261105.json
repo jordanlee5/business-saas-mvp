@@ -1,0 +1,372 @@
+{
+  "baseline": "77e70fa98575723562d86f6fa6b0fa448c8202db",
+  "date": "2026-11-05",
+  "scope": "new local Docker PostgreSQL projects and synthetic users; temporary SQLite migration and route tests",
+  "code_sha256": {
+    "app/models.py": "0ee024f7e6347e6f678d93f5114fd0fbef4aaab253558a62b0ea2a131afd8e9b",
+    "app/schema_readiness.py": "2a030b90cec30270e0605e33385189a6ab45fc1e1a91fffb7caeedb598ad8dce",
+    "app/browser_sessions.py": "d25a7c3ea077cc90a2ffdddd9d0e5051d0eaf35b2254575bbf9a9f763874044a",
+    "app/shared_browser_sessions.py": "45a915960fec27963bc75dab498587235d28359ad657759d2a46f7013fc0a3f7",
+    "app/main.py": "6da3b6af3ad4634a389f63d5232f7f061a4c15723f3b2d2dfbe28434e35d978f",
+    "app/migration_baseline.py": "2d31987aacfb78499aa357240e47d519267c259739e08c200691069b255b9801",
+    "app/member_address_migration_check.py": "79b0aa84cc3fbc77ec5e817b50c7e3aff04461b70578b9501dbb9a45f03cdec0",
+    "migrations/versions/0017_backoffice_sessions.py": "f52b8f564ad2dc1ce42ea9f02e6c9c9004009b38421d85f36c904efef61d0131",
+    "tools/staging_postgres.py": "f73010a7bb8d541d74a1e589f1871f624f9547be0674b0a151a17db79b23bad6",
+    "tools/staging_pg_backup.py": "6835260c2eeffa0b547852fb5922d562121194cf7cd1f24c0a5639a18f8b9590",
+    "deploy/staging-postgres/compose.yaml": "af09e8fd81614fd60d0b9f043328b9d5b3cec4697d45f72aab6bf136e8287006",
+    "test_shared_browser_sessions.py": "70c48489d0873056f14c8daebb5bc224273c87e0e6bc39a2f6b99d2bcd16feb5",
+    "test_order_privacy_migration.py": "c41068d8dc978865925c5cd88adb7a44e77aa8f8bf629a5e3b95841eb396d3de"
+  },
+  "migration": {
+    "new_revision": "0017_backoffice_sessions",
+    "new_table": "backoffice_sessions",
+    "user_and_business_rows_unchanged": true,
+    "live_database_upgraded": false,
+    "downgrade_discards_authentication_sessions_only": true
+  },
+  "shared_sessions": {
+    "storage": "database",
+    "raw_tokens_stored": false,
+    "lifetime_seconds": 28800,
+    "capacity_global": 4096,
+    "permissions_rechecked": true,
+    "process_local_fallback": false,
+    "account_change_and_user_revocation_atomic": true
+  },
+  "multiworker": {
+    "result": "PASS",
+    "independent_app_processes": 2,
+    "distinct_host_pids": [
+      3191,
+      3127
+    ],
+    "configured_uvicorn_workers": 2,
+    "observed_worker_processes": 2,
+    "checks": [
+      "login_on_A_read_on_A_and_B",
+      "cross_worker_form_write_and_unauthorized_admin_write_denied",
+      "role_changes_observed_on_other_worker_without_relogin",
+      "logout_on_B_revokes_on_A_and_B",
+      "disable_revokes_all_devices_and_reenable_does_not_revive_tokens",
+      "password_change_on_B_rotates_session_and_revokes_other_devices",
+      "partner_cannot_access_admin_and_reenable_does_not_revive_login",
+      "expired_fabricated_and_legacy_identity_cookies_denied",
+      "worker_restart_preserves_shared_session",
+      "database_outage_fails_closed_without_local_fallback",
+      "after_database_recovery_logout_is_globally_effective",
+      "configured_two_worker_staging_entrypoint_preserves_login"
+    ],
+    "database_backend": "postgresql",
+    "schema_revision": "0017_backoffice_sessions",
+    "session_values_stored_as_hashes": true,
+    "app_public_ports": false,
+    "public_tls": false,
+    "real_database_used": false
+  },
+  "deployment_and_recovery": {
+    "result": "PASS",
+    "initial": {
+      "result": "PASS",
+      "phase": "initial_business",
+      "history": [
+        {
+          "stage": "seeded",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 5,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "admin_received",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "created_and_replayed",
+          "available_points": 90,
+          "reserved_points": 80,
+          "stock_on_hand": 6,
+          "stock_reserved": 2
+        },
+        {
+          "stage": "FULFILLING",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "SHIPPED",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "COMPLETED",
+          "available_points": 90,
+          "reserved_points": 0,
+          "stock_on_hand": 4,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "REFUNDED",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        },
+        {
+          "stage": "second_created",
+          "available_points": 90,
+          "reserved_points": 80,
+          "stock_on_hand": 6,
+          "stock_reserved": 2
+        },
+        {
+          "stage": "cancelled_and_replayed",
+          "available_points": 170,
+          "reserved_points": 0,
+          "stock_on_hand": 6,
+          "stock_reserved": 0
+        }
+      ]
+    },
+    "restarted": {
+      "result": "PASS",
+      "phase": "after_restart",
+      "old_admin_session_rejected": false,
+      "admin_session_survived_restart": true,
+      "member_token_survived": true,
+      "admin_relogin": true,
+      "private_file_authorized": true,
+      "private_direct_link": 404,
+      "image_sha256": "f93ac2814c91b123ecf286b8382e6c50c52ed62f4a8f4f5c2922de378ab22385",
+      "cross_member": 404,
+      "order_replay": true,
+      "cancel_replay": true,
+      "balances_restored": true
+    },
+    "restored": {
+      "result": "PASS",
+      "phase": "after_restore",
+      "old_admin_session_rejected": true,
+      "admin_session_survived_restart": false,
+      "member_token_survived": true,
+      "admin_relogin": true,
+      "private_file_authorized": true,
+      "private_direct_link": 404,
+      "image_sha256": "f93ac2814c91b123ecf286b8382e6c50c52ed62f4a8f4f5c2922de378ab22385",
+      "cross_member": 404,
+      "order_replay": true,
+      "cancel_replay": true,
+      "balances_restored": true
+    },
+    "schema_and_files_identical_after_restart": true,
+    "business_data_and_files_identical_after_restore": true,
+    "comparison_excludes_ephemeral_browser_sessions": true,
+    "restored_browser_sessions_cleared": true,
+    "reinitialize_rejected": true,
+    "missing_admin_rejected": true,
+    "restore_existing_target_rejected": true,
+    "app_role_superuser": false,
+    "ports_published": false,
+    "real_database_used": false,
+    "backup_seconds": 4.352,
+    "restore_seconds": 27.034,
+    "backup_files": 6,
+    "backup_bytes": 192213,
+    "database_tables": 37,
+    "app_image_id": "sha256:fadb5c5cb14668debcc29feb6515cbd29e1aead83ced48ee66f8a0dd437158f9",
+    "postgres_major": 16,
+    "transport": "internal Docker HTTP; public HTTPS not configured in this round"
+  },
+  "full_regression": {
+    "tests": 845,
+    "expected_postgres_class_skips": 9,
+    "seconds": 287.135,
+    "log_sha256": "6d7c7908601738248b1ff7c2172dcedc63ac24647233f08b79b64202ede6d616"
+  },
+  "focused_regression": {
+    "tests": 35,
+    "expected_postgres_class_skips": 0,
+    "seconds": 28.918,
+    "log_sha256": "ca8b127aca8bb7794b248d13c1fb5a4d1d1dce2a3d093bcde8ca66d10ebcad57"
+  },
+  "historical_migration_regression": {
+    "tests": 42,
+    "expected_postgres_class_skips": 0,
+    "seconds": 21.569,
+    "log_sha256": "eded8589b78acb66d8b7849756a3a1df722a66d2c18c1d1f367553a35890bffc"
+  },
+  "postgres_regression": {
+    "orders": {
+      "exit_code": 0,
+      "elapsed_seconds": 95.31,
+      "pre_tables": [
+        "alembic_version"
+      ],
+      "post_tables": [
+        "alembic_version"
+      ],
+      "post_revision": null,
+      "target_verified": true,
+      "summaries": [
+        "Ran 65 tests in 93.246s",
+        "OK"
+      ],
+      "environment_cleared": true
+    },
+    "settlement": {
+      "exit_code": 0,
+      "elapsed_seconds": 2.17,
+      "pre_tables": [
+        "alembic_version"
+      ],
+      "post_tables": [
+        "alembic_version"
+      ],
+      "post_revision": null,
+      "target_verified": true,
+      "summaries": [
+        "Ran 1 test in 1.235s",
+        "OK"
+      ],
+      "environment_cleared": true
+    }
+  },
+  "clients": {
+    "build-demo": {
+      "exit_code": 0,
+      "seconds": 0.48
+    },
+    "demo-typescript": {
+      "exit_code": 0,
+      "seconds": 0.66
+    },
+    "local-config-tests": {
+      "exit_code": 0,
+      "seconds": 47.67
+    },
+    "typescript": {
+      "exit_code": 0,
+      "seconds": 0.67
+    },
+    "client-addresses": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-orders": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-platform": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-points": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "client-categories": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-order-states": {
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    "client-detail": {
+      "exit_code": 0,
+      "seconds": 0.91
+    },
+    "client-time": {
+      "exit_code": 0,
+      "seconds": 0.08
+    },
+    "client-fulfillment": {
+      "exit_code": 0,
+      "seconds": 0.06
+    },
+    "ui-page-flow": {
+      "exit_code": 0,
+      "seconds": 6.44
+    }
+  },
+  "http_copy": {
+    "result": "PASS",
+    "scope": "isolated_copy_only",
+    "actual_local_http_guest_checks": [
+      {
+        "path": "/health",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/status",
+        "status": 200,
+        "cache_control": null
+      },
+      {
+        "path": "/api/miniprogram/v1/orders",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/addresses",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "path": "/api/miniprogram/v1/points/ledger?available_only=true",
+        "status": 401,
+        "cache_control": null
+      }
+    ],
+    "database_files_unchanged": true,
+    "rehearsal_database_revision": "0017_backoffice_sessions",
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "server_stopped": true,
+    "wechat_platform_acceptance": false
+  },
+  "real_database": {
+    "source_unchanged": true,
+    "revision": "0013_order_delivery_snapshot",
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+    "integrity": "ok",
+    "foreign_key_violations": 0
+  },
+  "initial_regression_failure": {
+    "log_sha256": "8ddb44cce17c8be70f696523f7c6deca258cd5db223a1d8aae6d10a005185a1a",
+    "cause": "New session table missing from the explicitly registered post-baseline/historical-later tables; old privacy migration expectations assumed 0016 was head.",
+    "correction": "Register only backoffice_sessions in both historical compatibility lists; verify protected rights records survive blocked downgrade then re-upgrade; rerun 42 targeted migration cases and entire suite."
+  },
+  "runner_sha256": {
+    "multiworker-review.py": "f18eb06b40881fa7623d9c5461d18567ee740c58a504d194dfd9fd5b54ddf834",
+    "deployment-review.py": "c7b18383be92862b907b9611a20b69f6a959a8468333d48bab794f3142e930c2",
+    "stage-journey.py": "a2d4a1891a49cbaf225247089c0c3e5b4513ff57cb7ebb2c9e4df2cb2bcf5a07",
+    "validate.py": "5ed35c00f2783eed436ac8a9c49fa71ec5be9c54ac179ebc2d622db62df3423d",
+    "regression.py": "5414ad7f393eac8ebc7baeee9d1ba9bb33fa9c82c922cf34cbab00afbcf6bb47"
+  },
+  "log_sha256": {
+    "multiworker-review.log": "50d9700f2997d126ae7d8f34375aa8998cc29718acfebf9fb3cd5267db57a0a8",
+    "deployment-review.log": "b33a33bb200a5be74adb321c145333136e9ffc7fbc67a3bf891b423d81903a80",
+    "docker-build.log": "299d60f5d3d523c299ed06bd59cc90ea59269e6494fa337893d785221a3cd2d1"
+  },
+  "source_archive_sha256": "bec92d963304bd8c1dbcf5159b8cb5aefc163dd189ecc5fb07f9d7b5c652d41c",
+  "limitations": [
+    "Virtual accounts, internal Docker HTTP only; no public deployment, certificate issuance or real WeChat acceptance.",
+    "Two independent app processes with explicit routing, plus actual two-worker Uvicorn startup; not a load or failover capacity claim.",
+    "Restored business table/file comparison excludes deliberately cleared ephemeral backoffice_sessions.",
+    "Authorization is checked per request; logout does not forcibly cancel previously started requests.",
+    "Default worker count remains one; multi-process OCR, image traffic, connection pools and sustained load need further validation.",
+    "Schema migration and session revocation exercised only in isolated databases; original business database remains at 0013."
+  ],
+  "server_purchase": false,
+  "public_server_deployed": false,
+  "wechat_review_submitted": false,
+  "real_database_written": false
+}

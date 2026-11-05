@@ -89,7 +89,10 @@ def main(argv=None):
             preflight(url)
             if args.action == "serve":
                 import uvicorn
-                uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=1,
+                workers = int(os.environ.get("STAGING_WEB_WORKERS", "1"))
+                if not 1 <= workers <= 4:
+                    raise ValueError("Choose 1 to 4 PostgreSQL staging workers.")
+                uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=workers,
                             proxy_headers=True, forwarded_allow_ips="*", access_log=False)
             else:
                 print("PostgreSQL staging identity, schema, key and administrator checks passed.")

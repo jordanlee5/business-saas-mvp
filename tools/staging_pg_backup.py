@@ -163,6 +163,9 @@ class StagingProject:
                 stdin=stream, capture_output=True)
         if result.returncode:
             raise RuntimeError("PostgreSQL restore failed; keep this new project stopped for inspection.")
+        # Restoring a historical login must not revive a token revoked after backup.
+        if self.sql("select to_regclass('public.backoffice_sessions') is not null") == "t":
+            self.sql("delete from backoffice_sessions")
         self.run("create", "--no-build", "app")
         app, _ = self.container("app")
         subprocess.run(["docker", "cp", str(source / "data") + "/.", app + ":/data"],

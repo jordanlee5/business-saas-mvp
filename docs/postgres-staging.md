@@ -10,7 +10,7 @@
 
 ## 部署结构与保护
 
-新入口在 `deploy/staging-postgres/compose.yaml`，与原 SQLite 测试包独立。应用通过 `python -m tools.staging_postgres serve` 单进程启动，数据库为 PostgreSQL 16。
+入口在 `deploy/staging-postgres/compose.yaml`，与原 SQLite 测试包独立。应用通过 `python -m tools.staging_postgres serve` 启动，数据库为 PostgreSQL 16。共享会话小轮增加 `STAGING_WEB_WORKERS`，默认 1，允许 1～4；虚拟环境已验证两个 worker。[共享会话说明](shared-browser-sessions.md)
 
 - 数据库只加入内部 Docker 网络；数据库和应用均不发布主机端口。启用 `https` profile 后，只有 Caddy 网关发布 80/443。
 - 数据库管理账号与应用账号使用不同随机密码，通过 Compose secrets 文件提供。应用角色不能创建角色、数据库，也不是数据库超级用户。
@@ -18,7 +18,7 @@
 - 数据库使用项目独立命名卷；`/data` 保存上传文件、会员会话签名密钥和配送配置。应用签名密钥需纳入备份，不能每次重启重新生成。
 - 初始化只接受固定的 `database:5432/saas_staging` 与 `saas_staging` 应用角色，拒绝继承外部 `DATABASE_URL`。在数据库锁内核对空库，再建立结构；已有库或有资料的卷不允许重新初始化。
 - 启动检查数据库身份、角色权限、结构版本、签名密钥和管理员密码。首次创建管理员必须隐藏输入密码，第一次登录需修改密码。
-- 后台登录会话仍在单进程内存中，重启后运营需重新登录；会员签名密钥保留后，尚未过期的会员令牌可继续使用。多进程扩展仍需另做共享后台会话。
+- 从 `0017_backoffice_sessions` 起，后台登录会话保存在共享数据库，普通进程重启保留有效登录。恢复历史备份时会清空后台会话，运营重新登录；会员签名密钥保留后，尚未过期的会员令牌继续按原规则验证。
 
 参考：[Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)、[PostgreSQL 16 pg_dump](https://www.postgresql.org/docs/16/app-pgdump.html)。数据库导出使用一致性快照；为同时保证附件一致，本工具仍停止应用写入后再备份。
 
@@ -75,7 +75,7 @@ python3 -m tools.staging_pg_backup restore /srv/saas-backups/test-20261105 --pro
 
 工具先核对备份清单，不允许缺文件、额外文件、摘要改变或符号链接。目标必须没有容器和卷；同名未标记的卷也拒绝使用。空白数据库通过 `pg_restore --single-transaction --exit-on-error` 恢复，恢复对象归属应用角色。文件复制完成后，临时维护容器只在新项目的 `/data` 卷修复账号归属；正常应用仍不拥有这些维护权限。核对文件摘要和启动前检查通过后再启动应用。
 
-恢复不更改源项目、源备份或域名。失败时保留新目标供检查，不自动删除或覆盖后重试。恢复成功也必须复核后台登录、商品图片、会员订单与积分、私有凭证权限，再安排独立的访问入口切换。
+恢复不更改源项目、源备份或域名。新版本在恢复完成后、应用启动前清空后台会话表，避免已经注销的旧登录随历史数据复活；不清理业务记录。失败时保留新目标供检查，不自动删除或覆盖后重试。恢复成功也必须复核后台重新登录、商品图片、会员订单与积分、私有凭证权限，再安排独立的访问入口切换。
 
 ## 本轮留证
 

@@ -11,6 +11,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 import mimetypes
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -50,7 +51,8 @@ from .models import (
     VoucherUploadBatch,
 )
 from .auth import verify_password, get_password_hash
-from .browser_sessions import BrowserSessions, COOKIE_NAME, LIFETIME, fingerprint
+from .browser_sessions import COOKIE_NAME, LIFETIME, fingerprint
+from .shared_browser_sessions import DatabaseBrowserSessions, SessionStoreUnavailable, SessionCredentialsChanged
 from .password_service import (
     validate_first_login_password_change,
 )
@@ -244,7 +246,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(miniprogram_v1_router)
-browser_sessions = BrowserSessions()
+browser_sessions = DatabaseBrowserSessions(lambda: SessionLocal())
+
+
+@app.exception_handler(SessionStoreUnavailable)
+async def session_store_unavailable(request, exc):
+    return Response("登录状态暂时无法确认，请稍后重试。", status_code=503,
+                    media_type="text/plain", headers=PRIVATE_HEADERS)
+
+
+@app.exception_handler(SessionCredentialsChanged)
+async def session_credentials_changed(request, exc):
+    response = RedirectResponse("/login", status_code=302, headers=PRIVATE_HEADERS)
+    response.delete_cookie(COOKIE_NAME)
+    return response
 
 def create_admin_action_log(
     db,
@@ -294,9 +309,12 @@ async def enforce_active_user_session(
     if COOKIE_NAME not in request.cookies and "user_id" not in request.cookies:
         return await call_next(request)
 
-    user = get_current_user(request)
-    if user is None:
-        return end_browser_session(request)
+    try:
+        user = await run_in_threadpool(get_current_user, request)
+        if user is None:
+            return await run_in_threadpool(end_browser_session, request)
+    except SessionStoreUnavailable as exc:
+        return await session_store_unavailable(request, exc)
     if user.must_change_password and path != "/change-password":
         return RedirectResponse(url="/change-password", status_code=302)
 
@@ -2257,7 +2275,9 @@ def update_administrator_status(
             action_type = "disable_administrator"
             action_text = "停用"
 
-        # 状态修改和审计日志在同一数据库会话中提交。
+        if not desired_is_active:
+            browser_sessions.revoke_user(administrator_id, db=db)
+        # 状态修改、会话撤销和审计日志在同一数据库会话中提交。
         create_admin_action_log(
             db=db,
             admin_id=user.id,
@@ -2270,9 +2290,6 @@ def update_administrator_status(
                 f"已{action_text}"
             ),
         )
-
-        if not desired_is_active:
-            browser_sessions.revoke_user(administrator_id)
 
     except Exception:
         db.rollback()
@@ -4906,8 +4923,8 @@ def change_password_submit(
         )
         account.must_change_password = False
         user_id, password_hash = account.id, account.password_hash
+        browser_sessions.revoke_user(user_id, db=db)
         db.commit()
-        browser_sessions.revoke_user(user_id)
 
     finally:
         db.close()
@@ -5345,10 +5362,9 @@ def toggle_partner_active(
             error = "未找到该上传方账号"
         else:
             partner.is_active = not bool(partner.is_active)
-            db.commit()
-
             if not partner.is_active:
-                browser_sessions.revoke_user(partner_id)
+                browser_sessions.revoke_user(partner_id, db=db)
+            db.commit()
             action_text = "恢复启用" if partner.is_active else "停用"
             message = (
                 f"上传方账号 {partner.username} 已{action_text}"

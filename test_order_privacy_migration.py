@@ -24,7 +24,7 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
         assert_database_schema_ready(self.engine)
         self.assertEqual(set(inspect(self.engine).get_table_names()) - before,
                          {'order_privacy_receipts', 'order_fulfillment_notices', 'order_parcels', 'order_parcel_items',
-                          'member_rights_requests', 'member_rights_events'})
+                          'member_rights_requests', 'member_rights_events', 'backoffice_sessions'})
         command.downgrade(self.config, '0013_order_delivery_snapshot')
         self.assertEqual(set(inspect(self.engine).get_table_names()), before)
         command.upgrade(self.config, 'head')
@@ -69,6 +69,11 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
                 "values ('synthetic',1,'synthetic','ACCESS','test','PENDING',1,'2026-11-04 12:00:00')"))
         with self.assertRaisesRegex(RuntimeError, '禁止降级'):
             command.downgrade(self.config, '0015_order_parcels')
+        # Later disposable-session revisions may already have been removed.
+        # The protected rights data must remain, and upgrading restores readiness.
+        with self.engine.connect() as connection:
+            self.assertEqual(connection.execute(text('select count(*) from member_rights_requests')).scalar(), 1)
+        command.upgrade(self.config, 'head')
         assert_database_schema_ready(self.engine)
 
     def test_fulfillment_notice_blocks_downgrade(self):

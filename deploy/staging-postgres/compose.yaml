@@ -29,6 +29,7 @@ services:
     environment:
       WECHAT_MINIPROGRAM_APP_ID: ${WECHAT_MINIPROGRAM_APP_ID:-}
       MALL_FULFILLMENT_SETTINGS: /data/fulfillment.json
+      STAGING_WEB_WORKERS: ${STAGING_WEB_WORKERS:-1}
     secrets:
       - staging_app_password
     volumes:

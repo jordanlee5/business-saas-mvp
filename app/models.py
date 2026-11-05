@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Boolean,
+    BigInteger,
     CheckConstraint,
     Column,
     DateTime,
@@ -27,6 +28,15 @@ from .mall.domain import (
     SupplierSettlementStatus,
 )
 from .time_utils import utc8_now
+
+class BackofficeSession(Base):
+    __tablename__ = "backoffice_sessions"
+
+    token_hash = Column(String(64), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    credential_hash = Column(String(64), nullable=False)
+    expires_at = Column(BigInteger, nullable=False, index=True)
+
 
 class MemberRightsRequest(Base):
     __tablename__ = "member_rights_requests"

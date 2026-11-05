@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0016_member_rights"
+CURRENT_SCHEMA_REVISION = "0017_backoffice_sessions"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -39,6 +39,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
 REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
     {
         "users",
+        "backoffice_sessions",
         "upload_batches",
         "business_records",
         "voucher_upload_batches",
@@ -52,6 +53,7 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "backoffice_sessions": frozenset({"token_hash", "user_id", "credential_hash", "expires_at"}),
     "member_rights_requests": frozenset({"id", "member_id", "public_id", "request_key", "kind", "description", "status", "version", "created_at"}),
     "member_rights_events": frozenset({"id", "request_id", "actor_id", "action", "note", "verification_method", "created_at"}),
     "order_parcels": frozenset({"order_id","actor_id","carrier","tracking_number","shipped_at"}),
