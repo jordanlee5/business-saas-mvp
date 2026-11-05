@@ -69,6 +69,7 @@ from .promotion_media_service import (
 )
 from .excel_service import parse_business_excel
 from .ocr_service import ocr_image, match_ocr_with_records, extract_voucher_amount
+from .ocr_client import MAX_IMAGE_BYTES, OcrUnavailable
 from .business_no import generate_public_business_no
 from .business_status_service import (
     ALLOCATION_AMOUNT_STATUS_ALL,
@@ -6261,6 +6262,9 @@ def upload_voucher_submit(
             status_code=302,
         )
 
+    if len(files) > 20:
+        return HTMLResponse("每次最多上传 20 张凭证，请分批上传。", status_code=413)
+
     db = SessionLocal()
 
     partners = (
@@ -6311,7 +6315,9 @@ def upload_voucher_submit(
             continue
 
         try:
-            content = file.file.read()
+            content = file.file.read(MAX_IMAGE_BYTES + 1)
+            if not content or len(content) > MAX_IMAGE_BYTES:
+                raise OcrUnavailable("图片不能为空且不得超过 8MB，请调整后重试。")
             file_hash = hashlib.sha256(content).hexdigest()
 
             existing_voucher = (
@@ -6388,7 +6394,13 @@ def upload_voucher_submit(
             with open(file_path, "wb") as f:
                 f.write(content)
 
-            ocr_text = ocr_image(file_path)
+            # No database connection is held while waiting for isolated inference.
+            db.commit()
+            try:
+                ocr_text = ocr_image(file_path)
+            except Exception:
+                os.unlink(file_path)  # No voucher row exists for failed recognition.
+                raise
             voucher_amount = extract_voucher_amount(ocr_text) or 0
 
             voucher_record = VoucherRecord(

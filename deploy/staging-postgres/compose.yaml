@@ -2,6 +2,8 @@ name: saas-pg-test-default
 services:
   database:
     image: postgres:16
+    cpus: 1
+    mem_limit: 1g
     restart: unless-stopped
     environment:
       POSTGRES_USER: staging_owner
@@ -21,6 +23,8 @@ services:
       retries: 20
     security_opt: [no-new-privileges:true]
   app:
+    cpus: 2
+    mem_limit: 4g
     build:
       context: ../..
     image: ${STAGING_APP_IMAGE:-business-saas-pg-staging:local}
@@ -30,13 +34,16 @@ services:
       WECHAT_MINIPROGRAM_APP_ID: ${WECHAT_MINIPROGRAM_APP_ID:-}
       MALL_FULFILLMENT_SETTINGS: /data/fulfillment.json
       STAGING_WEB_WORKERS: ${STAGING_WEB_WORKERS:-1}
+      OCR_EXECUTION_MODE: ${STAGING_OCR_MODE:-isolated}
     secrets:
       - staging_app_password
     volumes:
       - business_data:/data
-    networks: [backend, frontend]
+    networks: [backend, frontend, recognition]
     depends_on:
       database:
+        condition: service_healthy
+      ocr:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
@@ -44,6 +51,28 @@ services:
       timeout: 6s
       retries: 8
       start_period: 45s
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  ocr:
+    image: ${STAGING_APP_IMAGE:-business-saas-pg-staging:local}
+    command: ["python", "-m", "tools.ocr_worker"]
+    restart: unless-stopped
+    cpus: 1
+    mem_limit: 1g
+    pids_limit: 64
+    read_only: true
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    networks: [recognition]
+    environment:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 4s
+      retries: 5
+      start_period: 15s
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
   gateway:
@@ -62,6 +91,8 @@ services:
       app:
         condition: service_healthy
 networks:
+  recognition:
+    internal: true
   backend:
     internal: true
   frontend:

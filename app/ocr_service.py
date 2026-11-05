@@ -2,12 +2,11 @@ import os
 import re
 from PIL import Image
 from decimal import Decimal, ROUND_HALF_UP
-from rapidocr import RapidOCR
 
 from .mall.domain import BusinessChannel
 
 
-rapid_ocr_engine = RapidOCR()
+rapid_ocr_engine = None
 
 def prepare_image_for_ocr(file_path: str) -> str:
     """
@@ -258,7 +257,15 @@ def match_name(name: str, normalized_ocr: str):
     return False, 0, "未匹配"
 
 
-def ocr_image(file_path: str) -> str:
+def local_ocr_image(file_path: str, single_thread: bool = False) -> str:
+    global rapid_ocr_engine
+    if rapid_ocr_engine is None:
+        from rapidocr import RapidOCR
+        params = {
+            "EngineConfig.onnxruntime.intra_op_num_threads": 1,
+            "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+        } if single_thread else None
+        rapid_ocr_engine = RapidOCR(params=params)
     ocr_file_path = prepare_image_for_ocr(file_path)
 
     result = rapid_ocr_engine(ocr_file_path)
@@ -267,6 +274,16 @@ def ocr_image(file_path: str) -> str:
         raise Exception("RapidOCR 未识别到任何文字")
 
     return "\n".join(result.txts)
+
+
+def ocr_image(file_path: str) -> str:
+    mode = os.environ.get("OCR_EXECUTION_MODE", "inline")
+    if mode == "isolated":
+        from .ocr_client import recognize_remote
+        return recognize_remote(file_path)
+    if mode != "inline":
+        raise RuntimeError("识别服务配置不正确，请联系管理员。")
+    return local_ocr_image(file_path)
 
 
 def match_ocr_with_records(ocr_text: str, records, voucher_amount=None):

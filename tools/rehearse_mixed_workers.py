@@ -36,19 +36,20 @@ def docker_json(path):
     finally:connection.close()
 
 
-def run_case(workers,seconds,image,out,server_cpus=4):
+def run_case(workers,seconds,image,out,server_cpus=4,ocr_mode="inline",verify_ocr=False):
     project="saas-pg-test-mixed-"+secrets.token_hex(5)
     private=Path(tempfile.mkdtemp(prefix=project+"-"))
     prepare_secrets(private/"secrets")
     os.environ.update(STAGING_SECRET_DIR=str(private/"secrets"),
-        STAGING_APP_IMAGE=image,STAGING_WEB_WORKERS=str(workers),WECHAT_MINIPROGRAM_APP_ID="wx0123456789abcdef")
+        STAGING_APP_IMAGE=image,STAGING_WEB_WORKERS=str(workers),STAGING_OCR_MODE=ocr_mode,WECHAT_MINIPROGRAM_APP_ID="wx0123456789abcdef")
+    app_cpus=server_cpus*3//4-(1 if ocr_mode=="isolated" else 0)
     p=StagingProject(project)
     # Only resources created under this random project are ever removed.
     assert not p.run("ps","-a","-q").stdout.strip()
     override=private/"override.json"
     override.write_text(json.dumps(dict(services={
         "database":dict(cpus=server_cpus//4,mem_limit="1g",command=["postgres","-c","track_io_timing=on"]),
-        "app":dict(cpus=server_cpus*3//4,mem_limit="4g",environment={"MIXED_LOAD_DISPOSABLE":"fresh-docker-only"},
+        "app":dict(cpus=app_cpus,mem_limit="4g",environment={"MIXED_LOAD_DISPOSABLE":"fresh-docker-only"},
             volumes=[str(ROOT/"tools")+":/app/tools:ro"],
             command=["python","-m","tools.mixed_load_fixture","serve"]),
     })))
@@ -104,6 +105,9 @@ def run_case(workers,seconds,image,out,server_cpus=4):
         command("up","-d","--no-build","--wait","--wait-timeout","240","app")
         app,app_info=p.container("app")
         database,db_info=p.container("database")
+        ocr,ocr_info=p.container("ocr")
+        if ocr_mode=="inline":
+            command("stop","ocr")  # Keep the measured server CPU budget unchanged.
         state=command("exec","-T","app","python","-m","tools.mixed_load_fixture","state")
         private_state=last_json(state)
         assert len(private_state["tokens"])==24
@@ -122,7 +126,9 @@ def run_case(workers,seconds,image,out,server_cpus=4):
                 if probe.stdout.strip()==b"true":break
                 if proc.poll() is not None:break
                 time.sleep(.1)
-            thread=threading.Thread(target=monitor,args=({"app":app,"database":database,"load":load},),daemon=True)
+            ids={"app":app,"database":database,"load":load}
+            if ocr_mode=="isolated":ids["ocr"]=ocr
+            thread=threading.Thread(target=monitor,args=(ids,),daemon=True)
             thread.start()
             proc.wait(timeout=seconds*6+240)
         stopped.set();thread.join(20)
@@ -137,33 +143,44 @@ def run_case(workers,seconds,image,out,server_cpus=4):
             blks_read,blks_hit,deadlocks,temp_files,temp_bytes,blk_read_time,blk_write_time
             from pg_stat_database where datname='saas_staging') s"""))
         states={name:json.loads(subprocess.check_output(["docker","inspect",cid]))[0]["State"]
-                for name,cid in (("app",app),("database",database),("load",load))}
+                for name,cid in ids.items()}
         peaks={name:dict(cpu_cores=round(max(s["containers"][name]["cpu_cores"] for s in samples),3),
             memory_mib=round(max(s["containers"][name]["memory_bytes"] for s in samples)/2**20,2),
             working_set_mib=round(max(s["containers"][name]["working_set_bytes"] for s in samples)/2**20,2))
-            for name in ("app","database","load")}
+            for name in ids}
         result=dict(result="PASS",workers=workers,observed_workers=worker_count,seed=seed,
             started_unix=started,workload=workload,audit=audit,samples=len(samples),sample_errors=errors,
             sampled_peaks=peaks,pg_stats=pg,
             max_connections=max(s.get("postgres",{}).get("connections",0) for s in samples),
             max_lock_waiters=max(s.get("postgres",{}).get("lock_waiters",0) for s in samples),
             oom_killed={n:s["OOMKilled"] for n,s in states.items()},
-            quota=dict(app_cpu=server_cpus*3//4,app_memory_gib=4,database_cpu=server_cpus//4,database_memory_gib=1,
+            ocr_mode=ocr_mode,
+            quota=dict(ocr_cpu=1 if ocr_mode=="isolated" else 0,ocr_memory_gib=1 if ocr_mode=="isolated" else 0,app_cpu=app_cpus,app_memory_gib=4,database_cpu=server_cpus//4,database_memory_gib=1,
                        client_cpu=2,client_memory_gib=1),
             published_ports=app_info["NetworkSettings"]["Ports"],
             image_id=app_info["Image"],load_separate_container=True,
             host_memory=Path("/proc/meminfo").read_text().splitlines()[:3])
         assert not errors and not any(result["oom_killed"].values())
         assert states["load"]["ExitCode"]==0
+        if verify_ocr:
+            assert ocr_mode=="isolated"
+            from tools.ocr_resilience_checks import exercise
+            result["resilience"]=exercise(p,private_state,log)
         return result
+    except BaseException:
+        if result:
+            result["result"]="FAIL"
+        raise
     finally:
         stopped.set()
         if thread:thread.join(20)
         (out/("workers-"+str(workers)+"-samples.json")).write_text(json.dumps(samples))
         application_logs=subprocess.run([*p.command,"logs","--no-color","app"],capture_output=True)
         (out/("workers-"+str(workers)+"-app.log")).write_bytes(application_logs.stdout+application_logs.stderr)
+        ocr_logs=subprocess.run([*p.command,"logs","--no-color","ocr"],capture_output=True)
+        (out/("workers-"+str(workers)+"-ocr.log")).write_bytes(ocr_logs.stdout+ocr_logs.stderr)
         final_states={}
-        for service in ("app","database"):
+        for service in ("app","database","ocr"):
             listed=p.run("ps","-a","-q",service).stdout.decode().split()
             if listed:
                 inspected=json.loads(subprocess.check_output(["docker","inspect",listed[0]]))[0]
@@ -190,6 +207,8 @@ def main():
     parser.add_argument("--workers",default="1,2")
     parser.add_argument("--server-cpus",type=int,choices=(4,8),default=4)
     parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--ocr-mode",choices=("inline","isolated"),default="inline")
+    parser.add_argument("--verify-ocr-failures",action="store_true")
     args=parser.parse_args()
     workers=[int(x) for x in args.workers.split(",")]
     if not __debug__ or os.name!="posix" or not Path("/var/run/docker.sock").exists():
@@ -199,7 +218,7 @@ def main():
     args.output.mkdir(parents=True,exist_ok=False)
     for worker in workers:
         print("Starting",worker,"workers",flush=True)
-        result=run_case(worker,args.seconds,args.image,args.output,args.server_cpus)
+        result=run_case(worker,args.seconds,args.image,args.output,args.server_cpus,args.ocr_mode,args.verify_ocr_failures)
         print(json.dumps({"workers":worker,"result":result["result"],"peaks":result["sampled_peaks"]}),flush=True)
 
 
