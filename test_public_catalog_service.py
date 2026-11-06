@@ -269,5 +269,56 @@ class PublicCatalogTests(unittest.TestCase):
         self.assertFalse(self.db.new or self.db.dirty or self.db.deleted)
 
 
+    def test_uploaded_pair_list_detail_static_fetch_and_legacy_fallback(self):
+        from io import BytesIO
+        from unittest.mock import patch
+        from PIL import Image
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from fastapi.staticfiles import StaticFiles
+        from app.api import miniprogram_v1 as api
+        from app.mall.catalog_admin_service import catalog_listing
+        from app.mall.product_media_storage import save_product_image, delete_product_image
+        category = self.category("虚拟商品", "virtual")
+        product = self.product(category, "THUMB-HTTP")
+        supplier = Supplier(supplier_public_id="SUP-VIRTUAL", name="虚拟供应商", is_active=True)
+        self.db.add(supplier); self.db.flush()
+        self.sku(product, supplier, "THUMB-HTTP", stock=5)
+        storage = Path(self.temp.name) / "media"
+        content = BytesIO(); Image.new("RGB", (3000, 1500), "green").save(content, "PNG")
+        url = save_product_image(content=content.getvalue(), original_filename="virtual.png",
+                                 product_public_id=product.product_public_id, media_role="MAIN", storage_root=storage)
+        self.db.add(ProductMedia(product_id=product.id, media_role="MAIN", image_path=url,
+                                 is_active=True, uploaded_by_id=self.user.id))
+        self.db.commit()
+        app = FastAPI(); app.include_router(api.miniprogram_v1_router)
+        app.mount("/uploads/mall_products", StaticFiles(directory=storage))
+        with patch("app.mall.product_media_storage.PRODUCT_IMAGE_STORAGE_ROOT", storage), \
+                patch.object(api, "SessionLocal", sessionmaker(bind=self.engine, autoflush=False)), TestClient(app) as client:
+            listing = client.get("/api/miniprogram/v1/products")
+            self.assertEqual(listing.status_code, 200)
+            thumb_url = listing.json()["items"][0]["main_image_url"]
+            self.assertNotEqual(thumb_url, url)
+            self.assertEqual(catalog_listing(self.db, "", 1)["rows"][0].image_path, thumb_url)
+            detail = client.get("/api/miniprogram/v1/products/PRD-THUMB-HTTP").json()
+            self.assertEqual(detail["images"][0]["url"], url)
+            self.assertEqual(detail["main_image_url"], url)
+            for image_url, expected_size in ((thumb_url, (640, 320)), (url, (2400, 1200))):
+                response = client.get(image_url)
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.headers["content-type"].startswith("image/webp"))
+                with Image.open(BytesIO(response.content)) as image:
+                    self.assertEqual(image.size, expected_size)
+            self.assertEqual(client.get("/uploads/private-voucher.png").status_code, 404)
+            (storage / thumb_url.removeprefix("/uploads/mall_products/")).unlink()
+            fallback = client.get("/api/miniprogram/v1/products").json()
+            self.assertEqual(fallback["items"][0]["main_image_url"], url)
+            product.status = "DRAFT"; self.db.commit()
+            self.assertEqual(client.get("/api/miniprogram/v1/products").json()["items"], [])
+            self.assertEqual(client.get("/api/miniprogram/v1/products/PRD-THUMB-HTTP").status_code, 404)
+            self.assertTrue(delete_product_image(url, storage_root=storage))
+            self.assertEqual(client.get(url).status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()

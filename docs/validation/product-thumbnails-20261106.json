@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-06",
+  "baseline": "7ce1340d445dc80de7d2e233ef8c0fa776ae6405",
+  "scope": "upload-time thumbnails, catalog list selection, compatibility and member-only mall planning",
+  "backend": {
+    "full_total": 884,
+    "passed": 874,
+    "environment_skipped": 10,
+    "targeted_passed": 29,
+    "postgres_catalog_passed": 1,
+    "skip_details": [
+      "setUpClass (test_postgresql_member_addresses.PostgreSQLMemberAddressTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_orders.PostgreSQLMemberOrderTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_migration.PostgreSQLMigrationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_activation.PostgreSQLMiniprogramActivationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_points_ledger.PostgreSQLMiniprogramPointsLedgerTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_cancellation.PostgreSQLOrderCancellationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_fulfillment.PostgreSQLOrderFulfillmentIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_parcel_tracking.PostgreSQLParcelTrackingTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_public_catalog.PostgreSQLPublicCatalogTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_supplier_settlement.PostgreSQLSupplierSettlementIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'"
+    ]
+  },
+  "frontend": {
+    "typescript": "PASS",
+    "thumbnail_url_cards_and_failure_recovery": "PASS",
+    "product_detail_groups": 11,
+    "generated_ui_flow": "PASS",
+    "native_rendering_this_round": false
+  },
+  "virtual_image_http": {
+    "status": "PASS",
+    "fixture": "deterministic synthetic textured product",
+    "bytes": {
+      "main": 939980,
+      "thumbnail": 3512
+    },
+    "reduction_percent": 99.63,
+    "downloads": 100,
+    "parallel_threads": 16,
+    "payload_seconds_at_10Mbps_for_100_downloads": {
+      "main": 75.198,
+      "thumbnail": 0.281
+    },
+    "sha256": {
+      "main": "268e62a7466bd7e7e33d50ba86f5f9e3ffa4da10eba4559f716ec64007c2a986",
+      "thumbnail": "35cba8d3971d3b65f9bf896366597175a7f65fa9c40a68867a13314bb21cdb1d"
+    },
+    "limits": "In-process HTTP file checks, no real WAN bandwidth or cloud capacity measured; synthetic compression ratio is not representative of all goods.",
+    "database_used": false,
+    "live_wechat_or_carrier_used": false
+  },
+  "logs_sha256": {
+    "full-linux.log": "01ecc3e097bc397c132e8c79cf2107f625380b5ba516077239c52087a453ca0d",
+    "targeted.log": "404ed4c4138a575967348a71e195e7ee7877311239dbf7ea5b55847b8c56121f",
+    "postgres.log": "808c6c5e50800ca00189278d997252c3e0657fceda2fa02259d9cd407aeb5ddc",
+    "image-rehearsal.log": "b8aad20c250a7bd95d4d72b7cca3f0c464102dbcef99472bd3babd4e5fb074a4",
+    "client-thumbnail.log": "9daba3d1aaf628494ad7bd184a986c0974d2195462bfd7b494703e91af965b46",
+    "client-detail.log": "8af6f2dd7420ed92c1880155c1cc76b2ba48817de7cd568f05739f6efbebccfc",
+    "typescript.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "real_database_sha256_unchanged": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "database_migration": false,
+  "purchase_guide_sha256_unchanged": "6fe7128b4cfa0345be7a7399f1ef2d199979f07c9fb904d0e4e0d05bfd3ed919",
+  "procurement": "pending company entity confirmation; no purchase or public deployment",
+  "logistics_ui_user_acceptance": "satisfied, user confirmed this turn",
+  "member_only_access": "plan only; current catalog and product images still public",
+  "zero_knowledge_proof": "not implemented; not required for recommended first version",
+  "wechat_review_submitted": false,
+  "local_evidence_directory": ".runtime/catalog-thumbnails-20261106",
+  "check_execution_notes": [
+    "Docker CLI unavailable in Windows shell; used existing WSL Docker without changing host configuration.",
+    "First detail-check invocation lacked its separate demo argument; corrected invocation passed 11 groups.",
+    "First formal TypeScript output path resolved outside workspace and was denied; corrected output stayed in this runtime directory and passed."
+  ]
+}

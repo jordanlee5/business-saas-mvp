@@ -1,6 +1,7 @@
 """小程序公开目录的只读投影；不暴露供应商和采购成本。"""
 
 from sqlalchemy import case, func, or_
+from .product_media_storage import product_thumbnail_url
 
 from .domain import (
     InventoryStockStatus, ProductStatus, classify_inventory_stock,
@@ -106,7 +107,7 @@ def list_public_products(db, *, category_slug=None, search_term=None,
                 category_slug=categories[product.category_id],
                 min_points_price=f"{choices.min_points_price:.2f}",
                 in_stock=bool(choices.in_stock),
-                main_image_url=images.get(product.id),
+                main_image_url=product_thumbnail_url(images.get(product.id)),
             ))
         return dict(items=items, page=page, page_size=page_size, total=total)
 

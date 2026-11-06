@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -10,6 +11,7 @@ from app.mall.product_media_storage import (
     delete_product_image,
     save_product_image,
     validate_product_image,
+    product_thumbnail_url,
 )
 
 
@@ -102,6 +104,54 @@ class ProductMediaStorageTests(unittest.TestCase):
                         media_role=role,
                         storage_root=self.storage_root,
                     )
+
+    def test_thumbnail_preserves_shape_alpha_and_strips_private_metadata(self):
+        image = Image.new("RGBA", (1600, 800), (30, 100, 60, 80))
+        exif = Image.Exif(); exif[0x010e] = "virtual-private-description"
+        buffer = BytesIO(); image.save(buffer, format="PNG", exif=exif)
+        url = save_product_image(content=buffer.getvalue(), original_filename="virtual.png",
+                                 product_public_id="PRD-THUMB", media_role="MAIN", storage_root=self.storage_root)
+        thumb_url = product_thumbnail_url(url, storage_root=self.storage_root)
+        self.assertNotEqual(url, thumb_url)
+        thumb = self.storage_root / thumb_url.removeprefix("/uploads/mall_products/")
+        with Image.open(thumb) as result:
+            self.assertEqual(result.size, (640, 320))
+            self.assertIn("A", result.getbands())
+            self.assertLess(result.getpixel((0, 0))[3], 255)
+            self.assertFalse(result.getexif())
+        self.assertTrue(delete_product_image(url, storage_root=self.storage_root))
+        self.assertFalse(thumb.exists())
+
+    def test_small_images_not_upscaled_and_legacy_or_missing_thumbnail_falls_back(self):
+        url = save_product_image(content=create_test_image(size=(120, 80)), original_filename="small.png",
+                                 product_public_id="PRD-SMALL", media_role="DETAIL", storage_root=self.storage_root)
+        thumb_url = product_thumbnail_url(url, storage_root=self.storage_root)
+        thumb = self.storage_root / thumb_url.removeprefix("/uploads/mall_products/")
+        with Image.open(thumb) as image:
+            self.assertEqual(image.size, (120, 80))
+        thumb.unlink()
+        with patch("app.mall.product_media_storage.Image.open", side_effect=AssertionError("read must not encode")):
+            for original in (url, None, "/uploads/mall_products/PRD-OLD/main.webp", "/uploads/mall_products/../other.webp"):
+                self.assertEqual(product_thumbnail_url(original, storage_root=self.storage_root), original)
+
+    def test_failed_pair_publication_leaves_no_orphan_files(self):
+        replace = Path.replace
+        def fail_main(path, target):
+            if ".thumb-640." not in path.name:
+                raise OSError("virtual main publication failure")
+            return replace(path, target)
+        with patch.object(Path, "replace", fail_main):
+            with self.assertRaisesRegex(OSError, "virtual main publication failure"):
+                save_product_image(content=create_test_image(), original_filename="main.png",
+                                   product_public_id="PRD-FAIL", media_role="MAIN", storage_root=self.storage_root)
+        self.assertFalse(any(p.is_file() for p in self.storage_root.rglob("*")))
+
+    def test_missing_main_still_cleans_thumbnail(self):
+        url = save_product_image(content=create_test_image(), original_filename="main.png",
+                                 product_public_id="PRD-MISSING", media_role="MAIN", storage_root=self.storage_root)
+        (self.storage_root / url.removeprefix("/uploads/mall_products/")).unlink()
+        self.assertTrue(delete_product_image(url, storage_root=self.storage_root))
+        self.assertFalse(any(p.is_file() for p in self.storage_root.rglob("*")))
 
     def test_delete_is_limited_to_dedicated_root(self):
         image_url = save_product_image(

@@ -128,6 +128,8 @@ CATALOG_PAGE_SIZE = 25
 
 def catalog_listing(db, keyword, page):
     from ..models import InventoryBalance, Product, ProductMedia, ProductSku, Supplier
+    from types import SimpleNamespace
+    from .product_media_storage import product_thumbnail_url
 
     query = (db.query(Product.id.label("product_id"), Product.name.label("product_name"),
                       Product.status, ProductSku.id.label("sku_id"), ProductSku.sku_code,
@@ -150,6 +152,9 @@ def catalog_listing(db, keyword, page):
     page = min(max(page, 1), pages)
     rows = (query.order_by(Product.sort_order, Product.id, ProductSku.sort_order, ProductSku.id)
             .offset((page - 1) * CATALOG_PAGE_SIZE).limit(CATALOG_PAGE_SIZE).all())
+    rows = [SimpleNamespace(**(dict(row._mapping) | {
+        "image_path": product_thumbnail_url(row.image_path),
+    })) for row in rows]
     return dict(rows=rows, total=total, page=page, pages=pages)
 
 

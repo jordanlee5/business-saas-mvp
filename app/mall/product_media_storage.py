@@ -15,6 +15,7 @@ MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_PRODUCT_IMAGE_DIMENSION = 8000
 MAX_PRODUCT_IMAGE_PIXELS = 30_000_000
 OUTPUT_MAX_IMAGE_DIMENSION = 2400
+THUMBNAIL_MAX_IMAGE_DIMENSION = 640
 PRODUCT_IMAGE_STORAGE_ROOT = Path("uploads/mall_products")
 PRODUCT_IMAGE_URL_PREFIX = "/uploads/mall_products"
 ALLOWED_PRODUCT_IMAGE_SUFFIXES = frozenset(
@@ -28,6 +29,27 @@ SUFFIX_FORMAT_MAP = {
     ".webp": "WEBP",
 }
 PRODUCT_PUBLIC_ID_PATTERN = re.compile(r"^[A-Z0-9-]{1,32}$")
+GENERATED_IMAGE_PATTERN = re.compile(r"^(main|carousel|detail)_[0-9a-f]{32}\.webp$")
+
+
+def _thumbnail_path(path: Path) -> Path:
+    return path.with_name(path.stem + ".thumb-640.webp")
+
+
+def product_thumbnail_url(image_url: str | None, *, storage_root=None) -> str | None:
+    """Use an existing upload-time thumbnail; never encode during a read request."""
+    prefix = PRODUCT_IMAGE_URL_PREFIX + "/"
+    if not image_url or not image_url.startswith(prefix):
+        return image_url
+    parts = image_url[len(prefix):].split("/")
+    if (len(parts) != 2 or not PRODUCT_PUBLIC_ID_PATTERN.fullmatch(parts[0])
+            or not GENERATED_IMAGE_PATTERN.fullmatch(parts[1])):
+        return image_url
+    root = Path(PRODUCT_IMAGE_STORAGE_ROOT if storage_root is None else storage_root).resolve()
+    candidate = _thumbnail_path(root / parts[0] / parts[1]).resolve()
+    if not candidate.is_relative_to(root) or not candidate.is_file():
+        return image_url
+    return prefix + parts[0] + "/" + candidate.name
 
 
 def validate_product_image(*, content: bytes, original_filename: str) -> str | None:
@@ -79,7 +101,7 @@ def save_product_image(
     media_role: ProductMediaRole | str,
     storage_root: Path | str = PRODUCT_IMAGE_STORAGE_ROOT,
 ) -> str:
-    """Validate and atomically save one normalized WebP product image."""
+    """Publish a normalized image and thumbnail, cleaning both on any failure."""
     normalized_product_id = str(product_public_id or "").strip().upper()
     if not PRODUCT_PUBLIC_ID_PATTERN.fullmatch(normalized_product_id):
         raise ValueError("商品公开编号无效")
@@ -91,11 +113,16 @@ def save_product_image(
     if error:
         raise ValueError(error)
 
-    target_directory = Path(storage_root) / normalized_product_id
+    root = Path(storage_root).resolve()
+    target_directory = (root / normalized_product_id).resolve()
+    if not target_directory.is_relative_to(root):
+        raise ValueError("商品图片目录无效")
     target_directory.mkdir(parents=True, exist_ok=True)
     filename = f"{role.value.lower()}_{uuid4().hex}.webp"
     final_path = target_directory / filename
     temporary_path = target_directory / f"{filename}.tmp"
+    thumbnail_path = _thumbnail_path(final_path)
+    thumbnail_temporary_path = thumbnail_path.with_suffix(".webp.tmp")
 
     try:
         with warnings.catch_warnings():
@@ -122,10 +149,19 @@ def save_product_image(
                     quality=88,
                     method=6,
                 )
+                thumbnail = prepared_image.copy()
+                thumbnail.thumbnail(
+                    (THUMBNAIL_MAX_IMAGE_DIMENSION, THUMBNAIL_MAX_IMAGE_DIMENSION),
+                    Image.Resampling.LANCZOS,
+                )
+                thumbnail.save(thumbnail_temporary_path, format="WEBP", quality=80, method=4)
+        # The database receives the main URL only after both files are published.
+        thumbnail_temporary_path.replace(thumbnail_path)
         temporary_path.replace(final_path)
     except Exception:
-        if temporary_path.exists():
-            temporary_path.unlink()
+        for path in (temporary_path, thumbnail_temporary_path, final_path, thumbnail_path):
+            if path.exists():
+                path.unlink()
         raise
 
     return (
@@ -152,7 +188,14 @@ def delete_product_image(
         candidate_path.relative_to(storage_root_path)
     except ValueError:
         return False
-    if not candidate_path.is_file():
-        return False
-    candidate_path.unlink()
-    return True
+    candidates = [candidate_path]
+    if GENERATED_IMAGE_PATTERN.fullmatch(candidate_path.name):
+        thumbnail = _thumbnail_path(candidate_path).resolve()
+        if thumbnail.is_relative_to(storage_root_path):
+            candidates.append(thumbnail)
+    deleted = False
+    for path in candidates:
+        if path.is_file():
+            path.unlink()
+            deleted = True
+    return deleted
