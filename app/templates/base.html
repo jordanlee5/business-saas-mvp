@@ -318,6 +318,11 @@
                     <span class="side-icon">📋</span><span>供应商委托</span>
                 </a>
                 {% endif %}
+                {% if can_manage_mall_qualifications | default(false) %}
+                <a class="side-link {% if active_page == 'mall_qualifications' %}active{% endif %}" href="/mall-qualifications">
+                    <span class="side-icon">📋</span><span>会员浏览资格</span>
+                </a>
+                {% endif %}
                 {% if can_manage_mall_inventory | default(false) %}
                 <a
                     class="side-link {% if active_page == 'mall_inventory' %}active{% endif %}"

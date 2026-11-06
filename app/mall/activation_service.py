@@ -636,6 +636,11 @@ def activate_mall_business(
     credential.updated_at = current_time
     db.flush()
 
+    # The business row is already locked. Link only an explicitly confirmed
+    # qualification, in the same transaction as the verified activation.
+    from .qualification_service import bind_after_activation
+    bind_after_activation(db, business.id, now=current_time)
+
     return MallActivationResult(
         success=True,
         message="激活成功",

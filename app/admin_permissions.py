@@ -508,6 +508,11 @@ def can_manage_promotion_pages(
     )
 
 
+def can_manage_mall_qualifications(user: object | None) -> bool:
+    return (getattr(user, "is_active", False) is True
+            and has_admin_level(user, {SUPER_ADMIN, OPERATOR}))
+
+
 def can_manage_mall_catalog(
     user: object | None,
 ) -> bool:

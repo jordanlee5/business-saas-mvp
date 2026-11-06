@@ -4,11 +4,11 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0017_backoffice_sessions"
+CURRENT_SCHEMA_REVISION = "0018_member_qualifications"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
-        "members",
+        "members", "member_qualifications", "member_qualification_events",
         "member_rights_requests", "member_rights_events",
         "order_delivery_snapshots",
         "order_parcels", "order_parcel_items",
@@ -53,6 +53,8 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "member_qualifications": frozenset({"id", "business_record_id", "member_id", "enabled", "valid_from", "valid_until", "version", "confirmed_by", "confirmed_at", "bound_at", "updated_at"}),
+    "member_qualification_events": frozenset({"id", "qualification_id", "actor_id", "action", "reason", "before_state", "after_state", "created_at"}),
     "backoffice_sessions": frozenset({"token_hash", "user_id", "credential_hash", "expires_at"}),
     "member_rights_requests": frozenset({"id", "member_id", "public_id", "request_key", "kind", "description", "status", "version", "created_at"}),
     "member_rights_events": frozenset({"id", "request_id", "actor_id", "action", "note", "verification_method", "created_at"}),

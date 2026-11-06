@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-card qualifications">
+<style>
+.qualifications {max-width:1250px;margin:auto;overflow-wrap:anywhere}
+.qualifications table {width:100%;border-collapse:collapse}.qualifications th,.qualifications td {text-align:left;padding:12px 8px;border-bottom:1px solid #dce4ee}
+.qualifications .scroll {overflow-x:auto}.qualifications .muted {color:#526579;font-size:14px;line-height:1.7}
+.qualifications form.controls {display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:20px 0}
+.qualifications label {display:grid;gap:6px}.qualifications input,.qualifications textarea {padding:9px;border:1px solid #b8c8dc;border-radius:6px}
+.qualifications input[type=checkbox] {width:20px;height:20px}.qualifications button {padding:10px 18px}
+.qualifications .ui-button-primary {background:#2563eb;color:white;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+.qualifications .status {display:inline-block;background:#eaf2fb;border-radius:8px;padding:4px 10px}
+.qualifications .summary {display:flex;flex-wrap:wrap;gap:24px;padding:18px;background:#f6f8fb;border-radius:12px}
+.qualifications .notice {padding:12px;background:#eff6ff;border-radius:8px}.qualifications li {padding:12px 0;border-bottom:1px solid #e4eaf0}
+.qualifications .reason {white-space:pre-wrap}.qualifications details {margin-top:8px}
+</style>
+<h1>会员浏览资格</h1>
+<p class="muted">依据已承接的商城名单确认资格。会员完成微信激活后自动关联；浏览资格与积分余额独立。</p>
+<p class="notice">当前完成后台资格登记；商城入口及商品图片访问限制将在后续版本接入。</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if message %}<p role="status">{{ message }}</p>{% endif %}
+{% if row %}
+<a href="/mall-qualifications?batch_id={{ batch_id }}">← 返回本批次名单</a>
+<h2>资格 #{{ row.id }} <span class="status">{{ q.status(row) }}</span></h2>
+<div class="summary">
+<div>名单来源<br><b>{{ source[2] }} · 批次 #{{ batch_id }}</b><br>{{ source[0].public_business_no or source[0].business_no }}</div>
+<div>绑定会员<br><b>{{ member_no or '待会员完成微信激活' }}</b><br>绑定时间 {{ row.bound_at | format_utc8 }}</div>
+<div>有效期（北京时间）<br><b>{{ row.valid_from | format_utc8 }}</b> 起<br>至 <b>{{ row.valid_until | format_utc8 }}</b> 前</div>
+</div>
+<p class="muted">停用或到期不会清零积分，也不会删除本人历史订单、物流和权益申请。绑定依据为原业务的激活记录，不能手填微信身份或改绑他人。</p>
+<form class="controls" method="post" action="/mall-qualifications/{{ row.id }}/update">
+<input type="hidden" name="csrf_token" value="{{ token }}"><input type="hidden" name="version" value="{{ row.version }}">
+<input type="hidden" name="action" value="{{ 'DISABLE' if row.enabled else 'ENABLE' }}">
+<label>启停原因<input name="reason" required maxlength="500" placeholder="填写业务原因，不填个人资料"></label>
+<button class="ui-button-primary" type="submit">{{ '停用资格' if row.enabled else '启用资格' }}</button>
+</form>
+<form class="controls" method="post" action="/mall-qualifications/{{ row.id }}/update">
+<input type="hidden" name="csrf_token" value="{{ token }}"><input type="hidden" name="version" value="{{ row.version }}"><input type="hidden" name="action" value="VALIDITY">
+<label>开始时间<input type="datetime-local" name="valid_from" required value="{{ row.valid_from | format_utc8('%Y-%m-%dT%H:%M') }}"></label>
+<label>结束时间（不含）<input type="datetime-local" name="valid_until" required value="{{ row.valid_until | format_utc8('%Y-%m-%dT%H:%M') }}"></label>
+<label>调整原因<input name="reason" required maxlength="500"></label><button class="ui-button-primary">保存有效期</button>
+</form>
+<h2>操作留痕</h2>
+<ol>{% for item, username in history %}<li>
+<b>{{ q.ACTIONS[item.action] }}</b> · {{ item.created_at | format_utc8 }} · {{ username or '系统随会员激活自动关联' }}{% if item.actor_id %}（账号 #{{ item.actor_id }}）{% endif %}
+<div class="reason">{{ item.reason }}</div>
+<details><summary>查看变更前后</summary><div class="muted">变更前：{{ q.describe_state(item.before_state) }}<br>变更后：{{ q.describe_state(item.after_state) }}</div></details>
+</li>{% endfor %}</ol>
+{% else %}
+<form method="get" class="controls"><label>名单批次编号<input type="number" min="1" name="batch_id" value="{{ batch_id or '' }}" placeholder="全部已承接批次"></label><button class="ui-button-primary">查看名单</button><a href="/mall-qualifications">全部批次</a></form>
+{% if not batch_id %}<p class="muted">点击批次编号进入该批次，再勾选需要确认的名单。列表每页最多 25 条。</p>{% endif %}
+<form method="post" action="/mall-qualifications/confirm">
+<input type="hidden" name="csrf_token" value="{{ token }}"><input type="hidden" name="batch_id" value="{{ batch_id }}">
+<div class="scroll"><table><thead><tr>{% if batch_id %}<th>确认</th>{% endif %}<th>来源 / 批次</th><th>业务编号</th><th>会员编号</th><th>资格状态</th><th>有效期（北京时间）</th><th>管理</th></tr></thead>
+<tbody>{% for business, batch, partner, item, member in rows %}<tr>
+{% if batch_id %}<td>{% if not item and business.claim_status in ['PENDING_ACTIVATION','ACTIVATED'] %}<input aria-label="选择 {{ business.public_business_no or business.business_no }}" type="checkbox" name="business_ids" value="{{ business.id }}">{% else %}—{% endif %}</td>{% endif %}
+<td>{{ partner }}<br><a href="/mall-qualifications?batch_id={{ batch.id }}">批次 #{{ batch.id }}</a></td><td>{{ business.public_business_no or business.business_no }}</td>
+<td>{{ member or '未绑定' }}</td><td><span class="status">{{ q.status(item) }}</span>{% if business.claim_status in ['FROZEN','EXPIRED'] %}<br>来源冻结或过期，不可新增确认{% endif %}</td>
+<td>{% if item %}{{ item.valid_from | format_utc8 }}<br>至 {{ item.valid_until | format_utc8 }} 前{% else %}待指定{% endif %}</td>
+<td>{% if item %}<a href="/mall-qualifications?qualification_id={{ item.id }}">查看 / 管理</a>{% else %}待确认{% endif %}</td></tr>
+{% else %}<tr><td colspan="7">暂无符合条件的名单记录</td></tr>{% endfor %}</tbody></table></div>
+{% if batch_id and can_confirm %}<div class="controls" style="display:flex;gap:16px;flex-wrap:wrap;margin:20px 0;align-items:end">
+<label>开始时间<input type="datetime-local" name="valid_from" required></label><label>结束时间（不含）<input type="datetime-local" name="valid_until" required></label>
+<label>确认原因<input name="reason" required maxlength="500" placeholder="例如：甲方确认本期会员名单"></label><button class="ui-button-primary">确认勾选名单</button></div>
+<p class="muted">有效期请按甲方约定填写。仅处理勾选记录；重复确认不改动已有资格，新名单未出现某人也不会自动停用。</p>{% endif %}
+</form>
+{% endif %}
+{% if page > 1 %}<a href="/mall-qualifications?batch_id={{ batch_id }}&amp;qualification_id={{ row.id if row else 0 }}&amp;page={{ page-1 }}">上一页</a>{% endif %}
+{% if more %}<a href="/mall-qualifications?batch_id={{ batch_id }}&amp;qualification_id={{ row.id if row else 0 }}&amp;page={{ page+1 }}">下一页</a>{% endif %}
+</div>
+{% endblock %}

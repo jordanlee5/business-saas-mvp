@@ -31,6 +31,7 @@ from openpyxl.utils import get_column_letter
 from .private_vouchers import PRIVATE_HEADERS, PREVIEW_TYPES, voucher_path
 from .database import engine, SessionLocal
 from .mall import rights_service as rights
+from .mall import qualification_service as qualifications
 from .mall.catalog_admin_service import catalog_listing, PRODUCT_STATUS_LABELS
 from . import models
 from .api import (
@@ -196,6 +197,7 @@ from .admin_permissions import (
     can_view_business_records,
     can_manage_promotion_pages,
     can_manage_mall_catalog,
+    can_manage_mall_qualifications,
     can_manage_mall_inventory,
     can_manage_mall_orders,
     can_export_mall_member_points,
@@ -341,6 +343,7 @@ def admin_navigation_context(
     user = get_current_user(request)
 
     return {
+        "can_manage_mall_qualifications": can_manage_mall_qualifications(user),
         "can_manage_administrators": (
             can_manage_administrators(user)
         ),
@@ -598,6 +601,7 @@ def end_browser_session(request):
 
 def add_base_context(request: Request, context: dict):
     user = get_current_user(request)
+    context["can_manage_mall_qualifications"] = can_manage_mall_qualifications(user)
 
     if user:
         context["username"] = user.username
@@ -8157,6 +8161,95 @@ def _run_catalog_mutation(
         )
     finally:
         db.close()
+
+
+@app.get("/mall-qualifications", response_class=HTMLResponse)
+def mall_qualifications_page(request: Request, batch_id: int = 0, qualification_id: int = 0,
+                             page: int = 1, error: str = "", message: str = ""):
+    user = get_current_user(request)
+    if not can_manage_mall_qualifications(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    page = max(1, min(1000000, page))
+    token = request.cookies.get("mall_qualifications_csrf", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+        token = secrets.token_urlsafe(32)
+    with SessionLocal() as db:
+        row, source, member_no, history = None, None, "", []
+        rows, more = [], False
+        if qualification_id:
+            row = db.get(models.MemberQualification, qualification_id)
+            if row is None:
+                raise HTTPException(404, "资格不存在")
+            source = (db.query(models.BusinessRecord, models.UploadBatch, models.User.username)
+                .join(models.UploadBatch, models.UploadBatch.id == models.BusinessRecord.batch_id)
+                .join(models.User, models.User.id == models.UploadBatch.user_id)
+                .filter(models.BusinessRecord.id == row.business_record_id).one())
+            batch_id = source[1].id
+            if row.member_id:
+                member_no = db.get(models.Member, row.member_id).member_public_id
+            history, more = qualifications.history(db, row.id, page)
+        else:
+            rows, more = qualifications.queue(db, batch_id, page)
+        response = templates.TemplateResponse(request=request, name="mall_qualifications.html",
+            context=add_base_context(request, {"request": request, "page_title": "会员浏览资格",
+                "active_page": "mall_qualifications", "row": row, "source": source, "member_no": member_no,
+                "rows": rows, "history": history, "more": more, "page": page, "batch_id": batch_id,
+                "can_confirm": any(item is None and business.claim_status in ("PENDING_ACTIVATION", "ACTIVATED")
+                                   for business, batch, partner, item, member in rows),
+                "token": token, "q": qualifications, "error": error, "message": message}),
+            headers={"Cache-Control": "no-store, private"})
+        response.set_cookie("mall_qualifications_csrf", token, httponly=True, samesite="strict",
+                            secure=request.url.scheme == "https", path="/mall-qualifications")
+        return response
+
+
+@app.post("/mall-qualifications/confirm")
+def mall_qualifications_confirm(request: Request, batch_id: int = Form(...), business_ids: list[int] = Form([]),
+    valid_from: str = Form(""), valid_until: str = Form(""), reason: str = Form(""), csrf_token: str = Form("")):
+    user = get_current_user(request)
+    if not can_manage_mall_qualifications(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    query = {"batch_id": batch_id}
+    try:
+        cookie = request.cookies.get("mall_qualifications_csrf", "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", cookie) or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
+            raise ValueError("表单已失效，请刷新后重试")
+        with SessionLocal() as db:
+            if db.get_bind().dialect.name == "sqlite":
+                db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            count = qualifications.confirm(db, actor_id=user.id, batch_id=batch_id, business_ids=business_ids,
+                valid_from=qualifications.parse_time(valid_from), valid_until=qualifications.parse_time(valid_until), reason=reason)
+            db.commit()
+        query["message"] = f"新增确认 {count} 条；已确认记录保持原状"
+    except (ValueError, PermissionError) as exc:
+        query["error"] = str(exc)
+    return RedirectResponse("/mall-qualifications?" + urlencode(query), status_code=303)
+
+
+@app.post("/mall-qualifications/{qualification_id}/update")
+def mall_qualifications_update(request: Request, qualification_id: int, version: int = Form(...),
+    action: str = Form(...), valid_from: str = Form(""), valid_until: str = Form(""), reason: str = Form(""),
+    csrf_token: str = Form("")):
+    user = get_current_user(request)
+    if not can_manage_mall_qualifications(user):
+        return RedirectResponse("/dashboard" if user else "/login", status_code=302)
+    query = {"qualification_id": qualification_id}
+    try:
+        cookie = request.cookies.get("mall_qualifications_csrf", "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", cookie) or not secrets.compare_digest(cookie.encode(), csrf_token.encode()):
+            raise ValueError("表单已失效，请刷新后重试")
+        with SessionLocal() as db:
+            if db.get_bind().dialect.name == "sqlite":
+                db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            changed = qualifications.update(db, actor_id=user.id, qualification_id=qualification_id, version=version,
+                action=action, reason=reason,
+                valid_from=qualifications.parse_time(valid_from) if action == "VALIDITY" else None,
+                valid_until=qualifications.parse_time(valid_until) if action == "VALIDITY" else None)
+            db.commit()
+        query["message"] = "已更新并记录经办人和时间" if changed else "当前资格没有变化"
+    except (ValueError, PermissionError) as exc:
+        query["error"] = str(exc)
+    return RedirectResponse("/mall-qualifications?" + urlencode(query), status_code=303)
 
 
 @app.get("/mall-rights", response_class=HTMLResponse)

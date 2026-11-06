@@ -27,6 +27,8 @@ BASELINE_REVISION = "0001_current_schema_baseline"
 # 基线接入检查只忽略这里逐项登记的对象，其他差异仍失败关闭。
 POST_BASELINE_TABLES = frozenset(
     {
+        "member_qualifications",
+        "member_qualification_events",
         "backoffice_sessions",
         "members",
         "order_delivery_snapshots",

@@ -2052,3 +2052,39 @@ class OrderParcelItem(Base):
     parcel_id = Column(Integer, ForeignKey("order_parcels.id"), primary_key=True)
     item_id = Column(Integer, ForeignKey("order_items.id"), primary_key=True)
     quantity = Column(Integer, nullable=False)
+
+
+class MemberQualification(Base):
+    """Explicitly confirmed browsing eligibility; independent of points balance."""
+    __tablename__ = "member_qualifications"
+    __table_args__ = (
+        CheckConstraint("valid_until > valid_from", name="ck_member_qualification_period"),
+        CheckConstraint("version >= 1", name="ck_member_qualification_version"),
+        CheckConstraint("(member_id IS NULL AND bound_at IS NULL) OR (member_id IS NOT NULL AND bound_at IS NOT NULL)", name="ck_member_qualification_binding"),
+        Index("ix_member_qualification_member_enabled", "member_id", "enabled"),
+    )
+    id = Column(Integer, primary_key=True)
+    business_record_id = Column(Integer, ForeignKey("business_records.id"), nullable=False, unique=True)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=True)
+    enabled = Column(Boolean, nullable=False, default=True)
+    valid_from = Column(DateTime(timezone=True), nullable=False)
+    valid_until = Column(DateTime(timezone=True), nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    confirmed_at = Column(DateTime(timezone=True), nullable=False)
+    bound_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class MemberQualificationEvent(Base):
+    """Append-only application audit; no mutation or deletion endpoint."""
+    __tablename__ = "member_qualification_events"
+    __table_args__ = (CheckConstraint("action IN ('CONFIRM','BIND','ENABLE','DISABLE','VALIDITY')", name="ck_member_qualification_action"),)
+    id = Column(Integer, primary_key=True)
+    qualification_id = Column(Integer, ForeignKey("member_qualifications.id"), nullable=False, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(20), nullable=False)
+    reason = Column(String(500), nullable=False)
+    before_state = Column(Text, nullable=False)
+    after_state = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)

@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-06",
+  "baseline": "c699992b2b66bffb7445cc440819cf1d6c9ac81b",
+  "scope": "first-round backend list confirmation, verified activation linkage, enable/disable, validity and attributable audit",
+  "backend": {
+    "full_tests_run": 898,
+    "full_result": "OK",
+    "postgres_test_classes_skipped": 11,
+    "skip_details": [
+      "setUpClass (test_postgresql_member_addresses.PostgreSQLMemberAddressTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_orders.PostgreSQLMemberOrderTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_qualifications.PostgreSQLMemberQualificationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_migration.PostgreSQLMigrationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_activation.PostgreSQLMiniprogramActivationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_points_ledger.PostgreSQLMiniprogramPointsLedgerTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_cancellation.PostgreSQLOrderCancellationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_fulfillment.PostgreSQLOrderFulfillmentIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_parcel_tracking.PostgreSQLParcelTrackingTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_public_catalog.PostgreSQLPublicCatalogTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_supplier_settlement.PostgreSQLSupplierSettlementIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'"
+    ],
+    "targeted_tests_passed": 39,
+    "postgres_tests_passed": 8,
+    "postgres_live_integration_tests": 3,
+    "postgres_configuration_and_portable_sql_checks": 5,
+    "postgres_scope": [
+      "member qualification races and persistence",
+      "schema migration baseline",
+      "competing WeChat activation"
+    ],
+    "count_note": "11 PostgreSQL setUpClass skips are outside the 898 executed tests; do not subtract class skips from tests_run."
+  },
+  "virtual_http": {
+    "fixture": "virtual in-memory only",
+    "http_flow": "confirm -> activate -> disable -> enable",
+    "pages": 6,
+    "events": [
+      "CONFIRM",
+      "BIND",
+      "DISABLE",
+      "ENABLE"
+    ],
+    "member_remains_active": true,
+    "catalog_access_gated": false,
+    "real_wechat_called": false,
+    "real_database_touched": false
+  },
+  "browser_evidence": {
+    "renderer": "local Chrome headless, isolated profile, virtual static HTTP-response HTML",
+    "screenshots_sha256": {
+      "01-list-before.png": "09949fe22975ff104080511e44d7ac86a5f24ba51b28389604e179d29869d6c8",
+      "03-bound-detail.png": "27b5a030a3bf185292d13991c7afff4ad874a96a22e46e7216e998fb6e9665ec",
+      "04-disabled-detail.png": "7d7f6ab3d487ef8fc1f2533ff3d9c02124e692215bfe39f1165b799ee005ad01",
+      "06-list-bound.png": "610d96c651b22d1fa654451752b83ae8e1bf34a01bd8965dc55f706b83409d69"
+    },
+    "human_user_acceptance_this_round": false
+  },
+  "logs_sha256": {
+    "full-linux.log": "c4a0e432310d7013e968c8b69c64e9b7ea2329d887c20ecb0b15f1a3ff3e400d",
+    "targeted-linux.log": "3571073f3d3af86505bfe3c6ecca707956338d2c21648fd89129fd0a1c67fb31",
+    "postgres.log": "0be8580d60b3548bb922c53de56a12b773840a4d91368c9cf384a777f68c8b15",
+    "targeted-linux-first-failure.log": "a3faee8143083a2944ea29489853d8b325edad67c9febb57b9222957283a26e3",
+    "full-linux-first-failure.log": "4634fbd12a47bcd2eb5bab77c497515aba8145e822a97f57957753cf633382de"
+  },
+  "schema_revision": "0018_member_qualifications",
+  "real_database_migrated": false,
+  "real_database_sha256_unchanged": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "purchase_guide_sha256_unchanged": "6fe7128b4cfa0345be7a7399f1ef2d199979f07c9fb904d0e4e0d05bfd3ed919",
+  "procurement": "waiting company entity confirmation; no purchase or public deployment",
+  "catalog_and_product_images_still_public": true,
+  "new_order_qualification_gate_implemented": false,
+  "zero_knowledge_proofs_implemented": false,
+  "real_wechat_identity_called": false,
+  "wechat_review_submitted": false,
+  "evidence_directory": ".runtime/member-qualifications-20261106",
+  "retry_notes": [
+    "Initial Windows command used an incorrect relative interpreter path; corrected. Windows targeted run was interrupted and replaced by isolated Linux execution.",
+    "Initial targeted fixture attempted CASH_REBATE with a mall-only claim status; corrected the virtual fixture to preserve the existing schema constraint.",
+    "Initial full run exposed missing explicit post-baseline/historical-address table registrations and old privacy-migration expected tables; updated exact lists and reran the full suite.",
+    "Final 39-test HTTP/activation run and final full rerun include navigation and confirmation-form presentation refinements."
+  ],
+  "credentials": {
+    "staged_scan": {
+      "mode": "staged",
+      "files_scanned": 512,
+      "findings": []
+    },
+    "scan_log_sha256": "a0f955d8a4de7c49d99cc1c043040d66b71f947ec1b27ba1f86e3068c348a18b",
+    "commit_hook": "rescan staged files before commit; no real credentials added"
+  }
+}

@@ -26,4 +26,6 @@
 
 已有 SQLite 数据库在考虑写入版本标记前，还必须停止应用并运行 `python -m app.migration_rehearsal`。演练只修改单独副本，并保留原始快照；演练通过不等于获准修改真实数据库。历史兼容画像只接受已审计的等价类型、默认值、三个索引和三个外键差异，并要求审核人、凭证上传批次、布尔值与费率模式完整性检查全部通过。
 
-应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受真实处于 `0011_supplier_settlement_foundation` 且 28 张必需表及关键字段完整的数据库，版本落后或虚假 stamp 都会失败关闭。
+`0018_member_qualifications` 新增会员浏览资格及操作留痕两张空表，依据明确确认的已承接商城业务关联会员，不自动授予历史会员资格。有效期与积分分开，重复确认不覆盖已有启停和期限；含资格或事件时拒绝降级删除。操作和虚拟演练见 [会员资格管理](../docs/member-qualification-admin.md)。真实业务库本轮未迁移。
+
+应用启动不再执行 `Base.metadata.create_all()`。当前代码只接受 `app/schema_readiness.py` 指定的 `0018_member_qualifications` 及完整必需表、关键字段，版本落后或虚假 stamp 都会失败关闭。旧版本章节记录对应历史演练范围，不表示真实库已经升级到当前代码版本。

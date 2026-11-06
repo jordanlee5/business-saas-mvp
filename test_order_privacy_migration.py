@@ -24,7 +24,8 @@ class OrderPrivacyMigrationTests(unittest.TestCase):
         assert_database_schema_ready(self.engine)
         self.assertEqual(set(inspect(self.engine).get_table_names()) - before,
                          {'order_privacy_receipts', 'order_fulfillment_notices', 'order_parcels', 'order_parcel_items',
-                          'member_rights_requests', 'member_rights_events', 'backoffice_sessions'})
+                          'member_rights_requests', 'member_rights_events', 'backoffice_sessions',
+                          'member_qualifications', 'member_qualification_events'})
         command.downgrade(self.config, '0013_order_delivery_snapshot')
         self.assertEqual(set(inspect(self.engine).get_table_names()), before)
         command.upgrade(self.config, 'head')
