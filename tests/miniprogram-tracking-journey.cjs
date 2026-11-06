@@ -22,6 +22,7 @@ function page(){return {...definition,data:structuredClone(definition.data),setD
  require(path.join(root,'pages/tracking/index.js'));const trackingPage=page();trackingPage.onLoad({order:first.order_public_id,parcel:'2'});await trackingPage.load();
  assert.equal(trackingPage.data.tracking.parcel_id,2);assert.ok(trackingPage.data.events[0].description.includes('包裹 2'));
  const normal=structuredClone(trackingPage.data);
+ demo.setScenario('tracking_empty');await trackingPage.load();assert.equal(trackingPage.data.tracking.status,'PENDING');assert.equal(trackingPage.data.tracking.availability,'LIVE');assert.deepEqual(trackingPage.data.events,[]);assert.ok(trackingPage.data.tracking.source);assert.ok(trackingPage.data.tracking.updated_at);
  demo.setScenario('tracking_stale');await trackingPage.onPullDownRefresh();assert.equal(trackingPage.data.tracking.availability,'STALE');
  demo.setScenario('tracking_offline');await trackingPage.load();assert.equal(trackingPage.data.tracking.availability,'UNAVAILABLE');assert.deepEqual(trackingPage.data.events,[]);
  const second=await place();assert.equal(second.status,'CREATED');assert.notEqual(first.order_public_id,second.order_public_id);
@@ -29,7 +30,7 @@ function page(){return {...definition,data:structuredClone(definition.data),setD
  demo.setScenario('normal');await trackingPage.load();assert.equal(trackingPage.data.tracking.availability,'LIVE');
  trackingPage.onHide();assert.equal(trackingPage.data.tracking,null);
  const report={status:'PASS',scope:'offline_generated_miniprogram_services_and_pages',native_network_calls:0,parcels:2,
-  checks:['order to selected parcel navigation','two parcel tracks','stale notice','query failure then successful checkout and cancellation','query recovery','hidden page privacy cleanup'],
+  checks:['order to selected parcel navigation','two parcel tracks','successful query with no tracking events','stale notice','query failure then successful checkout and cancellation','query recovery','hidden page privacy cleanup'],
   normal_view:normal,limitations:'Simulated WeChat I/O; not native WeChat rendering or a real carrier API'};
  if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(report,null,2)+'\n');
  console.log('PASS offline parcel tracking journey, checkout/cancel during tracking failure');

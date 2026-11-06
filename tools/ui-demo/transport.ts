@@ -103,7 +103,7 @@ export function dispatch(options){
    const parcel=o.parcels?.find(p=>p.parcel_id===Number(parts[4]));if(!parcel)return response(404,{});
    const availability=scenario==='tracking_offline'?'UNAVAILABLE':scenario==='tracking_stale'?'STALE':'LIVE';
    const empty=scenario==='tracking_empty'||availability==='UNAVAILABLE';
-   return response(200,{parcel_id:parcel.parcel_id,availability,status:empty?'PENDING':'IN_TRANSIT',source:empty?'':'虚拟物流 · 离线演示',updated_at:empty?null:stamp(),events:empty?[]:[{time:stamp(),description:'包裹 '+parcel.parcel_id+' 已到达测试转运中心'},{time:'2026-11-06T09:00:00+08:00',description:'虚拟包裹已揽收'}]});
+   return response(200,{parcel_id:parcel.parcel_id,availability,status:empty?'PENDING':'IN_TRANSIT',source:availability==='UNAVAILABLE'?'':'虚拟物流 · 离线演示',updated_at:availability==='UNAVAILABLE'?null:stamp(),events:empty?[]:[{time:stamp(),description:'包裹 '+parcel.parcel_id+' 已到达测试转运中心'},{time:'2026-11-06T09:00:00+08:00',description:'虚拟包裹已揽收'}]});
  }
  if(path.endsWith('/cancel')){if(o.status==='CREATED'){o.status='CANCELLED';movement('RELEASE',Number(o.total_points),-Number(o.total_points));}else if(o.status!=='CANCELLED')return response(409,{});}return response(200,o);}
  return response(404,{});

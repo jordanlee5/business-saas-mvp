@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-06",
+  "baseline": "c32e152df4a369562f6a29a69f0a728d7d82f008",
+  "scope": "offline virtual parcel tracking UI review; no production logic changes",
+  "native_wechat_devtools_rendering_verified": true,
+  "devtools_version": "2.02.2609240",
+  "user_acceptance": "pending user review",
+  "real_carrier_api": false,
+  "real_phone_acceptance": false,
+  "virtual_cases": [
+    "two parcels with distinct tracks",
+    "parcel 1 in transit",
+    "parcel 2 out for delivery",
+    "unavailable without fabricated events",
+    "recovered live events",
+    "stale events with warning and prior timestamp",
+    "pending without events"
+  ],
+  "checks": {
+    "typescript": "PASS",
+    "prepared_review_journey": "PASS",
+    "fresh_generated_demo_journey": "PASS"
+  },
+  "demo_fix": "Successful empty tracking response retains source and query timestamp, satisfying the client contract.",
+  "local_evidence_directory": ".runtime/parcel-tracking-review-20261106",
+  "screenshots_sha256": {
+    "seeded.png": "4dd41abe54d44d543c3112a3ddf91559340e3177f3ecc86278358fb52e478253",
+    "directtap.png": "685ebe8f933bcaaf3dbb13d368cc7b26a340ad80a7727e7ee4180058b2d25d59",
+    "failure.png": "623af6dc1e4bfd91c76d1f838e232ff946199b4d57cd78ac9515f531bd141cc3",
+    "recovery.png": "77e2f9460ae337b4d493a76d8fcbe8339290088f771a1b2e537dcfa89aee88dd",
+    "parcel2.png": "4ce9618aa0c9dae6d306f1a680a205d53188d8473e12ab066397442c1a053d11",
+    "stale.png": "64635d02dc859a91ef4feb17ccc88ddd9113dbf310954047cec447861ab77a1b",
+    "empty.png": "86f850d43106f705a97ed584409400161e6a19aec1f0d96d18ed3c43e3d038cf",
+    "ready-for-user.png": "7eec0036c9eeed300e705a779e6a26e5635a73109e082e6aa4703526dec07545"
+  },
+  "real_database_sha256_unchanged": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "real_database_writes": false,
+  "wechat_uploaded_or_submitted": false,
+  "procurement": "Server and domain selection retained in docs/test-server-purchase.md; company entity still pending user confirmation; no purchase performed.",
+  "credential_handling": "Developer tool test account identifier and private project settings remain local; no application secret used."
+}
