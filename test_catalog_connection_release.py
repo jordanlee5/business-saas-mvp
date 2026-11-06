@@ -1,4 +1,5 @@
 """HTTP regression: response serialization must not hold scarce DB connections."""
+import os
 import asyncio
 from pathlib import Path
 import tempfile
@@ -21,13 +22,17 @@ class CatalogConnectionReleaseTests(unittest.TestCase):
             try:
                 Base.metadata.create_all(engine)
                 factory=sessionmaker(bind=engine,autoflush=False)
+                from tools.virtual_member_access import virtual_catalog_member
+                self.enterContext(patch.dict(os.environ, {"WECHAT_MINIPROGRAM_APP_ID":"virtual-catalog-app", "MINIPROGRAM_SESSION_SIGNING_KEY":"virtual-pool-test-key-at-least-32-bytes"}))
+                with factory.begin() as fixture:
+                    _, token=virtual_catalog_member(fixture)
                 app=FastAPI();app.include_router(api.miniprogram_v1_router)
                 app.include_router(addresses.address_router,prefix="/api/miniprogram/v1")
                 async def exercise():
                     transport=httpx.ASGITransport(app=app,raise_app_exceptions=False)
                     async with httpx.AsyncClient(transport=transport,base_url="http://virtual") as client:
                         paths=["products"]*50+["addresses"]*30
-                        return await asyncio.gather(*(client.get("/api/miniprogram/v1/"+p) for p in paths))
+                        return await asyncio.gather(*(client.get("/api/miniprogram/v1/"+p, headers={"Authorization":"Bearer "+token} if p=="products" else {}) for p in paths))
                 with patch.object(api,"SessionLocal",factory),patch.object(addresses,"engine",engine):
                     responses=asyncio.run(exercise())
                 self.assertEqual([r.status_code for r in responses],[200]*50+[401]*30)
@@ -45,7 +50,7 @@ class CatalogConnectionReleaseTests(unittest.TestCase):
                     db=next(dependency)
                     with self.assertRaises(Exception) as exc:
                         api.get_public_product("MISSING",db=db)
-                    self.assertEqual(exc.exception.status_code,404)
+                    self.assertEqual(exc.exception.status_code,401)
                     self.assertEqual(engine.pool.checkedout(),0)
                     dependency.close()
             finally:engine.dispose()

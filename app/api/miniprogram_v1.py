@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from .catalog_access import CatalogAccessRoute, require_catalog_member
 from ..database import SessionLocal
 from ..models import (
     BusinessRecord, Member, MemberWechatBinding, PointsAccount, PointsGrant, PointsLedgerEntry,
@@ -519,16 +520,20 @@ class PublicProductDetail(PublicProduct):
     skus: list[PublicProductSku]
 
 
-@miniprogram_v1_router.get(
+catalog_router = APIRouter(route_class=CatalogAccessRoute)
+
+
+@catalog_router.get(
     "/categories", response_model=list[PublicCategory],
     operation_id="list_miniprogram_categories", summary="读取上架商品分类",
 )
 @release_owned_session
-def get_public_categories(db=Depends(public_catalog_session)):
+def get_public_categories(db=Depends(public_catalog_session), authorization: str | None = Header(None)):
+    require_catalog_member(authorization, db)
     return list_public_categories(db)
 
 
-@miniprogram_v1_router.get(
+@catalog_router.get(
     "/products", response_model=PublicProductPage,
     operation_id="list_miniprogram_products", summary="读取上架商品列表",
 )
@@ -539,12 +544,14 @@ def get_public_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
     db=Depends(public_catalog_session),
+    authorization: str | None = Header(None),
 ):
+    require_catalog_member(authorization, db)
     return list_public_products(db, category_slug=category, search_term=q,
                                 page=page, page_size=page_size)
 
 
-@miniprogram_v1_router.get(
+@catalog_router.get(
     "/products/{product_public_id}", response_model=PublicProductDetail,
     operation_id="get_miniprogram_product_detail", summary="读取上架商品详情",
 )
@@ -553,8 +560,13 @@ def get_public_product(
     product_public_id: str = Path(..., min_length=1, max_length=32,
                                   pattern=r"^[A-Z0-9-]+$"),
     db=Depends(public_catalog_session),
+    authorization: str | None = Header(None),
 ):
+    require_catalog_member(authorization, db)
     detail = get_public_product_detail(db, product_public_id=product_public_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="商品不存在")
     return detail
+
+
+miniprogram_v1_router.include_router(catalog_router)

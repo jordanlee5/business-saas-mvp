@@ -1,3 +1,5 @@
+import os
+from unittest.mock import patch
 import tempfile
 import unittest
 from datetime import datetime
@@ -36,6 +38,10 @@ class PublicCatalogTests(unittest.TestCase):
         self.user = User(username="u", password_hash="test", role="admin")
         self.db.add(self.user)
         self.db.flush()
+        from tools.virtual_member_access import virtual_catalog_member
+        self.enterContext(patch.dict(os.environ, {"WECHAT_MINIPROGRAM_APP_ID":"virtual-catalog-app", "MINIPROGRAM_SESSION_SIGNING_KEY":"virtual-catalog-test-key-at-least-32-bytes"}))
+        _, self.token = virtual_catalog_member(self.db)
+        self.db.commit()
 
     def tearDown(self):
         self.db.close()
@@ -149,7 +155,7 @@ class PublicCatalogTests(unittest.TestCase):
         self.assertEqual([item["product_public_id"] for item in page["items"]],
                          ["PRD-FIRST"])
         second_page = get_public_products(category="car", q="BASIC", page=2,
-                                          page_size=1, db=self.db)
+                                          page_size=1, db=self.db, authorization="Bearer "+self.token)
         self.assertEqual(second_page["total"], 2)
         self.assertEqual(second_page["items"][0]["product_public_id"], "PRD-SECOND")
         for query in ("%_", "/", "10%_OFF / PACK"):
@@ -229,11 +235,11 @@ class PublicCatalogTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_public_product_detail(self.db, product_public_id="../PRD-DETAIL")
 
-        routed = get_public_product("PRD-DETAIL", db=self.db)
+        routed = get_public_product("PRD-DETAIL", db=self.db, authorization="Bearer "+self.token)
         self.assertEqual(PublicProductDetail.model_validate(routed).model_dump(), detail)
         for public_id in ("PRD-DRAFT", "PRD-HIDDEN", "PRD-NO-SKU", "PRD-NONE"):
             with self.subTest(public_id=public_id), self.assertRaises(HTTPException) as error:
-                get_public_product(public_id, db=self.db)
+                get_public_product(public_id, db=self.db, authorization="Bearer "+self.token)
             self.assertEqual(error.exception.status_code, 404)
 
     def test_detail_stock_status_uses_available_stock_and_sku_threshold(self):
@@ -292,9 +298,10 @@ class PublicCatalogTests(unittest.TestCase):
                                  is_active=True, uploaded_by_id=self.user.id))
         self.db.commit()
         app = FastAPI(); app.include_router(api.miniprogram_v1_router)
-        app.mount("/uploads/mall_products", StaticFiles(directory=storage))
+        from app.api.product_images import router as images_router
+        app.include_router(images_router)
         with patch("app.mall.product_media_storage.PRODUCT_IMAGE_STORAGE_ROOT", storage), \
-                patch.object(api, "SessionLocal", sessionmaker(bind=self.engine, autoflush=False)), TestClient(app) as client:
+                patch.object(api, "SessionLocal", sessionmaker(bind=self.engine, autoflush=False)), TestClient(app, headers={"Authorization":"Bearer "+self.token}) as client:
             listing = client.get("/api/miniprogram/v1/products")
             self.assertEqual(listing.status_code, 200)
             thumb_url = listing.json()["items"][0]["main_image_url"]

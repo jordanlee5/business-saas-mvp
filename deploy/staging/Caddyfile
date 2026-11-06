@@ -1,4 +1,8 @@
 {$STAGING_DOMAIN} {
     encode gzip
+    # Product media MUST go through the app's membership/operator checks.
+    # Do not add file_server, uploads mounts, public CDN caches or path rewrites.
+    @private_catalog path /api/miniprogram/v1/categories /api/miniprogram/v1/products* /uploads/mall_products*
+    header @private_catalog Cache-Control "no-store, private"
     reverse_proxy app:8000
 }

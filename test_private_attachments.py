@@ -69,7 +69,7 @@ class AttachmentTests(unittest.TestCase):
         return client
 
     def test_public_files_and_anonymous_direct_access(self):
-        for folder in ("promotion_pages", "mall_products"):
+        for folder in ("promotion_pages",):
             path = Path("uploads") / folder / "cover.webp"
             path.write_bytes(b"public media")
             response = self.client.get("/" + path.as_posix())
@@ -78,7 +78,9 @@ class AttachmentTests(unittest.TestCase):
         for path in ("/uploads/excel/original.xlsx", "/uploads/vouchers/alice0.png",
                      "/uploads/mall_products/%2e%2e%2fvouchers/alice0.png",
                      "/uploads/promotion_pages/..%5cvouchers%5calice0.png"):
-            self.assertEqual(self.client.get(path).status_code, 404, path)
+            response = self.client.get(path)
+            self.assertIn(response.status_code, (401, 404), path)
+            self.assertNotIn(b"alice0", response.content)
         for action in ("preview", "download"):
             self.assertEqual(self.client.get(f"/vouchers/{self.review_ids[0]}/{action}").headers["location"], "/login")
 

@@ -485,20 +485,13 @@ class CatalogRouteTests(unittest.TestCase):
         with self.Session() as db:
             self.assertEqual(db.query(ProductCategory).count(), 0)
 
-    def test_public_product_image_is_served_as_webp(self):
+    def test_product_images_have_no_public_static_mount(self):
         from fastapi.testclient import TestClient
         from app.main import app
-
-        directory = Path(self.temp.name)
-        image = directory / "mall_products" / "PRD-TEST" / "main.webp"
-        image.parent.mkdir(parents=True)
-        Image.new("RGB", (20, 20)).save(image, "WEBP")
-        mount = next(route.app for route in app.routes if route.name == "mall_products")
-        with patch.object(mount, "all_directories", [str(directory / "mall_products")]):
-            response = TestClient(app).get("/uploads/mall_products/PRD-TEST/main.webp")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "image/webp")
-        self.assertEqual(response.content, image.read_bytes())
+        self.assertFalse(any(route.name == "mall_products" for route in app.routes))
+        response = TestClient(app).get("/uploads/mall_products/PRD-TEST/main.webp")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["cache-control"], "no-store, private")
 
     def test_product_media_upload_update_delete_route_workflow(self):
         with self.Session() as db:

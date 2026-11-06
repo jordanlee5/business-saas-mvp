@@ -1,5 +1,8 @@
 # M7-1 小程序公开目录只读接口
 
+> 本文保留早期目录数据格式说明；2026-11-06 起 HTTP 商品接口及图片须验证有效会员资格，匿名访问已关闭。详见[当前访问规则](member-catalog-access.md)。领域服务的历史 `public` 命名不代表 HTTP 匿名权限。
+
+
 `GET /api/miniprogram/v1/categories` 返回启用中的分类，按排序值及 ID 升序；`GET /api/miniprogram/v1/products` 返回已上架且所属分类启用、至少有一款启用 SKU 与启用供应商的商品。列表可选 `category` 分类 slug、`page`（从 1 开始）、`page_size`（1–50，默认 20）。返回 `items`、`page`、`page_size`、`total`；无数据时返回空数组和零总数。
 
 每件商品只公开编号、名称、副标题、分类 slug、启用 SKU 的最低积分价格（两位小数字符串）、是否有可售库存、启用主图 URL。库存状态来自 SKU 的 `on_hand_quantity > reserved_quantity`，仅供页面提示；实际下单仍由订单事务重新校验。未上架商品、停用分类、停用 SKU 或供应商不进入列表。采购成本、供应商、后台审计、会员身份和内部数据库 ID 不出现在响应中。

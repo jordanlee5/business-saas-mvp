@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from .member_addresses import address_session, AddressBody, _commit, with_member_session
 from .miniprogram_v1 import _require_current_member
+from .catalog_access import require_qualification
 from ..models import Member, MemberAddress, Order, OrderItem, OrderDeliverySnapshot, Product, ProductSku, OrderPrivacyReceipt
 from ..mall.order_parcels import PARTIAL, display_status, parcels_for_order
 from ..mall.fulfillment_notice import checkout_notice, save_notice, historical_notice
@@ -109,6 +110,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
         if not saved or saved.request_digest!=digest:raise HTTPException(409,'请求编号已用于不同订单内容')
         response.status_code=200
         return detail(db,existing)
+    require_qualification(db, member.id, lock=True)
     address=db.query(MemberAddress).filter_by(member_id=member.id,address_public_id=body.address_public_id).one_or_none()
     if address is None:raise HTTPException(404,'收货地址不存在，请重新选择')
     values={key:getattr(address,key) for key in ADDRESS_FIELDS}
@@ -130,6 +132,8 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     order=db.get(Order,placed.order_id)
     save_notice(db,order,notice)
     result=detail(db,order)
+    # Expiry may pass while stock/points reservations are being calculated.
+    require_qualification(db, member.id, lock=True)
     _commit(db)
     return result
 
@@ -143,7 +147,8 @@ def orders(page:int=Query(1,ge=1,le=1000000),authorization:str|None=Header(None)
 @order_router.post('/fulfillment-preview')
 @with_member_session
 def fulfillment_preview(body:NoticeBody,authorization:str|None=Header(None),db:Session=Depends(address_session)):
-    _require_current_member(authorization,db)
+    member=_require_current_member(authorization,db)
+    require_qualification(db, member.id)
     lines=[line.model_dump() for line in body.lines]
     if len({(line['product_public_id'],line['sku_code']) for line in lines})!=len(lines):
         raise HTTPException(422,'同一规格不能重复提交')

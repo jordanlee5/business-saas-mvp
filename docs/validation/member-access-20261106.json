@@ -1,0 +1,397 @@
+{
+  "date": "2026-11-06",
+  "baseline": "ef4fba09fffcc2fa70f4415d1b57919f2312abfc",
+  "scope": "request-time member eligibility for catalog, original/thumbnail images and new checkout; historical member services retained",
+  "backend": {
+    "full_tests_run": 909,
+    "full_result": "OK",
+    "postgres_classes_skipped": 12,
+    "skip_details": [
+      "setUpClass (test_postgresql_member_addresses.PostgreSQLMemberAddressTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_catalog_access.PostgreSQLMemberCatalogAccessTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_orders.PostgreSQLMemberOrderTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_qualifications.PostgreSQLMemberQualificationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_migration.PostgreSQLMigrationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_activation.PostgreSQLMiniprogramActivationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_points_ledger.PostgreSQLMiniprogramPointsLedgerTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_cancellation.PostgreSQLOrderCancellationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_fulfillment.PostgreSQLOrderFulfillmentIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_parcel_tracking.PostgreSQLParcelTrackingTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_public_catalog.PostgreSQLPublicCatalogTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_supplier_settlement.PostgreSQLSupplierSettlementIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'"
+    ],
+    "targeted_tests_passed": 90,
+    "postgres_tests_passed": 13,
+    "postgres_scope": "11 inherited HTTP authorization/history/image checks plus persistent subprocess revocation and real qualification-lock checkout race",
+    "count_note": "PostgreSQL setUpClass skips are outside the 909 executed tests; targeted checks overlap the full suite and are not additive."
+  },
+  "http_evidence": {
+    "result": "PASS",
+    "cases": 51,
+    "matrix": [
+      {
+        "scenario": "anonymous",
+        "resource": "categories",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous",
+        "resource": "catalog",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous",
+        "resource": "detail",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous",
+        "resource": "original",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous",
+        "resource": "thumbnail",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "not_on_confirmed_list",
+        "resource": "categories",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "not_on_confirmed_list",
+        "resource": "catalog",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "not_on_confirmed_list",
+        "resource": "detail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "not_on_confirmed_list",
+        "resource": "original",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "not_on_confirmed_list",
+        "resource": "thumbnail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible",
+        "resource": "categories",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible",
+        "resource": "catalog",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible",
+        "resource": "detail",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible",
+        "resource": "original",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible",
+        "resource": "thumbnail",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous_direct_image",
+        "resource": "HEAD",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "anonymous_direct_image",
+        "resource": "GET",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "eligible_range",
+        "resource": "thumbnail",
+        "status": 206,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "copied_url_token_ignored",
+        "resource": "thumbnail",
+        "status": 401,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "categories",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "catalog",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "detail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "original",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "thumbnail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked_history",
+        "resource": "orders",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked_history",
+        "resource": "order_detail",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked_history",
+        "resource": "tracking",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "other_member_history",
+        "resource": "order_detail",
+        "status": 404,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "other_member_history",
+        "resource": "tracking",
+        "status": 404,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked_history",
+        "resource": "rights_submit",
+        "status": 201,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked_history",
+        "resource": "rights_result",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "other_member_history",
+        "resource": "rights_result",
+        "status": 404,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "order_exact_replay",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "revoked",
+        "resource": "new_checkout",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "categories",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "catalog",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "detail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "original",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "thumbnail",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired_history",
+        "resource": "orders",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired_history",
+        "resource": "tracking",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired_history",
+        "resource": "rights_result",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "expired",
+        "resource": "new_checkout",
+        "status": 403,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "restored",
+        "resource": "categories",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "restored",
+        "resource": "catalog",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "restored",
+        "resource": "detail",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "restored",
+        "resource": "original",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "restored",
+        "resource": "thumbnail",
+        "status": 200,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "database_failure",
+        "resource": "catalog",
+        "status": 503,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "database_failure",
+        "resource": "thumbnail",
+        "status": 503,
+        "cache_control": "no-store, private"
+      },
+      {
+        "scenario": "recovered",
+        "resource": "catalog",
+        "status": 200,
+        "cache_control": "no-store, private"
+      }
+    ],
+    "credentials_recorded": false,
+    "real_database_touched": false,
+    "real_wechat_called": false,
+    "real_logistics_called": false,
+    "revoked_new_checkout_balances_unchanged": true,
+    "history_remains_owner_only": true,
+    "scope": "real FastAPI handlers over in-process HTTP, disposable virtual data; native miniapp UI is next round"
+  },
+  "gateway": {
+    "configuration_validation": "PASS",
+    "image": "business-saas-caddy-review:20261105",
+    "validation_origin": "http://localhost, network disabled",
+    "public_https_or_cloud_deployment_tested": false,
+    "no_static_product_mount_in_app": true,
+    "gateway_only_reverse_proxies_products": true
+  },
+  "logs_sha256": {
+    "full-linux.log": "77fbcf416fc48e0114639659c83bb15e1fa1ee4bf9367c1e762b8b811c1187ec",
+    "targeted.log": "5580b3a29a49f8bf2de5a6c85998dec29ab6e4aabd5be1e5b467c77ea3072f4c",
+    "access-tests.log": "13505cf8f88d0cba376994be654b06ca6654785a0797e3b290172370a9925604",
+    "postgres.log": "836745ce2c8051e1971616e8748c415e16439a72345499f159d783b976e44b6b",
+    "http-rehearsal.log": "dc27442d4b23b539d2e135899753f4537b75cb842074e26cdcddbf21ee8fd091",
+    "gateway.log": "d0257851d7a1b86d753f2df4fdb1f02ded134541bbf1d4c4c5e57a10cace8233",
+    "compatibility-first-failure.log": "0ec164acf82df6f5d4caf693d6fc62c1d63623aa65c00901fcf018b2f8e39473",
+    "postgres-first-failure.log": "44e74336ab1d4645c27f5ea95dd9074d5b60e535ba09cc2111e28535bb4afeb8",
+    "gateway-first-failure.log": "6fe3c55f65f2e62143c8acef8c78cc146839382b66bee6983d78b43dc8235702"
+  },
+  "schema_revision": "0018_member_qualifications",
+  "new_database_migration": false,
+  "real_database_migrated": false,
+  "real_database_sha256_unchanged": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "purchase_guide_sha256_unchanged": "6fe7128b4cfa0345be7a7399f1ef2d199979f07c9fb904d0e4e0d05bfd3ed919",
+  "procurement": "waiting company entity; no purchase or public deployment",
+  "catalog_and_product_images_anonymous_access": false,
+  "new_checkout_qualification_required": true,
+  "exact_existing_order_replay_retained": true,
+  "history_remains_owner_only": true,
+  "native_miniprogram_ui_adaptation": "pending next round: entrance, authenticated image download, expiry/account-switch cache cleanup",
+  "previous_load_test_results_reused_for_new_authenticated_path": false,
+  "real_wechat_called": false,
+  "real_logistics_provider_called": false,
+  "wechat_review_submitted": false,
+  "local_evidence_directory": ".runtime/member-access-20261106",
+  "retry_notes": [
+    "Legacy positive catalog/order tests needed explicitly confirmed virtual eligibility. Another-member new checkout now expects 403 before address lookup; historical ownership checks remain 404.",
+    "Initial PostgreSQL fixture reused url for both the database and a product image; renamed the test database field and reran all 13 checks successfully.",
+    "Existing Caddy image has caddy as ENTRYPOINT; corrected the validation invocation and verified configuration offline.",
+    "Final 90-test targeted run includes the updated backend notice; full-suite application logic and final PostgreSQL behavior were verified separately."
+  ],
+  "credentials": {
+    "staged_scan": {
+      "mode": "staged",
+      "files_scanned": 520,
+      "findings": []
+    },
+    "scan_log_sha256": "47e8e5c0ed8e72623ff83bcc245c46480e7bbda75ef441bcdadd1000fc90f93b",
+    "commit_hook": "rescan staged files before commit; no real credentials used or added"
+  }
+}

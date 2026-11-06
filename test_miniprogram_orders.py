@@ -20,7 +20,7 @@ PREFIX='/api/miniprogram/v1/orders'
 class MemberOrderTests(unittest.TestCase):
     def setUp(self):
         self.f=fixtures.OrderServiceTests('runTest');self.f.setUp();self.addCleanup(self.f.tearDown)
-        for name,value in [('app.api.member_addresses.engine',self.f.engine),('app.mall.order_service.utc8_now',lambda:fixtures.NOW),('app.mall.order_cancellation_service.utc8_now',lambda:fixtures.NOW)]:
+        for name,value in [('app.api.member_addresses.engine',self.f.engine),('app.api.catalog_access.utc8_now',lambda:fixtures.NOW),('app.mall.order_service.utc8_now',lambda:fixtures.NOW),('app.mall.order_cancellation_service.utc8_now',lambda:fixtures.NOW)]:
             p=patch(name,value);p.start();self.addCleanup(p.stop)
         p=patch.dict(os.environ,{'WECHAT_MINIPROGRAM_APP_ID':APPID,'MINIPROGRAM_SESSION_SIGNING_KEY':'orders-test-only-signing-key-20261028'});p.start();self.addCleanup(p.stop)
         self.tokens=[]
@@ -29,6 +29,8 @@ class MemberOrderTests(unittest.TestCase):
             for i,mid in enumerate((self.f.member.id,other.id)):
                 b=MemberWechatBinding(member_id=mid,wechat_app_id=APPID,openid=f'order-openid-{i}');db.add(b);db.flush()
                 self.tokens.append(issue_session(b.id,APPID,b.openid)[0])
+            from tools.virtual_member_access import confirm_existing_virtual_member
+            confirm_existing_virtual_member(db, member_id=self.f.member.id, actor_id=self.f.operator.id, now=fixtures.NOW)
             self.address=create_member_address(db,self.f.member.id,BODY);db.commit()
         app=FastAPI();app.include_router(miniprogram_v1_router);self.client=TestClient(app);self.addCleanup(self.client.close)
         self.body={'request_id':'a'*32,'address_public_id':self.address['address_public_id'],'expected_address':dict(BODY),
@@ -430,7 +432,7 @@ class MemberOrderTests(unittest.TestCase):
         result=self.place()
         for suffix in ['/'+result['order_public_id'],'/request/'+'a'*32]:self.assertEqual(self.call('GET',suffix,owner=1).status_code,404)
         self.assertEqual(self.call('POST','/'+result['order_public_id']+'/cancel',owner=1).status_code,404)
-        self.assertEqual(self.call('POST',body=self.body,owner=1).status_code,404)
+        self.assertEqual(self.call('POST',body=self.body,owner=1).status_code,403)
     def test_auth_and_validation_hide_private_values(self):
         self.assertEqual(self.call('POST',body=self.body,owner=None).status_code,401)
         self.body['expected_address']['phone']='PRIVATE_INVALID'
@@ -484,6 +486,8 @@ class MemberOrderTests(unittest.TestCase):
         f.db.flush()
         f.add_grant(public_no='BR-OTHER-STOCK', points='100.00', account_id=account.id,
                     expires_at=fixtures.NOW + timedelta(days=10))
+        from tools.virtual_member_access import confirm_existing_virtual_member
+        confirm_existing_virtual_member(f.db, member_id=other.id, actor_id=f.operator.id, now=fixtures.NOW)
         other_address = dict(BODY, detail='第二位会员的测试地址')
         address = create_member_address(f.db, other.id, other_address)
         member_ids = [f.member.id, other.id]

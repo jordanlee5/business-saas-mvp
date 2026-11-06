@@ -32,6 +32,7 @@ from .private_vouchers import PRIVATE_HEADERS, PREVIEW_TYPES, voucher_path
 from .database import engine, SessionLocal
 from .mall import rights_service as rights
 from .mall import qualification_service as qualifications
+from .api.product_images import router as product_images_router
 from .mall.catalog_admin_service import catalog_listing, PRODUCT_STATUS_LABELS
 from . import models
 from .api import (
@@ -301,6 +302,7 @@ async def enforce_active_user_session(
             "/logout",
             "/health",
         }
+        or path.startswith("/uploads/mall_products/")
         or path.startswith("/static/")
         or path.startswith("/promo/")
         or path.startswith(
@@ -329,7 +331,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 os.makedirs("uploads", exist_ok=True)
 # Product uploads are encoded as WebP even on hosts without a registered WebP MIME type.
 mimetypes.add_type("image/webp", ".webp")
-for media_dir in ("mall_products", "promotion_pages"):
+os.makedirs("uploads/mall_products", exist_ok=True)
+app.include_router(product_images_router)
+for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)
     app.mount(f"/uploads/{media_dir}", StaticFiles(directory=media_root), name=media_dir)
