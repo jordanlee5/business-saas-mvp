@@ -10,7 +10,8 @@
     "pages/activation/index",
     "pages/addresses/index",
     "pages/checkout/index",
-    "pages/orders/index"
+    "pages/orders/index",
+    "pages/tracking/index"
   ],
   "window": {
     "navigationBarTitleText": "积分商城",

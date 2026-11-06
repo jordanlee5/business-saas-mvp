@@ -3,7 +3,7 @@ import { normalizeAddress, type AddressInput } from './addresses';
 import type { CartDisplayLine } from './cart';
 import {parseFulfillment,type FulfillmentNotice} from './fulfillment';
 export interface OrderSummary { order_public_id: string; status: string; total_points: string; total_quantity: number; created_at: string }
-export interface Parcel {carrier:string;tracking_number:string;items:{product_name:string;sku_name:string;quantity:number}[]}
+export interface Parcel {parcel_id?:number;carrier:string;tracking_number:string;items:{product_name:string;sku_name:string;quantity:number}[]}
 export interface OrderDetail extends OrderSummary { parcels: Parcel[]; address: AddressInput | null; address_state:'AVAILABLE'|'CLEARED'|'NOT_RECORDED'; fulfillment:FulfillmentNotice|null; items: {product_name:string;sku_name:string;quantity:number;unit_points_price:string;line_points:string}[]; shipping_carrier:string|null;tracking_number:string|null }
 export const statusLabels: Record<string,string> = {CREATED:'待处理',CANCELLED:'已取消',FULFILLING:'待发货',PARTIALLY_SHIPPED:'部分发货',SHIPPED:'已发货',COMPLETED:'已完成',REFUNDED:'已退款'};
 const pendingKey='mall_checkout_pending_v1';
@@ -25,7 +25,7 @@ function detail(data:unknown):OrderDetail {
     if(!['AVAILABLE','CLEARED','NOT_RECORDED'].includes(state)||(state==='AVAILABLE')!==Boolean(address))throw Error();
     const parcels = x.parcels === undefined ? [] : x.parcels;
     if (!Array.isArray(parcels) || parcels.some(p => !p || typeof p.carrier !== 'string' ||
-        typeof p.tracking_number !== 'string' || !Array.isArray(p.items) || !p.items.length ||
+        typeof p.tracking_number !== 'string' || (p.parcel_id !== undefined && (!Number.isSafeInteger(p.parcel_id) || p.parcel_id < 1)) || !Array.isArray(p.items) || !p.items.length ||
         p.items.some(i => !i || typeof i.product_name !== 'string' || typeof i.sku_name !== 'string' ||
           !Number.isSafeInteger(i.quantity) || i.quantity < 1))) throw Error();
     return {...base,parcels,address,address_state:state,fulfillment:x.fulfillment?parseFulfillment(x.fulfillment):null,items:x.items,shipping_carrier:x.shipping_carrier,tracking_number:x.tracking_number}; }

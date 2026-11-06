@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-06",
+  "baseline": "fa98da79512a49b9c65b5f1fa3448e289b4d62d3",
+  "backend": {
+    "full_total": 879,
+    "passed": 869,
+    "skipped": 10,
+    "skip_details": [
+      "setUpClass (test_postgresql_member_addresses.PostgreSQLMemberAddressTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_orders.PostgreSQLMemberOrderTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_migration.PostgreSQLMigrationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_activation.PostgreSQLMiniprogramActivationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_points_ledger.PostgreSQLMiniprogramPointsLedgerTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_cancellation.PostgreSQLOrderCancellationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_fulfillment.PostgreSQLOrderFulfillmentIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_parcel_tracking.PostgreSQLParcelTrackingTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_public_catalog.PostgreSQLPublicCatalogTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_supplier_settlement.PostgreSQLSupplierSettlementIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'"
+    ],
+    "focused_total": 21,
+    "postgres_tracking_passed": 9
+  },
+  "frontend": {
+    "typescript": "PASS",
+    "tracking_groups": 11,
+    "existing_order_groups": 20,
+    "existing_order_state_groups": 13,
+    "generated_demo_journey": "PASS",
+    "native_wechat_rendering_verified": false
+  },
+  "security": {
+    "reachable_git_blobs_scanned": 1779,
+    "known_local_secret_values_compared": 2,
+    "raw_secret_matches": 0,
+    "alert_review": "Specified history line is synthetic AppID used by isolated tests",
+    "remote_alert_closed": false,
+    "git_guard_negative_checks": "PASS",
+    "staged_scan_before_hook_setup": {
+      "files_scanned": 497,
+      "findings": []
+    }
+  },
+  "boundaries": {
+    "real_database_written": false,
+    "schema_migration_added": false,
+    "wechat_review_submitted": false,
+    "cloud_purchased": false,
+    "real_tracking_provider_connected": false,
+    "procurement_guide_unchanged": true
+  },
+  "real_database_sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "local_document_links_checked": 85,
+  "source_sha256": {
+    ".githooks/pre-commit": "5b1926a0c07b04d42b90afcd07fa93a3d7b981b2ff8b9b0c89ccb24c9db391ba",
+    ".github/workflows/secret-check.yml": "929d9a6813c670704bba9ae58dade2d1bb7aa08dc2ca35ae16c5c7acd709e5c5",
+    ".gitignore": "c778c2c650d965eeb61507ec3a9db53d4933217107dccd325fa5940287b60207",
+    "app/api/__init__.py": "11fd04da6564ab3f36164197d90621db8c1187de17bb9a1fb1d06ea45c6fd248",
+    "app/api/member_tracking.py": "81fbd32eacc3fea22eeb7b8b3e332c746d519b38ba62450a305fe87d07b12a47",
+    "app/mall/order_parcels.py": "e00e5a49e2d3dbedd1564db98c8b7b4e8e7ba8ed10f2d4f4dab1577f3ff231c0",
+    "app/mall/parcel_tracking.py": "94381d40ca6846e5c127d9180284174502dd066bf9e683cb3fe8e9b2c2a2bc24",
+    "docs/credential-review-20261106.md": "8eb61e847a361afe155ce4bfb7b00952f479977de529b827b42cd1c939efc9f8",
+    "docs/development-progress.md": "630be4fe55bad24f774b8f1c0af2f525b642e2c06f09649c68358d078cc3f619",
+    "docs/mall-business-rules-decisions.md": "ade2b04f85a22a8ca60907ce8e76aafdd99efbe9bec9b44fae2077c292346e38",
+    "docs/parcel-tracking.md": "6e21e6b139394dd6f2e7d706b0ae68b09255e3799382a47446f67812b1a479d7",
+    "docs/procurement-and-logistics-plan.md": "548938259c5117a2e04a8adb4fce3c45ffeced32c34f2b009546771de3fdef79",
+    "miniprogram/src/app.json": "f27b7dec68d10374d6c06cbb9ea7811cebf7856f4781b1dc0d69438a82fd181a",
+    "miniprogram/src/pages/orders/index.ts": "7f7de573d0c0d280bd0db357e999975731988b3eae6b5872551f784b2e89bb59",
+    "miniprogram/src/pages/orders/index.wxml": "3dc25e1ce79dfef802d4ddf4271e4677f5249e7f516d2f08aa1c6c6b06fdd18f",
+    "miniprogram/src/pages/tracking/index.json": "d73e55c77fccb47af89caca8e9c2ebe784ad3182cbe8426773f7ea2bbe1a61f5",
+    "miniprogram/src/pages/tracking/index.ts": "8e2e99ed7d8a2c5e6ffbe4853d94c9537701a9a71392ebeb196fc664ee7ead1c",
+    "miniprogram/src/pages/tracking/index.wxml": "6ce98babd1a2b2689561dad60c4d99bc7a49c4f222be1b1cbde878f12eb3c0c1",
+    "miniprogram/src/pages/tracking/index.wxss": "074902355b9766ec6015a88a4d4bb0ecc747ec536cf8d154f88ef6de1c848ec9",
+    "miniprogram/src/services/member-session.ts": "b76227abc7984c55fe87754a3b744359f92cf8538fb4a73f54b4588d31b4d669",
+    "miniprogram/src/services/orders.ts": "435e6a73676b5bf45c8d86bdb0ec0a6986ccd86ddad193f605695a756b15f726",
+    "miniprogram/src/services/tracking.ts": "fd986a064573d2323fcc2298afb3293244c452bf19e35882bb0c1d4952578ee2",
+    "test_miniprogram_api.py": "4cacdcee95605eba8ff16b4bea7187534d84256134ce160919a90e03c7e3f96f",
+    "test_parcel_tracking.py": "7e38d253c828bb062e9c4a374fd87112ad522d883328395de1b10b3596c3b36d",
+    "test_postgresql_parcel_tracking.py": "e59c81b4b7444b91a70bf188257ded4d53fd0512990ff5959098cce7b308d0d8",
+    "test_secret_guard.py": "d8592f0efcf22b87cb04dfcd68eac5dd8746ca5862b1f3e72fa157d32acb0460",
+    "tests/miniprogram-tracking-journey.cjs": "7cc4397669c0cf026a04f86bf1f4f0edb0f837d879e50af0793796245a7919a7",
+    "tests/miniprogram-tracking.cjs": "bf8ac2ab48b80692f1d2c7ac18469e556b2f0f97f32c25479f664c836e7bc15e",
+    "tools/check_secrets.py": "6dbc61468dbbe421177eabfbc92274faf6422e6768506cacf4c595a38dcbbcf3",
+    "tools/rehearse_concurrent_mall.py": "512ae52467bf11108c4364509f80a5c3de2c9dcd6d6a3ce93249a153de53e1c2",
+    "tools/ui-demo/transport.ts": "a139e57cb6cd0f4ce2c62418855dfd51fdec871f6717beb1e9027a37508861b8",
+    ".gitattributes": "6fda4653ef71808abc2eb5e88b7cf1ec9912e800d3bad13d3b4f46abc8d6f7ea"
+  },
+  "local_evidence_sha256": {
+    "targeted-linux.log": "dcfea87f4bca8e3d4e55583f46ed6eb4144f159f3cc51bb3e900264bdeadb9c4",
+    "full-linux.log": "fae936638069c4fe54bf45060989349c212b6af51e6fd8aac742550909348c19",
+    "postgres.log": "9307ed341ca910334e70eb93bc6e65a0f84a1e5a0468881f99b0f15b011f2c36",
+    "client-tracking.log": "d23298d652e9cc152fd99bec09c10c94089e4125a0ab3143c18094462e3058e8",
+    "client-orders.log": "e1a8cc1ab1b358bbcb42bbe94d552b3fa4fad9207e8db2924cf28388d95cf645",
+    "client-states.log": "76bf5b5cd76da0c2d03b0f0c5b7d065e3113a4715487f6fe5c40ad033d45aaa5",
+    "ui-journey.json": "16cbbc9e7402d85c8971ce4741c970115915ee12a69b4c9ee47021e2d25b3625",
+    "gate-verification.json": "96e4f097f0528ce955ac699ccba81937feb5374725ffd8390f77f03b7925293b",
+    "secret-audit.json": "5fb32790409e3a55454516e3355692cf940d0fb5cca61d5daa04b446fb8416e4",
+    "staged-secret-check.json": "837e8bdc0980650fdf258ee1d476d124ca2d646e4a98d8b1de4fdd9ca0212bc9"
+  },
+  "limitations": [
+    "Per-process cache only; no shared vendor billing quota",
+    "Real carrier adapter must enforce network timeout; no vendor network call in this round",
+    "Windows first run incomplete and first demo journey fixture mistake retained; not counted as passing",
+    "GitHub alert API unavailable; user-provided alert independently verified against named commit",
+    "No native WeChat rendering or public-server performance acceptance"
+  ]
+}

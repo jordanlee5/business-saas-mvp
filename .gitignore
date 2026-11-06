@@ -12,3 +12,17 @@ exports/
 ocr_test_images/
 test_rapid_ocr.py
 test_ocr_env.py
+# Local credentials, private keys, tooling and developer-only state
+.env.*
+!.env.example
+!.env.sample
+server-config.json
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+project.private.config.json
+.runtime/
+node_modules/

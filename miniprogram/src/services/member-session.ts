@@ -259,8 +259,8 @@ export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' 
                                            data?: Record<string, unknown>): Promise<unknown> {
   if (!/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path) &&
       !/^\/rights-requests(?:\?page=[1-9][0-9]{0,5}|\/RGT-[0-9a-f]{32})?$/.test(path) &&
-      !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/fulfillment-preview|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel)?)?$/.test(path)) {
-    throw new MemberSessionError('收货地址请求无效');
+      !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/fulfillment-preview|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel|\/parcels\/[1-9][0-9]{0,9}\/tracking)?)?$/.test(path)) {
+    throw new MemberSessionError('请求路径无效');
   }
   const activeToken = currentToken();
   if (!activeToken) throw new MemberSessionError('会员会话已失效，请重新登录', 401);

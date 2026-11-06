@@ -1,0 +1,22 @@
+<view class="screen">
+ <view class="heading">包裹物流</view>
+ <button wx:if="{{!hasSession}}" bindtap="onProfile">登录后查看物流</button>
+ <text wx:if="{{loading}}" class="copy">正在查询…</text>
+ <view wx:if="{{error}}" class="card mall-surface"><text class="copy error">{{error}}</text><button wx:if="{{hasSession}}" bindtap="onRetry" disabled="{{loading}}">重新查询</button></view>
+ <view wx:if="{{hasSession && tracking}}" class="card mall-surface">
+  <block wx:if="{{tracking.availability === 'UNAVAILABLE' || tracking.availability === 'NOT_CONFIGURED'}}">
+   <text class="title">{{tracking.availability === 'NOT_CONFIGURED' ? '物流轨迹服务尚未开通' : '暂时无法更新物流'}}</text>
+   <text class="copy">可返回订单查看运单信息。物流查询不影响继续兑换。</text>
+  </block>
+  <block wx:else>
+   <text class="title">{{labels[tracking.status]}}</text>
+   <text wx:if="{{tracking.availability === 'STALE'}}" class="copy error">更新暂不可用，以下为上次查询记录。</text>
+   <text class="copy mall-muted">{{tracking.source}} · 更新于 {{updatedText}}（北京时间）</text>
+   <text wx:if="{{!events.length}}" class="copy">暂未收到运输轨迹，请稍后再查看。</text>
+   <view wx:for="{{events}}" wx:key="index" class="event"><text class="event-time">{{item.timeText}}</text><text class="copy">{{item.description}}</text></view>
+   <text class="copy mall-muted">轨迹以快递公司上报信息为准，可能存在延迟。</text>
+  </block>
+  <button bindtap="onRetry" disabled="{{loading}}">刷新物流</button>
+ </view>
+ <button class="mall-primary-action" bindtap="onOrder">返回订单</button>
+</view>

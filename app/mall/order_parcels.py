@@ -21,7 +21,7 @@ def parcels_for_order(db, order_id):
             .order_by(OrderParcel.id, OrderItem.id))
     parcels = {}
     for parcel, line, item in rows:
-        data = parcels.setdefault(parcel.id, dict(carrier=parcel.carrier, tracking_number=parcel.tracking_number, items=[]))
+        data = parcels.setdefault(parcel.id, dict(parcel_id=parcel.id, carrier=parcel.carrier, tracking_number=parcel.tracking_number, items=[]))
         data["items"].append(dict(product_name=item.product_name_snapshot, sku_name=item.sku_name_snapshot,
                                   quantity=line.quantity, item_id=item.id))
     return list(parcels.values())

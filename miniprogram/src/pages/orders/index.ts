@@ -37,6 +37,11 @@ Page({
    catch(e){if(gen===this.generation)this.setData({error:e instanceof Error?e.message:'订单暂不可用',hasSession:hasMemberSession()});}
    finally{if(gen===this.generation)this.setData({loading:false});}
  },
+ onTracking(e:{currentTarget:{dataset:{id:number}}}){
+   const id=e.currentTarget.dataset.id,order=this.data.detail;
+   if(!order||!hasMemberSession()||!order.parcels.some(p=>p.parcel_id===id))return;
+   wx.navigateTo({url:'/pages/tracking/index?order='+order.order_public_id+'&parcel='+id});
+ },
  onDetail(e:{currentTarget:{dataset:{id:string}}}){this.show(e.currentTarget.dataset.id);},
  onToggleDeliveryInfo(){this.setData({noticeExpanded:!this.data.noticeExpanded});},
  onCancel(){if(this.data.detail?.status==='CREATED'&&!this.data.busy)this.setData({confirmCancel:true});},

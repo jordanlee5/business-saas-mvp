@@ -23,6 +23,7 @@ from alembic.config import Config
 from tools.rehearse_member_activation import TestIdentities
 from tools.rehearse_member_fulfillment import ADDRESS, PREFIX, serve
 
+# Synthetic test identifier, not a registered company AppID or an AppSecret.
 APP_ID = "wx0123456789abcdef"
 PRICE = Decimal("8.00")
 

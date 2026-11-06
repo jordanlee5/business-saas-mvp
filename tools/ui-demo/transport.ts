@@ -35,7 +35,7 @@ export function advance(id){const o=orders.find(x=>x.order_public_id===id);if(!o
    const groups=o.fulfillment.suppliers;
    const parcels=o.parcels||(o.parcels=[]);
    const items=groups[parcels.length].items.map(({product_name,sku_name,quantity})=>({product_name,sku_name,quantity}));
-   parcels.push({carrier:'演示物流',tracking_number:'DEMO-PARCEL-'+(parcels.length+1),items});
+   parcels.push({parcel_id:parcels.length+1,carrier:'演示物流',tracking_number:'DEMO-PARCEL-'+(parcels.length+1),items});
    o.status=parcels.length<groups.length?'PARTIALLY_SHIPPED':'SHIPPED';
    if(groups.length===1){o.shipping_carrier=parcels[0].carrier;o.tracking_number=parcels[0].tracking_number;}
  }
@@ -99,6 +99,12 @@ export function dispatch(options){
  }
  if(path==='/orders'){if(scenario==='orders_offline_once'){scenario='normal';throw Error('simulated order list network failure');}const page=Number(params.page||1);return response(200,{items:orders.slice((page-1)*20,page*20),total:orders.length,page,page_size:20});}
  if(path.startsWith('/orders/')){const parts=path.split('/');const o=parts[2]==='request'?orders.find(x=>x.request_id===parts[3]):orders.find(x=>x.order_public_id===parts[2]);if(!o)return response(404,{});
+ if(path.endsWith('/tracking')){
+   const parcel=o.parcels?.find(p=>p.parcel_id===Number(parts[4]));if(!parcel)return response(404,{});
+   const availability=scenario==='tracking_offline'?'UNAVAILABLE':scenario==='tracking_stale'?'STALE':'LIVE';
+   const empty=scenario==='tracking_empty'||availability==='UNAVAILABLE';
+   return response(200,{parcel_id:parcel.parcel_id,availability,status:empty?'PENDING':'IN_TRANSIT',source:empty?'':'虚拟物流 · 离线演示',updated_at:empty?null:stamp(),events:empty?[]:[{time:stamp(),description:'包裹 '+parcel.parcel_id+' 已到达测试转运中心'},{time:'2026-11-06T09:00:00+08:00',description:'虚拟包裹已揽收'}]});
+ }
  if(path.endsWith('/cancel')){if(o.status==='CREATED'){o.status='CANCELLED';movement('RELEASE',Number(o.total_points),-Number(o.total_points));}else if(o.status!=='CANCELLED')return response(409,{});}return response(200,o);}
  return response(404,{});
 }

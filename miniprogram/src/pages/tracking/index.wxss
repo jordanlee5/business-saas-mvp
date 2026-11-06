@@ -1,0 +1,10 @@
+.screen {padding:32rpx 28rpx calc(40rpx + env(safe-area-inset-bottom));}
+.heading {font-size:40rpx;font-weight:700;margin-bottom:24rpx;}
+.card {padding:28rpx;margin:24rpx 0;overflow-wrap:anywhere;}
+.title {display:block;font-size:32rpx;font-weight:600;}
+.copy {display:block;font-size:27rpx;line-height:1.7;margin:18rpx 0;}
+.event {border-left:4rpx solid #d9e7df;padding:4rpx 0 4rpx 24rpx;margin-top:24rpx;}
+.event:first-of-type {border-left-color:#225b4e;}
+.event-time {font-size:24rpx;color:#657b70;}
+.error {color:#a52f29;}
+button {margin-top:20rpx;font-size:28rpx;}

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Local interpreter path is configured outside Git; no credentials belong here.
+checker_python=$(git config --get secrets.python)
+if [ -z "$checker_python" ]; then
+  checker_python=python3
+fi
+exec "$checker_python" tools/check_secrets.py --mode staged
