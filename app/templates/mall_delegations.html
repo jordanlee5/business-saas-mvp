@@ -1,15 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-card delegation">
-<style>
-.delegation table { width:100%; border-collapse:collapse; } .delegation .scroll { overflow-x:auto; }
-.delegation th,.delegation td { text-align:left; padding:10px; border-bottom:1px solid #ddd; }
-.delegation small { display:block; color:#545d68; overflow-wrap:anywhere; }
-.delegation button { padding:6px 12px; border-radius:6px; border:1px solid #919bab; background:white; cursor:pointer; }
-.delegation .state { font-weight:600; }
-</style>
-<h1>供应商委托</h1>
-<p>请核对委托依据与协议版本。停用后将阻止该方的新备货和交付登记。</p>
+<div class="page-card delegation ops-page">
+
+<div class="ops-heading"><div><span class="ops-eyebrow">供应商协作</span><h1>供应商委托</h1><p class="ops-subtitle">集中核对委托依据、协议版本与启停状态。</p></div><span class="ops-chip">本页 {{ suppliers | length }} 家供应商</span></div>
+<div class="ops-notice">停用委托后，该供应商无法继续新备货和交付登记。其他供应商不受影响，历史记录仍可查看。</div>
+<div class="ops-heading"><h2>委托档案</h2><a href="/mall-catalog?section=suppliers">管理供应商资料 →</a></div>
 {% if selected %}<p><a href="/mall-delegations">查看全部供应商</a></p>{% endif %}
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 {% if message %}<p role="status">{{ message }}</p>{% endif %}
@@ -17,18 +12,18 @@
 {% for supplier in suppliers %}{% set profile = profiles.get(supplier.supplier_public_id) %}
 <tr><td><a href="/mall-delegations?supplier_id={{ supplier.id }}">{{ supplier.name }}</a><small>{{ supplier.supplier_public_id }}</small></td>
 <td>{{ profile.agreement_ref if profile else '尚未登记' }}</td><td>{{ profile.get('agreement_version','见委托依据中的版本标识') if profile else '—' }}</td>
-<td><span class="state">{{ ('已启用' if profile.enabled else '已停用') if profile else '未配置' }}</span>
+<td><span class="ops-badge {{ 'good' if profile and profile.enabled else 'off' }}">{{ ('已启用' if profile.enabled else '已停用') if profile else '未配置' }}</span>
 {% if not supplier.is_active %}<small>供应商档案已停用</small>{% endif %}
 {% if profile and profile.last_change %}<small>经办账号 #{{ profile.last_change.actor_id }} · {{ profile.last_change.time | replace('T',' ') | replace('+08:00','（北京时间）') }}</small>{% endif %}</td>
 <td>{% if profile and (profile.enabled or supplier.is_active) %}
 <form method="post" action="/mall-delegations/{{ supplier.id }}/status">
 <input type="hidden" name="csrf_token" value="{{ token }}"><input type="hidden" name="revision" value="{{ revision(supplier.id,profile) }}">
 <input type="hidden" name="state" value="{{ 'disable' if profile.enabled else 'enable' }}">
-<button type="submit">{{ '停用委托' if profile.enabled else '启用委托' }}</button>
+<button type="submit" class="{{ 'ops-danger' if profile.enabled else '' }}">{{ '停用委托' if profile.enabled else '启用委托' }}</button>
 </form>{% endif %}</td></tr>
 {% else %}<tr><td colspan="5">没有供应商记录</td></tr>{% endfor %}
 </tbody></table></div>
-{% if page > 1 %}<a href="/mall-delegations?page={{ page-1 }}">上一页</a>{% endif %}
-{% if more %}<a href="/mall-delegations?page={{ page+1 }}">下一页</a>{% endif %}
+<nav class="ops-pagination"><span>第 {{ page }} 页</span>{% if page > 1 %}<a href="/mall-delegations?page={{ page-1 }}">上一页</a>{% endif %}
+{% if more %}<a href="/mall-delegations?page={{ page+1 }}">下一页</a>{% endif %}</nav>
 </div>
 {% endblock %}

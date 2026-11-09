@@ -8368,6 +8368,46 @@ def mall_set_delegation(request: Request, supplier_id: int, state: str = Form(""
     return RedirectResponse("/mall-delegations?" + urlencode(query), status_code=303)
 
 
+def _export_mall_list(request, kind, keyword, status="ALL"):
+    from .mall.list_exports import ACTIONS, build_list_export
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if not user.is_active or not can_perform_mall_audit_action(user, ACTIONS[kind]):
+        return RedirectResponse("/dashboard", status_code=302)
+    with SessionLocal() as db:
+        # One snapshot across all result pages, even while other workers update data.
+        if db.get_bind().dialect.name == "postgresql":
+            db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        else:
+            from sqlalchemy import text
+            db.execute(text("BEGIN"))
+        try:
+            output = build_list_export(db, actor_id=user.id, kind=kind, keyword=keyword, status=status)
+            db.commit()
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            return HTMLResponse(str(exc), status_code=400, headers={"Cache-Control": "no-store"})
+    filename = f"{kind}_{utc8_now():%Y%m%d_%H%M%S}.xlsx"
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store, private"})
+
+
+@app.get("/mall-catalog/export")
+def export_catalog_list(request: Request, keyword: str = ""):
+    return _export_mall_list(request, "catalog", keyword)
+
+
+@app.get("/member-points/export")
+def export_member_points_list(request: Request, keyword: str = "", member_status: str = "ALL"):
+    return _export_mall_list(request, "points", keyword, member_status)
+
+
+@app.get("/mall-orders/export")
+def export_orders_list(request: Request, keyword: str = "", status: str = "ALL"):
+    return _export_mall_list(request, "orders", keyword, status)
+
+
 @app.get("/mall-catalog", response_class=HTMLResponse)
 def mall_catalog_page(
     request: Request,

@@ -1,0 +1,25 @@
+{
+  "virtual_only": true,
+  "unit_tests": 56,
+  "real_database_sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "browser": {
+    "direct_link_visible": true,
+    "navigation_scroll_retained": true,
+    "reload_retained": true,
+    "back_visible": true,
+    "three_workbench_screenshots": true,
+    "rights_verify_form": true,
+    "qualification_disable_form": true,
+    "three_excel_downloads": true,
+    "viewport_1024_no_overflow": true,
+    "storage_disabled_fallback": true,
+    "console_errors": [],
+    "scroll_before": 446,
+    "scroll_after": 446
+  },
+  "catalog_scale": {
+    "sku_rows": 4000,
+    "export_seconds": 1.168,
+    "export_bytes": 147088
+  }
+}

@@ -4,6 +4,9 @@ from enum import Enum
 class MallAuditActionType(str, Enum):
     """商城后台敏感操作使用的稳定审计动作类型。"""
 
+    CATALOG_EXPORT = "mall_catalog_export"
+    ORDER_EXPORT = "mall_order_export"
+    MEMBER_POINTS_LIST_EXPORT = "mall_member_points_list_export"
     CATEGORY_CREATE = "mall_category_create"
     CATEGORY_UPDATE = "mall_category_update"
     PRODUCT_CREATE = "mall_product_create"

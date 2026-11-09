@@ -13,7 +13,7 @@
   .mall-orders .pages { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
 </style>
 <div class="mall-orders page-card">
-  <div class="page-header"><h1 class="page-title">商城订单</h1></div>
+  <div class="page-header"><h1 class="page-title">商城订单</h1><a class="btn btn-secondary" href="/mall-orders/export?keyword={{ result.keyword | urlencode }}&amp;status={{ result.status }}">导出 Excel</a></div>
   <p>查看纯积分订单的状态及下单快照；待处理订单可取消或确认履约，待发货订单可录入物流，已发货订单可确认完成，已完成订单可在详情申请整单退款。</p>
   {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
   <form method="get" action="/mall-orders">
@@ -25,6 +25,7 @@
     <label>每页<select name="page_size">{% for size in (10, 20, 50) %}<option value="{{ size }}" {% if result.page_size == size %}selected{% endif %}>{{ size }} 条</option>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">筛选</button>
   </form>
+<p class="export-hint">导出当前筛选的全部记录（最多 10,000 条），不限当前页；导出会记录操作日志。</p>
   <div class="table-wrap"><table>
     <thead><tr><th>订单编号</th><th>会员编号</th><th>状态</th><th>积分合计</th><th>商品成本（元）</th><th>数量</th><th>创建时间</th><th>操作</th></tr></thead>
     <tbody>{% for item in result.items %}<tr>

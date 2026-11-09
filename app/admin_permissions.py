@@ -248,6 +248,9 @@ MALL_SUPPLIER_SETTLEMENT_VIEW_LEVELS = frozenset(
 # can_perform_mall_audit_action 会失败关闭，而不是默认放行。
 MALL_AUDIT_ACTION_LEVELS = MappingProxyType(
     {
+        MallAuditActionType.CATALOG_EXPORT: MALL_CATALOG_MANAGEMENT_LEVELS,
+        MallAuditActionType.ORDER_EXPORT: MALL_ORDER_MANAGEMENT_LEVELS,
+        MallAuditActionType.MEMBER_POINTS_LIST_EXPORT: MALL_MEMBER_POINTS_EXPORT_LEVELS,
         MallAuditActionType.CATEGORY_CREATE:
             MALL_CATALOG_MANAGEMENT_LEVELS,
         MallAuditActionType.CATEGORY_UPDATE:
