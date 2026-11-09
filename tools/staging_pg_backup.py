@@ -1,5 +1,6 @@
 """Stop-and-copy backup / restore into a new, dedicated PostgreSQL staging project."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -13,7 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def digest(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    checksum = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            checksum.update(block)
+    return checksum.hexdigest()
 
 
 def inventory(directory):
@@ -30,7 +35,8 @@ def verify_backup(directory):
     if directory.is_symlink():
         raise ValueError("Backup directory cannot be a symlink.")
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf8"))
-    if manifest.get("format") != 1 or manifest.get("scope") != "dedicated-postgres-staging":
+    if (not isinstance(manifest, dict) or manifest.get("format") != 1 or
+            manifest.get("scope") != "dedicated-postgres-staging"):
         raise ValueError("Unknown backup format.")
     files = manifest.get("files")
     if not isinstance(files, dict) or "database.dump" not in files or "data/session.key" not in files:
@@ -126,7 +132,8 @@ class StagingProject:
             for path in destination.rglob("*"):
                 os.chmod(path, 0o700 if path.is_dir() else 0o600)
             manifest = dict(format=1, scope="dedicated-postgres-staging", source_project=self.name,
-                            app_image_id=data["Image"], files=files)
+                            app_image_id=data["Image"], files=files,
+                            completed_at=datetime.now(timezone.utc).isoformat())
             (destination / "manifest.json").write_text(json.dumps(manifest, indent=2)+"\n", encoding="utf8")
             os.chmod(destination / "manifest.json", 0o600)
             verify_backup(destination)

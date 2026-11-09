@@ -1,0 +1,387 @@
+{
+  "date": "2026-11-09",
+  "baseline": "aaa48744addf5f7c3870d1bc8b34fa678e123729",
+  "scope": "read-only staging service/disk/backup monitoring; UTC backup completion metadata and streaming SHA256",
+  "user_review": "User accepted virtual mini-program eligibility entry, four states and history access; not real WeChat network/device acceptance",
+  "tests": {
+    "total": 17,
+    "result": "OK",
+    "monitor_and_backup": 14,
+    "secret_guard": 3,
+    "log_sha256": "e9620d91a869b1d595a16de6b234de928b9e1f584e92fdcce59f6d0c4dcb408c"
+  },
+  "containers": {
+    "mode": "real isolated Docker containers; synthetic backup bytes; not PostgreSQL restore or public-cloud verification",
+    "scenarios": [
+      {
+        "scenario": "healthy",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:42:52.353832+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "database-stopped",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:42:54.234209+00:00",
+          "status": "alert",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "alert",
+              "code": "container_not_running"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "database-recovered",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:42:56.606229+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "ocr-unhealthy",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:42:58.287535+00:00",
+          "status": "alert",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "alert",
+              "code": "container_not_healthy"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "ocr-recovered",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:42:59.875103+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "backup-damaged",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:43:00.490827+00:00",
+          "status": "alert",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "alert",
+              "code": "backup_invalid_or_missing"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "backup-repaired",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:43:01.181441+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "backup-stale",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:43:01.803986+00:00",
+          "status": "alert",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "alert",
+              "code": "backup_stale"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "backup-current",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:43:02.769934+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      },
+      {
+        "scenario": "read-only-recheck",
+        "report": {
+          "format": 1,
+          "checked_at": "2026-11-09T04:43:03.454351+00:00",
+          "status": "ok",
+          "checks": [
+            {
+              "check": "app",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "database",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "ocr",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "disk_1",
+              "status": "ok",
+              "code": "ok"
+            },
+            {
+              "check": "backup",
+              "status": "ok",
+              "code": "ok"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "Synthetic health-check containers, not new PostgreSQL or business transaction validation",
+    "Synthetic backup bytes, not a new restore rehearsal",
+    "Low disk space and Docker timeout exercised by fixtures, no real disk filled",
+    "No public HTTPS, certificate, alert delivery, scheduler or cloud-host verification"
+  ],
+  "safeguards": {
+    "real_database": "read-only; fingerprint compared before/after delivery",
+    "procurement": "on hold pending company confirmation; purchase guide unchanged",
+    "wechat_review": "not submitted",
+    "private_configuration": "not read or copied; staged secret scan required before push"
+  },
+  "retries": [
+    "Initial Windows restricted temporary directory denied file access; rerun with normal local permissions passed. No failed test counted as a pass."
+  ],
+  "runtime_directory": ".runtime/staging-monitor-20261109",
+  "logs": {
+    "containers": "dbdbd3b6bdbdf2725fc6d0d15025e56e85c6c26d27c3f7aa17a731510b768212"
+  }
+}
