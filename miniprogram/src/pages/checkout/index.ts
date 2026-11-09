@@ -1,3 +1,5 @@
+import {onCatalogInvalidated} from '../../services/catalog-state';
+import {accessMessages, checkCatalogAccess} from '../../services/catalog-access';
 import {getSignedInMember,hasMemberSession,MemberSessionError} from '../../services/member-session';
 import {listAddresses,type Address} from '../../services/addresses';
 import {readCart,loadCartDisplay,removeCartLine,type CartDisplayLine} from '../../services/cart';
@@ -9,8 +11,10 @@ Page({
   pendingAction:null as Promise<void>|null,
   lastCompleted:null as {owner:string;id:string;cartWarning:boolean}|null,
   navigating:false,
-  async onShow(){const gen=++this.generation;if(this.pendingAction){try{await this.pendingAction;}catch(_){}}if(gen===this.generation)this.load();},
-  onHide(){this.generation++;this.navigating=false;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:'',fulfillment:null,noticeExpanded:false});},
+  unsubscribe:null as (()=>void)|null,
+  accessTimer:null as ReturnType<typeof setInterval>|null,
+  async onShow(){if(this.unsubscribe)this.unsubscribe();this.unsubscribe=onCatalogInvalidated(state=>{this.generation++;this.setData({items:[],addresses:[],selected:'',total:'',fulfillment:null,loading:false,busy:false,error:accessMessages[state]});});const gen=++this.generation;if(this.pendingAction){try{await this.pendingAction;}catch(_){}}if(gen===this.generation)this.load();},
+  onHide(){if(this.unsubscribe)this.unsubscribe();this.unsubscribe=null;if(this.accessTimer)clearInterval(this.accessTimer);this.accessTimer=null;this.generation++;this.navigating=false;this.setData({addresses:[],items:[],selected:'',owner:'',total:'',error:'',fulfillment:null,noticeExpanded:false});},
   onUnload(){this.onHide();},
   async load(review=false){
     const gen=++this.generation;
@@ -21,6 +25,11 @@ Page({
       const owner=member.member_public_id;
       if(this.lastCompleted?.owner===owner){this.setData({owner,complete:this.lastCompleted.id});this.openCompleted();return;}
       if(pendingCheckout(owner) && !review){this.setData({owner,pending:true,canRetry:canRetryCheckout(owner)});return;}
+      const access=await checkCatalogAccess();
+      if(gen!==this.generation)return;
+      if(access!=='eligible')throw new Error(accessMessages[access]);
+      if(this.accessTimer)clearInterval(this.accessTimer);
+      this.accessTimer=setInterval(()=>{if(this.data.items.length)checkCatalogAccess().catch(()=>{});},30000);
       const addresses=await listAddresses();const cart=await loadCartDisplay(review ? pendingCartLines(owner) : readCart());
       if(gen!==this.generation)return;
       if(!cart.items.length || cart.hasUnavailable)throw new Error('请返回购物车核对可兑换商品');

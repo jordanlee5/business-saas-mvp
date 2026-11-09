@@ -9,6 +9,7 @@ catalog.getProductDetail=()=>new Promise((resolve,reject)=>requests.push({resolv
 require(path.join(root,'services/cart.js')).addCartLine=()=>added++;
 require(path.join(root,'pages/product-detail/index.js'));
 const formalDefinition=definition;
+require(path.join(root,'services/catalog-images.js')).downloadCatalogImage=async (p,id)=>catalog.productImageUrl(p,id);
 const product={product_public_id:'PRD-TEST',name:'测试商品',subtitle:null,category_slug:'home',min_points_price:'120.00',in_stock:true,main_image_url:'/uploads/mall_products/PRD-TEST/main.png',description:'介绍',
  images:['main','carousel','detail'].map((role,index)=>({role,url:`/uploads/mall_products/PRD-TEST/${index}.png`,alt_text:null})),
  skus:[{sku_code:'S1',name:'规格',points_price:'120.00',in_stock:true,stock_status:'IN_STOCK'}]};
@@ -32,8 +33,8 @@ async function test(name,run){await run();assert.equal(requests.length,0);count+
  });
  await test('detail image retries once per action, stale error cannot override the new attempt',async()=>{
   const p=page();await load(p);const old=event(p,'detailImages');p.onImageError(old);assert.equal(p.data.detailImages[0].failed,true);
-  p.onRetryImage(old);assert.equal(p.data.detailImages[0].failed,false);assert.notEqual(p.data.detailImages[0].key,old.currentTarget.dataset.key);
-  const key=p.data.detailImages[0].key;p.onImageError(old);p.onRetryImage(old);assert.equal(p.data.detailImages[0].key,key);assert.equal(p.data.detailImages[0].failed,false);
+  await p.onRetryImage(old);assert.equal(p.data.detailImages[0].failed,false);assert.notEqual(p.data.detailImages[0].key,old.currentTarget.dataset.key);
+  const key=p.data.detailImages[0].key;p.onImageError(old);await p.onRetryImage(old);assert.equal(p.data.detailImages[0].key,key);assert.equal(p.data.detailImages[0].failed,false);
   p.onImageError(event(p,'detailImages'));assert.equal(p.data.detailImages[0].failed,true);assert.equal(requests.length,0);
  });
  await test('refresh discards old image events and malformed targets',async()=>{
@@ -65,6 +66,7 @@ async function test(name,run){await run();assert.equal(requests.length,0);count+
   await load(p);assert.equal(p.data.notFound,false);assert.ok(p.data.product);
  });
  const demo=require(path.join(demoRoot,'demo-transport.js'));
+ await require(path.join(demoRoot,'services/member-session.js')).loginMember();
  require(path.join(demoRoot,'pages/product-detail/index.js'));const demoDefinition=definition;
  await test('generated demo detail network failure recovers through the real page retry action',async()=>{
   demo.setScenario('detail_offline_once');const p=page(demoDefinition);p.data.id='PRD-DEMO-001';await p.refresh();assert.ok(p.data.error);assert.equal(p.data.product,null);

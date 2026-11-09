@@ -2,6 +2,8 @@ const assert=require('node:assert/strict');const path=require('node:path');
 const root=path.resolve(process.argv[2]);let requests=[],storage=new Map(),definition,redirects=[],redirectFails=false;
 global.wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop',appId:'touristappid'}}),getSystemInfoSync:()=>({platform:'devtools'}),login:o=>o.success({code:'test'}),request:o=>requests.push(o),getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,structuredClone(v)),redirectTo:o=>{redirects.push(o.url);if(redirectFails)o.fail({});else o.success?.();},navigateTo:()=>{},reLaunch:()=>{}};
 global.Page=o=>definition=o;
+// This fixture isolates checkout/idempotency. Real qualification lifecycle has its own suite.
+require(path.join(root,'services/catalog-access.js')).checkCatalogAccess=async()=>'eligible';
 require(path.join(root,'services/privacy.js')).assertPrivacyAuthorized=async()=>{};
 const session=require(path.join(root,'services/member-session.js'));
 const service=require(path.join(root,'services/orders.js'));

@@ -1,4 +1,17 @@
 declare const wx: {
+  env: { USER_DATA_PATH: string };
+  getFileSystemManager(): {
+    accessSync(path: string): void;
+    mkdirSync(path: string, recursive?: boolean): void;
+    readdirSync(path: string): string[];
+    unlinkSync(path: string): void;
+  };
+  downloadFile(options: {
+    url: string; filePath: string; header: { Authorization: string }; timeout: number;
+    success(result: {statusCode: number; filePath?: string; tempFilePath?: string}): void;
+    fail(error: unknown): void;
+  }): { abort(): void };
+
   getAccountInfoSync(): { miniProgram: { appId: string; envVersion: string } };
   getSystemInfoSync(): { platform: string };
   getStorageSync(key: string): unknown;

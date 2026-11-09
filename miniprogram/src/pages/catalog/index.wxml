@@ -1,5 +1,8 @@
+<import src="../../templates/catalog-access.wxml" />
 <import src="../../templates/mall-nav.wxml" />
 <import src="../../templates/category-art.wxml" />
+<template wx:if="{{!catalogReady}}" is="catalog-access" data="{{accessState, accessMessage}}" />
+<block wx:if="{{catalogReady}}">
 <view class="screen mall-screen">
   <view class="hero">
     <text class="eyebrow">POINTS MALL / 积分商城</text>
@@ -66,4 +69,5 @@
           disabled="{{moreLoading}}" bindtap="onLoadMore">加载更多</button>
   <view class="page-end mall-muted" wx:if="{{items.length && !hasMore}}">已经看到全部商品</view>
 </view>
+</block>
 <template is="mall-nav" data="{{current: 'catalog'}}" />

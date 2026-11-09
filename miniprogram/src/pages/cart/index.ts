@@ -1,9 +1,10 @@
+import { guardCatalogPage } from '../../services/catalog-guard';
 import { loadCartDisplay, readCart, removeCartLine, setCartQuantity } from '../../services/cart';
 import type { CartDisplayLine } from '../../services/cart';
 
 let generation = 0;
 
-Page({
+Page(guardCatalogPage({
   data: {
     items: [] as CartDisplayLine[],
     loading: true,
@@ -12,7 +13,7 @@ Page({
     estimate: '0.00',
     hasUnavailable: false,
   },
-  onShow() { this.refresh(); },
+  onCatalogClear() { generation += 1; this.setData({items:[], estimate:'0.00', hasUnavailable:false, loading:false, error:'', actionError:''}); },
   onHide() { generation += 1; },
   onUnload() { generation += 1; },
   onPullDownRefresh() { this.refresh().finally(() => wx.stopPullDownRefresh()); },
@@ -66,4 +67,4 @@ Page({
   onCategoriesTap() { wx.reLaunch({ url: '/pages/categories/index' }); },
   onProfileTap() { wx.reLaunch({ url: '/pages/profile/index' }); },
   onCatalogTap() { wx.reLaunch({ url: '/pages/catalog/index' }); },
-});
+}));

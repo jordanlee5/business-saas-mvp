@@ -4,6 +4,9 @@ const root = path.resolve(process.argv[2]);
 require(path.join(root, 'config.js')).getApiOrigin = () => 'https://virtual.invalid';
 const thumbnail = '/uploads/mall_products/PRD-THUMB/main_' + 'a'.repeat(32) + '.thumb-640.webp';
 const legacy = '/uploads/mall_products/PRD-LEGACY/main.webp';
+const session=require(path.join(root,'services/member-session.js'));
+session.requestMemberCatalog=p=>new Promise(resolve=>wx.request({url:'https://virtual.invalid/api/miniprogram/v1'+p,success:r=>resolve(r.data)}));
+require(path.join(root,'services/catalog-images.js')).downloadCatalogImage=async p=>p?'wxfile://virtual/'+p.split('/').pop():'';
 global.wx = {request(options) {
   assert.ok(options.url.startsWith('https://virtual.invalid/api/miniprogram/v1/products'));
   options.success({statusCode:200, data:{items:[thumbnail, legacy, null].map((image, index) => ({
@@ -16,11 +19,11 @@ global.wx = {request(options) {
   const page = {...definition, data:structuredClone(definition.data), setData(values){Object.assign(this.data, values);}};
   await page.refresh(false);
   assert.equal(page.data.error, '');
-  assert.deepEqual(page.data.items.map(item => item.imageUrl), ['https://virtual.invalid'+thumbnail, 'https://virtual.invalid'+legacy, '']);
-  page.onImageError({currentTarget:{dataset:{id:'PRD-0',src:'https://virtual.invalid'+thumbnail}}});
+  assert.deepEqual(page.data.items.map(item => item.imageUrl), ['wxfile://virtual/'+thumbnail.split('/').pop(), 'wxfile://virtual/'+legacy.split('/').pop(), '']);
+  page.onImageError({currentTarget:{dataset:{id:'PRD-0',src:'wxfile://virtual/'+thumbnail.split('/').pop()}}});
   assert.equal(page.data.items[0].imageUrl, '');
-  assert.equal(page.data.items[1].imageUrl, 'https://virtual.invalid'+legacy);
+  assert.equal(page.data.items[1].imageUrl, 'wxfile://virtual/'+legacy.split('/').pop());
   await page.refresh(false);
-  assert.equal(page.data.items[0].imageUrl, 'https://virtual.invalid'+thumbnail);
-  console.log('PASS thumbnail/legacy/no-image catalog cards and image failure/recovery (mock HTTP, no native rendering)');
+  assert.equal(page.data.items[0].imageUrl, 'wxfile://virtual/'+thumbnail.split('/').pop());
+  console.log('PASS thumbnail/legacy/no-image catalog cards and image failure/recovery (stubbed authenticated transport/image IO; no native rendering)');
 })().catch(error => { console.error(error); process.exitCode = 1; });

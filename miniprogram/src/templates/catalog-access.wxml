@@ -1,0 +1,11 @@
+<template name="catalog-access">
+  <view class="access-panel mall-surface" role="status">
+    <text class="access-title">会员专属商城</text>
+    <text class="access-copy">{{accessMessage}}</text>
+    <button wx:if="{{accessState === 'login'}}" class="mall-primary-action" bindtap="onAccessProfile">微信登录并核验资格</button>
+    <button wx:if="{{accessState === 'login' || accessState === 'unconfirmed'}}" bindtap="onAccessActivation">首次激活 / 绑定资格</button>
+    <button wx:if="{{accessState !== 'checking' && accessState !== 'login'}}" class="mall-primary-action" bindtap="onRetryAccess">重新核验资格</button>
+    <view class="access-history"><button bindtap="onAccessOrders">我的订单与物流</button><button bindtap="onAccessRights">会员权益申请</button></view>
+    <button wx:if="{{accessState !== 'login'}}" bindtap="onAccessProfile">个人中心</button>
+  </view>
+</template>

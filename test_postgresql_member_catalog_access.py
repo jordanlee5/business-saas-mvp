@@ -22,6 +22,16 @@ from test_postgresql_migration import validate_postgresql_test_database_url, get
 
 
 class PostgreSQLMemberCatalogAccessTests(cases.MemberCatalogAccessTests):
+    def test_client_entry_status_with_postgresql_timestamps(self):
+        path = '/api/miniprogram/v1/catalog-access'
+        self.assertEqual(self.request(path, owner=None).status_code, 401)
+        self.assertEqual(self.request(path, owner=1).json()['status'], 'unconfirmed')
+        self.assertEqual(self.request(path).json(), {'status':'eligible','valid_for_seconds':900})
+        self.change('DISABLE')
+        self.assertEqual(self.request(path).json()['status'], 'disabled')
+        self.change('ENABLE')
+        self.assertEqual(self.request(path).json()['status'], 'eligible')
+
     @classmethod
     def setUpClass(cls):
         configured=os.environ.get("POSTGRES_TEST_DATABASE_URL","")

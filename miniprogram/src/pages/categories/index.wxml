@@ -1,4 +1,7 @@
+<import src="../../templates/catalog-access.wxml" />
 <import src="../../templates/mall-nav.wxml" />
+<template wx:if="{{!catalogReady}}" is="catalog-access" data="{{accessState, accessMessage}}" />
+<block wx:if="{{catalogReady}}">
 <view class="category-screen mall-screen">
   <view class="search-area">
     <view class="search-field">
@@ -44,4 +47,5 @@
     </scroll-view>
   </view>
 </view>
+</block>
 <template is="mall-nav" data="{{current: 'categories'}}" />

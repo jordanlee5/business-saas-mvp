@@ -523,6 +523,27 @@ class PublicProductDetail(PublicProduct):
 catalog_router = APIRouter(route_class=CatalogAccessRoute)
 
 
+@catalog_router.get('/catalog-access', operation_id='get_miniprogram_catalog_access')
+@release_owned_session
+def get_catalog_access(authorization: str | None = Header(None), db=Depends(public_catalog_session)):
+    # Identity remains valid for history even when shopping eligibility is disabled.
+    from . import catalog_access
+    from ..models import MemberQualification
+    from ..mall.qualification_service import db_time
+    member = _require_current_member(authorization, db)
+    now = db_time(db, catalog_access.utc8_now())
+    rows = db.query(MemberQualification).filter_by(member_id=member.id).all()
+    effective = [row for row in rows if row.enabled and row.valid_from <= now < row.valid_until]
+    if effective:
+        remaining = (max(row.valid_until for row in effective) - now).total_seconds()
+        return {'status': 'eligible', 'valid_for_seconds': min(900, remaining)}
+    enabled = [row for row in rows if row.enabled]
+    status = ('pending' if any(row.valid_from > now for row in enabled) else
+              'expired' if enabled else 'disabled' if rows else 'unconfirmed')
+    return {'status': status, 'valid_for_seconds': 0}
+
+
+
 @catalog_router.get(
     "/categories", response_model=list[PublicCategory],
     operation_id="list_miniprogram_categories", summary="读取上架商品分类",

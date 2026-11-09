@@ -1,3 +1,6 @@
+<import src="../../templates/catalog-access.wxml" />
+<template wx:if="{{!catalogReady}}" is="catalog-access" data="{{accessState, accessMessage}}" />
+<block wx:if="{{catalogReady}}">
 <view class="screen">
   <view class="skeleton" wx:if="{{loading}}" aria-label="商品详情加载中">
     <view class="skeleton-photo"></view>
@@ -75,3 +78,5 @@
     </view>
   </view>
 </view>
+
+</block>

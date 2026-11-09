@@ -1,16 +1,18 @@
-import { getCategories, getProducts, publicImageUrl, type Product } from './catalog';
+import { guardCatalogPage } from './catalog-guard';
+import { downloadCatalogImage } from './catalog-images';
+import { getCategories, getProducts, type Product } from './catalog';
 import { CATEGORY_ENTRIES, categoryKey, categoryOptions } from './category-navigation';
 
 interface ProductCard extends Product { imageUrl: string }
 type Tap = { currentTarget: { dataset: { key?: string; id?: string; src?: string } } };
-const cards = (items: Product[]) => items.map(item => ({ ...item, imageUrl: publicImageUrl(item.main_image_url) }));
+const cards = (items: Product[]) => Promise.all(items.map(async item => ({ ...item, imageUrl: await downloadCatalogImage(item.main_image_url, item.product_public_id) })));
 const columns = (items: ProductCard[]) => [0, 1].map(index => ({
   key: String(index), items: items.filter((_, i) => i % 2 === index),
 }));
 
 export function catalogPage(isCategoryPage: boolean) {
   let generation = 0;
-  return {
+  return guardCatalogPage({
     data: {
       entries: CATEGORY_ENTRIES, categories: categoryOptions([]), categoriesReady: false,
       activeKey: 'all', activeName: '全部好物', draftQuery: '', activeQuery: '', searchError: '',
@@ -20,8 +22,8 @@ export function catalogPage(isCategoryPage: boolean) {
     onLoad(options: { category?: string } = {}) {
       const key = isCategoryPage ? categoryKey(options.category) : 'all';
       this.setData({ activeKey: key, activeName: CATEGORY_ENTRIES.find(item => item.key === key)?.name || '全部好物' });
-      this.refresh(true);
     },
+    onCatalogClear() { generation += 1; this.setData({items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
     onUnload() { generation += 1; },
     onPullDownRefresh() { this.refresh(true).finally(() => wx.stopPullDownRefresh()); },
     onRetry() { this.refresh(true); },
@@ -40,7 +42,8 @@ export function catalogPage(isCategoryPage: boolean) {
         if (isCategoryPage && (!selected || !selected.available)) return;
         const result = await getProducts(isCategoryPage ? selected!.slug : '', 1, query);
         if (current !== generation) return;
-        const items = cards(result.items);
+        const items = await cards(result.items);
+        if (current !== generation) return;
         this.setData({ items, columns: columns(items), page: 1, total: result.total, hasMore: items.length < result.total });
       } catch (error) {
         if (current === generation) this.setData({ error: error instanceof Error ? error.message : '加载失败，请稍后重试' });
@@ -94,7 +97,9 @@ export function catalogPage(isCategoryPage: boolean) {
       try {
         const result = await getProducts(isCategoryPage ? selected!.slug : '', nextPage, this.data.activeQuery);
         if (current !== generation) return;
-        const items = this.data.items.concat(cards(result.items));
+        const incoming = await cards(result.items);
+        if (current !== generation) return;
+        const items = this.data.items.concat(incoming);
         this.setData({ items, columns: columns(items), total: result.total, page: nextPage, hasMore: items.length < result.total });
       } catch (error) {
         if (current === generation) this.setData({ error: error instanceof Error ? error.message : '加载失败，请稍后重试' });
@@ -102,5 +107,5 @@ export function catalogPage(isCategoryPage: boolean) {
         if (current === generation) this.setData({ moreLoading: false });
       }
     },
-  };
+  });
 }

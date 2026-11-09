@@ -70,6 +70,7 @@ export function dispatch(options){
  if(path==='/auth/wechat-session'){tokenValid=true;return response(200,{token_type:'Bearer',token:'demo.session',expires_in:900});}
  if(path==='/activation/redeem')return response(200,{status:'activated'});
  if(scenario==='expired'||!tokenValid)return response(401,{detail:'演示会话失效'});
+ if(path==='/catalog-access')return response(200,{status:scenario==='qualification_disabled'?'disabled':scenario==='qualification_expired'?'expired':scenario==='qualification_pending'?'pending':scenario==='qualification_missing'?'unconfirmed':'eligible',valid_for_seconds:scenario.startsWith('qualification_')?0:900});
  if(path==='/auth/me')return response(200,{member_public_id:'MEM-DEMO-001'});
  if(path==='/rights-requests' && method==='POST'){
    const kinds={ACCESS:'查阅',CORRECT:'更正',DELETE:'删除',WITHDRAW:'撤回',CLOSE:'注销'};

@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-09",
+  "baseline": "160b7cf796d829a029c3e14cd0280d990a6b23f5",
+  "scope": "mini-program qualification entry, Bearer image download and session/eligibility cache cleanup",
+  "backend": {
+    "tests_run": 913,
+    "result": "OK",
+    "postgres_setUpClass_skips": [
+      "setUpClass (test_postgresql_member_addresses.PostgreSQLMemberAddressTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_catalog_access.PostgreSQLMemberCatalogAccessTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_orders.PostgreSQLMemberOrderTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_member_qualifications.PostgreSQLMemberQualificationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_migration.PostgreSQLMigrationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_activation.PostgreSQLMiniprogramActivationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_miniprogram_points_ledger.PostgreSQLMiniprogramPointsLedgerTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_cancellation.PostgreSQLOrderCancellationIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_order_fulfillment.PostgreSQLOrderFulfillmentIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_parcel_tracking.PostgreSQLParcelTrackingTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_public_catalog.PostgreSQLPublicCatalogTests) ... skipped '未配置独立 PostgreSQL 测试数据库'",
+      "setUpClass (test_postgresql_supplier_settlement.PostgreSQLSupplierSettlementIntegrationTests) ... skipped '未配置独立 PostgreSQL 测试数据库'"
+    ],
+    "postgres_separate_tests": 14,
+    "postgres_result": "OK"
+  },
+  "client": {
+    "typescript_formal": "PASS",
+    "typescript_offline_demo": "PASS",
+    "scripts": [
+      {
+        "script": "miniprogram-addresses.cjs",
+        "result": "PASS",
+        "summary": "Client simulated checks: 18 PASS. Not platform acceptance.",
+        "log_sha256": "b2f688e486caeb3b0c2ebe9000ec3adf18614c742a5116f4732114f76e3eb995"
+      },
+      {
+        "script": "miniprogram-catalog-access.cjs",
+        "result": "PASS",
+        "summary": "{\"suite\":\"member-catalog-client\",\"passed\":20,\"native_wechat\":false,\"real_database_access\":false}",
+        "log_sha256": "f0a6823268e1074e0243f94cc4e49592877f0110b0f04913c1f10f3cdc7dbcd6"
+      },
+      {
+        "script": "miniprogram-categories.cjs",
+        "result": "PASS",
+        "summary": "PASS 13 category/navigation groups (offline)",
+        "log_sha256": "389e42d3f52ed82f60442a572f621240588ae67d43b4cf495421b1b7b58fe9fe"
+      },
+      {
+        "script": "miniprogram-detail.cjs",
+        "result": "PASS",
+        "summary": "PASS 11 product detail groups (offline)",
+        "log_sha256": "8af6f2dd7420ed92c1880155c1cc76b2ba48817de7cd568f05739f6efbebccfc"
+      },
+      {
+        "script": "miniprogram-fulfillment.cjs",
+        "result": "PASS",
+        "summary": "PASS 6 fulfillment/demo groups (offline, no platform acceptance)",
+        "log_sha256": "7f552da3fc06eb3078c319d750a0b631c70e37a09ea942446723fd196535292d"
+      },
+      {
+        "script": "miniprogram-order-states.cjs",
+        "result": "PASS",
+        "summary": "PASS 13 order list state groups (offline)",
+        "log_sha256": "76bf5b5cd76da0c2d03b0f0c5b7d065e3113a4715487f6fe5c40ad033d45aaa5"
+      },
+      {
+        "script": "miniprogram-orders.cjs",
+        "result": "PASS",
+        "summary": "Order client simulated checks: 20 PASS; not WeChat platform acceptance.",
+        "log_sha256": "e1a8cc1ab1b358bbcb42bbe94d552b3fa4fad9207e8db2924cf28388d95cf645"
+      },
+      {
+        "script": "miniprogram-platform.cjs",
+        "result": "PASS",
+        "summary": "PASS 6 platform configuration groups (offline)",
+        "log_sha256": "d6f3eab619212ea07fcc46398dbe93788565ca70a8482b19a4446bf2b0e6fe19"
+      },
+      {
+        "script": "miniprogram-points.cjs",
+        "result": "PASS",
+        "summary": "PASS 9 points groups (offline)",
+        "log_sha256": "6cc228425bd281162f2591556bbe19355f1d5a188fa666a5f84ff0a3ae87e13b"
+      },
+      {
+        "script": "miniprogram-thumbnail.cjs",
+        "result": "PASS",
+        "summary": "PASS thumbnail/legacy/no-image catalog cards and image failure/recovery (stubbed authenticated transport/image IO; no native rendering)",
+        "log_sha256": "e10d15bcd7b8008c29b4e78191119e63f21c9d21ae224c599e55a64b18fac759"
+      },
+      {
+        "script": "miniprogram-time.cjs",
+        "result": "PASS",
+        "summary": "PASS 6 time presentation groups (offline)",
+        "log_sha256": "aa58f92e0a114cc2e84fafec5aaf4befd9e66583548f8a104200d8dd3c73f1ed"
+      },
+      {
+        "script": "miniprogram-tracking-journey.cjs",
+        "result": "PASS",
+        "summary": "PASS offline parcel tracking journey, checkout/cancel during tracking failure",
+        "log_sha256": "cb2099e750d94f1ef64e35ae0034c931c10da384b6c293ca36398a9e7bcb6571"
+      },
+      {
+        "script": "miniprogram-tracking.cjs",
+        "result": "PASS",
+        "summary": "PASS 11 tracking client groups",
+        "log_sha256": "d23298d652e9cc152fd99bec09c10c94089e4125a0ab3143c18094462e3058e8"
+      },
+      {
+        "script": "miniprogram-ui-flow.cjs",
+        "result": "PASS",
+        "summary": "PASS generated UI flow: login/cart/address/notice/checkout/order/fulfillment/cleared/points; native network blocked",
+        "log_sha256": "e948f4423e5100e3cb9c965d7b65af5f5898e3d8935c2dd69e3d98aa096683d4"
+      }
+    ],
+    "new_access_groups": 20,
+    "wx_identity_network_filesystem": "virtual mocks; real compiled production service/page code",
+    "max_concurrent_downloads": 4,
+    "max_owned_files": 80,
+    "foreground_revocation_poll_seconds": 30
+  },
+  "expiry": "server-derived remaining time, conservative request-start clock; session and qualification expiry timers",
+  "cleanup": [
+    "logout",
+    "identity change",
+    "qualification expiry/revocation",
+    "shopping page hide",
+    "application background",
+    "crash leftovers at launch",
+    "stale in-flight completion"
+  ],
+  "history": "own orders, parcel tracking, rights retained; owner-scoped uncertain-checkout correlation preserved",
+  "real_database": {
+    "access": "read-only hash checks, no migration",
+    "sha256": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01"
+  },
+  "procurement": {
+    "status": "paused pending company entity",
+    "guide_sha256": "6fe7128b4cfa0345be7a7399f1ef2d199979f07c9fb904d0e4e0d05bfd3ed919"
+  },
+  "wechat_review_submitted": false,
+  "real_wechat_called": false,
+  "public_server_purchased": false,
+  "native_acceptance": "pending: HTTPS request/downloadFile domains, real WeChat login, rendering/file deletion, two-account switch on device",
+  "logs": {
+    "full-linux.log": "8994f8f02e96a5e5ccc41e55045221dab313d8d7afcc50c2056b0aef727aa8fe",
+    "postgres.log": "80c0dee7306ff7fd2d35aa05dff18c9a68159a3d3353ca65110e3465e4dba393",
+    "typescript.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "typescript-demo.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "backend-first-failure.log": "fee62fdac7391f8f0c220054690ca3821e69df58d67f87d6bcb5e33d09380fe9",
+    "order-check.log": "b52039517b2bedd608f4c9c2cd0de75f26a0e6e3e1eba9adc2daab2d8542973b"
+  },
+  "retry_notes": [
+    "Backend fixture initially supplied duplicate reason argument; corrected test fixture. Final full suite and PG passed.",
+    "Existing checkout unit fixture initially omitted new eligibility response; stubbed eligibility only for the idempotency unit suite. Real guard/transport remain exercised by 20 separate access groups.",
+    "Initial local Python launcher and text-decoding invocation corrected before validation; no business DB touched."
+  ],
+  "runtime_directory": ".runtime/member-client-20261109"
+}

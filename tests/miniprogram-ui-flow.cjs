@@ -15,11 +15,11 @@ const wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await 
  const {member_public_id: owner} = await session.loginMember();assert.ok(session.hasMemberSession());
  require(path.join(root,'pages/catalog/index.js'));
  const home={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
- home.onLoad();await wait(()=>!home.data.loading);assert.equal(home.data.entries.length,8);assert.equal(home.data.total,9);assert.deepEqual(home.data.columns.map(x=>x.items.length),[5,4]);
+ home.onLoad();await home.onShow();await wait(()=>!home.data.loading);assert.equal(home.data.entries.length,8);assert.equal(home.data.total,9);assert.deepEqual(home.data.columns.map(x=>x.items.length),[5,4]);
  require(path.join(root,'pages/categories/index.js'));
  for(const entry of home.data.entries){
   const category={...definition,data:structuredClone(definition.data),setData(x){Object.assign(this.data,x);}};
-  category.onLoad({category:entry.key});await wait(()=>!category.data.loading);
+  category.onLoad({category:entry.key});await category.onShow();await wait(()=>!category.data.loading);
   assert.equal(category.data.activeName,entry.name);assert.ok(category.data.items.length>0);assert.ok(category.data.items.every(x=>x.category_slug===entry.key));category.onUnload();
  }
  home.onUnload();

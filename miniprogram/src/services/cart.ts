@@ -1,4 +1,6 @@
-import { getProductDetail, productImageUrl, ProductNotFoundError } from './catalog';
+import { downloadCatalogImage } from './catalog-images';
+import { assertCartStorageReady } from './catalog-state';
+import { getProductDetail, ProductNotFoundError } from './catalog';
 import type { ProductDetail, ProductSku } from './catalog';
 
 const STORAGE_KEY = 'mall_cart_v1';
@@ -37,6 +39,7 @@ function validLine(value: unknown): value is CartLine {
 }
 
 export function readCart(): CartLine[] {
+  assertCartStorageReady();
   let stored: unknown;
   try { stored = wx.getStorageSync(STORAGE_KEY); }
   catch (_) { throw new CartError('无法读取本机购物车，请稍后重试'); }
@@ -140,7 +143,7 @@ export async function loadCartDisplay(lines: CartLine[]): Promise<{
       hasUnavailable = true;
       items.push({ ...line, key, product_name: product.name, sku_name: line.sku_code,
         points_price: '', line_points: '', available: false, status: '规格已不可见',
-        imageUrl: productImageUrl(product.main_image_url, product.product_public_id) });
+        imageUrl: await downloadCatalogImage(product.main_image_url, product.product_public_id) });
       continue;
     }
     const available = sku.in_stock && sku.stock_status !== 'OUT_OF_STOCK';
@@ -151,7 +154,7 @@ export async function loadCartDisplay(lines: CartLine[]): Promise<{
       throw new CartError('购物车积分合计暂不可用');
     if (available) totalCents += lineCents;
     items.push({ ...line, key, product_name: product.name, sku_name: sku.name,
-      imageUrl: productImageUrl(product.main_image_url, product.product_public_id),
+      imageUrl: await downloadCatalogImage(product.main_image_url, product.product_public_id),
       points_price: sku.points_price, line_points: formatCents(lineCents),
       available, status: available ? (sku.stock_status === 'LOW_STOCK' ? '库存紧张' : '有货') : '暂时无货' });
   }

@@ -1,12 +1,14 @@
+import { guardCatalogPage } from '../../services/catalog-guard';
+import { downloadCatalogImage, forgetCatalogImage } from '../../services/catalog-images';
 import { getProductDetail, ProductNotFoundError, productImageUrl } from '../../services/catalog';
 import type { ProductDetail, ProductSku } from '../../services/catalog';
 import { addCartLine } from '../../services/cart';
 
 interface DisplaySku extends ProductSku { stockLabel: string; stockClass: string; selected: boolean }
-interface DisplayImage { key: string; url: string; alt: string; failed: boolean }
+interface DisplayImage { key: string; url: string; source: string; alt: string; failed: boolean; retrying?: boolean }
 type ImageEvent = { currentTarget: { dataset: { kind: string; index: number | string; key: string } } };
 
-Page({
+Page(guardCatalogPage({
   generation: 0,
   imageSequence: 0,
   data: {
@@ -26,15 +28,30 @@ Page({
   onLoad(options: { id?: string }) {
     const id = options.id || '';
     this.setData({ id });
-    this.refresh();
   },
+  onCatalogClear() { this.generation += 1; this.setData({product:null, gallery:[], detailImages:[], skus:[], selectedSku:null, selectedSkuCode:'', cartNotice:'', cartError:'', error:'', loading:false}); },
   onUnload() { this.generation += 1; },
   onPullDownRefresh() {
     this.refresh().finally(() => wx.stopPullDownRefresh());
   },
   onRetry() { if (!this.data.loading) return this.refresh(); },
   onImageError(event: ImageEvent) { this.updateImage(event, false); },
-  onRetryImage(event: ImageEvent) { this.updateImage(event, true); },
+  async onRetryImage(event: ImageEvent) {
+    const {kind, key} = event.currentTarget.dataset, index = Number(event.currentTarget.dataset.index);
+    if ((kind !== 'gallery' && kind !== 'detailImages') || !Number.isInteger(index)) return;
+    const item = this.data[kind][index] as DisplayImage;
+    if (!item || item.key !== key || !item.failed || item.retrying) return;
+    const generation = this.generation, nextKey = `image-${++this.imageSequence}`;
+    const update = (values: Partial<DisplayImage>) => this.setData({[kind]: this.data[kind].map((value: DisplayImage, i: number) => i === index ? {...value, ...values} : value)});
+    update({key: nextKey, retrying: true});
+    forgetCatalogImage(item.source);
+    try {
+      const url = await downloadCatalogImage(item.source, this.data.id);
+      if (generation === this.generation && this.data[kind][index]?.key === nextKey) update({url, failed: !url, retrying: false});
+    } catch (_) {
+      if (generation === this.generation && this.data[kind][index]?.key === nextKey) update({retrying: false});
+    }
+  },
   updateImage(event: ImageEvent, retry: boolean) {
     const { kind, key } = event.currentTarget.dataset;
     const index = Number(event.currentTarget.dataset.index);
@@ -84,13 +101,16 @@ Page({
     try {
       const product = await getProductDetail(this.data.id);
       if (current !== this.generation) return;
-      const images = product.images.map((item) => ({
+      const images = (await Promise.all(product.images.map(async (item) => ({
         role: item.role,
+        source: item.url,
         key: `image-${++this.imageSequence}`,
         failed: false,
-        url: productImageUrl(item.url, product.product_public_id),
+        url: await downloadCatalogImage(item.url, product.product_public_id),
         alt: item.alt_text || product.name,
-      })).filter((item) => item.url);
+      })))).filter(item => item.url || product.images.some(source => source.role === item.role && productImageUrl(source.url, product.product_public_id)));
+      if (current !== this.generation) return;
+      images.forEach(item => { item.failed = !item.url; });
       const gallery = images.filter((item) => item.role === 'main')
         .concat(images.filter((item) => item.role === 'carousel'));
       const detailImages = images.filter((item) => item.role === 'detail');
@@ -119,4 +139,4 @@ Page({
       if (current === this.generation) this.setData({ loading: false });
     }
   },
-});
+}));

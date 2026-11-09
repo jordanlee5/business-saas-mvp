@@ -5,6 +5,9 @@ global.wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),getSyst
 global.Page=x=>definition=x;
 const catalog=require(path.join(root,'services/catalog.js'));
 const {CATEGORY_ENTRIES,categoryOptions}=require(path.join(root,'services/category-navigation.js'));
+require(path.join(root,'services/catalog-images.js')).downloadCatalogImage=async p=>catalog.publicImageUrl(p);
+// Focus these unit tests on category layout/races; access lifecycle is tested separately.
+require(path.join(root,'services/catalog-guard.js')).guardCatalogPage=d=>({...d,onLoad(o){d.onLoad.call(this,o);return this.refresh(true);}});
 const {catalogPage}=require(path.join(root,'services/catalog-page.js'));
 const cats=CATEGORY_ENTRIES.map(x=>({name:x.name,slug:x.key==='food'?'snacks-live':x.key}));
 const item=(n,slug='home')=>({product_public_id:'PRD-'+n,name:'商品'+n,subtitle:'说明',category_slug:slug,min_points_price:'10.00',in_stock:true,main_image_url:'/uploads/mall_products/PRD-'+n+'/main.png'});

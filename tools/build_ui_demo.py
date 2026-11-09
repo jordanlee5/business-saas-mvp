@@ -56,6 +56,14 @@ def build(output):
         content=file.read_text('utf-8').replace('wx.request(', 'demoRequest(').replace('wx.login(', 'demoLogin(')
         if name=='catalog':content=content.replace('return getApiOrigin() + path;', 'return path;')
         file.write_text("import {demoRequest,demoLogin} from '../demo-transport';\n"+content,encoding='utf-8')
+    (source/'services/catalog-images.ts').write_text("""// OFFLINE UI ONLY: packaged virtual illustrations, not authenticated download evidence.
+import { publicImageUrl, productImageUrl } from './catalog';
+export async function downloadCatalogImage(path: string | null, id?: string): Promise<string> {
+  return id ? productImageUrl(path, id) : publicImageUrl(path);
+}
+export function clearCatalogImages() {}
+export function forgetCatalogImage(path: string) {}
+""",encoding='utf-8')
     # Independent simulation module; never set the production approval constant.
     (source/'services/privacy.ts').write_text('''// OFFLINE UI SIMULATION ONLY: not WeChat privacy approval.
 export class PrivacyAuthorizationError extends Error {}

@@ -1,3 +1,4 @@
+import { invalidateCatalog, catalogEpoch } from './catalog-state';
 import { getApiOrigin } from '../config';
 import { assertPrivacyAuthorized } from './privacy';
 
@@ -38,6 +39,7 @@ export interface MemberPointsLedgerPage {
 let token = '';
 let expiresAt = 0;
 let generation = 0;
+let sessionTimer: ReturnType<typeof setTimeout> | undefined;
 
 export class MemberSessionError extends Error {
   constructor(message: string, readonly status = 0) { super(message); }
@@ -63,14 +65,16 @@ function isUtc8Timestamp(value: unknown): value is string {
 
 function currentToken(): string {
   if (token && Date.now() + 30000 < expiresAt) return token;
-  clearMemberSession();
+  if (token) clearMemberSession();
   return '';
 }
 
 export function clearMemberSession(): void {
+  if (sessionTimer) clearTimeout(sessionTimer);
   token = '';
   expiresAt = 0;
   generation += 1;
+  invalidateCatalog('login');
 }
 
 export function hasMemberSession(): boolean { return Boolean(currentToken()); }
@@ -146,6 +150,7 @@ export async function loginMember(): Promise<MemberIdentity> {
   if (current !== generation) throw new MemberSessionError('本次登录已取消');
   token = data.token;
   expiresAt = deadline;
+  sessionTimer = setTimeout(clearMemberSession, Math.max(0, deadline - Date.now() - 30000));
   if (!currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
   return identity;
 }
@@ -257,7 +262,7 @@ export async function getCurrentMemberPointsLedger(page: number, availableOnly =
 // Address transport keeps the bearer private and rejects responses from old sessions.
 export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE',
                                            data?: Record<string, unknown>): Promise<unknown> {
-  if (!/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path) &&
+  if (!(path === '/catalog-access' && method === 'GET') && !/^\/addresses(?:\/ADDR-[0-9a-f]{32}(?:\/default)?)?$/.test(path) &&
       !/^\/rights-requests(?:\?page=[1-9][0-9]{0,5}|\/RGT-[0-9a-f]{32})?$/.test(path) &&
       !/^\/orders(?:\?page=[1-9][0-9]{0,5}|\/fulfillment-preview|\/request\/[a-f0-9]{32}|\/ORD-[A-Z0-9]{16}(?:\/cancel|\/parcels\/[1-9][0-9]{0,9}\/tracking)?)?$/.test(path)) {
     throw new MemberSessionError('请求路径无效');
@@ -277,9 +282,10 @@ export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' 
           401: '会员会话已失效，请重新登录', 404: '地址已不存在，请刷新列表',
           409: '最多保存20条地址，请先删除不再使用的地址', 422: '地址格式不正确，请检查后重试',
         };
-        const orderMessages: Record<number, string> = {401: '会员会话已失效，请重新登录', 404: '尚未查询到订单或地址，请核对后重试', 409: '商品、价格、地址、积分、库存或订单状态已变化，请重新核对', 422: '订单请求格式不正确'};
+        const orderMessages: Record<number, string> = {403: '商城资格已失效，仍可查询本人历史订单和权益申请',401: '会员会话已失效，请重新登录', 404: '尚未查询到订单或地址，请核对后重试', 409: '商品、价格、地址、积分、库存或订单状态已变化，请重新核对', 422: '订单请求格式不正确'};
         const rightsMessages: Record<number,string> = {401:'会员会话已失效，请重新登录',404:'申请不存在',409:'申请内容无效或已变化，请核对申请记录',422:'请检查申请事项和说明'};
         const errors = path.startsWith('/rights-requests') ? rightsMessages : path.startsWith('/orders') ? orderMessages : messages;
+        if (current === generation && response.statusCode === 403 && path.startsWith('/orders')) invalidateCatalog('unconfirmed');
         reject(new MemberSessionError(errors[response.statusCode] || '服务暂不可用，请查询确认操作结果', response.statusCode));
       },
       fail() { reject(new MemberSessionError('网络连接失败，请刷新后核对操作结果')); },
@@ -294,3 +300,40 @@ export async function requestMemberPrivate(path: string, method: 'GET' | 'POST' 
 }
 
 export const requestMemberAddress = requestMemberPrivate;
+
+
+export async function requestMemberCatalog(path: string): Promise<unknown> {
+  if (!/^\/(categories|products(?:\/[A-Z0-9-]{1,32})?)(?:\?[^#]*)?$/.test(path))
+    throw new MemberSessionError('商品请求路径无效');
+  const snapshot = memberDownloadContext();
+  try {
+    const result = await request('/api/miniprogram/v1' + path, 'GET', snapshot.header.Authorization.slice(7));
+    snapshot.assertCurrent();
+    return result;
+  } catch (error) {
+    snapshot.assertCurrent();
+    if (error instanceof MemberSessionError) snapshot.rejectStatus(error.status);
+    throw error;
+  }
+}
+
+// Only transport services consume this context. Never put it into page data/storage/URLs.
+export function memberDownloadContext() {
+  const activeToken = currentToken();
+  if (!activeToken) throw new MemberSessionError('请先登录并核验商城资格', 401);
+  const current = generation, epoch = catalogEpoch();
+  const assertCurrent = () => {
+    if (current !== generation || !currentToken() || epoch !== catalogEpoch())
+      throw new MemberSessionError('商城状态已变化，请重新核验', 401);
+  };
+  return {
+    header: { Authorization: 'Bearer ' + activeToken }, assertCurrent,
+    rejectStatus(status: number) {
+      assertCurrent();
+      if (status === 401) clearMemberSession();
+      if (status === 403) invalidateCatalog('unconfirmed');
+      if (status === 401 || status === 403)
+        throw new MemberSessionError(status === 401 ? '请重新登录核验身份' : '暂无有效商城资格，仍可查询本人历史订单和权益申请', status);
+    },
+  };
+}

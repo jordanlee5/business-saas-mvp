@@ -1,9 +1,12 @@
+<import src="../../templates/catalog-access.wxml" />
 <import src="../../templates/mall-nav.wxml" />
+<template wx:if="{{!catalogReady}}" is="catalog-access" data="{{accessState, accessMessage}}" />
+<block wx:if="{{catalogReady}}">
 <view class="screen mall-screen">
   <view class="intro mall-surface">
     <text class="eyebrow">MY CART / 购物车</text>
     <text class="title">把喜欢的，先留下。</text>
-    <text class="intro-copy mall-muted">挑选的好物保存在这台设备上，随时回来看看。</text>
+    <text class="intro-copy mall-muted">购物车仅供当前登录使用；退出或资格失效后清空，请及时确认兑换。</text>
   </view>
   <view class="state mall-surface" wx:if="{{loading}}" role="status">
     <text class="state-title">正在核对好物</text>
@@ -60,4 +63,5 @@
     </view>
   </view>
 </view>
+</block>
 <template is="mall-nav" data="{{current: 'cart'}}" />

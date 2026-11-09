@@ -1,3 +1,4 @@
+import { checkCatalogAccess, accessMessages } from '../../services/catalog-access';
 import { clearMemberSession, getSignedInMember, hasMemberSession, loginMember } from '../../services/member-session';
 import { getPrivacySetting, openPrivacyContract } from '../../services/privacy';
 
@@ -10,6 +11,7 @@ Page({
     signedIn: false,
     memberPublicId: '',
     error: '',
+    qualificationMessage: '',
     privacyVisible: false,
     privacyContractName: '',
     privacyError: '',
@@ -20,12 +22,14 @@ Page({
   async refreshIdentity() {
     const current = ++viewGeneration;
     const hasSession = hasMemberSession();
-    this.setData({ signedIn: false, memberPublicId: '', error: '', loading: hasSession });
+    this.setData({ signedIn: false, memberPublicId: '', qualificationMessage: '', error: '', loading: hasSession });
     if (!hasSession) return;
     try {
       const member = await getSignedInMember();
       if (current === viewGeneration && member) {
         this.setData({ signedIn: true, memberPublicId: member.member_public_id });
+        const state = await checkCatalogAccess();
+        if (current === viewGeneration) this.setData({qualificationMessage: accessMessages[state]});
       }
     } catch (error) {
       if (current === viewGeneration) this.setData({ error: error instanceof Error ? error.message : '会员服务暂不可用' });
@@ -36,7 +40,7 @@ Page({
   async onLoginTap() {
     if (this.data.signingIn || this.data.loading || this.data.privacyVisible) return;
     const current = ++viewGeneration;
-    this.setData({ signingIn: true, signedIn: false, memberPublicId: '', error: '' });
+    this.setData({ signingIn: true, signedIn: false, memberPublicId: '', qualificationMessage: '', error: '' });
     try {
       const privacy = await getPrivacySetting();
       if (current !== viewGeneration) return;
@@ -47,6 +51,8 @@ Page({
       const member = await loginMember();
       if (current === viewGeneration) {
         this.setData({ signedIn: true, memberPublicId: member.member_public_id });
+        const state = await checkCatalogAccess();
+        if (current === viewGeneration) this.setData({qualificationMessage: accessMessages[state]});
       }
     } catch (error) {
       if (current === viewGeneration) this.setData({ error: error instanceof Error ? error.message : '会员登录暂不可用' });
@@ -57,7 +63,7 @@ Page({
   onClearSessionTap() {
     clearMemberSession();
     viewGeneration += 1;
-    this.setData({ signedIn: false, memberPublicId: '', error: '', signingIn: false, loading: false });
+    this.setData({ signedIn: false, memberPublicId: '', qualificationMessage: '', error: '', signingIn: false, loading: false });
   },
   onOrdersTap() { wx.navigateTo({ url: '/pages/orders/index' }); },
   onRightsTap() { wx.navigateTo({ url: '/pages/rights/index' }); },

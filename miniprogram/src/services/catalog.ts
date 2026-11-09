@@ -1,3 +1,4 @@
+import { requestMemberCatalog, MemberSessionError } from './member-session';
 import { getApiOrigin } from '../config';
 
 export interface Category { name: string; slug: string }
@@ -28,30 +29,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function request(path: string, detail = false): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let origin: string;
-    try { origin = getApiOrigin(); }
-    catch (error) { reject(error); return; }
-    wx.request({
-      url: origin + path,
-      method: 'GET',
-      timeout: 8000,
-      header: { Accept: 'application/json' },
-      success(response) {
-        if (response.statusCode !== 200) {
-          if (detail && response.statusCode === 404) {
-            reject(new ProductNotFoundError('商品已下架或不存在'));
-            return;
-          }
-          reject(new Error('目录服务暂不可用'));
-          return;
-        }
-        resolve(response.data);
-      },
-      fail() { reject(new Error('网络连接失败，请稍后重试')); },
-    });
-  });
+async function request(path: string, detail = false): Promise<unknown> {
+  try { return await requestMemberCatalog(path.replace('/api/miniprogram/v1', '')); }
+  catch (error) {
+    if (detail && error instanceof MemberSessionError && error.status === 404)
+      throw new ProductNotFoundError('商品已下架或不存在');
+    throw error;
+  }
 }
 
 export async function getCategories(): Promise<Category[]> {

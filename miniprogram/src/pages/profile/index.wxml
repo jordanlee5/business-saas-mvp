@@ -10,7 +10,7 @@
   </view>
   <view class="notice mall-surface">
     <text class="notice-title">{{signedIn ? '身份验证完成' : '会员身份验证'}}</text>
-    <text wx:if="{{signedIn}}" class="notice-copy mall-muted">前往“我的积分”查看可用积分、有效期与积分记录。</text>
+    <text wx:if="{{signedIn}}" class="notice-copy mall-muted">{{qualificationMessage || '正在核验商城资格…'}}</text>
     <text wx:else class="notice-copy mall-muted">已有绑定的会员可主动使用微信登录。持有上传方安全交付的激活码时，可先领取积分权益。</text>
     <text wx:if="{{loading}}" class="notice-copy mall-muted">正在验证会员身份…</text>
     <text wx:if="{{error}}" class="notice-copy error" role="alert">{{error}}</text>
@@ -30,7 +30,7 @@
 <view wx:if="{{privacyVisible}}" class="privacy-backdrop">
   <view class="privacy-panel mall-surface" role="dialog" aria-label="微信隐私授权">
     <text class="notice-title">使用会员服务前</text>
-    <text class="notice-copy mall-muted">请先阅读并同意微信平台的 {{privacyContractName}}。拒绝后仍可浏览公开商品。</text>
+    <text class="notice-copy mall-muted">请先阅读并同意微信平台的 {{privacyContractName}}。商城商品仅向具有有效资格的会员展示；你可以暂不使用会员服务。</text>
     <text wx:if="{{privacyError}}" class="notice-copy error" role="alert">{{privacyError}}</text>
     <button class="privacy-link" bindtap="onPrivacyTap">查看完整指引</button>
     <button id="profile-privacy-agree" class="mall-primary-action login-action" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgree">同意并继续登录</button>
