@@ -21,5 +21,65 @@
     "sku_rows": 4000,
     "export_seconds": 1.168,
     "export_bytes": 147088
-  }
+  },
+  "cloud": {
+    "checks": [
+      "anonymous_orders_denied",
+      "anonymous_points_denied",
+      "anonymous_catalog_denied",
+      "temporary_operator_login",
+      "page_/mall-orders",
+      "page_/member-points",
+      "page_/mall-catalog",
+      "page_/mall-delegations",
+      "page_/mall-qualifications",
+      "page_/mall-rights",
+      "download_orders",
+      "row_count_orders",
+      "download_points",
+      "row_count_points",
+      "download_catalog",
+      "row_count_catalog",
+      "empty_filter_/mall-catalog/export",
+      "empty_filter_/mall-orders/export",
+      "empty_filter_/member-points/export",
+      "reviewer_orders_denied",
+      "reviewer_points_denied",
+      "reviewer_catalog_denied",
+      "disabled_session_denied",
+      "anonymous_member_catalog_denied",
+      "virtual_member_catalog",
+      "admin_password_preserved",
+      "business_counts_preserved",
+      "six_export_audits"
+    ],
+    "count": 28,
+    "passed": true,
+    "virtual_only": true,
+    "admin_password_unchanged": true,
+    "export_expected_rows": {
+      "orders": 2,
+      "points": 2,
+      "catalog": 2
+    }
+  },
+  "deployment": {
+    "source_commit": "b4f939ae7d613bf99aa1daebe087281313c68a4f",
+    "manifest_sha256": "7863537d46b4faf7a37b3a9fe36f14d871cb6cb2ac798e9852b4c3d5061bfc92",
+    "image_config_sha256": "d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+    "archive_sha256": "f0abc0f6a57e8609eeaf870826c76b17bc19610424f8ca42503ad71b6bc8a887",
+    "preupgrade_backup_verified": true,
+    "offsite_backup_hash_matched": true,
+    "all_business_tables_and_files_identical_after_upgrade": true,
+    "admin_password_preserved": true,
+    "services_healthy": [
+      "app",
+      "database",
+      "ocr"
+    ],
+    "local_tunnel_health": 200,
+    "new_sidebar_script": 200,
+    "temporary_operator_disabled_and_sessions_revoked": true
+  },
+  "sku_export_rows_and_unique_codes_verified": 4000
 }
