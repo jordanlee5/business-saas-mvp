@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-09",
+  "baseline": "3aa04dfb93b1e450aa481a9f8e04e388aaea1778",
+  "scope": "immutable Git deployment bundle, trusted-manifest verification and procurement guide update",
+  "tests": {
+    "windows": {
+      "tests": 11,
+      "result": "OK"
+    },
+    "linux": {
+      "tests": 11,
+      "result": "OK"
+    }
+  },
+  "bundle": {
+    "status": "ok",
+    "git_commit": "3aa04dfb93b1e450aa481a9f8e04e388aaea1778",
+    "manifest_sha256": "15c7b3eb2154b7f30426c2b8dcb514904540324c97d499312676ce8305cb67c9",
+    "files": 177
+  },
+  "image": {
+    "source_commit": "3aa04dfb93b1e450aa481a9f8e04e388aaea1778",
+    "id": "sha256:669bff269baf8dbdfd19331da34aa3c2fefd7d3161848a5664e8ec19c2fd080a",
+    "checks": {
+      "non_root": true,
+      "python_sources_compile": true,
+      "database_git_private_config_absent": true,
+      "app_main_sha256": "b6b09cd3100578bbe04b4c9a0d0c496fb72bd4630c5b112fc7f11a475a19fc97"
+    },
+    "network": "normal dependency download during build; smoke container read-only, no network, no business mounts"
+  },
+  "procurement": {
+    "company_selected": true,
+    "enterprise_cloud_identity_completed": true,
+    "server_purchased": false,
+    "domain_purchased": false,
+    "screenshot_product": "Lighthouse; guide redirects to agreed CVM",
+    "credentials_or_identity_screenshots_committed": false
+  },
+  "retry_notes": [
+    "Offline build refused because dependency cache was missing; failed log retained. Normal network dependency build completed."
+  ],
+  "limits": [
+    "Image build verifies baseline 3aa04df deployment inputs; release tool separately tested on both platforms",
+    "No public cloud deployment, database migration, real WeChat login or review submission",
+    "File hashes require independently retained trusted manifest digest; not a digital signature or full dependency audit"
+  ],
+  "logs": {
+    "unit.log": "5620987655c92001d4fece64754f89a9f41c6fa7a094f086bd2f59659d1f0687",
+    "unit-linux.log": "37ef9b44428e2466b85f90beea89dacc3c1485eb9c2772fce932b0b84329daea",
+    "image-build.log": "80996ca993fbfca2334c787c47d36f8d898b6c6133cf5e0f6babeac38a34e34c",
+    "image-build-network.log": "2cfd766fccdeab0ff7283ae7c5b172886a17ad65f1e1344a0405a617ee820aeb",
+    "image-check.json": "a8e2bc9319878d43c003f3464edeadceb073cf0a2c08a54ce8f0fcd2326fd7fb"
+  },
+  "sources": [
+    "https://cloud.tencent.com/document/product/213/4855",
+    "https://cloud.tencent.com/document/product/243/18908",
+    "https://cloud.tencent.com/document/product/213/112610"
+  ],
+  "runtime_directory": ".runtime/release-bundle-20261109"
+}
