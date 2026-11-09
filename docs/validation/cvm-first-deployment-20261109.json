@@ -1,0 +1,486 @@
+{
+  "date": "2026-11-09",
+  "deployed_revision": "517b0be4647f66623344cb4ce20bd70e7791a75c",
+  "scope": "restricted CVM virtual staging; no public HTTPS or real platform verification",
+  "purchase": {
+    "cpu": 4,
+    "memory_gib": 8,
+    "disk_gib": 100,
+    "bandwidth_mbps": 2,
+    "months": 3,
+    "total_cny": 1090.8,
+    "automatic_renewal": false
+  },
+  "release": {
+    "files": 178,
+    "manifest_sha256": "cbc4301e8794359fb601602050efa4b9288b34dd93ce5135a5714012ced39f2e",
+    "archive_sha256": "03b6c2d995f895e9c2902c56fe62c2098dd936e9bea180053f2fbf2b928a680a",
+    "image_archive_sha256": "d5ace4b1e46c27deb7037e24a9778a1efbb720ea3c85ccab77bfdb73fadf0545",
+    "app_image_config_sha256": "7d9b01a3ae61c074f76a72ada72dc9b0be458824df179a76cd80e0fb12520d0d",
+    "postgres_image_config_sha256": "b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5",
+    "imported_config_hashes_verified": true
+  },
+  "rounds": [
+    {
+      "phase": "05-http-verify.log",
+      "report": {
+        "result": "PASS",
+        "checks": [
+          {
+            "check": "health",
+            "status": 200
+          },
+          {
+            "check": "anonymous_catalog_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_image_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_thumbnail_denied",
+            "status": 401
+          },
+          {
+            "check": "eligible_catalog",
+            "status": 200
+          },
+          {
+            "check": "eligible_detail",
+            "status": 200
+          },
+          {
+            "check": "eligible_image",
+            "status": 200
+          },
+          {
+            "check": "eligible_thumbnail",
+            "status": 200
+          },
+          {
+            "check": "fulfillment_preview",
+            "status": 200
+          },
+          {
+            "check": "checkout",
+            "status": 201
+          },
+          {
+            "check": "idempotent_checkout",
+            "status": 200
+          },
+          {
+            "check": "owner_order",
+            "status": 200
+          },
+          {
+            "check": "other_member_order_denied",
+            "status": 404
+          },
+          {
+            "check": "disabled_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_image_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_history_retained",
+            "status": 200
+          },
+          {
+            "check": "disabled_checkout_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_rights_submit",
+            "status": 201
+          },
+          {
+            "check": "other_member_rights_denied",
+            "status": 404
+          },
+          {
+            "check": "owner_rights_result",
+            "status": 200
+          },
+          {
+            "check": "expired_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "expired_history_retained",
+            "status": 200
+          },
+          {
+            "check": "expired_rights_retained",
+            "status": 200
+          },
+          {
+            "check": "qualification_restored",
+            "status": 200
+          },
+          {
+            "check": "cancel_order",
+            "status": 200
+          },
+          {
+            "check": "admin_login_requires_private_password_change",
+            "status": 302
+          },
+          {
+            "check": "logout_revokes_session",
+            "status": 302
+          }
+        ],
+        "checks_count": 27,
+        "balances_restored": {
+          "points": [
+            [
+              "500.00",
+              "0.00"
+            ],
+            [
+              "500.00",
+              "0.00"
+            ]
+          ],
+          "inventory": [
+            [
+              100,
+              0
+            ],
+            [
+              100,
+              0
+            ]
+          ]
+        },
+        "image_sha256": "c67ca2f1b24e63dc0505d7a0491f79ef1c47da00c3216de577cf8a63074c0cab",
+        "real_wechat_called": false,
+        "real_logistics_called": false,
+        "scope": "Actual TCP HTTP to running CVM application and persistent isolated PostgreSQL; synthetic bindings, no real WeChat exchange"
+      }
+    },
+    {
+      "phase": "07-after-reboot.log",
+      "report": {
+        "result": "PASS",
+        "checks": [
+          {
+            "check": "health",
+            "status": 200
+          },
+          {
+            "check": "anonymous_catalog_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_image_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_thumbnail_denied",
+            "status": 401
+          },
+          {
+            "check": "eligible_catalog",
+            "status": 200
+          },
+          {
+            "check": "eligible_detail",
+            "status": 200
+          },
+          {
+            "check": "eligible_image",
+            "status": 200
+          },
+          {
+            "check": "eligible_thumbnail",
+            "status": 200
+          },
+          {
+            "check": "fulfillment_preview",
+            "status": 200
+          },
+          {
+            "check": "checkout",
+            "status": 201
+          },
+          {
+            "check": "idempotent_checkout",
+            "status": 200
+          },
+          {
+            "check": "owner_order",
+            "status": 200
+          },
+          {
+            "check": "other_member_order_denied",
+            "status": 404
+          },
+          {
+            "check": "disabled_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_image_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_history_retained",
+            "status": 200
+          },
+          {
+            "check": "disabled_checkout_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_rights_submit",
+            "status": 201
+          },
+          {
+            "check": "other_member_rights_denied",
+            "status": 404
+          },
+          {
+            "check": "owner_rights_result",
+            "status": 200
+          },
+          {
+            "check": "expired_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "expired_history_retained",
+            "status": 200
+          },
+          {
+            "check": "expired_rights_retained",
+            "status": 200
+          },
+          {
+            "check": "qualification_restored",
+            "status": 200
+          },
+          {
+            "check": "cancel_order",
+            "status": 200
+          },
+          {
+            "check": "admin_login_requires_private_password_change",
+            "status": 302
+          },
+          {
+            "check": "logout_revokes_session",
+            "status": 302
+          }
+        ],
+        "checks_count": 27,
+        "balances_restored": {
+          "points": [
+            [
+              "500.00",
+              "0.00"
+            ],
+            [
+              "500.00",
+              "0.00"
+            ]
+          ],
+          "inventory": [
+            [
+              100,
+              0
+            ],
+            [
+              100,
+              0
+            ]
+          ]
+        },
+        "image_sha256": "c67ca2f1b24e63dc0505d7a0491f79ef1c47da00c3216de577cf8a63074c0cab",
+        "real_wechat_called": false,
+        "real_logistics_called": false,
+        "scope": "Actual TCP HTTP to running CVM application and persistent isolated PostgreSQL; synthetic bindings, no real WeChat exchange"
+      }
+    },
+    {
+      "phase": "08-restore.log",
+      "report": {
+        "result": "PASS",
+        "checks": [
+          {
+            "check": "health",
+            "status": 200
+          },
+          {
+            "check": "anonymous_catalog_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_image_denied",
+            "status": 401
+          },
+          {
+            "check": "anonymous_thumbnail_denied",
+            "status": 401
+          },
+          {
+            "check": "eligible_catalog",
+            "status": 200
+          },
+          {
+            "check": "eligible_detail",
+            "status": 200
+          },
+          {
+            "check": "eligible_image",
+            "status": 200
+          },
+          {
+            "check": "eligible_thumbnail",
+            "status": 200
+          },
+          {
+            "check": "fulfillment_preview",
+            "status": 200
+          },
+          {
+            "check": "checkout",
+            "status": 201
+          },
+          {
+            "check": "idempotent_checkout",
+            "status": 200
+          },
+          {
+            "check": "owner_order",
+            "status": 200
+          },
+          {
+            "check": "other_member_order_denied",
+            "status": 404
+          },
+          {
+            "check": "disabled_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_image_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_history_retained",
+            "status": 200
+          },
+          {
+            "check": "disabled_checkout_denied",
+            "status": 403
+          },
+          {
+            "check": "disabled_rights_submit",
+            "status": 201
+          },
+          {
+            "check": "other_member_rights_denied",
+            "status": 404
+          },
+          {
+            "check": "owner_rights_result",
+            "status": 200
+          },
+          {
+            "check": "expired_catalog_denied",
+            "status": 403
+          },
+          {
+            "check": "expired_history_retained",
+            "status": 200
+          },
+          {
+            "check": "expired_rights_retained",
+            "status": 200
+          },
+          {
+            "check": "qualification_restored",
+            "status": 200
+          },
+          {
+            "check": "cancel_order",
+            "status": 200
+          },
+          {
+            "check": "admin_login_requires_private_password_change",
+            "status": 302
+          },
+          {
+            "check": "logout_revokes_session",
+            "status": 302
+          }
+        ],
+        "checks_count": 27,
+        "balances_restored": {
+          "points": [
+            [
+              "500.00",
+              "0.00"
+            ],
+            [
+              "500.00",
+              "0.00"
+            ]
+          ],
+          "inventory": [
+            [
+              100,
+              0
+            ],
+            [
+              100,
+              0
+            ]
+          ]
+        },
+        "image_sha256": "c67ca2f1b24e63dc0505d7a0491f79ef1c47da00c3216de577cf8a63074c0cab",
+        "real_wechat_called": false,
+        "real_logistics_called": false,
+        "scope": "Actual TCP HTTP to running CVM application and persistent isolated PostgreSQL; synthetic bindings, no real WeChat exchange"
+      }
+    }
+  ],
+  "host_reboot_verified": true,
+  "all_business_rows_and_files_match_after_reboot_and_restore": true,
+  "restored_project_stopped": true,
+  "offsite_backup_copied_and_hash_verified": true,
+  "app_and_db_published_ports": false,
+  "local_tunnel_login_http_status": 200,
+  "real_database_sha256_unchanged": "e9e70853d4b28e4c2a9bf8c680d8e201ba8471bf4ceec9c82a07138057377e01",
+  "real_database_written": false,
+  "wechat_review_submitted": false,
+  "credentials_committed": false,
+  "limitations": [
+    "Host key recorded on first use, not independently checked in console",
+    "Official Docker APT and registry access failed; signed Ubuntu packages and hash-verified local image transfer used",
+    "No real WeChat code exchange or logistics API",
+    "No public domain or HTTPS yet",
+    "No 100-concurrent-user or bandwidth capacity conclusion",
+    "Only initial manual backup and recovery, no scheduled backup alerts yet"
+  ],
+  "local_log_sha256": {
+    "01-bootstrap.log": "e7694c60dbee5b7e55d04d8678f6c6970465757bd129f1c6b58419c10c17278f",
+    "02-bootstrap-ubuntu.log": "f485b68a476e1d43134455e008faf026430259d0cf382e2feda7ed474cd77a37",
+    "03-release-check.log": "e178341c0e4d05427be00f1568c47bd8e3b8c326023f822ce76c832a5b6a6d4f",
+    "04-deploy.log": "172af94da28936719ca6e7f49c9994e4a53b9abda820f4c34337a93b3d5a822c",
+    "04b-verify-import.log": "91361c196d5bdb87e1f0deb96b1e119f518a93597b8281499ebe86486e1e7fea",
+    "04c-start.log": "4a1580de779ad6ba7c68358f3487cc6721d74997e7495bfe92665a2634f6452b",
+    "04d-seed-start.log": "fa32a9d7a47cd31dbf6b0e9910099efaccaedad2e868c5679b53e85e9a58a3d4",
+    "05-http-verify.log": "334a58e012d5dd5c0e5a14bf9a536dc1837f0d5109e93d25d49e0f1e82a1b3d2",
+    "06-backup.log": "1a997caaded5b99d3a1daa630fd2bab90d82ec40bb28b3fc81ab5b811a6aa95c",
+    "07-after-reboot.log": "d78ff0b682270d6ad094ec223efdb0aef9f96bb7b44ea7fe2b6b187604f54efa",
+    "08-restore.log": "e345fd59126da2d7a103ac04c85b2a70d30ea918060323ac0dd9a72cdcd07548",
+    "09-private-export.log": "ead086693e16388db86de152f2c1a04081624dbdc87f1ba7d0041587f000f437"
+  }
+}
