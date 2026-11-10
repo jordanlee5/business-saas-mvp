@@ -29,3 +29,6 @@ node_modules/
 
 # Deployment-only captcha credentials
 **/admin-captcha*.json
+
+# Backup notification credential file
+backup-wecom-url.txt

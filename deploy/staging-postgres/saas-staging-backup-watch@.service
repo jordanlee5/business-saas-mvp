@@ -1,0 +1,17 @@
+[Unit]
+Description=Independent backup watchdog for SaaS staging %i
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/srv/saas-staging/current
+EnvironmentFile=/srv/saas-private/backup-%i.env
+ExecStart=/usr/bin/python3 -m tools.staging_backup_watch --project %i --root /srv/saas-backups/scheduled/%i --state-root /srv/saas-backups/watch/%i --webhook-file /srv/saas-private/backup-wecom-url.txt
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=300
+StandardOutput=journal
+StandardError=journal

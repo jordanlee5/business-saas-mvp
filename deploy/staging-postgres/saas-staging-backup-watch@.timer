@@ -1,0 +1,11 @@
+[Unit]
+Description=Check SaaS staging backup and service health every five minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Unit=saas-staging-backup-watch@%i.service
+
+[Install]
+WantedBy=timers.target

@@ -11,9 +11,11 @@ from pathlib import Path
 import subprocess
 import tempfile
 import uuid
+from unittest.mock import patch
 
 from tools.staging_pg_backup import ROOT, StagingProject, prepare_secrets
 from tools.staging_backup_job import run_job, exclusive_lock, BusyError
+from tools.staging_backup_watch import inspect_backup, record_and_notify
 
 
 SEED = '''
@@ -73,6 +75,16 @@ def main():
     source = StagingProject("saas-pg-test-job-" + suffix)
     restored = StagingProject("saas-pg-test-job-restored-" + suffix)
     checks = []
+    notifications = []
+
+    def watch_check():
+        # Rehearsal projects have no installed timers; test real backup/container checks.
+        with patch("tools.staging_backup_watch.unit_check", return_value="ok"):
+            report = inspect_backup(source.name, scheduled)
+        def capture(_secret, message):
+            notifications.append(message)
+            return "delivered"
+        return record_and_notify(report, root / "watch", sender=capture)
     try:
         # Refuse any collision before provisioning or initializing a database.
         for project in (source, restored):
@@ -99,16 +111,25 @@ def main():
         after = json.loads(source.run("exec", "-T", "app", "python", "-", input=CHECK.encode()).stdout)
         assert after == before
         checks.append("source_business_and_http_unchanged_after_backup")
+        assert watch_check()["status"] == "ok" and not notifications
         success = (scheduled / "last-success.json").read_bytes()
         source.run("stop", "database")
         code, failure = run_job(source.name, scheduled)
         assert code == 1 and failure["code"] == "preflight_failed"
         assert (scheduled / "last-success.json").read_bytes() == success
         checks.append("database_failure_recorded_previous_backup_preserved")
+        alert = watch_check()
+        assert alert["status"] == "alert" and alert["notification"] == "delivered"
+        assert watch_check()["notification"] == "not_needed" and len(notifications) == 1
+        checks.append("real_failure_watch_event_and_simulated_notification_deduplicated")
         source.run("up", "-d", "--wait", "--wait-timeout", "120", "database")
         code, recovered = run_job(source.name, scheduled)
         assert code == 0 and recovered["run_id"] != first["run_id"]
         checks.append("backup_succeeds_after_database_recovery")
+        recovery = watch_check()
+        assert recovery["status"] == "ok" and recovery["notification"] == "delivered"
+        assert watch_check()["notification"] == "not_needed" and len(notifications) == 2
+        checks.append("real_recovery_watch_event_and_simulated_notification_deduplicated")
         with exclusive_lock(scheduled / ".backup.lock"):
             try:
                 run_job(source.name, scheduled)
@@ -122,7 +143,7 @@ def main():
         checks.append("new_project_restores_virtual_members_skus_points_files_and_http")
         report = dict(format=1, completed_at=datetime.now(timezone.utc).isoformat(),
                       status="passed", checks=checks, business=actual,
-                      scope="new local Docker projects; synthetic data only; no cloud deployment")
+                      scope="new isolated Docker projects; synthetic data only; notification transport simulated; scheduler separately verified")
         (root / "evidence.json").write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps(report, indent=2))
         print("Private rehearsal evidence: " + str(root / "evidence.json"))

@@ -32,6 +32,7 @@ TEST_URL_DIGESTS = {
 }
 
 PATTERNS = {
+    'wecom-webhook': rb'https://qyapi\.weixin\.qq\.com/cgi-bin/webhook/send\?key=[A-Za-z0-9_-]{16,}',
     'private-key': rb'-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----',
     'github-token': rb'(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,})',
     'cloud-access-key': rb'(?:AKIA[A-Z0-9]{16}|AKID[A-Za-z0-9]{28,40})',
@@ -43,7 +44,7 @@ PATTERNS = {
 def inspect(path, data):
     hits = []
     name = Path(path).name.lower()
-    if (name in {'.env', 'server-config.json', 'id_rsa', 'id_ed25519'} or
+    if (name in {'backup-wecom-url.txt', '.env', 'server-config.json', 'id_rsa', 'id_ed25519'} or
             name.startswith('.env.') and name not in {'.env.example', '.env.sample'} or
             name.endswith(('.key', '.pem', '.p12', '.pfx')) or
             name.startswith('admin-captcha') and name.endswith('.json')):

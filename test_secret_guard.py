@@ -18,3 +18,8 @@ class SecretGuardTests(unittest.TestCase):
             (b'', b'-----BEGIN ' + b'PRIVATE KEY-----', 'private-key'),
         ]:
             self.assertEqual(inspect('code.py', prefix+value), [expected])
+
+    def test_blocks_wecom_webhook_and_private_file(self):
+        url = b'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=' + b'a' * 36
+        self.assertEqual(inspect('config.txt', url), ['wecom-webhook'])
+        self.assertEqual(inspect('private/backup-wecom-url.txt', b'unknown'), ['private-file'])

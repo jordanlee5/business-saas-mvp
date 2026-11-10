@@ -1,0 +1,182 @@
+{
+  "format": 1,
+  "verified_at": "2026-11-10T06:28:55.209497+00:00",
+  "base_commit": "3037c8d",
+  "cloud_rehearsal": {
+    "format": 1,
+    "completed_at": "2026-11-10T06:28:04.745784+00:00",
+    "status": "passed",
+    "checks": [
+      "synthetic_business_and_http_before_backup",
+      "real_pg_dump_files_verified_and_app_restarted",
+      "source_business_and_http_unchanged_after_backup",
+      "database_failure_recorded_previous_backup_preserved",
+      "real_failure_watch_event_and_simulated_notification_deduplicated",
+      "backup_succeeds_after_database_recovery",
+      "real_recovery_watch_event_and_simulated_notification_deduplicated",
+      "overlapping_job_rejected",
+      "new_project_restores_virtual_members_skus_points_files_and_http"
+    ],
+    "business": {
+      "members": 1,
+      "skus": 2,
+      "available_points": "170.00",
+      "file_marker": "ok",
+      "health": 200,
+      "login": 200
+    },
+    "scope": "new isolated Docker projects; synthetic data only; notification transport simulated; scheduler separately verified"
+  },
+  "installed_timers": {
+    "saas-staging-backup@": {
+      "NextElapseUSecRealtime": "Wed 2026-11-11 04:01:31 CST",
+      "LastTriggerUSec": "",
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "UnitFileState": "enabled"
+    },
+    "saas-staging-backup-watch@": {
+      "NextElapseUSecRealtime": "",
+      "LastTriggerUSec": "Tue 2026-11-10 14:28:19 CST",
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "UnitFileState": "enabled"
+    }
+  },
+  "services": {
+    "app": {
+      "health": "healthy",
+      "host_port_bindings": {}
+    },
+    "database": {
+      "health": "healthy",
+      "host_port_bindings": {}
+    },
+    "ocr": {
+      "health": "healthy",
+      "host_port_bindings": {}
+    }
+  },
+  "watch": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "checked_at": "2026-11-10T06:28:19.112120+00:00",
+    "status": "ok",
+    "checks": [
+      {
+        "check": "last_job",
+        "code": "first_backup_pending",
+        "status": "ok"
+      },
+      {
+        "check": "recovery_point",
+        "code": "first_backup_pending",
+        "status": "ok"
+      },
+      {
+        "check": "scheduler",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "app",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "database",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "ocr",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "disk",
+        "code": "ok",
+        "status": "ok"
+      }
+    ],
+    "notification": "not_needed",
+    "notification_configured": false
+  },
+  "checks": {
+    "existing_app_not_restarted": true,
+    "no_public_web_or_database_listener": true,
+    "no_active_project_backup_during_install": true,
+    "synthetic_rehearsal_projects_stopped": true,
+    "private_environment_mode": "0o600",
+    "backup_root_mode": "0o700"
+  },
+  "limits": [
+    "first scheduled backup pending next night",
+    "WeCom webhook not configured; actual delivery not tested",
+    "same-host backups; automatic offsite copy and retention pending",
+    "server outage cannot be notified by its own watcher"
+  ],
+  "local_tests": {
+    "count": 40,
+    "result": "passed",
+    "modules": [
+      "test_staging_backup_watch",
+      "test_staging_backup_job",
+      "test_staging_postgres",
+      "test_staging_monitor",
+      "test_secret_guard"
+    ]
+  },
+  "automatic_watch_repeat": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "checked_at": "2026-11-10T06:33:39.936551+00:00",
+    "status": "ok",
+    "checks": [
+      {
+        "check": "last_job",
+        "code": "first_backup_pending",
+        "status": "ok"
+      },
+      {
+        "check": "recovery_point",
+        "code": "first_backup_pending",
+        "status": "ok"
+      },
+      {
+        "check": "scheduler",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "app",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "database",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "ocr",
+        "code": "ok",
+        "status": "ok"
+      },
+      {
+        "check": "disk",
+        "code": "ok",
+        "status": "ok"
+      }
+    ],
+    "notification": "not_needed",
+    "notification_configured": false
+  },
+  "secret_guard": {
+    "mode": "staged",
+    "files_scanned": 570,
+    "findings": [],
+    "private_filename_ignored": true
+  },
+  "cloud_watch_code_sha256": "f35110ebb85c1c964380f3ee7d664de0adf0ffe85199eecc877079b4812e2be6"
+}
