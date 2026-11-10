@@ -4,7 +4,7 @@ from tools.check_secrets import inspect
 
 class SecretGuardTests(unittest.TestCase):
     def test_blocks_private_file_even_with_unknown_format(self):
-        for name in ['.env', '.env.production', 'private/server-config.json', 'private.key']:
+        for name in ['.env', '.env.production', 'private/server-config.json', 'private.key', 'private/admin-captcha.json', 'private/admin-captcha-prod.json']:
             self.assertIn('private-file', inspect(name, b'unknown-format'))
 
     def test_identifiers_and_environment_lookups_are_not_secrets(self):

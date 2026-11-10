@@ -1,0 +1,10 @@
+{
+  "virtual_provider": true,
+  "external_requests": 0,
+  "cancel_blocks": true,
+  "disaster_blocks": true,
+  "load_failure_blocks": true,
+  "recovery_submits_ticket": true,
+  "page_restore_clears_ticket": true,
+  "console_errors": []
+}

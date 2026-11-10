@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-10",
+  "backend_command": "python -m unittest test_login_captcha test_shared_browser_sessions -v",
+  "backend_tests_passed": 26,
+  "browser_results": "browser-results.json",
+  "data": "temporary/in-memory virtual only",
+  "real_provider_called": false,
+  "deployed_enabled": false,
+  "real_business_database_modified": false,
+  "wechat_review_submitted": false
+}

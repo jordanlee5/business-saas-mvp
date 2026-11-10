@@ -92,14 +92,20 @@
         <div class="error">{{ error }}</div>
         {% endif %}
 
-        <form method="post" action="/login">
+        <form id="login-form" method="post" action="/login" data-captcha-app-id="{{ captcha_app_id }}">
             <label>用户名</label>
             <input type="text" name="username" placeholder="请输入用户名" required>
 
             <label>密码</label>
             <input type="password" name="password" placeholder="请输入密码" required>
 
-            <button type="submit">登录</button>
+            {% if captcha_required %}
+            <input type="hidden" name="captcha_ticket" id="captcha-ticket">
+            <input type="hidden" name="captcha_randstr" id="captcha-randstr">
+            <p id="captcha-status" class="tip" role="status" aria-live="polite">{% if captcha_unavailable %}安全验证暂时不可用，请联系管理员。{% else %}点击登录后，请先完成人机验证。{% endif %}</p>
+            <noscript><p class="error">登录需要启用 JavaScript 完成人机验证。</p></noscript>
+            {% endif %}
+            <button id="login-button" type="submit" {% if captcha_unavailable %}disabled{% endif %}>登录</button>
         </form>
 
         <div class="tip">
@@ -108,5 +114,9 @@
         </div>
     </div>
 </div>
+{% if captcha_required and not captcha_unavailable %}
+<script src="https://turing.captcha.qcloud.com/TJCaptcha.js" defer></script>
+<script src="/static/login-captcha.js" defer></script>
+{% endif %}
 </body>
 </html>

@@ -53,6 +53,7 @@ from .models import (
     VoucherUploadBatch,
 )
 from .auth import verify_password, get_password_hash
+from . import login_captcha
 from .browser_sessions import COOKIE_NAME, LIFETIME, fingerprint
 from .shared_browser_sessions import DatabaseBrowserSessions, SessionStoreUnavailable, SessionCredentialsChanged
 from .password_service import (
@@ -4751,15 +4752,15 @@ def issue_business_activation_code(
         db.close()
 
 
+def render_login(request, error=None, status_code=200):
+    return templates.TemplateResponse("login.html", {
+        "request": request, "error": error, **login_captcha.public_context(),
+    }, status_code=status_code, headers={"Cache-Control": "no-store, private"})
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse(
-        "login.html",
-        {
-            "request": request,
-            "error": None,
-        },
-    )
+    return render_login(request)
 
 
 @app.post(
@@ -4770,7 +4771,17 @@ def login_submit(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    captcha_ticket: str = Form(""),
+    captcha_randstr: str = Form(""),
 ):
+    try:
+        # client.host is set by the server's trusted proxy configuration, not raw headers.
+        login_captcha.verify(captcha_ticket, captcha_randstr,
+                             request.client.host if request.client else None)
+    except login_captcha.CaptchaRejected:
+        return render_login(request, "请重新完成人机验证后登录。", 400)
+    except login_captcha.CaptchaUnavailable:
+        return render_login(request, "安全验证暂时不可用，请稍后重试或联系管理员。", 503)
     db = SessionLocal()
 
     try:
@@ -4786,27 +4797,11 @@ def login_submit(
             password,
             user.password_hash,
         ):
-            return templates.TemplateResponse(
-                "login.html",
-                {
-                    "request": request,
-                    "error": (
-                        "用户名或密码错误"
-                    ),
-                },
-            )
+            return render_login(request, "用户名或密码错误")
 
         if not user.is_active:
-            return templates.TemplateResponse(
-                "login.html",
-                {
-                    "request": request,
-                    "error": (
-                        "该账号已停用，"
-                        "请联系管理员"
-                    ),
-                },
-            )
+            return render_login(request, "该账号已停用，请联系管理员")
+
 
         user_id = user.id
         password_hash = user.password_hash

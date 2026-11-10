@@ -10,3 +10,6 @@
 !tools/**
 **/__pycache__/
 **/*.pyc
+
+# Deployment-only captcha credentials
+**/admin-captcha*.json

@@ -45,7 +45,8 @@ def inspect(path, data):
     name = Path(path).name.lower()
     if (name in {'.env', 'server-config.json', 'id_rsa', 'id_ed25519'} or
             name.startswith('.env.') and name not in {'.env.example', '.env.sample'} or
-            name.endswith(('.key', '.pem', '.p12', '.pfx'))):
+            name.endswith(('.key', '.pem', '.p12', '.pfx')) or
+            name.startswith('admin-captcha') and name.endswith('.json')):
         hits.append('private-file')
     for rule, pattern in PATTERNS.items():
         for match in re.finditer(pattern, data):

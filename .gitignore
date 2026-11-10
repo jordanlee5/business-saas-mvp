@@ -26,3 +26,6 @@ id_ed25519
 project.private.config.json
 .runtime/
 node_modules/
+
+# Deployment-only captcha credentials
+**/admin-captcha*.json
