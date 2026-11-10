@@ -1,0 +1,74 @@
+{
+  "format": 1,
+  "date": "2026-11-10",
+  "base_commit": "8b37687",
+  "scope": "Local isolated synthetic staging projects only; cloud unchanged",
+  "unit_and_compatibility": {
+    "command": "python3 -m unittest test_staging_backup_job test_staging_postgres test_staging_monitor -v",
+    "environment": "WSL Ubuntu, Python 3.10",
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "coverage": [
+      "verified success, failure preserving previous success, subsequent recovery",
+      "corrupt backup and mismatched source rejected",
+      "restart failure and unhealthy application never publish success",
+      "stopped application not started, low disk rejected before Docker",
+      "invalid project, external database configuration and invalid thresholds rejected",
+      "repository backup destination and symlink paths rejected",
+      "backup directory bound to one project",
+      "real competing process lock, duplicate exit code 75, lock released after process termination",
+      "status write failure returns nonzero without leaking exception text",
+      "existing PostgreSQL and read-only monitor compatibility"
+    ]
+  },
+  "docker_rehearsal": {
+    "completed_at": "2026-11-10T05:41:15.855499+00:00",
+    "status": "passed",
+    "app_image": "business-saas-cvm-test:b4f939a",
+    "command": "STAGING_COMPOSE_BIN=/usr/local/bin/docker-compose python3 -m tools.rehearse_scheduled_backup --image business-saas-cvm-test:b4f939a",
+    "checks": [
+      "synthetic_business_and_http_before_backup",
+      "real_pg_dump_files_verified_and_app_restarted",
+      "source_business_and_http_unchanged_after_backup",
+      "database_failure_recorded_previous_backup_preserved",
+      "backup_succeeds_after_database_recovery",
+      "overlapping_job_rejected",
+      "new_project_restores_virtual_members_skus_points_files_and_http"
+    ],
+    "restored_business": {
+      "members": 1,
+      "skus": 2,
+      "available_points": "170.00",
+      "file_marker": "ok",
+      "health_http": 200,
+      "login_http": 200
+    },
+    "containers_stopped_after_rehearsal": true,
+    "private_backups_and_volumes_retained": true,
+    "published_ports": false
+  },
+  "timer_validation": {
+    "systemd_analyze_verify_exit_code": 0,
+    "calendar": "*-*-* 04:00:00 Asia/Shanghai",
+    "random_delay_max_minutes": 10,
+    "catch_up_after_downtime": false,
+    "installed": false,
+    "note": "Templates also copied to private Linux temporary directory with 0644 permissions and verified successfully; no activation"
+  },
+  "secret_scan": {
+    "mode": "staged",
+    "files_scanned": 564,
+    "findings": [],
+    "scope": "Repository pattern scanner; not a guarantee against all possible credential formats"
+  },
+  "boundaries": {
+    "real_business_database_accessed": false,
+    "cloud_server_modified": false,
+    "wechat_review_submitted": false,
+    "public_domain_enabled": false,
+    "secrets_or_backups_in_repository": false,
+    "offsite_copy_and_notifications": "not implemented in this round",
+    "cloud_timer_installation": "pending"
+  }
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily off-hours backup for isolated SaaS staging project %i
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 Asia/Shanghai
+RandomizedDelaySec=10m
+# No catch-up backup unexpectedly pausing the app during daytime startup.
+Persistent=false
+Unit=saas-staging-backup@%i.service
+
+[Install]
+WantedBy=timers.target
