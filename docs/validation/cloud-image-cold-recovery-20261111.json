@@ -1,0 +1,407 @@
+{
+  "result": "PASS",
+  "scope": "Actual cloud virtual backup, actual cloud image, independent initially empty Docker daemon on a different machine",
+  "started_at": "2026-11-11T10:17:17.732360+00:00",
+  "completed_at": "2026-11-11T10:18:23.703352+00:00",
+  "project": "saas-pg-test-cold-20261111-r2",
+  "empty_engine": {
+    "images": [],
+    "containers": [],
+    "volumes": []
+  },
+  "image": {
+    "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+    "config_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+    "runtime_image_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+    "bytes": 889993216,
+    "sha256": "76685470c393089565b6b0b4acc47b81a036ac8da00c4b343d253aeb97c93010"
+  },
+  "historical_admin_sessions_cleared": true,
+  "database_and_files_equal_after_restart": true,
+  "compared_tables": 39,
+  "compared_files": 5,
+  "migration_revision": "0018_member_qualifications",
+  "first_http": {
+    "original_passwords_unchanged": true,
+    "result": "PASS",
+    "checks": [
+      {
+        "check": "health",
+        "status": 200
+      },
+      {
+        "check": "anonymous_catalog_denied",
+        "status": 401
+      },
+      {
+        "check": "anonymous_image_denied",
+        "status": 401
+      },
+      {
+        "check": "anonymous_thumbnail_denied",
+        "status": 401
+      },
+      {
+        "check": "eligible_catalog",
+        "status": 200
+      },
+      {
+        "check": "eligible_detail",
+        "status": 200
+      },
+      {
+        "check": "eligible_image",
+        "status": 200
+      },
+      {
+        "check": "eligible_thumbnail",
+        "status": 200
+      },
+      {
+        "check": "fulfillment_preview",
+        "status": 200
+      },
+      {
+        "check": "checkout",
+        "status": 201
+      },
+      {
+        "check": "idempotent_checkout",
+        "status": 200
+      },
+      {
+        "check": "owner_order",
+        "status": 200
+      },
+      {
+        "check": "other_member_order_denied",
+        "status": 404
+      },
+      {
+        "check": "disabled_catalog_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_image_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_history_retained",
+        "status": 200
+      },
+      {
+        "check": "disabled_checkout_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_rights_submit",
+        "status": 201
+      },
+      {
+        "check": "other_member_rights_denied",
+        "status": 404
+      },
+      {
+        "check": "owner_rights_result",
+        "status": 200
+      },
+      {
+        "check": "expired_catalog_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_image_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_checkout_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_history_retained",
+        "status": 200
+      },
+      {
+        "check": "expired_rights_retained",
+        "status": 200
+      },
+      {
+        "check": "qualification_restored",
+        "status": 200
+      },
+      {
+        "check": "cancel_order",
+        "status": 200
+      },
+      {
+        "check": "admin_login_requires_private_password_change",
+        "status": 302
+      },
+      {
+        "check": "logout_revokes_session",
+        "status": 302
+      }
+    ],
+    "checks_count": 29,
+    "balances_restored": {
+      "points": [
+        [
+          "500.00",
+          "0.00"
+        ],
+        [
+          "500.00",
+          "0.00"
+        ]
+      ],
+      "inventory": [
+        [
+          100,
+          0
+        ],
+        [
+          100,
+          0
+        ]
+      ]
+    },
+    "image_sha256": "c67ca2f1b24e63dc0505d7a0491f79ef1c47da00c3216de577cf8a63074c0cab",
+    "order_id": "ORD-FJTZLEDLXRPYKF3P",
+    "rights_id": "RGT-3a4f9aad92e5468c9e7afb794e87aef5",
+    "real_wechat_called": false,
+    "real_logistics_called": false,
+    "scope": "Actual HTTP in disposable cold recovery from cloud virtual backup; no external network or real provider calls"
+  },
+  "after_restart_http": {
+    "original_passwords_unchanged": true,
+    "result": "PASS",
+    "checks": [
+      {
+        "check": "health",
+        "status": 200
+      },
+      {
+        "check": "anonymous_catalog_denied",
+        "status": 401
+      },
+      {
+        "check": "anonymous_image_denied",
+        "status": 401
+      },
+      {
+        "check": "anonymous_thumbnail_denied",
+        "status": 401
+      },
+      {
+        "check": "eligible_catalog",
+        "status": 200
+      },
+      {
+        "check": "eligible_detail",
+        "status": 200
+      },
+      {
+        "check": "eligible_image",
+        "status": 200
+      },
+      {
+        "check": "eligible_thumbnail",
+        "status": 200
+      },
+      {
+        "check": "fulfillment_preview",
+        "status": 200
+      },
+      {
+        "check": "checkout",
+        "status": 201
+      },
+      {
+        "check": "idempotent_checkout",
+        "status": 200
+      },
+      {
+        "check": "owner_order",
+        "status": 200
+      },
+      {
+        "check": "other_member_order_denied",
+        "status": 404
+      },
+      {
+        "check": "disabled_catalog_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_image_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_history_retained",
+        "status": 200
+      },
+      {
+        "check": "disabled_checkout_denied",
+        "status": 403
+      },
+      {
+        "check": "disabled_rights_submit",
+        "status": 201
+      },
+      {
+        "check": "other_member_rights_denied",
+        "status": 404
+      },
+      {
+        "check": "owner_rights_result",
+        "status": 200
+      },
+      {
+        "check": "expired_catalog_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_image_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_checkout_denied",
+        "status": 403
+      },
+      {
+        "check": "expired_history_retained",
+        "status": 200
+      },
+      {
+        "check": "expired_rights_retained",
+        "status": 200
+      },
+      {
+        "check": "qualification_restored",
+        "status": 200
+      },
+      {
+        "check": "cancel_order",
+        "status": 200
+      },
+      {
+        "check": "admin_login_requires_private_password_change",
+        "status": 302
+      },
+      {
+        "check": "logout_revokes_session",
+        "status": 302
+      }
+    ],
+    "checks_count": 29,
+    "balances_restored": {
+      "points": [
+        [
+          "500.00",
+          "0.00"
+        ],
+        [
+          "500.00",
+          "0.00"
+        ]
+      ],
+      "inventory": [
+        [
+          100,
+          0
+        ],
+        [
+          100,
+          0
+        ]
+      ]
+    },
+    "image_sha256": "c67ca2f1b24e63dc0505d7a0491f79ef1c47da00c3216de577cf8a63074c0cab",
+    "order_id": "ORD-BWPXHFWZ4PNWUPQN",
+    "rights_id": "RGT-9663691c4dc04175bdf4eff47e1b8b68",
+    "real_wechat_called": false,
+    "real_logistics_called": false,
+    "scope": "Actual HTTP in disposable cold recovery from cloud virtual backup; no external network or real provider calls"
+  },
+  "services": {
+    "app": {
+      "healthy": true,
+      "published_ports": false,
+      "image_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2"
+    },
+    "database": {
+      "healthy": true,
+      "published_ports": false,
+      "image_id": "sha256:b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5"
+    },
+    "ocr": {
+      "healthy": true,
+      "published_ports": false,
+      "image_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2"
+    }
+  },
+  "cloud_application_restarted": false,
+  "live_database_written": false,
+  "public_domain_opened": false,
+  "wechat_submitted": false,
+  "external_network_available": false,
+  "baseline_commit": "66882d9",
+  "unit_tests": {
+    "linux": {
+      "run": 69,
+      "passed": 69
+    },
+    "windows": {
+      "run": 69,
+      "passed": 68,
+      "skipped_platform_specific": 1
+    }
+  },
+  "cloud_source": {
+    "backup": {
+      "app_image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+      "completed_at": "2026-11-10T20:01:59.657250+00:00",
+      "source_project": "saas-pg-test-cvm",
+      "file_count": 9
+    },
+    "archive_completed_at": "2026-11-11T09:36:31.720428+00:00"
+  },
+  "live_services_unchanged": {
+    "app": {
+      "id": "12336f4d0d0337f75bb8fc9603d5cc5ca9b767b8b01340fad02319dcbf5a3c18",
+      "started_at": "2026-11-10T20:02:00.23653153Z",
+      "health": "healthy",
+      "published_ports": false
+    },
+    "database": {
+      "id": "4911030c17b7289a190ad71b5253b51811b88eeb97ea963fa73ea05f62db4747",
+      "started_at": "2026-11-09T10:19:00.529398584Z",
+      "health": "healthy",
+      "published_ports": false
+    },
+    "ocr": {
+      "id": "c075d9c4aa105a7be7d12cf57854ee0d6fa80d59418bdc8870e365569ec4bc79",
+      "started_at": "2026-11-09T10:19:00.530972516Z",
+      "health": "healthy",
+      "published_ports": false
+    }
+  },
+  "transfer": {
+    "encrypted_ssh": true,
+    "limit_kib_per_second": 128,
+    "delta_seed_not_trusted": true,
+    "final_bytes_match_cloud_sha256": true
+  },
+  "limitations": [
+    "Independent initially empty Docker daemon in WSL on a different machine, not a newly installed physical host or operating system.",
+    "PostgreSQL base image preloaded offline after empty-engine evidence; application image loaded only from the verified cloud archive.",
+    "Virtual cloud nightly backup only; no production database opened or written.",
+    "No public DNS/HTTPS/WeChat review or provider integration verification.",
+    "No new automatic image scheduler or image retention policy installed; existing backup jobs unchanged.",
+    "Private archive remains unencrypted at rest; always-on offsite storage and independently managed encryption keys remain pending."
+  ],
+  "diagnostics": [
+    "The first isolated restore transaction failed because restrictive rehearsal file permissions prevented PostgreSQL reading its non-secret role initialization SQL. The failed project was stopped and retained; SQL mode was corrected to 0644, then recovery retried in a new empty project.",
+    "Initial cloud export was safely refused because the earlier tool only supported classic Docker-save archives. Added verified single-image OCI support, retained partial archive privately, then re-exported successfully."
+  ]
+}

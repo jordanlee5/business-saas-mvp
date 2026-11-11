@@ -141,7 +141,7 @@ class StagingProject:
             if was_running:
                 self.run("start", "app")
 
-    def restore(self, source):
+    def restore(self, source, image_bundle=None):
         manifest = verify_backup(source)
         if self.run("ps", "-a", "-q").stdout.strip():
             raise ValueError("Restore requires a completely new project.")
@@ -157,8 +157,15 @@ class StagingProject:
         # Restore with the exact application image used for this recovery point.
         image = self.config["services"]["app"]["image"]
         image_id = subprocess.check_output(["docker", "image", "inspect", image, "--format", "{{.Id}}"]).decode().strip()
-        if image_id != manifest["app_image_id"]:
-            raise ValueError("Restore requires the backup's application image.")
+        from tools.staging_image_archive import require_recovery_image
+        require_recovery_image(manifest["app_image_id"], image_id, image_bundle)
+        # OCR must recover the same release; a tag cannot silently select another.
+        ocr_image = self.config["services"].get("ocr", {}).get("image")
+        if ocr_image:
+            ocr_id = subprocess.check_output(["docker", "image", "inspect", ocr_image,
+                                              "--format", "{{.Id}}"]).decode().strip()
+            if ocr_id != image_id:
+                raise ValueError("OCR and application recovery images must match.")
         self.run("up", "-d", "--wait", "--wait-timeout", "120", "database")
         self.identity()
         if self.sql("select count(*) from information_schema.tables where table_schema='public'") != "0":
@@ -196,6 +203,7 @@ def main(argv=None):
     parser.add_argument("action", choices=("secrets", "backup", "restore", "verify"))
     parser.add_argument("directory", type=Path)
     parser.add_argument("--project")
+    parser.add_argument("--image-bundle", type=Path, help="Verified archive proof for OCI/classic ID compatibility")
     args = parser.parse_args(argv)
     try:
         if args.action == "secrets":
@@ -209,7 +217,7 @@ def main(argv=None):
             if args.action == "backup":
                 project.backup(args.directory)
             else:
-                project.restore(args.directory)
+                project.restore(args.directory, args.image_bundle)
         print("Staging " + args.action + " completed.")
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):

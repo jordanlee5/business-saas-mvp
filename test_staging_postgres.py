@@ -63,3 +63,28 @@ class PostgresStagingSafetyTests(unittest.TestCase):
             self.assertNotEqual(initial,(root/"owner-password").read_bytes())
             with self.assertRaises(FileExistsError):staging_pg_backup.prepare_secrets(root)
             self.assertEqual(initial,(root/"app-password").read_bytes())
+
+    def test_restore_image_mismatch_fails_before_start_or_database_write(self):
+        for mismatch in ("app", "ocr"):
+            with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                manifest = self.backup(root)
+                expected = "sha256:" + "a" * 64
+                wrong = "sha256:" + "b" * 64
+                manifest["app_image_id"] = expected
+                (root / "manifest.json").write_text(json.dumps(manifest))
+                project = object.__new__(staging_pg_backup.StagingProject)
+                project.name = "saas-pg-test-new"
+                project.config = {"volumes": {"data": {"name": "saas-pg-test-new_data"}},
+                                  "services": {"app": {"image": expected}, "ocr": {"image": wrong}}}
+                outputs = [b"", (wrong if mismatch == "app" else expected).encode()]
+                if mismatch == "ocr":
+                    outputs.append(wrong.encode())
+                with patch.object(project, "run", return_value=subprocess.CompletedProcess([], 0, b"")) as run, \
+                        patch.object(project, "sql") as sql, \
+                        patch("subprocess.check_output", side_effect=outputs), \
+                        patch("subprocess.run", return_value=subprocess.CompletedProcess([], 1)), \
+                        self.assertRaises(ValueError):
+                    project.restore(root)
+                run.assert_called_once_with("ps", "-a", "-q")
+                sql.assert_not_called()

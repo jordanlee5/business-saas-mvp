@@ -169,5 +169,84 @@ class ImageArchiveTests(unittest.TestCase):
                 images.verify(self.bundle, value)
 
 
+
+class OciArchiveTests(unittest.TestCase):
+    write_bundle = ImageArchiveTests.write_bundle
+    rejected_without_docker = ImageArchiveTests.rejected_without_docker
+    def setUp(self):
+        ImageArchiveTests.setUp(self)
+        self.config_id = self.iid
+        self.write_oci()
+
+    def write_oci(self, root_count=1, compressed=False, wrong_size=False,
+                  corrupt_layer=False, config_mismatch=False, extra=False, tags=None):
+        files = {}
+        def blob(data, media):
+            identity = 'sha256:' + hashlib.sha256(data).hexdigest()
+            files['blobs/' + identity.replace(':', '/')] = data
+            return dict(mediaType=media, digest=identity, size=len(data))
+        layer = blob(self.layer, 'application/vnd.oci.image.layer.v1.tar' + ('.gzip' if compressed else ''))
+        conf = blob(self.config, 'application/vnd.oci.image.config.v1+json')
+        if wrong_size:
+            conf['size'] += 1
+        root = blob(json.dumps(dict(schemaVersion=2, config=conf, layers=[layer])).encode(),
+                    'application/vnd.oci.image.manifest.v1+json')
+        self.iid = root['digest']
+        path = self.backup / 'manifest.json'
+        backup = json.loads(path.read_text())
+        backup['app_image_id'] = self.iid
+        path.write_text(json.dumps(backup))
+        files['oci-layout'] = b'{"imageLayoutVersion":"1.0.0"}'
+        files['index.json'] = json.dumps(dict(schemaVersion=2, manifests=[root] * root_count)).encode()
+        config_path = 'blobs/' + conf['digest'].replace(':', '/')
+        layer_path = 'blobs/' + layer['digest'].replace(':', '/')
+        files['manifest.json'] = json.dumps([dict(Config='wrong' if config_mismatch else config_path,
+                                                 RepoTags=tags, Layers=[layer_path])]).encode()
+        if corrupt_layer:
+            files[layer_path] = b'x' * len(self.layer)
+        if extra:
+            files['blobs/sha256/' + 'e' * 64] = b'unreachable'
+        with tarfile.open(self.bundle / 'image.tar', 'w') as tar:
+            for name, data in files.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+        archive = self.bundle / 'image.tar'
+        (self.bundle / 'manifest.json').write_text(json.dumps(dict(format=1,
+            scope='staging-application-image', image_id=self.iid, config_id='forged',
+            bytes=archive.stat().st_size, sha256=images.digest(archive))))
+
+    def test_oci_configuration_mapping_is_derived_not_trusted(self):
+        self.assertEqual(images.verify(self.bundle, self.iid)['config_id'], self.config_id)
+        images.require_recovery_image(self.iid, self.config_id, self.bundle)
+        with self.assertRaises(ValueError):
+            images.require_recovery_image(self.iid, self.config_id)
+        with self.assertRaises(ValueError):
+            images.require_recovery_image(self.iid, 'sha256:' + 'a'*64, self.bundle)
+
+    def test_oci_classic_engine_load_checks_proven_config_id(self):
+        with patch.object(images, 'docker', side_effect=[b'loaded', RuntimeError('not found'),
+                                                       self.config_id.encode()]) as docker:
+            result = images.load(self.backup, self.bundle)
+        self.assertEqual(result['runtime_image_id'], self.config_id)
+        self.assertEqual(docker.call_args_list[-1].args[2], self.config_id)
+
+    def test_oci_new_engine_keeps_manifest_id(self):
+        with patch.object(images, 'docker', side_effect=[b'loaded', self.iid.encode()]):
+            self.assertEqual(images.load(self.backup, self.bundle)['runtime_image_id'], self.iid)
+
+    def test_oci_unsupported_or_forged_archives_never_loaded(self):
+        for kwargs in ({'root_count':2}, {'compressed':True}, {'wrong_size':True},
+                       {'corrupt_layer':True}, {'config_mismatch':True}, {'extra':True},
+                       {'tags':['existing:keep']}):
+            with self.subTest(kwargs=kwargs):
+                self.write_oci(**kwargs)
+                self.rejected_without_docker()
+
+    def test_oci_wrong_root_never_maps(self):
+        with self.assertRaises(ValueError):
+            images.check_tar(self.bundle / 'image.tar', self.config_id)
+
+
 if __name__ == '__main__':
     unittest.main()

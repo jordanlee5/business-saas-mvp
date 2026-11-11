@@ -1,7 +1,8 @@
 """Private, tag-free application image archive tied to a verified staging backup.
 
 This is an operator-invoked recovery tool, not a scheduled backup or publisher.
-Only classic Docker save archives are accepted. No files are extracted on host.
+Classic and single-image OCI-layout Docker save archives are accepted.
+Only uncompressed layers are supported. No files are extracted on host.
 """
 import argparse
 from datetime import datetime, timezone
@@ -49,6 +50,7 @@ def json_file(path):
 
 def check_tar(path, expected):
     """Check one untagged image, its configuration identity and every layer hash."""
+    image_id(expected)
     with tarfile.open(path, "r:") as archive:
         members = {}
         for member in archive:
@@ -72,11 +74,62 @@ def check_tar(path, expected):
         if not isinstance(manifest, list) or len(manifest) != 1 or not isinstance(manifest[0], dict):
             raise ValueError("Exactly one image required")
         entry = manifest[0]
-        config_name = expected[7:] + ".json"
-        if entry.get("Config") != config_name or entry.get("RepoTags") not in (None, []):
-            raise ValueError("Only the exact untagged image is accepted")
+        if entry.get("RepoTags") not in (None, []):
+            raise ValueError("Only an untagged image is accepted")
+        allowed = {"manifest.json"}
+        oci = "oci-layout" in members
+        descriptors = None
+
+        def descriptor(item):
+            if not isinstance(item, dict):
+                raise ValueError("Invalid blob descriptor")
+            identity = image_id(item.get("digest"))
+            name = "blobs/" + identity.replace(":", "/")
+            member = members.get(name)
+            if (member is None or not member.isfile() or
+                    type(item.get("size")) is not int or item["size"] != member.size):
+                raise ValueError("Missing blob or descriptor size mismatch")
+            checksum = hashlib.sha256()
+            with archive.extractfile(member) as stream:
+                for block in iter(lambda: stream.read(1024**2), b""):
+                    checksum.update(block)
+            if "sha256:" + checksum.hexdigest() != identity:
+                raise ValueError("Blob digest mismatch")
+            allowed.add(name)
+            return name, identity
+
+        if oci:
+            _, layout = read_json("oci-layout")
+            _, index = read_json("index.json")
+            if layout != {"imageLayoutVersion": "1.0.0"} or index.get("schemaVersion") != 2:
+                raise ValueError("Unsupported OCI layout")
+            roots = index.get("manifests")
+            if not isinstance(roots, list) or len(roots) != 1:
+                raise ValueError("Exactly one OCI image required")
+            root_name, root_id = descriptor(roots[0])
+            if root_id != expected or roots[0].get("mediaType") not in (
+                    "application/vnd.docker.distribution.manifest.v2+json",
+                    "application/vnd.oci.image.manifest.v1+json"):
+                raise ValueError("OCI manifest identity mismatch")
+            _, root = read_json(root_name)
+            if root.get("schemaVersion") != 2 or root.get("subject") is not None:
+                raise ValueError("Unsupported OCI manifest")
+            config_descriptor = root.get("config")
+            if not isinstance(config_descriptor, dict) or config_descriptor.get("mediaType") not in (
+                    "application/vnd.docker.container.image.v1+json",
+                    "application/vnd.oci.image.config.v1+json"):
+                raise ValueError("Unsupported OCI configuration")
+            config_name, config_id = descriptor(config_descriptor)
+            descriptors = root.get("layers")
+            if not isinstance(descriptors, list):
+                raise ValueError("Invalid OCI layers")
+            allowed.update(("oci-layout", "index.json", "blobs", "blobs/sha256"))
+        else:
+            config_name, config_id = expected[7:] + ".json", expected
+        if entry.get("Config") != config_name:
+            raise ValueError("Docker and OCI configurations disagree")
         raw, config = read_json(config_name)
-        if "sha256:" + hashlib.sha256(raw).hexdigest() != expected:
+        if "sha256:" + hashlib.sha256(raw).hexdigest() != config_id:
             raise ValueError("Image configuration identity mismatch")
         if not isinstance(config, dict) or not isinstance(config.get("rootfs"), dict):
             raise ValueError("Invalid image rootfs")
@@ -85,13 +138,27 @@ def check_tar(path, expected):
         if (not isinstance(layers, list) or not isinstance(hashes, list) or
                 len(layers) != len(hashes) or len(set(layers)) != len(layers)):
             raise ValueError("Invalid image layers")
-        allowed = {"manifest.json", config_name}
+        allowed.add(config_name)
+        if descriptors is not None:
+            if len(descriptors) != len(layers):
+                raise ValueError("Docker and OCI layers disagree")
+            for name, expected_hash, item in zip(layers, hashes, descriptors):
+                if not isinstance(item, dict) or item.get("mediaType") not in (
+                        "application/vnd.docker.image.rootfs.diff.tar",
+                        "application/vnd.oci.image.layer.v1.tar"):
+                    raise ValueError("Only uncompressed OCI layers are supported")
+                blob_name, blob_id = descriptor(item)
+                if blob_name != name or blob_id != expected_hash:
+                    raise ValueError("Docker/OCI layer or rootfs digest mismatch")
+
         for name, expected_hash in zip(layers, hashes):
-            if not isinstance(name, str) or not re.fullmatch(r"[0-9a-f]{64}/layer\.tar", name):
+            pattern = r"blobs/sha256/[0-9a-f]{64}" if oci else r"[0-9a-f]{64}/layer\.tar"
+            if not isinstance(name, str) or not re.fullmatch(pattern, name):
                 raise ValueError("Unsupported Docker archive layout")
             image_id(expected_hash)
-            parent = name.split("/")[0]
-            allowed.update((parent, parent + "/VERSION", parent + "/json", name))
+            if not oci:
+                parent = name.split("/")[0]
+                allowed.update((parent, parent + "/VERSION", parent + "/json", name))
             member = members.get(name)
             if member is None or not member.isfile():
                 raise ValueError("Missing layer")
@@ -103,6 +170,7 @@ def check_tar(path, expected):
                 raise ValueError("Layer identity mismatch")
         if set(members) - allowed:
             raise ValueError("Unexpected archive contents")
+        return config_id
 
 
 def verify(bundle, expected):
@@ -121,8 +189,9 @@ def verify(bundle, expected):
             not 0 < archive.stat().st_size <= MAX_BYTES or
             manifest.get("bytes") != archive.stat().st_size or manifest.get("sha256") != digest(archive)):
         raise ValueError("Archive digest or identity mismatch")
-    check_tar(archive, expected)
-    return manifest
+    # This mapping is derived from verified archive bytes, never sidecar claims.
+    config_id = check_tar(archive, expected)
+    return {**manifest, "config_id": config_id}
 
 
 def docker(*args):
@@ -160,7 +229,7 @@ def create(backup, destination):
                     completed_at=datetime.now(timezone.utc).isoformat())
     (temporary / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf8")
     os.chmod(temporary / "manifest.json", 0o600)
-    verify(temporary, expected)
+    manifest = verify(temporary, expected)
     # rename refuses a nonempty existing bundle; no existing archive is replaced.
     if destination.exists():
         raise ValueError("Destination appeared during export")
@@ -172,8 +241,25 @@ def load(backup, bundle):
     expected = image_id(verify_backup(Path(backup)).get("app_image_id"))
     manifest = verify(bundle, expected)
     docker("image", "load", "--input", str(Path(bundle) / "image.tar"))
-    inspect(expected)
-    return manifest
+    try:
+        inspect(expected)
+        runtime_id = expected
+    except RuntimeError:
+        # Classic Docker identifies the verified configuration, not the OCI root.
+        if manifest["config_id"] == expected:
+            raise
+        inspect(manifest["config_id"])
+        runtime_id = manifest["config_id"]
+    return {**manifest, "runtime_image_id": runtime_id}
+
+
+def require_recovery_image(expected, actual, bundle=None):
+    """An alternative runtime ID requires a complete cryptographic archive proof."""
+    image_id(expected)
+    image_id(actual)
+    proof = verify(bundle, expected) if bundle is not None else None
+    if actual != expected and (proof is None or actual != proof["config_id"]):
+        raise ValueError("Restore requires the backup's verified application image.")
 
 
 def main(argv=None):
@@ -190,7 +276,8 @@ def main(argv=None):
         else:
             expected = image_id(verify_backup(args.backup).get("app_image_id"))
             result = verify(args.bundle, expected)
-        print(json.dumps(dict(status="ok", action=args.action, image_id=result["image_id"], bytes=result["bytes"])))
+        print(json.dumps(dict(status="ok", action=args.action, image_id=result["image_id"], config_id=result["config_id"],
+                              runtime_image_id=result.get("runtime_image_id"), bytes=result["bytes"])))
         return 0
     except (OSError, ValueError, TypeError, KeyError, AttributeError, tarfile.TarError, RuntimeError, subprocess.SubprocessError):
         print("Image archive refused or failed; keep private files for investigation.", file=sys.stderr)
