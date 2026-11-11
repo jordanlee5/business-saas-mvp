@@ -1,0 +1,52 @@
+{
+  "base_commit": "d5550ff",
+  "date": "2026-11-11",
+  "linux": {
+    "total": 77,
+    "passed": 77
+  },
+  "windows": {
+    "total": 77,
+    "passed": 68,
+    "platform_skips": 9
+  },
+  "virtual_postgresql_rehearsal": {
+    "checks_passed": 9,
+    "first_archive_bytes": 225280,
+    "repeat_archive_bytes": 0,
+    "health": 200,
+    "login": 200,
+    "members": 1,
+    "skus": 2,
+    "points": "170.00",
+    "placement": "ok",
+    "replay": "idempotent",
+    "cancellation": "ok"
+  },
+  "cloud_public_key_roundtrip": {
+    "encrypted_bytes": 235520,
+    "source_preserved": true,
+    "decrypted_manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+    "private_key_uploaded": false
+  },
+  "deployment": {
+    "next_scheduled_backup_encryption_enabled": true,
+    "natural_encrypted_run_verified": false,
+    "windows_task_exit": 0,
+    "watch_service_result": "success",
+    "backup_and_watch_timers": "active",
+    "app_database_ocr_ids_and_start_times_unchanged": true
+  },
+  "failures_retained": [
+    "First retention test used same-second identifiers; separated fixture timestamps and reran successfully.",
+    "First virtual restore exhausted default Docker network pools; preserved stopped projects; new projects with verified separate subnets passed.",
+    "First installer referenced absent current/deploy; stopped before enablement; verified original service directory and installed to new r2 directory."
+  ],
+  "limits": [
+    "No independent offline private-key copy yet; key custody and backups remain on the same management computer.",
+    "Existing recovery points remain plaintext and unchanged.",
+    "First natural encrypted scheduled backup and hourly pull need follow-up on 2026-11-12.",
+    "No live WeCom notification retransmission in this round; synthetic failure/recovery delivery checked.",
+    "No business app redeploy, real business DB write, domain opening, purchase or WeChat submission."
+  ]
+}

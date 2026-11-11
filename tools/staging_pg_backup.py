@@ -35,6 +35,9 @@ def verify_backup(directory):
     if directory.is_symlink():
         raise ValueError("Backup directory cannot be a symlink.")
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf8"))
+    if isinstance(manifest, dict) and manifest.get("format") == 2:
+        from tools.staging_backup_crypto import verify_encrypted
+        return verify_encrypted(directory, manifest)
     if (not isinstance(manifest, dict) or manifest.get("format") != 1 or
             manifest.get("scope") != "dedicated-postgres-staging"):
         raise ValueError("Unknown backup format.")
@@ -143,6 +146,8 @@ class StagingProject:
 
     def restore(self, source, image_bundle=None):
         manifest = verify_backup(source)
+        if manifest["format"] != 1:
+            raise ValueError("Decrypt and authenticate into a new private directory before restore.")
         if self.run("ps", "-a", "-q").stdout.strip():
             raise ValueError("Restore requires a completely new project.")
         existing = subprocess.check_output(["docker", "volume", "ls", "-q",

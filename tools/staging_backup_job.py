@@ -115,19 +115,29 @@ def run_job(project_name, root, *, min_free_gib=5, health_wait=120):
             if shutil.disk_usage(root).free < min_free_gib * 1024**3:
                 stage = "disk_low"
                 raise RuntimeError("Insufficient free space")
+            recipient = os.environ.get("STAGING_BACKUP_PUBLIC_KEY")
+            if recipient:
+                from tools.staging_backup_crypto import public_key, encrypt
+                public_key(Path(recipient))  # Fail before any application stop.
             project = StagingProject(project_name)
             # A scheduled job must not unexpectedly start a deliberately stopped app.
             if any(service_check(project_name, s) != "ok" for s in ("app", "database")):
                 raise RuntimeError("Services must be healthy before backup")
             stage = "backup_failed"
             destination = backups / run_id
-            project.backup(destination)
+            plain = root / (".plaintext-" + run_id) if recipient else destination
+            project.backup(plain)
             stage = "backup_invalid"
-            manifest = verify_backup(destination)
+            manifest = verify_backup(plain)
             if manifest.get("source_project") != project_name:
                 raise ValueError("Wrong backup project")
             stage = "service_recovery_failed"
             wait_healthy(project_name, health_wait)
+            if recipient:
+                stage = "backup_encryption_failed"
+                encrypt(plain, destination, Path(recipient))
+                # Only this run's new scratch point, after verified encryption.
+                shutil.rmtree(plain)
             report.update(status="ok", code="backup_verified", completed_at=stamp(),
                           backup="backups/" + run_id)
             # Failure at any earlier step preserves the previous recovery point.

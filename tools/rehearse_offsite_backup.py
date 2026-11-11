@@ -54,10 +54,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', required=True)
     parser.add_argument('--archive-image', action='store_true', help='Also archive/verify/load the exact application image before restore')
+    parser.add_argument('--encrypt', action='store_true')
     args = parser.parse_args()
     if os.environ.get('DATABASE_URL'):
         raise SystemExit('External database configuration refused')
     root = Path(tempfile.mkdtemp(prefix='saas-offsite-rehearsal-'))
+    if args.encrypt:
+        from tools.staging_backup_crypto import keygen, decrypt
+        keygen(root / 'key-custody')
+        os.environ['STAGING_BACKUP_PUBLIC_KEY'] = str(root / 'key-custody/recovery-public.pem')
     prepare_secrets(root / 'secrets')
     os.environ['STAGING_SECRET_DIR'] = str(root / 'secrets')
     os.environ['STAGING_APP_IMAGE'] = args.image
@@ -117,7 +122,12 @@ def main():
             os.environ['STAGING_APP_IMAGE'] = image_archive['image_id']
             restored = StagingProject(restored.name)
             checks.append('restore_compose_uses_immutable_archived_image_identity')
-        restored.restore(root / 'second-machine' / received['backup'])
+        restore_source = root / 'second-machine' / received['backup']
+        if args.encrypt:
+            decrypt(restore_source, root / 'decrypted', root / 'key-custody/recovery-private.pem')
+            restore_source = root / 'decrypted'
+            checks.append('encrypted_point_authenticated_and_decrypted_with_separate_private_key')
+        restored.restore(restore_source)
         actual = json.loads(restored.run('exec', '-T', 'app', 'python', '-', input=CHECK.encode()).stdout)
         assert actual == before
         checks.append('received_copy_restores_members_skus_points_files_health_login')
