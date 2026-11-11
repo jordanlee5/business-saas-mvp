@@ -1,0 +1,118 @@
+{
+  "format": 1,
+  "date": "2026-11-11",
+  "baseline": "05c03e11f8b2f772a0aee7d13b211d18f332da4f",
+  "status": "passed",
+  "work": "Verified offsite recovery point reuse for low-bandwidth staging",
+  "automated_tests": {
+    "command": "python -m unittest test_staging_offsite_backup test_staging_backup_job test_staging_backup_watch -q",
+    "windows": {
+      "run": 40,
+      "passed": 39,
+      "skipped": 1
+    },
+    "linux": {
+      "run": 40,
+      "passed": 40,
+      "skipped": 0
+    }
+  },
+  "rehearsal": {
+    "format": 1,
+    "completed_at": "2026-11-11T09:04:27.755177+00:00",
+    "status": "passed",
+    "checks": [
+      "real_postgresql_dump_and_files_created_from_virtual_data",
+      "subprocess_pull_downloads_new_point_and_reuses_verified_copy_without_archive_transfer",
+      "received_archive_inventory_and_hashes_verified",
+      "source_acknowledges_verified_second_copy",
+      "received_copy_restores_members_skus_points_files_health_login",
+      "restored_database_supports_exchange_idempotency_cancel_points_stock",
+      "original_virtual_source_unchanged_by_restore",
+      "virtual_stale_receipt_failure_deduplication_and_recovery_notifications"
+    ],
+    "restored": {
+      "members": 1,
+      "skus": 2,
+      "available_points": "170.00",
+      "file_marker": "ok",
+      "health": 200,
+      "login": 200
+    },
+    "business": {
+      "placement": "ok",
+      "replay": "idempotent",
+      "cancellation": "ok",
+      "points": "170.00",
+      "stock_restored": true
+    },
+    "transfer": {
+      "first_archive_bytes": 215040,
+      "repeated_archive_bytes": 0
+    },
+    "scope": "New local Docker projects and synthetic data only; notification delivery captured; live cloud copy verified separately."
+  },
+  "regression_cases": [
+    "new_point_downloaded",
+    "existing_point_rehashed_without_archive_transfer",
+    "next_point_downloaded",
+    "damaged_local_point_preserved_without_receipt",
+    "missing_local_file_not_accepted",
+    "damaged_source_not_exported",
+    "invalid_descriptor_rejected",
+    "point_created_between_probe_and_export_verified",
+    "acknowledgement_failure_retry_without_redownload",
+    "probe_obeys_backup_lock",
+    "stale_source_remains_stale_after_reuse"
+  ],
+  "installed_task": {
+    "name": "SaaS-Staging-Offsite-Backup",
+    "trigger": "manual check of installed task after atomic tool update",
+    "last_run_at": "2026-11-11T17:01:52+08:00",
+    "exit_code": 0,
+    "next_scheduled_at": "2026-11-11T17:42:37+08:00",
+    "status": "ok",
+    "transfer_mode": "reused_verified",
+    "archive_bytes": 0,
+    "local_removed": [],
+    "remote_removed": []
+  },
+  "cloud_verification": {
+    "checked_at": "2026-11-11T09:02:09.428467+00:00",
+    "application_container_id_unchanged": true,
+    "application_started_at_unchanged": true,
+    "application_healthy": true,
+    "published_ports": {},
+    "nightly_backup_timer": "active",
+    "backup_watch_timer": "active",
+    "checks": {
+      "last_job": "ok",
+      "recovery_point": "ok",
+      "scheduler": "ok",
+      "app": "ok",
+      "database": "ok",
+      "ocr": "ok",
+      "disk": "ok",
+      "offsite_backup": "ok"
+    },
+    "notification": "not_needed",
+    "original_application_not_stopped_or_restarted": true
+  },
+  "scope": {
+    "real_business_database_accessed": false,
+    "public_domain_opened": false,
+    "wechat_review_submitted": false,
+    "credentials_or_backup_archives_committed": false,
+    "actual_cloud_copy_restored": false,
+    "restore_data": "Only isolated local PostgreSQL projects with virtual members, SKUs, points and files",
+    "real_cloud_action": "Verify existing backup and local copy, acknowledge it; no manual nightly backup",
+    "notification_tests": "Captured virtual notifications; no new live group message"
+  },
+  "limitations": [
+    "Control traffic and full file hashing still occur on reuse.",
+    "New recovery points still require full archive download within existing size and time limits.",
+    "Windows PC must be online with the installing user logged in; latest point caught up after return.",
+    "Local verification failures are recorded locally; cloud receipt freshness alarm remains 36 hours.",
+    "Precise cloud image archival and actual cloud-copy restoration on another host remain pending."
+  ]
+}

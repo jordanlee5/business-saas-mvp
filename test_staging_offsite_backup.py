@@ -132,5 +132,135 @@ class OffsiteTests(unittest.TestCase):
         self.assertFalse((self.local / '.transfer.tar').exists())
 
 
+    def mock_pull(self, on_describe=None, fail_ack=False):
+        config = self.base / 'config.json'
+        write_json(config, dict(project=PROJECT, local_root=str(self.local), ssh='virtual-ssh',
+                   key='private-key', known_hosts='hosts', host='virtual-host', remote_code='/code', remote_root='/backup'))
+        calls = []
+
+        def command(args, **kwargs):
+            import shlex
+            tokens = shlex.split(args[-1])
+            if 'describe' in tokens:
+                calls.append('describe')
+                result = off.describe_latest(self.root, PROJECT)
+                if on_describe:
+                    result = on_describe(result)
+            elif 'ack' in tokens:
+                calls.append('ack')
+                if fail_ack:
+                    return subprocess.CompletedProcess(args, 1, b'', b'private-error')
+                result = off.acknowledge(self.root, PROJECT, tokens[tokens.index('--run-id') + 1],
+                                         tokens[tokens.index('--digest') + 1])
+            else:
+                raise AssertionError('Unexpected command')
+            return subprocess.CompletedProcess(args, 0, json.dumps(result).encode(), b'')
+
+        def exporting(args, **kwargs):
+            from unittest.mock import Mock
+            calls.append('export')
+            stream = io.BytesIO()
+            off.export_latest(self.root, PROJECT, stream)
+            stream.seek(0)
+            return Mock(stdout=stream, wait=Mock(return_value=0), poll=Mock(return_value=0))
+
+        with patch.object(off.subprocess, 'run', side_effect=command), patch.object(off.subprocess, 'Popen', side_effect=exporting):
+            result = off.pull(config)
+        return result, calls
+
+    def test_pull_new_then_reuse_then_new_point(self):
+        first = self.seed(1)
+        result, calls = self.mock_pull()
+        self.assertEqual(calls, ['describe', 'export', 'ack'])
+        self.assertEqual(result['transfer_mode'], 'downloaded')
+        self.assertGreater(result['archive_bytes'], 0)
+        result, calls = self.mock_pull()
+        self.assertEqual(calls, ['describe', 'ack'])
+        self.assertEqual((result['transfer_mode'], result['archive_bytes']), ('reused_verified', 0))
+        second = self.seed(2)
+        result, calls = self.mock_pull()
+        self.assertEqual(calls, ['describe', 'export', 'ack'])
+        self.assertEqual(result['run_id'], second)
+        self.assertTrue((self.local / 'backups' / first).exists())
+
+    def test_reuse_corrupt_local_fails_without_ack_or_deletion(self):
+        rid = self.seed(1)
+        self.mock_pull()
+        receipt = (self.root / 'last-offsite.json').read_bytes()
+        last_good = (self.local / 'last-success.json').read_bytes()
+        damaged = self.local / 'backups' / rid / 'database.dump'
+        damaged.write_bytes(b'corrupt-local')
+        result, calls = self.mock_pull()
+        self.assertEqual(calls, ['describe'])
+        self.assertEqual((result['status'], result['code']), ('alert', 'local_verification_failed'))
+        self.assertEqual((self.root / 'last-offsite.json').read_bytes(), receipt)
+        self.assertEqual((self.local / 'last-success.json').read_bytes(), last_good)
+        self.assertEqual(damaged.read_bytes(), b'corrupt-local')
+
+    def test_reuse_missing_local_file_is_not_treated_as_complete(self):
+        rid = self.seed(1)
+        self.mock_pull()
+        (self.local / 'backups' / rid / 'data/session.key').unlink()
+        result, calls = self.mock_pull()
+        self.assertEqual(result['status'], 'alert')
+        self.assertNotIn('ack', calls)
+
+    def test_remote_corruption_fails_before_export_or_ack(self):
+        rid = self.seed(1)
+        self.mock_pull()
+        (self.root / 'backups' / rid / 'database.dump').write_bytes(b'corrupt-remote')
+        result, calls = self.mock_pull()
+        self.assertEqual((result['status'], result['code']), ('alert', 'probe_failed'))
+        self.assertEqual(calls, ['describe'])
+
+    def test_invalid_descriptors_cannot_skip_transfer(self):
+        self.seed(1)
+        self.mock_pull()
+        for field, value in [('project', 'wrong'), ('run_id', '../escape'), ('manifest_sha256', '0'*64), ('status', 'alert')]:
+            with self.subTest(field=field):
+                result, calls = self.mock_pull(lambda d: {**d, field: value})
+                self.assertEqual(result['status'], 'alert')
+                self.assertEqual(calls, ['describe'])
+
+    def test_new_backup_between_probe_and_export_is_verified(self):
+        self.seed(1)
+        def new_point(descriptor):
+            self.seed(2)
+            return descriptor
+        result, calls = self.mock_pull(new_point)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['run_id'], off.latest(self.root, PROJECT)[0])
+        self.assertEqual(calls, ['describe', 'export', 'ack'])
+
+    def test_reuse_ack_failure_retries_without_download(self):
+        self.seed(1)
+        self.mock_pull()
+        original = (self.local / 'last-success.json').read_bytes()
+        result, calls = self.mock_pull(fail_ack=True)
+        self.assertEqual((result['status'], result['code']), ('alert', 'acknowledgement_failed'))
+        self.assertEqual((self.local / 'last-success.json').read_bytes(), original)
+        result, calls = self.mock_pull()
+        self.assertEqual(result['status'], 'ok')
+        self.assertNotIn('export', calls)
+
+    def test_describe_obeys_backup_lock(self):
+        self.seed(1)
+        with exclusive_lock(self.root / '.backup.lock'):
+            with self.assertRaises(BusyError):
+                off.describe_latest(self.root, PROJECT)
+
+    def test_repeated_reuse_does_not_hide_stale_source(self):
+        rid = self.seed(1)
+        manifest_path = self.root / 'backups' / rid / 'manifest.json'
+        manifest = off.read_json(manifest_path)
+        manifest['completed_at'] = (datetime.now(timezone.utc) - timedelta(hours=37)).isoformat()
+        write_json(manifest_path, manifest)
+        self.mock_pull()
+        result, calls = self.mock_pull()
+        self.assertEqual(result['status'], 'ok')
+        self.assertNotIn('export', calls)
+        self.assertEqual(off.offsite_check(self.root, PROJECT), 'offsite_stale')
+
+
 if __name__ == '__main__':
     unittest.main()

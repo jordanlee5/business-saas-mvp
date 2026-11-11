@@ -69,6 +69,42 @@ def latest(root, project):
     return run_id, point(root, run_id, project)
 
 
+def describe_latest(root, project):
+    """Small authenticated probe; verify source bytes under the normal backup lock."""
+    root = owned_root(root, project)
+    with exclusive_lock(root / ".backup.lock"):
+        run_id, path = latest(root, project)
+        return dict(format=1, project=project, status="ok", run_id=run_id,
+                    manifest_sha256=digest(path / "manifest.json"))
+
+
+def reusable_copy(root, project, descriptor):
+    """A filename or old receipt is not proof: rehash every local file before reuse.
+
+    Missing points are downloaded. Damaged/conflicting points fail closed and remain
+    available for investigation; never erase or overwrite a suspected damaged copy.
+    """
+    if (not isinstance(descriptor, dict) or descriptor.get("format") != 1
+            or descriptor.get("project") != project or descriptor.get("status") != "ok"
+            or not isinstance(descriptor.get("run_id"), str)
+            or not RUN.fullmatch(descriptor["run_id"])
+            or not isinstance(descriptor.get("manifest_sha256"), str)
+            or not re.fullmatch(r"[a-f0-9]{64}", descriptor["manifest_sha256"])):
+        raise ValueError("Invalid remote descriptor")
+    run_id = descriptor["run_id"]
+    path = root / "backups" / run_id
+    if is_link(path) or is_link(path.parent):
+        raise ValueError("Links refused")
+    if not path.exists():
+        return None
+    path = point(root, run_id, project)
+    if digest(path / "manifest.json") != descriptor["manifest_sha256"]:
+        raise ValueError("Conflicting recovery point")
+    return dict(format=1, project=project, status="ok", run_id=run_id,
+                backup="backups/" + run_id, manifest_sha256=descriptor["manifest_sha256"],
+                completed_at=stamp())
+
+
 def export_latest(root, project, stream):
     root = owned_root(root, project)
     # Same lock as nightly backup and retention: never copy a point being changed.
@@ -224,31 +260,43 @@ def pull(config_path):
             limit = config.get("max_bytes", 20 * 1024**3)
             if not isinstance(limit, int) or not 1024**2 <= limit <= 100 * 1024**3:
                 raise ValueError("Invalid size limit")
-            with temporary.open("wb") as output:
-                os.chmod(temporary, 0o600)
-                process = subprocess.Popen(ssh + [remote + "export" + common], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-                deadline = threading.Timer(900, process.kill)
-                deadline.daemon = True
-                deadline.start()
-                try:
-                    transferred = 0
-                    while True:
-                        data = process.stdout.read(1024**2)
-                        if not data:
-                            break
-                        transferred += len(data)
-                        if transferred > limit or shutil.disk_usage(root).free < len(data) + 1024**3:
-                            raise ValueError("Transfer exceeds limit")
-                        output.write(data)
-                    if process.wait(timeout=30) != 0:
-                        raise RuntimeError("Remote export failed")
-                finally:
-                    deadline.cancel()
-                    if process.poll() is None:
-                        process.kill()
-                    process.wait()
-                    process.stdout.close()
-            received = receive(temporary, root, project, limit)
+            report["code"] = "probe_failed"
+            response = subprocess.run(ssh + [remote + "describe" + common],
+                                      capture_output=True, timeout=300)
+            if response.returncode != 0 or len(response.stdout) > 8192:
+                raise RuntimeError("Remote probe failed")
+            descriptor = json.loads(response.stdout)
+            report["code"] = "local_verification_failed"
+            received = reusable_copy(root, project, descriptor)
+            transferred = 0
+            mode = "reused_verified" if received else "downloaded"
+            if received is None:
+                report["code"] = "transfer_failed"
+                with temporary.open("wb") as output:
+                    os.chmod(temporary, 0o600)
+                    process = subprocess.Popen(ssh + [remote + "export" + common], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                    deadline = threading.Timer(900, process.kill)
+                    deadline.daemon = True
+                    deadline.start()
+                    try:
+                        transferred = 0
+                        while True:
+                            data = process.stdout.read(1024**2)
+                            if not data:
+                                break
+                            transferred += len(data)
+                            if transferred > limit or shutil.disk_usage(root).free < len(data) + 1024**3:
+                                raise ValueError("Transfer exceeds limit")
+                            output.write(data)
+                        if process.wait(timeout=30) != 0:
+                            raise RuntimeError("Remote export failed")
+                    finally:
+                        deadline.cancel()
+                        if process.poll() is None:
+                            process.kill()
+                        process.wait()
+                        process.stdout.close()
+                received = receive(temporary, root, project, limit)
             report["code"] = "acknowledgement_failed"
             response = subprocess.run(ssh + [remote + "ack" + common + " --run-id " + received["run_id"]
                                       + " --digest " + received["manifest_sha256"] + " --keep 7"],
@@ -258,10 +306,13 @@ def pull(config_path):
             ack = json.loads(response.stdout)
             if ack.get("status") != "ok" or ack.get("run_id") != received["run_id"]:
                 raise ValueError("Invalid acknowledgement")
+            # Refresh the reused-copy pointer after acknowledgement; new downloads were published by receive.
+            write_json(root / "last-success.json", received)
             report["code"] = "retention_failed"
             removed = prune(root, project, config.get("keep", 14), False)
             report = dict(project=project, status="ok", code="offsite_verified", run_id=received["run_id"],
-                          completed_at=stamp(), local_removed=removed, remote_removed=ack["removed"])
+                          completed_at=stamp(), local_removed=removed, remote_removed=ack["removed"],
+                          transfer_mode=mode, archive_bytes=transferred)
         except Exception:
             # Never log command output, keys, addresses, or raw exceptions.
             pass
@@ -274,7 +325,7 @@ def pull(config_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["export", "ack", "pull"])
+    parser.add_argument("action", choices=["describe", "export", "ack", "pull"])
     parser.add_argument("--root", type=Path)
     parser.add_argument("--project")
     parser.add_argument("--run-id")
@@ -286,7 +337,9 @@ def main():
         if args.action == "export":
             export_latest(args.root, args.project, sys.stdout.buffer)
             return 0
-        if args.action == "ack":
+        if args.action == "describe":
+            result = describe_latest(args.root, args.project)
+        elif args.action == "ack":
             result = acknowledge(args.root, args.project, args.run_id, args.digest, args.keep)
         else:
             result = pull(args.config)

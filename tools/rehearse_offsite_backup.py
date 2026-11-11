@@ -5,12 +5,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import uuid
 
 from tools.staging_pg_backup import ROOT, StagingProject, prepare_secrets
 from tools.staging_backup_job import run_job
-from tools.staging_offsite_backup import export_latest, receive, acknowledge, offsite_check
+from tools.staging_offsite_backup import pull, acknowledge, offsite_check
 from tools.staging_backup_watch import record_and_notify
 from tools.rehearse_scheduled_backup import SEED, CHECK
 
@@ -78,10 +79,28 @@ def main():
         code, backup = run_job(source.name, scheduled)
         assert code == 0
         checks.append('real_postgresql_dump_and_files_created_from_virtual_data')
-        archive = root / 'transfer.tar'
-        with archive.open('wb') as stream:
-            export_latest(scheduled, source.name, stream)
-        received = receive(archive, root / 'second-machine', source.name)
+        # Real subprocess transport, isolated locally: no SSH credentials/network.
+        # The same pull protocol is used; this stub invokes only the offsite CLI.
+        transport = root / 'virtual-ssh'
+        transport.write_text('#!' + sys.executable + '\n' +
+            'import shlex, subprocess, sys\n' +
+            'args = shlex.split(sys.argv[-1])\n' +
+            'i = args.index("-m")\n' +
+            'assert args[i+1] == "tools.staging_offsite_backup"\n' +
+            'assert args[i+2] in ("describe", "export", "ack")\n' +
+            'raise SystemExit(subprocess.call([sys.executable] + args[i:], cwd=' + repr(str(ROOT)) + '))\n')
+        transport.chmod(0o700)
+        config = root / 'virtual-pull.json'
+        config.write_text(json.dumps(dict(project=source.name, local_root=str(root / 'second-machine'),
+            ssh=str(transport), key='synthetic-unused', known_hosts='synthetic-unused',
+            host='local-virtual-transport', remote_code=str(ROOT), remote_root=str(scheduled))))
+        first = pull(config)
+        assert first['status'] == 'ok' and first['transfer_mode'] == 'downloaded' and first['archive_bytes'] > 0
+        repeated = pull(config)
+        assert repeated['status'] == 'ok' and repeated['transfer_mode'] == 'reused_verified' and repeated['archive_bytes'] == 0
+        assert repeated['run_id'] == first['run_id']
+        checks.append('subprocess_pull_downloads_new_point_and_reuses_verified_copy_without_archive_transfer')
+        received = json.loads((root / 'second-machine/last-success.json').read_text())
         assert received['run_id'] == backup['run_id']
         checks.append('received_archive_inventory_and_hashes_verified')
         assert acknowledge(scheduled, source.name, received['run_id'], received['manifest_sha256'])['status'] == 'ok'
@@ -113,6 +132,7 @@ def main():
         checks.append('virtual_stale_receipt_failure_deduplication_and_recovery_notifications')
         report = dict(format=1, completed_at=datetime.now(timezone.utc).isoformat(), status='passed',
                       checks=checks, restored=actual, business=business,
+                      transfer=dict(first_archive_bytes=first['archive_bytes'], repeated_archive_bytes=repeated['archive_bytes']),
                       scope='New local Docker projects and synthetic data only; notification delivery captured; live cloud copy verified separately.')
         (root / 'evidence.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report, indent=2), flush=True)
