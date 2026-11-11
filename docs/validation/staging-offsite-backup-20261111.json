@@ -1,0 +1,99 @@
+{
+  "format": 1,
+  "date": "2026-11-11",
+  "baseline": "1802c08346df1e427540ffd98ff986fa26560178",
+  "scope": "Staging synthetic data only. No live business database writes, public domain opening or WeChat submission.",
+  "tests": {
+    "command": "python -m unittest test_staging_offsite_backup test_staging_backup_job test_staging_backup_watch -q",
+    "windows": {
+      "run": 31,
+      "status": "passed",
+      "skipped": 1
+    },
+    "wsl_linux": {
+      "run": 31,
+      "status": "passed",
+      "skipped": 0
+    },
+    "powershell_installer_parse": "passed"
+  },
+  "windows_task": {
+    "name": "SaaS-Staging-Offsite-Backup",
+    "mode": "interactive_current_user",
+    "triggers": [
+      "hourly",
+      "user_logon"
+    ],
+    "start_when_available": true,
+    "manual_first_run_cst": "2026-11-11 16:37:37",
+    "natural_trigger_cst": "2026-11-11 16:42:37",
+    "last_task_result": 0,
+    "verified_at_utc": "2026-11-11T08:42:40.050538+00:00",
+    "code": "offsite_verified",
+    "local_keep": 14,
+    "server_acknowledged_keep": 7,
+    "private_acl": "current_user_SYSTEM_Administrators_only"
+  },
+  "cloud": {
+    "project": "saas-pg-test-cvm",
+    "copied_run_id": "20261110T200158Z-c67a40d9c11b459fac41068f54a58f4d",
+    "source_nightly_completed_cst": "2026-11-11 04:02:06",
+    "copy_validation": "full_manifest_inventory_hashes_and_source_ack_passed",
+    "watch_at_utc": "2026-11-11T08:41:59.207668+00:00",
+    "watch_checks": {
+      "last_job": "ok",
+      "recovery_point": "ok",
+      "scheduler": "ok",
+      "app": "ok",
+      "database": "ok",
+      "ocr": "ok",
+      "disk": "ok",
+      "offsite_backup": "ok"
+    },
+    "watch_service_result": "success",
+    "watch_exit_status": 0,
+    "both_timers_enabled": true,
+    "app_id_before_and_after": "12336f4d0d0337f75bb8fc9603d5cc5ca9b767b8b01340fad02319dcbf5a3c18",
+    "app_started_before_and_after_utc": "2026-11-10T20:02:00.23653153Z",
+    "app_health": "healthy",
+    "app_port_bindings": {},
+    "new_real_fault_messages_sent": 0
+  },
+  "restore_rehearsal": {
+    "completed_at_utc": "2026-11-11T08:43:07.314404+00:00",
+    "status": "passed",
+    "scope": "Two new local Docker PostgreSQL projects with virtual data; received copy restored into new target.",
+    "checks": [
+      "real_postgresql_dump_and_files_created_from_virtual_data",
+      "received_archive_inventory_and_hashes_verified",
+      "source_acknowledges_verified_second_copy",
+      "received_copy_restores_members_skus_points_files_health_login",
+      "restored_database_supports_exchange_idempotency_cancel_points_stock",
+      "original_virtual_source_unchanged_by_restore",
+      "virtual_stale_receipt_failure_deduplication_and_recovery_notifications"
+    ],
+    "restored": {
+      "members": 1,
+      "skus": 2,
+      "available_points": "170.00",
+      "file_marker": "ok",
+      "health": 200,
+      "login": 200
+    },
+    "business": {
+      "placement": "ok",
+      "replay": "idempotent",
+      "cancellation": "ok",
+      "points": "170.00",
+      "stock_restored": true
+    },
+    "notification_transport": "captured_sender_with_virtual_clock_not_real_group_messages"
+  },
+  "limits": [
+    "Actual cloud copy verified but not restored locally because exact application image IDs differ.",
+    "PC must be online with installing user signed in; catch-up takes latest point only.",
+    "Unacknowledged or invalid server points are never automatically pruned; retention is not a disk cap.",
+    "20 GiB default transfer limit and 15 minute transfer deadline; repeated hourly full transfer of latest point.",
+    "No external monitoring of whole-server outage; exact image archive and separate private configuration still required."
+  ]
+}

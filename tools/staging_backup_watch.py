@@ -199,9 +199,18 @@ def main(argv=None):
     parser.add_argument("--state-root", type=Path, required=True)
     parser.add_argument("--first-backup-deadline", default=os.environ.get("STAGING_BACKUP_FIRST_DEADLINE"))
     parser.add_argument("--webhook-file", type=Path)
+    parser.add_argument("--require-offsite", action="store_true",
+                        default=os.environ.get("STAGING_REQUIRE_OFFSITE") == "1")
     args = parser.parse_args(argv)
     try:
         report = inspect_backup(args.project, args.root, first_deadline=args.first_backup_deadline)
+        if args.require_offsite:
+            from tools.staging_offsite_backup import offsite_check
+            result = offsite_check(args.root, args.project)
+            report["checks"].append(dict(check="offsite_backup", code=result,
+                                         status="ok" if result == "ok" else "alert"))
+            if result != "ok":
+                report["status"] = "alert"
         report = record_and_notify(report, args.state_root, args.webhook_file)
         code = 1 if report["status"] == "alert" or report["notification"] not in ("delivered", "not_needed") else 0
     except BusyError:
