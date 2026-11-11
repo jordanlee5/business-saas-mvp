@@ -53,6 +53,7 @@ print(json.dumps(dict(placement='ok', replay='idempotent', cancellation='ok', po
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', required=True)
+    parser.add_argument('--archive-image', action='store_true', help='Also archive/verify/load the exact application image before restore')
     args = parser.parse_args()
     if os.environ.get('DATABASE_URL'):
         raise SystemExit('External database configuration refused')
@@ -105,6 +106,17 @@ def main():
         checks.append('received_archive_inventory_and_hashes_verified')
         assert acknowledge(scheduled, source.name, received['run_id'], received['manifest_sha256'])['status'] == 'ok'
         checks.append('source_acknowledges_verified_second_copy')
+        image_archive = None
+        if args.archive_image:
+            from tools.staging_image_archive import create, load
+            copied_backup = root / 'second-machine' / received['backup']
+            bundle = root / 'application-image'
+            image_archive = create(copied_backup, bundle)
+            assert load(copied_backup, bundle) == image_archive
+            checks.append('exact_untagged_application_image_archived_verified_and_loaded')
+            os.environ['STAGING_APP_IMAGE'] = image_archive['image_id']
+            restored = StagingProject(restored.name)
+            checks.append('restore_compose_uses_immutable_archived_image_identity')
         restored.restore(root / 'second-machine' / received['backup'])
         actual = json.loads(restored.run('exec', '-T', 'app', 'python', '-', input=CHECK.encode()).stdout)
         assert actual == before
@@ -133,7 +145,8 @@ def main():
         report = dict(format=1, completed_at=datetime.now(timezone.utc).isoformat(), status='passed',
                       checks=checks, restored=actual, business=business,
                       transfer=dict(first_archive_bytes=first['archive_bytes'], repeated_archive_bytes=repeated['archive_bytes']),
-                      scope='New local Docker projects and synthetic data only; notification delivery captured; live cloud copy verified separately.')
+                      application_image_archive=image_archive,
+                      scope='New local Docker projects and synthetic data only; notification delivery captured; existing local image cache; no cloud restore or deployment in this run.')
         (root / 'evidence.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report, indent=2), flush=True)
         print('Private evidence: ' + str(root / 'evidence.json'), flush=True)

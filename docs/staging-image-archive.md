@@ -1,0 +1,42 @@
+# 恢复点对应的应用镜像归档
+
+本轮从 `f617b95` 接续，为异机恢复补齐应用镜像的归档、校验与加载工具。数据库和图片有备份，还需要与该恢复点匹配的应用版本；同名镜像标签可能指向不同内容，不能用“标签相同”代替版本校验。
+
+## 使用边界
+
+- 只对已完整校验的测试备份操作，读取其中的 `app_image_id`，按精确内容 ID 导出。不会构建新版本、修改已有镜像标签、自动部署或重启应用。
+- 归档只含一个无标签应用镜像。校验外层大小和 SHA-256、配置内容 ID、每层内容 SHA-256；拒绝多镜像、标签、路径越界、链接和多余文件。不在宿主机解压归档。
+- 目前支持经典 `docker image save` 的未压缩 tar 格式。其他格式（包括不同 Docker 存储后端可能产生的 OCI 布局）拒绝处理，不能跳过检查直接加载。
+- 输出目录必须在仓库外且路径不经过符号链接/Windows 重解析点。Linux 目录 700、文件 600；Windows 使用者还须通过目录 ACL 限制其他用户读取。镜像可能含构建时配置或历史层，视为私密材料，绝不提交 GitHub。
+- 校验用于发现损坏和版本错配，不是来源签名或加密。只使用可信来源的备份及镜像；备份清单本身也须受保护。
+- 上限 20 GiB，导出前检查磁盘余量（镜像大小的两倍加 1 GiB），Docker 操作限时 15 分钟。导出完成后再次检查实际大小；并非运行中磁盘配额。失败保留 `.partial-*`，不当作成功归档，不覆盖已有目录。
+
+## 操作顺序
+
+在有目标应用镜像的 Docker 主机上运行（仓库只提供工具，备份和归档在私密目录）：
+
+```sh
+python3 -m tools.staging_image_archive create --backup /private/recovery-point --bundle /private/application-image
+python3 -m tools.staging_image_archive verify --backup /private/recovery-point --bundle /private/application-image
+```
+
+归档完成后，应将整个 `application-image` 目录通过已有受保护传输渠道复制到恢复主机。以下命令先重新校验，再导入 Docker 并核对导入后的内容 ID：
+
+```sh
+python3 -m tools.staging_image_archive load --backup /private/recovery-point --bundle /private/application-image
+```
+
+输出仅含结果、操作、镜像 ID 和大小。恢复时将 `STAGING_APP_IMAGE` 设置为上述验证成功的完整 `sha256:...` 内容 ID，再使用现有 `tools.staging_pg_backup restore` 流程；必须是全新 `saas-pg-test-*` 项目、独立数据卷和私密凭据。不要把恢复目标指向现有验收项目。该流程会废止备份中的历史后台登录会话。
+
+应用与 OCR 共用这个镜像；PostgreSQL、HTTPS 网关镜像及私密配置须另行准备。本工具不是整机备份。所有引用此镜像的恢复点退役前保留归档；本轮不自动删除镜像，也不将大镜像加入每小时数据拉取任务。
+
+## 虚拟数据验证
+
+```sh
+python3 -m unittest test_staging_image_archive test_staging_postgres test_staging_offsite_backup test_staging_backup_job test_staging_backup_watch -q
+TMPDIR=<仓库外持久私密目录> STAGING_COMPOSE_BIN=/usr/local/bin/docker-compose python3 -m tools.rehearse_offsite_backup --image <本机测试镜像> --archive-image
+```
+
+演练创建两个隔离 PostgreSQL 项目：虚拟数据备份、异机传输协议、镜像归档/校验/加载、使用不可变镜像 ID 恢复、健康和登录检查、兑换/重复请求/取消返还。通知使用本地捕获，不发送群消息。结束只停止演练项目，原始备份、归档和证据留在仓库外。
+
+本轮不更换正在验收的云端应用，不安装新的定时任务。实际云端应用镜像的归档转移、实际云端副本跨主机恢复、空 Docker 主机冷恢复仍是后续验收项；本次本机 Docker 已有源镜像，不将重复加载冒充空机恢复。详见脱敏验证记录 `validation/staging-image-archive-20261111.json`。

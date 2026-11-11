@@ -1,0 +1,82 @@
+{
+  "base_commit": "f617b95",
+  "task": "Exact application image archive for staging recovery points",
+  "tests": {
+    "windows": {
+      "suites": [
+        "test_staging_image_archive",
+        "test_staging_postgres"
+      ],
+      "passed": 23
+    },
+    "linux": {
+      "suites": [
+        "test_staging_image_archive",
+        "test_staging_postgres",
+        "test_staging_offsite_backup",
+        "test_staging_backup_job",
+        "test_staging_backup_watch"
+      ],
+      "passed": 63
+    }
+  },
+  "rehearsal": {
+    "format": 1,
+    "completed_at": "2026-11-11T17:19:16.71687+08:00",
+    "status": "passed",
+    "checks": [
+      "real_postgresql_dump_and_files_created_from_virtual_data",
+      "subprocess_pull_downloads_new_point_and_reuses_verified_copy_without_archive_transfer",
+      "received_archive_inventory_and_hashes_verified",
+      "source_acknowledges_verified_second_copy",
+      "exact_untagged_application_image_archived_verified_and_loaded",
+      "restore_compose_uses_immutable_archived_image_identity",
+      "received_copy_restores_members_skus_points_files_health_login",
+      "restored_database_supports_exchange_idempotency_cancel_points_stock",
+      "original_virtual_source_unchanged_by_restore",
+      "virtual_stale_receipt_failure_deduplication_and_recovery_notifications"
+    ],
+    "restored": {
+      "members": 1,
+      "skus": 2,
+      "available_points": "170.00",
+      "file_marker": "ok",
+      "health": 200,
+      "login": 200
+    },
+    "business": {
+      "placement": "ok",
+      "replay": "idempotent",
+      "cancellation": "ok",
+      "points": "170.00",
+      "stock_restored": true
+    },
+    "transfer": {
+      "first_archive_bytes": 215040,
+      "repeated_archive_bytes": 0
+    },
+    "application_image_archive": {
+      "format": 1,
+      "scope": "staging-application-image",
+      "image_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+      "bytes": 890021888,
+      "sha256": "831e86525349401efaf2d9742811c94c9985a051832ee69332377493f7a0da4e",
+      "completed_at": "2026-11-11T17:18:32.263972+08:00"
+    },
+    "scope": "Isolated local Docker projects with synthetic data; local image cache existed; notifications captured; no cloud restore or deployment in this run."
+  },
+  "initial_attempt": "Interrupted by exhausted local Docker network address pools; stopped rehearsal containers/networks removed with data volumes preserved, then independent retry passed.",
+  "limits": [
+    "Application/OCR image only; database/gateway images and private configuration not included",
+    "No cold restore onto an empty Docker engine",
+    "Actual cloud application image transfer and cloud recovery point restoration remain pending",
+    "Hashes provide integrity checks, not encryption or origin signatures"
+  ],
+  "safety": [
+    "No real business database access",
+    "No cloud application restart or installation",
+    "No public domain opened",
+    "No WeChat submission",
+    "Only sanitized evidence committed; archives and credentials remain outside repository"
+  ]
+}
