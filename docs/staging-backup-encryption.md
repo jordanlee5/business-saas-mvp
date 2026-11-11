@@ -45,3 +45,6 @@ Linux 77 项通过；Windows 77 项中 68 通过、9 项平台跳过（8 项私�
 后续保持：独立离线密钥副本、常在线异机存储、外部存活监测；企业主页仍待用户验收（本轮发现原8877/8894入口没有监听，未自行重启预览），域名 `rhkaili.com` 与腾讯云服务器保留，ICP备案继续等待管局审核，备案前不开放公网域名，暂不提交微信审核。
 
 实现遵循 [cryptography GCM 文档](https://cryptography.io/en/latest/hazmat/primitives/symmetric-encryption/) 的要求：认证完成前不使用解密数据。没有自行实现密码算法。
+
+
+后续已补齐密码保护的离线密钥副本工具与新电脑安装兼容，实际U盘副本仍待操作，见[离线保管与关机说明](offline-key-custody.md)。

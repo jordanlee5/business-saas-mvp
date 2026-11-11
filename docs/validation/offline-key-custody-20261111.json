@@ -1,0 +1,27 @@
+{
+  "base_commit": "de05a27",
+  "checked_at_beijing": "2026-11-11T23:09:00+08:00",
+  "cloud_next_scheduled_backup_beijing": "2026-11-12T04:08:54+08:00",
+  "natural_encrypted_run_due": false,
+  "last_local_pull": {
+    "completed_at": "2026-11-11T22:58:59.109099+08:00",
+    "status": "ok",
+    "mode": "reused_verified",
+    "archive_bytes": 0
+  },
+  "tests": {
+    "linux_passed": 32,
+    "new_custody_and_installer_tests": 6,
+    "installer_powershell_syntax": "passed"
+  },
+  "actual_private_key_exported": false,
+  "removable_drive_detected": false,
+  "cloud_mutations": false,
+  "existing_installed_runner_modified": false,
+  "virtual_key_recovery_and_backup_decryption": "passed",
+  "remaining": [
+    "First natural encrypted backup and following offsite pull after scheduled time",
+    "User-provided offline media, local password entry and reinsert/read-back verification",
+    "Company homepage acceptance and ICP review unchanged"
+  ]
+}

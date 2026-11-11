@@ -29,7 +29,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Private directory ACL setup failed' }
 $runner = Join-Path $PrivateRoot 'runner'
 $modules = Join-Path $runner 'tools'
 $null = New-Item -ItemType Directory -Path $modules
-foreach ($name in @('staging_offsite_backup.py','staging_backup_job.py','staging_pg_backup.py','staging_backup_watch.py','staging_monitor.py')) {
+foreach ($name in @('staging_offsite_backup.py','staging_backup_job.py','staging_pg_backup.py','staging_backup_crypto.py','staging_backup_watch.py','staging_monitor.py')) {
     Copy-Item -LiteralPath (Join-Path $repo ('tools/' + $name)) -Destination $modules
 }
 $hostsCopy = Join-Path $PrivateRoot 'known_hosts'
