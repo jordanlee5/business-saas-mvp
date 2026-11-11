@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-11",
+  "baseline": "bf8a364",
+  "environment": "isolated Docker, network none, read-only repository, virtual in-memory SQLite",
+  "command": "python -m unittest test_company_home test_browser_sessions test_login_captcha test_staging_backup_watch -v",
+  "tests_run": 32,
+  "duration_seconds": 8.491,
+  "result": "OK",
+  "coverage": [
+    "public company routes do not read admin/member data",
+    "protected routes retain authentication",
+    "login and logout",
+    "mandatory password change",
+    "stale session public access",
+    "existing login captcha and backup watchdog regression"
+  ],
+  "cloud_application_deployed": false,
+  "real_business_database_modified": false,
+  "public_domain_opened": false,
+  "wechat_review_submitted": false
+}

@@ -299,6 +299,8 @@ async def enforce_active_user_session(
     # 必须在各自路由中使用独立的令牌认证。
     if (
         path in {
+            "/",
+            "/company",
             "/login",
             "/logout",
             "/health",
@@ -424,6 +426,7 @@ def compact_filename(value) -> str:
     return f"{stem[:2]}....{stem[-4:]}"
 
 
+public_templates = Jinja2Templates(directory="app/templates")
 templates = Jinja2Templates(
     directory="app/templates",
     context_processors=[admin_navigation_context],
@@ -3154,13 +3157,10 @@ def format_excel_file(writer):
             worksheet.column_dimensions[column_letter].width = min(max_length + 4, 35)
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/company", response_class=HTMLResponse)
 def home(request: Request):
-    user = get_current_user(request)
-
-    if user:
-        return RedirectResponse(url="/dashboard", status_code=302)
-
-    return RedirectResponse(url="/login", status_code=302)
+    # Public company content is independent of administrator/member sessions and data.
+    return public_templates.TemplateResponse(request=request, name="company.html")
 
 
 @app.get("/query-record", response_class=HTMLResponse)

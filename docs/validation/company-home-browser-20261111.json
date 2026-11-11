@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-11-11T07:47:07.840Z",
+  "browser": "Microsoft Edge / Playwright",
+  "preview": "loopback-only static preview; login points to existing SSH tunnel for manual acceptance",
+  "checks": [
+    "3 slides, single visible",
+    "next/previous/wrap",
+    "pause blocks automatic changes",
+    "resume advances automatically",
+    "reduced-motion default paused",
+    "390/768/1440 no horizontal overflow",
+    "no JavaScript fallback",
+    "login links retained",
+    "no page errors",
+    "all assets local"
+  ],
+  "passed": true
+}
