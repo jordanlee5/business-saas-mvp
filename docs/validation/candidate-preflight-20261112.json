@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-12",
+  "candidate": {
+    "git_commit": "677ce4b355edc4280c6c9e9bf79f6c0ccada6955",
+    "manifest_sha256": "d4d05ebabc4d7016de8fe71e370bd962df5b0ff9c50a381ad90cc784c0c21e74",
+    "files": 226
+  },
+  "remote_commit_confirmed": "677ce4b355edc4280c6c9e9bf79f6c0ccada6955",
+  "remote_verification": "git per-command OpenSSL, certificate verification retained; no global Git changes",
+  "sqlite": {
+    "old_tables": 40,
+    "existing_rows_preserved": true,
+    "new_tables_initially_empty": true,
+    "no_automatic_phone_binding": true,
+    "nonempty_downgrade_blocked": true,
+    "failed_downgrade_preserves_candidate": true,
+    "preupgrade_point_unchanged": true,
+    "separate_recovery_old_rows_match": true,
+    "new_code_rejects_old_schema": true,
+    "candidate_edits_preserved": true,
+    "real_database_access": false
+  },
+  "postgresql": {
+    "old_tables": 40,
+    "existing_rows_preserved": true,
+    "new_tables_initially_empty": true,
+    "no_automatic_phone_binding": true,
+    "nonempty_downgrade_blocked": true,
+    "failed_downgrade_preserves_candidate": true,
+    "postgresql": 16,
+    "separate_preupgrade_and_recovered_databases": true,
+    "old_schema_and_rows_preserved": true,
+    "new_code_rejects_old_schema": true,
+    "candidate_edits_preserved": true,
+    "scope": "isolated synthetic database clones, not full cloud cold recovery"
+  },
+  "windows_tests": {
+    "run": 9,
+    "passed": 9
+  },
+  "client": {
+    "immutable_source_typecheck": true,
+    "carousel_groups_passed": 9
+  },
+  "actual_sms_factory_closed": true,
+  "client_source_archive_sha256": "2692a6c6fbfe523c80b57703be8b21ef2eaf281b9b4fdba2b8d36a79835919ed",
+  "release_authorized": false,
+  "release_readiness": "preparation_only_pending_gates",
+  "pending": [
+    "new_image_build_and_archive",
+    "execution_time_recovery_point_and_full_inventory",
+    "private_runtime_configuration_and_base_image_dependencies",
+    "isolated_image_HTTP_smoke_and_old_client_compatibility",
+    "deployment_window_and_explicit_release_scope",
+    "post_upgrade_new_data_reconciliation_before_rollback"
+  ],
+  "boundaries": {
+    "cloud_contacted": false,
+    "existing_tests_modified": false,
+    "existing_recovery_points_accessed_or_overwritten": false,
+    "real_business_database_accessed": false,
+    "new_services_purchased": false,
+    "dependencies_installed": false,
+    "real_sms_connected": false,
+    "full_cloud_cold_restore_repeated": false
+  },
+  "resolved_findings": [
+    "Windows synthetic SQLite backup handles were not closed on first run; explicitly closed before final successful run.",
+    "One retry used the wrong working directory and could not locate Alembic config; rerun from repository passed."
+  ],
+  "logs_sha256": {
+    "source.log": "1d87ee2012b6db52584b3db9808890c2321850f3efe270df955b0657612d8d17",
+    "checks-first.log": "934e0ddf9de6960e8e3c3b559bfbf8c1b1db1179588881dc4623e448ae65ba26",
+    "retry.log": "bb76c3a24a1b925ea676a75c21ef9a4f14b728be641fd1f8740a4355a77c700d",
+    "checks-final.log": "e416d15c8a7f7a29aca58051d23cf7db6ef611150143cfa4d5af70bb967948a3",
+    "postgres.log": "262f79e18aa94301659587f1b4e92210f1b433804fad7e127483c167cc707c06",
+    "client.log": "fb5ec74cc7dfee46ec5611e4a21894d827163fb531e6c6714acb2c31f032ed1d"
+  }
+}
