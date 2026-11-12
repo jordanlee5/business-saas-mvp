@@ -1,0 +1,47 @@
+{
+  "base_commit": "38fed35",
+  "date": "2026-11-12",
+  "tests": {
+    "windows_passed": 10,
+    "linux_passed": 10,
+    "installer_syntax": "passed"
+  },
+  "installed_task": "SaaS-Staging-External-Observer",
+  "installed_manual_run_exit": 0,
+  "installed_first_result": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "checked_at": "2026-11-12T03:25:43.854782+00:00",
+    "status": "ok",
+    "code": "ok",
+    "consecutive_failures": 0,
+    "observation_gap_reset": false,
+    "previous_checked_at": null,
+    "outbound_notifications": false
+  },
+  "outbound_notification_path_added": false,
+  "notification_credentials_accessed_or_copied": false,
+  "service_ids_start_times_unchanged": true,
+  "business_database_accessed": false,
+  "existing_offsite_task_modified": false,
+  "first_natural_timer_run_verified": true,
+  "limits": [
+    "Requires signed-in awake online management PC",
+    "Only local records; no outward notifications",
+    "SSH failures do not prove server power loss",
+    "Observer failure itself lacks independent supervision"
+  ],
+  "initial_failure": "Generation command referenced wrong working directory; corrected absolute path before implementation/tests.",
+  "natural_timer_run_exit": 0,
+  "natural_timer_result": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "checked_at": "2026-11-12T03:27:43.571758+00:00",
+    "status": "ok",
+    "code": "ok",
+    "consecutive_failures": 0,
+    "observation_gap_reset": false,
+    "previous_checked_at": "2026-11-12T03:25:43.854782+00:00",
+    "outbound_notifications": false
+  }
+}
