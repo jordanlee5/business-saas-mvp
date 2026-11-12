@@ -2,7 +2,7 @@
 import secrets
 import time
 
-from sqlalchemy import text
+from .auth_transactions import serialize_writes
 from sqlalchemy.exc import SQLAlchemyError
 
 from .browser_sessions import BrowserSession, LIFETIME, fingerprint
@@ -31,33 +31,36 @@ class DatabaseBrowserSessions:
         self.capacity = capacity
 
     def issue(self, user_id, password_hash):
-        token = secrets.token_hex(32)
-        now = int(time.time())
         try:
             with self.sessions() as db:
                 with db.begin():
-                    # Serialize issuance only, so expiry cleanup and the global bound
-                    # remain correct across workers. Reads do not acquire this lock.
-                    if db.bind.dialect.name == "postgresql":
-                        db.execute(text("select pg_advisory_xact_lock(73190512)"))
-                    elif db.bind.dialect.name == "sqlite":
-                        db.execute(text("BEGIN IMMEDIATE"))
-                    else:
-                        raise ValueError("Unsupported browser-session database.")
-                    user = db.query(User).filter(User.id == user_id).with_for_update().first()
-                    if user is None or not user.is_active or not user.password_hash or user.password_hash != password_hash:
-                        raise SessionCredentialsChanged("Login credentials changed.")
-                    db.query(BackofficeSession).filter(BackofficeSession.expires_at <= now).delete(synchronize_session=False)
-                    excess = db.query(BackofficeSession).count() - self.capacity + 1
-                    if excess > 0:
-                        oldest = [row[0] for row in db.query(BackofficeSession.token_hash)
-                                  .order_by(BackofficeSession.expires_at, BackofficeSession.token_hash).limit(excess)]
-                        db.query(BackofficeSession).filter(BackofficeSession.token_hash.in_(oldest)).delete(synchronize_session=False)
-                    db.add(BackofficeSession(token_hash=token_key(token), user_id=user_id,
-                        credential_hash=fingerprint(password_hash).hex(), expires_at=now+LIFETIME))
-            return token
+                    return self.issue_in_transaction(db, user_id, password_hash)
         except SQLAlchemyError:
             raise SessionStoreUnavailable("Browser session store unavailable.") from None
+
+    def issue_in_transaction(self, db, user_id, password_hash, *, accept_user=None):
+        """Consume a login proof and issue its session in the SAME caller-owned transaction.
+
+        The optional predicate sees the fresh locked account; no session is minted if
+        the account's role/binding eligibility changed while proof was being checked.
+        """
+        serialize_writes(db, 73190512)
+        user = db.query(User).filter(User.id == user_id).with_for_update().populate_existing().first()
+        if (user is None or not user.is_active or not user.password_hash or user.password_hash != password_hash
+                or (accept_user is not None and not accept_user(user))):
+            raise SessionCredentialsChanged("Login credentials changed.")
+        token = secrets.token_hex(32)
+        now = int(time.time())
+        db.query(BackofficeSession).filter(BackofficeSession.expires_at <= now).delete(synchronize_session=False)
+        excess = db.query(BackofficeSession).count() - self.capacity + 1
+        if excess > 0:
+            oldest = [row[0] for row in db.query(BackofficeSession.token_hash)
+                      .order_by(BackofficeSession.expires_at, BackofficeSession.token_hash).limit(excess)]
+            db.query(BackofficeSession).filter(BackofficeSession.token_hash.in_(oldest)).delete(synchronize_session=False)
+        db.add(BackofficeSession(token_hash=token_key(token), user_id=user_id,
+            credential_hash=fingerprint(password_hash).hex(), expires_at=now+LIFETIME))
+        db.flush()
+        return token
 
     def resolve(self, token):
         key = token_key(token)

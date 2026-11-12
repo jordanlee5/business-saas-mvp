@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-12",
+  "base_commit": "1ba1f39ecd35efdb644b1e08dff2ef4078b1bdd5",
+  "scope": "Disabled admin phone login interface reservation; synthetic providers only in isolated tests",
+  "runtime": {
+    "factory_returns_none": true,
+    "environment_activation_path": false,
+    "real_sms_sdk": false,
+    "real_bindings_created": false,
+    "phone_panel_disabled": true
+  },
+  "windows": {
+    "tests": 66,
+    "passed": 66,
+    "skipped": 0,
+    "data": "temporary synthetic SQLite"
+  },
+  "linux": {
+    "tests": 98,
+    "passed": 98,
+    "skipped": 0,
+    "network": "disabled",
+    "resources": "1 CPU, 1 GiB",
+    "data": "temporary synthetic SQLite"
+  },
+  "postgresql": {
+    "postgresql": 16,
+    "isolated_virtual_database": true,
+    "migration_and_metadata": true,
+    "empty_roundtrip": true,
+    "cross_worker_limit": true,
+    "concurrent_verification": [
+      "rejected",
+      "success"
+    ],
+    "single_session_and_audit": true,
+    "unbind_revokes_session": true,
+    "nonempty_downgrade_blocked": true,
+    "real_database_access": false,
+    "real_sms_requests": 0
+  },
+  "browser": {
+    "synthetic_data": true,
+    "default_disabled": true,
+    "default_endpoint_503": true,
+    "default_sms_deliveries": 0,
+    "password_login_button_available": true,
+    "mandatory_captcha_missing_or_cancelled_no_send": true,
+    "virtual_only_success": true,
+    "cooldown": true,
+    "wrong_code_generic": true,
+    "private_session_cookie": true,
+    "field_cleanup": true,
+    "no_persistent_browser_storage": true,
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "no_horizontal_overflow": true,
+    "page_errors": [],
+    "real_external_requests": [],
+    "real_database_access": false
+  },
+  "coverage": [
+    "default endpoints unavailable",
+    "password login regression",
+    "mandatory configured human verification",
+    "captcha ticket replay rejection even with changed randstr",
+    "shared send cooldown and source/phone quotas",
+    "shared verification quotas",
+    "five wrong codes lock challenge",
+    "expiry and browser binding",
+    "resend and late acknowledgement handling",
+    "unbound and disabled account generic response",
+    "no automatic account creation",
+    "super-admin provisioning and revision checks",
+    "rebind/unbind revoke pending codes and existing sessions",
+    "account state revalidation",
+    "atomic single-use code and session issuance",
+    "session persistence failure rollback",
+    "capacity fails closed",
+    "CSRF/schema checks",
+    "source address ignores untrusted forwarded header",
+    "private cookie and forced password change",
+    "no plaintext phone/code/ticket/IP persistence in phone-auth tables",
+    "migration and nonempty downgrade protection"
+  ],
+  "resolved_findings": [
+    "An auxiliary TestClient context invoked full startup on a deliberately unmigrated create_all fixture; changed to explicitly closed request-only client, then all Windows and Linux tests passed.",
+    "Initial browser storage assertion included existing dashboard UI preference storage; checked empty storage before authentication and absence of synthetic phone, OTP, challenge and cookie token after navigation; full browser workflow passed."
+  ],
+  "backup_boundary": {
+    "new_tables_covered_by_database_dump": true,
+    "tasks_changed": false,
+    "real_hmac_key_provisioned": false,
+    "future_requirement": "Before real activation, separately provision authentication HMAC key custody/rotation and verify restore invalidates pending phone challenges; no existing backup key is reused."
+  },
+  "boundaries": {
+    "cloud_deployed": false,
+    "live_schema_changed": false,
+    "existing_test_services_changed": false,
+    "real_database_access": false,
+    "paid_services_purchased": false,
+    "real_sms_requests": 0,
+    "public_domain_opened": false,
+    "wechat_review_submitted": false,
+    "offline_drive_accessed": false
+  },
+  "acceptance": "Implementation and isolated verification complete; combined user acceptance and native mini-program checks remain pending.",
+  "local_log_sha256": {
+    "windows-tests.log": "58da8f1c22a6ea158bf52938512a8a85aa477d52c2b8bb01eb443a18a284f9c7",
+    "linux-tests.log": "34484734726facbf1a0c2da30683917f8220dff5e9ab9d60bc7ee327602dd9ec",
+    "postgres-tests.log": "3bf165bf0bd14a5f8b1163e9e2fbd226d0be16933d95c1694da6cc436e8af989",
+    "browser-tests.log": "ed5feab73fecd8a241446caeb7aec2a9a25b2129e4575098077fc668c5c8f74c",
+    "browser-first-attempt.log": "77731279fc7c824912ef2439ba69faaac46255fcfeb31e7aa56ee448be1e2adb"
+  },
+  "screenshots_sha256": {
+    "desktop.png": "56a6aad1db6e23a559aa95d78dcd468f94c5755d943a5a82e1972f080eb7a833",
+    "mobile.png": "1cc469a19e8e00f3b1c2430022eefe98e4b9ca3b52895b8d907f006ca595273f",
+    "tablet.png": "dfad80367d342c573d6efd36c1eeb11b82ca42acaa3e65abf12fbe1697e9ff3b"
+  }
+}

@@ -53,7 +53,7 @@ from .models import (
     VoucherUploadBatch,
 )
 from .auth import verify_password, get_password_hash
-from . import login_captcha
+from . import login_captcha, admin_phone_login
 from .browser_sessions import COOKIE_NAME, LIFETIME, fingerprint
 from .shared_browser_sessions import DatabaseBrowserSessions, SessionStoreUnavailable, SessionCredentialsChanged
 from .password_service import (
@@ -302,6 +302,8 @@ async def enforce_active_user_session(
             "/",
             "/company",
             "/login",
+            "/login/phone/request-code",
+            "/login/phone/verify",
             "/logout",
             "/health",
         }
@@ -340,6 +342,8 @@ from .api.home_entries import router as home_entries_router
 app.include_router(home_entries_router)
 from .api.home_banners import router as home_banners_router
 app.include_router(home_banners_router)
+from .api.admin_phone import router as admin_phone_router
+app.include_router(admin_phone_router)
 for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)
@@ -4757,9 +4761,17 @@ def issue_business_activation_code(
 
 
 def render_login(request, error=None, status_code=200):
-    return templates.TemplateResponse("login.html", {
+    from .api.admin_phone import CSRF_COOKIE
+    csrf = request.cookies.get(CSRF_COOKIE, '')
+    if not re.fullmatch(r'[A-Za-z0-9_-]{43}', csrf):
+        csrf = secrets.token_urlsafe(32)
+    response = templates.TemplateResponse("login.html", {
         "request": request, "error": error, **login_captcha.public_context(),
+        **admin_phone_login.public_context(), "phone_csrf": csrf,
     }, status_code=status_code, headers={"Cache-Control": "no-store, private"})
+    response.set_cookie(CSRF_COOKIE, csrf, max_age=1800, httponly=True, samesite='strict',
+                        secure=request.url.scheme=='https', path='/login')
+    return response
 
 
 @app.get("/login", response_class=HTMLResponse)

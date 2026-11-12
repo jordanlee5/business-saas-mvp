@@ -2124,3 +2124,41 @@ class HomeBanner(Base):
     revision = Column(Integer, nullable=False)
     updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class AdminPhoneBinding(Base):
+    __tablename__ = 'admin_phone_bindings'
+    __table_args__ = (CheckConstraint('revision >= 1', name='ck_admin_phone_binding_revision'),)
+    user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+    phone_digest = Column(String(64), nullable=True, unique=True)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
+
+
+class AdminPhoneChallenge(Base):
+    __tablename__ = 'admin_phone_challenges'
+    __table_args__ = (
+        CheckConstraint("state IN ('pending','ready','used','failed')", name='ck_admin_phone_challenge_state'),
+        CheckConstraint('attempts BETWEEN 0 AND 5', name='ck_admin_phone_challenge_attempts'),
+    )
+    challenge_id = Column(String(64), primary_key=True)
+    phone_digest = Column(String(64), nullable=False, index=True)
+    browser_digest = Column(String(64), nullable=False)
+    captcha_digest = Column(String(64), nullable=False, unique=True)
+    code_digest = Column(String(64), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    binding_revision = Column(Integer, nullable=True)
+    credential_digest = Column(String(64), nullable=True)
+    attempts = Column(Integer, nullable=False)
+    state = Column(String(10), nullable=False)
+    created_at = Column(BigInteger, nullable=False, index=True)
+    expires_at = Column(BigInteger, nullable=False)
+
+
+class AdminPhoneLimit(Base):
+    __tablename__ = 'admin_phone_limits'
+    __table_args__ = (CheckConstraint('count >= 1', name='ck_admin_phone_limit_count'),)
+    key_digest = Column(String(64), primary_key=True)
+    count = Column(Integer, nullable=False)
+    expires_at = Column(BigInteger, nullable=False, index=True)

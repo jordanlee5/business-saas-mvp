@@ -74,9 +74,11 @@ def signed_headers(payload, config, timestamp):
                              f"SignedHeaders={signed}, Signature={signature}"}
 
 
-def verify(ticket, randstr, client_ip):
+def verify(ticket, randstr, client_ip, *, required=False):
     config = settings()
     if config is None:
+        if required:
+            raise CaptchaUnavailable()
         return
     if (not ticket or not randstr or len(ticket) > 4096 or len(randstr) > 256
             or ticket.startswith("trerror")):

@@ -237,7 +237,8 @@ class HomeEntryMigrationTests(unittest.TestCase):
             engine = create_engine(url)
             try:
                 self.assertIn('home_entry_images', inspect(engine).get_table_names())
-                self.assertEqual(CURRENT_SCHEMA_REVISION, '0020_home_banners')
+                from alembic.script import ScriptDirectory
+                self.assertEqual(CURRENT_SCHEMA_REVISION, ScriptDirectory.from_config(config).get_current_head())
                 command.downgrade(config, '0018_member_qualifications')
                 command.upgrade(config, 'head')
                 with engine.begin() as c:

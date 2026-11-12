@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>登录 - 业务数据管理SaaS MVP</title>
     <style>
         body {
@@ -80,6 +81,17 @@
             color: #2563eb;
             text-decoration: none;
         }
+        .phone-login { margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; }
+        .phone-login summary { cursor: pointer; font-size: 15px; font-weight: 600; }
+        .phone-badge { float: right; font-size: 12px; font-weight: 400; color: #64748b; }
+        .phone-note { color: #64748b; font-size: 13px; line-height: 1.7; margin: 14px 0; }
+        .phone-login fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+        .phone-login button { margin-bottom: 12px; }
+        .phone-login .phone-send { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .phone-login button:disabled { background: #e2e8f0; color: #64748b; cursor: not-allowed; border-color: #e2e8f0; }
+        .phone-login input:disabled { background: #f8fafc; color: #94a3b8; }
+        #phone-status { min-height: 20px; font-size: 13px; color: #475569; line-height: 1.7; }
+        @media(max-width:480px) { .login-container { margin: 28px auto; } .login-card { padding: 28px 24px; } }
     </style>
 </head>
 <body>
@@ -108,15 +120,30 @@
             <button id="login-button" type="submit" {% if captcha_unavailable %}disabled{% endif %}>登录</button>
         </form>
 
+        <details class="phone-login" id="phone-login" data-enabled="{{ 'true' if phone_login_enabled else 'false' }}" data-csrf="{{ phone_csrf }}" data-captcha-app-id="{{ phone_captcha_app_id }}">
+            <summary>手机号登录 <span class="phone-badge">{{ '验证码登录' if phone_login_enabled else '暂未启用' }}</span></summary>
+            <p class="phone-note">{% if phone_login_enabled %}请使用已绑定的管理员手机号。获取验证码前需完成人机验证。{% else %}手机号登录暂未启用，请继续使用账号和密码。开放后仅支持已绑定的管理员手机号。{% endif %}</p>
+            <fieldset {% if not phone_login_enabled %}disabled{% endif %}>
+                <label for="phone-number">手机号</label>
+                <input id="phone-number" type="tel" inputmode="numeric" autocomplete="off" maxlength="11" placeholder="请输入11位手机号">
+                <button id="phone-send" class="phone-send" type="button">获取验证码</button>
+                <label for="phone-code">短信验证码</label>
+                <input id="phone-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="请输入6位验证码">
+                <button id="phone-submit" type="button" disabled>使用验证码登录</button>
+            </fieldset>
+            <p id="phone-status" role="status" aria-live="polite"></p>
+            <noscript><p class="phone-note">手机号登录需要 JavaScript；也可继续使用账号和密码。</p></noscript>
+        </details>
         <div class="tip">
             请使用已分配的账号登录。<br>
             如无法登录，请联系系统管理员。
         </div>
     </div>
 </div>
-{% if captcha_required and not captcha_unavailable %}
+{% if (captcha_required and not captcha_unavailable) or phone_login_enabled %}
 <script src="https://turing.captcha.qcloud.com/TJCaptcha.js" defer></script>
-<script src="/static/login-captcha.js" defer></script>
 {% endif %}
+{% if captcha_required and not captcha_unavailable %}<script src="/static/login-captcha.js" defer></script>{% endif %}
+<script src="/static/phone-login.js" defer></script>
 </body>
 </html>
