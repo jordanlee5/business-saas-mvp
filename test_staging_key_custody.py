@@ -40,6 +40,15 @@ class CustodyTests(unittest.TestCase):
         self.assertEqual(verify_backup(self.root / "plain"), verify_backup(self.root / "source"))
         self.assertEqual(self.private.read_bytes(), before)
 
+    def test_export_into_nonempty_drive_preserves_existing_documents(self):
+        drive = self.package.parent
+        drive.mkdir()
+        existing = drive / "existing-document.txt"
+        existing.write_bytes(b"existing-user-document-must-remain")
+        self.export()
+        self.assertEqual(existing.read_bytes(), b"existing-user-document-must-remain")
+        self.assertEqual(set(p.name for p in drive.iterdir()), {"existing-document.txt", "copy"})
+
     def test_wrong_password_and_wrong_identity(self):
         self.export()
         crypto.keygen(self.root / "other")

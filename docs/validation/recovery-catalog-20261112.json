@@ -1,0 +1,61 @@
+{
+  "base_commit": "888662c",
+  "tests": {
+    "linux_passed": 53,
+    "windows_passed": 53,
+    "new_catalog_tests": 12,
+    "custody_tests_passed": 7
+  },
+  "actual_local_inventory": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "checked_at": "2026-11-12T02:57:58.187091+00:00",
+    "status": "ok",
+    "points": [
+      {
+        "source": "source_1",
+        "run_id": "20261110T200158Z-c67a40d9c11b459fac41068f54a58f4d",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+        "manifest_sha256": "a3bf97b9718882db4a2ecede9abcde4f8495261b423cb51541e0f6057b877c0d",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      }
+    ],
+    "archives": [
+      {
+        "archive": "archive_1",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "config_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+        "sha256": "76685470c393089565b6b0b4acc47b81a036ac8da00c4b343d253aeb97c93010",
+        "bytes": 889993216,
+        "references": [
+          "source_1/20261110T200158Z-c67a40d9c11b459fac41068f54a58f4d",
+          "source_1/20261111T200855Z-d99378da4d5544e7ac542aa71ef63770"
+        ],
+        "candidate_reference": true,
+        "retention": "required"
+      }
+    ],
+    "problems": [],
+    "candidate_image": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+    "deletion_authorized": false,
+    "scope": "Only supplied backup roots and image bundles; no deployment or complete machine recovery certification"
+  },
+  "cloud_services_unchanged": true,
+  "backup_watch_timers_active": true,
+  "installed_runner_modified": false,
+  "source_data_modified": false,
+  "images_created_loaded_deleted": false,
+  "initial_failure": "OCI test fixture referenced old moved path; fixed test path and reran successfully.",
+  "limits": [
+    "Only supplied managed scheduled backup root and explicit application archive checked; historical manual points not inventoried.",
+    "No new release deployed, no automatic image-archive pipeline or image deletion installed.",
+    "Offline key copy remains pending user media; no actual key export."
+  ]
+}
