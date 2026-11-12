@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0019_home_entry_images"
+CURRENT_SCHEMA_REVISION = "0020_home_banners"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -21,7 +21,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
         "points_accounts",
         "points_grants",
         "points_ledger_entries",
-        "home_entry_images",
+        "home_entry_images", "home_banners",
         "product_categories",
         "suppliers",
         "products",
@@ -54,6 +54,7 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "home_banners": frozenset({"slot", "title", "image_path", "sort_order", "enabled", "target_category", "revision", "updated_by_id", "updated_at"}),
     "home_entry_images": frozenset({"id", "entry_key", "image_path", "revision", "updated_by_id", "updated_at"}),
     "member_qualifications": frozenset({"id", "business_record_id", "member_id", "enabled", "valid_from", "valid_until", "version", "confirmed_by", "confirmed_at", "bound_at", "updated_at"}),
     "member_qualification_events": frozenset({"id", "qualification_id", "actor_id", "action", "reason", "before_state", "after_state", "created_at"}),

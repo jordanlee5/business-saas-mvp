@@ -1,0 +1,61 @@
+<style>
+.banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.banner-card { border: 1px solid #dbe5df; border-radius: 14px; padding: 18px; min-width: 0; }
+.banner-card h3 { margin: 12px 0; font-size: 18px; }
+.banner-image, .banner-placeholder { display: block; width: 100%; aspect-ratio: 5 / 2; border-radius: 12px; object-fit: cover; background: #edf3ed; }
+.banner-placeholder { display: grid; place-items: center; color: #527764; }
+.banner-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.banner-fields label { display: grid; gap: 6px; font-size: 13px; min-width: 0; }
+.banner-fields input, .banner-fields select { width: 100%; min-width: 0; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.banner-fields .wide { grid-column: 1 / -1; }
+.banner-fields .banner-check { display: flex; gap: 8px; align-items: center; }
+.banner-check input { width: auto; }
+.banner-card button { background: #245647; color: white; border: 1px solid #245647; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.banner-card .toggle { background: white; color: #245647; margin-top: 10px; }
+.banner-state { font-size: 13px; color: #64748b; } .banner-state.enabled { color: #176340; }
+.banner-live { margin: 22px 0; padding: 18px; border-radius: 14px; background: #f4f7f2; }
+.banner-strip { display: flex; gap: 12px; overflow: auto; padding: 6px 0; list-style: none; }
+.banner-strip li { flex: 0 0 180px; min-width: 0; }
+.banner-strip img { display: block; width: 100%; aspect-ratio: 5 / 2; object-fit: cover; border-radius: 10px; margin-bottom: 8px; }
+.banner-strip span { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.brand-fallback { background: linear-gradient(120deg, #153d39, #2d5945); color: #fff; border-radius: 16px; padding: 22px; line-height: 1.7; max-width: 500px; }
+@media(max-width:1100px) { .banner-grid { grid-template-columns: minmax(0, 1fr); } }
+@media(max-width:600px) { .banner-fields { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<p class="home-intro">上传换季、新品或活动图片，最多保留 5 张。排序数字越小越靠前；相同时按素材编号排列。新图默认停用，确认后再启用。</p>
+<p class="entry-hint">建议使用 1200 × 480 的横图，文字与主要物品放在中央。支持 JPG、PNG、WebP，单张不超过 5MB；按 5:2 居中裁切展示。可选择现有分类作为跳转目标，或仅展示图片。</p>
+<p class="entry-hint">保存后，小程序重新进入首页或下拉刷新生效；全部停用或图片加载失败时显示原绿色品牌卡片。</p>
+{% if message %}<div class="home-success" role="status">{{ message }}</div>{% endif %}
+{% if error %}<div class="home-error" role="alert">{{ error }}</div>{% endif %}
+<section class="banner-live" aria-label="已启用轮播顺序">
+  <h2>当前展示顺序</h2>
+  {% if banner_preview %}<ol class="banner-strip">
+  {% for banner in banner_preview %}<li data-slot="{{ banner.slot }}">
+    <img src="{{ banner.image_url }}" alt="{{ banner.title }}"><span>{{ loop.index }}. {{ banner.title }}</span>
+  </li>{% endfor %}</ol>
+  {% else %}<div class="brand-fallback">POINTS MALL / 积分商城<br><strong>把每一份积分，<br>换成喜欢的生活。</strong><br>精选好物 · 积分兑换</div><p class="entry-hint">当前没有启用图片，小程序显示原品牌卡片。</p>{% endif %}
+</section>
+<div class="banner-grid">
+{% for banner in banners %}
+<section class="banner-card" data-slot="{{ banner.slot }}">
+  {% if banner.image_url %}<img class="banner-image" src="{{ banner.image_url }}" alt="{{ banner.title }}">
+  {% else %}<div class="banner-placeholder">待上传横版图片</div>{% endif %}
+  <h3>轮播素材 {{ banner.slot }}</h3><div class="banner-state {{ 'enabled' if banner.enabled else '' }}">{{ '已启用' if banner.enabled else '已停用' if banner.image_url else '尚未上传' }}</div>
+  <form method="post" enctype="multipart/form-data" action="/mall-home/banners/{{ banner.slot }}">
+    <input type="hidden" name="action" value="save"><input type="hidden" name="revision" value="{{ banner.revision }}"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="banner-fields">
+      <label class="wide">{{ '替换图片（不选则保留当前图片）' if banner.image_url else '选择图片' }}<input type="file" name="image_file" accept="image/jpeg,image/png,image/webp" {% if not banner.image_url %}required{% endif %}></label>
+      <label class="wide">图片说明<input name="title" value="{{ banner.title }}" maxlength="80" required></label>
+      <label>排序数字<input type="number" name="sort_order" value="{{ banner.sort_order }}" min="0" max="999" required></label>
+      <label>点击后跳转<select name="target_category"><option value="">仅展示</option>{% for key, name in category_choices %}<option value="{{ key }}" {% if banner.target_category == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+      <label class="banner-check wide"><input type="checkbox" name="enabled" value="true" {% if banner.enabled %}checked{% endif %}>保存后启用</label>
+    </div>
+    <button type="submit">{{ '保存修改' if banner.image_url else '上传并保存' }}</button>
+  </form>
+  {% if banner.image_url %}<form method="post" action="/mall-home/banners/{{ banner.slot }}">
+    <input type="hidden" name="action" value="toggle"><input type="hidden" name="revision" value="{{ banner.revision }}"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="enabled" value="{{ 'false' if banner.enabled else 'true' }}">
+    <button type="submit" class="toggle">{{ '停用' if banner.enabled else '启用' }}</button>
+  </form>{% endif %}
+</section>
+{% endfor %}
+</div>

@@ -2,6 +2,9 @@
 {% block content %}
 <style>
 .home-materials { max-width: 1200px; margin: auto; }
+.home-tabs { display: flex; gap: 12px; margin: 18px 0; flex-wrap: wrap; }
+.home-tabs a { padding: 10px 16px; color: #245647; border: 1px solid #dbe5df; border-radius: 10px; text-decoration: none; }
+.home-tabs a[aria-current] { background: #245647; color: white; }
 .home-intro { color: #475569; line-height: 1.8; max-width: 780px; }
 .home-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
 .entry-card { border: 1px solid #dbe5df; border-radius: 14px; padding: 18px; background: #fff; min-width: 0; }
@@ -27,6 +30,13 @@
 </style>
 <div class="home-materials page-card">
   <h1 class="page-title">小程序首页素材</h1>
+  <nav class="home-tabs" aria-label="首页素材类型">
+    <a href="/mall-home" {% if section != 'carousel' %}aria-current="page"{% endif %}>八个分类入口</a>
+    <a href="/mall-home?section=carousel" {% if section == 'carousel' %}aria-current="page"{% endif %}>首页轮播图</a>
+  </nav>
+  {% if section == 'carousel' %}
+    {% include "mall_home_banners.html" %}
+  {% else %}
   <p class="home-intro">为首页“探索好物”的八个入口更换图片，适合上新或换季。入口名称、顺序和跳转分类保持不变；未设置图片时，小程序继续使用原有插画。</p>
   <p class="entry-hint">建议上传 600 × 600 的正方形图片，把主要物品放在中央。支持 JPG、PNG、WebP，单张不超过 5MB；图片按正方形展示，长图边缘可能被裁切。保存后，小程序重新进入首页或下拉刷新即可看到更新。</p>
   {% if message %}<div class="home-success" role="status">{{ message }}</div>{% endif %}
@@ -51,5 +61,6 @@
     </section>
     {% endfor %}
   </div>
+  {% endif %}
 </div>
 {% endblock %}

@@ -11,6 +11,7 @@ const service = load('home-entries');
 const flush = async()=>{for(let i=0;i<80;i++)await Promise.resolve();};
 load('catalog-guard').guardCatalogPage = d=>d;
 load('catalog').getProducts = async()=>({items:[],total:0,page:1,page_size:20});
+load('home-banners').getHomeBanners=async()=>[];
 const {catalogPage} = load('catalog-page');
 const page=()=>{const d=catalogPage(false);return {...d,data:structuredClone(d.data),setData(x){Object.assign(this.data,x);}};};
 let passed=0;

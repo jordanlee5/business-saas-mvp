@@ -1,6 +1,7 @@
+import { getHomeBanners, type HomeBanner } from './home-banners';
 import { defaultHomeEntries, getHomeEntries } from './home-entries';
 import { guardCatalogPage } from './catalog-guard';
-import { downloadCatalogImage } from './catalog-images';
+import { downloadCatalogImage, forgetCatalogImage } from './catalog-images';
 import { getCategories, getProducts, type Product } from './catalog';
 import { CATEGORY_ENTRIES, categoryKey, categoryOptions } from './category-navigation';
 
@@ -15,6 +16,7 @@ export function catalogPage(isCategoryPage: boolean) {
   let generation = 0;
   return guardCatalogPage({
     data: {
+      banners: [] as HomeBanner[], bannerCurrent: 0, bannerPaused: false,
       entries: defaultHomeEntries(), categories: categoryOptions([]), categoriesReady: false,
       activeKey: 'all', activeName: '全部好物', draftQuery: '', activeQuery: '', searchError: '',
       items: [] as ProductCard[], columns: columns([]), total: 0, page: 0, scrollTop: 0,
@@ -24,11 +26,37 @@ export function catalogPage(isCategoryPage: boolean) {
       const key = isCategoryPage ? categoryKey(options.category) : 'all';
       this.setData({ activeKey: key, activeName: CATEGORY_ENTRIES.find(item => item.key === key)?.name || '全部好物' });
     },
-    onCatalogClear() { generation += 1; this.setData({entries: defaultHomeEntries(), items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
+    onCatalogClear() { generation += 1; this.setData({banners: [], bannerCurrent: 0, bannerPaused: false, entries: defaultHomeEntries(), items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
     onUnload() { generation += 1; },
     onPullDownRefresh() { this.refresh(true).finally(() => wx.stopPullDownRefresh()); },
     onRetry() { this.refresh(true); },
     onProductsScroll(event: { detail: { scrollTop: number } }) { this.setData({ scrollTop: event.detail.scrollTop }); },
+    async refreshBanners(current: number): Promise<void> {
+      try {
+        const banners = await getHomeBanners();
+        if (current === generation) this.setData({ banners, bannerCurrent: 0 });
+      } catch (_) {
+        if (current === generation) this.setData({ banners: [], bannerCurrent: 0 });
+      }
+    },
+    onBannerChange(event: { detail: { current: number } }) {
+      const current = event.detail.current;
+      if (Number.isInteger(current) && current >= 0 && current < this.data.banners.length)
+        this.setData({ bannerCurrent: current });
+    },
+    onBannerPause() { this.setData({ bannerPaused: !this.data.bannerPaused }); },
+    onBannerImageError(event: { currentTarget: { dataset: { slot: number; src: string } } }) {
+      const { slot, src } = event.currentTarget.dataset;
+      const failed = this.data.banners.find(row => row.slot === Number(slot) && row.imageUrl === src);
+      if (!failed) return;
+      forgetCatalogImage(failed.sourcePath);
+      this.setData({ banners: this.data.banners.filter(row => row !== failed), bannerCurrent: 0 });
+    },
+    onBannerTap(event: { currentTarget: { dataset: { slot: number } } }) {
+      const row = this.data.banners.find(row => row.slot === Number(event.currentTarget.dataset.slot));
+      if (row && row.targetCategory && CATEGORY_ENTRIES.some(entry => entry.key === row.targetCategory))
+        wx.reLaunch({ url: '/pages/categories/index?category=' + encodeURIComponent(row.targetCategory) });
+    },
     async refreshEntries(current: number): Promise<void> {
       try {
         const entries = await getHomeEntries();
@@ -45,7 +73,7 @@ export function catalogPage(isCategoryPage: boolean) {
     },
     async refresh(loadCategories: boolean): Promise<void> {
       const current = ++generation;
-      if (!isCategoryPage) void this.refreshEntries(current);
+      if (!isCategoryPage) { void this.refreshEntries(current); void this.refreshBanners(current); }
       const key = this.data.activeKey, query = this.data.activeQuery;
       this.setData({ loading: true, moreLoading: false, error: '', items: [], columns: columns([]), page: 0, total: 0, hasMore: false, scrollTop: 0 });
       try {

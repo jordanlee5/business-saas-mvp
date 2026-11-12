@@ -1,16 +1,14 @@
 """Fixed homepage slots with optimistic edits; never change catalog routing."""
 import re
-import warnings
-from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
-from PIL import Image, ImageOps
 from sqlalchemy import update
 
 from .audit import MallAuditActionType
 from .catalog_service import _require_actor, _record_audit
-from .product_media_storage import validate_product_image, MAX_PRODUCT_IMAGE_BYTES
+from .product_media_storage import MAX_PRODUCT_IMAGE_BYTES
+from .home_media_storage import save_normalized_image
 from ..models import HomeEntryImage
 from ..time_utils import utc8_now
 
@@ -39,28 +37,8 @@ def image_target(url):
 def save_image(key, content, filename):
     if key not in KEYS:
         raise ValueError('首页入口不存在')
-    error = validate_product_image(content=content, original_filename=filename)
-    if error:
-        raise ValueError(error.replace('商品图片', '图片'))
     url = f'{URL_PREFIX}{key}/{uuid4().hex}.webp'
-    target = image_target(url)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix('.tmp')
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter('error', Image.DecompressionBombWarning)
-            with Image.open(BytesIO(content)) as source:
-                source.seek(0)
-                prepared = ImageOps.exif_transpose(source).convert('RGBA')
-                prepared.thumbnail((640, 640), Image.Resampling.LANCZOS)
-                # Encode pixels only: no source filename, EXIF, profile or other metadata.
-                pixels = Image.frombytes('RGBA', prepared.size, prepared.tobytes())
-                pixels.save(temporary, format='WEBP', quality=88, method=4)
-        temporary.replace(target)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        target.unlink(missing_ok=True)
-        raise
+    save_normalized_image(content, filename, image_target(url), maximum_size=640)
     return url
 
 

@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-12",
+  "base_commit": "f35deb0ec6a00c457adc233f2909353e9f99b2cb",
+  "scope": "Five operator-managed homepage carousel slots with private image transport",
+  "windows": {
+    "tests": 32,
+    "passed": 30,
+    "skipped": 2,
+    "skip_reason": "Windows symlink privilege; both covered by final Linux suite"
+  },
+  "linux": {
+    "tests": 83,
+    "passed": 83,
+    "skipped": 0,
+    "network": "disabled",
+    "resources": "1 CPU, 1 GiB",
+    "data": "temporary synthetic SQLite"
+  },
+  "client": {
+    "typecheck": true,
+    "carousel_groups": 9,
+    "member_catalog_groups": 22,
+    "category_navigation_groups": 13,
+    "home_entry_groups": 6,
+    "total_groups": 50,
+    "native_wechat": false
+  },
+  "postgresql": {
+    "postgresql": 16,
+    "isolated_virtual_database": true,
+    "migration_and_metadata": true,
+    "concurrent_edits": [
+      "stale",
+      "saved"
+    ],
+    "one_winner": true,
+    "audit_atomic": true,
+    "metadata_only_reorder": true,
+    "all_disabled_empty": true,
+    "nonempty_downgrade_blocked": true,
+    "real_database_access": false
+  },
+  "browser": {
+    "synthetic_data": true,
+    "real_database_access": false,
+    "upload_default_disabled": true,
+    "enable": true,
+    "replace": true,
+    "sort": true,
+    "metadata_without_reupload": true,
+    "disable": true,
+    "old_url_denied": true,
+    "internal_category_select": true,
+    "all_disabled_brand_fallback": true,
+    "image_decode": true,
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "no_horizontal_overflow": true,
+    "narrow_screen_controls_clickable": true,
+    "page_errors": [],
+    "native_wechat": false
+  },
+  "resolved_findings": [
+    "Initial browser bridge shared an in-memory SQLite fixture and TestClient cookies across parallel requests; the isolated preview bridge was serialized and the full workflow passed. Application code did not require a change for this fixture issue."
+  ],
+  "backup_compatibility": {
+    "code_review": "New uploads/mall_banners remains within the existing /data/uploads mount and whole-/data backup; database table is included by database dump",
+    "tasks_changed": false,
+    "new_cloud_image_archive_or_cold_restore": false
+  },
+  "boundaries": {
+    "cloud_deployed": false,
+    "live_schema_changed": false,
+    "native_wechat_acceptance": false,
+    "existing_test_services_changed": false,
+    "real_database_access": false,
+    "paid_services_purchased": false,
+    "public_domain_opened": false,
+    "wechat_review_submitted": false,
+    "offline_drive_accessed": false
+  },
+  "acceptance": "User requested combined acceptance after the planned work; this round is implementation and isolated verification only",
+  "local_log_sha256": {
+    "windows-tests.log": "913981508681520de1343a12c9b4acce902f189e6a06386b138c63301e6fab74",
+    "linux-tests.log": "2d03c8314770e9b88af473cf09e2d25f378908d9acdbf1f24d4e747eb8e1f5a9",
+    "postgres-tests.log": "508f31ae7fa147bf3f12c6775a8db995d9b70b5530a29df3b8d380dd9c74be68",
+    "browser-tests.log": "6cb21e3744136cc82deb0abe6d080c418ac9003f67b5f183b4af0e8199bb998a"
+  },
+  "screenshots_sha256": {
+    "desktop.png": "b70aef791fb522c8df0019838f0322cc8cd3af263d877047157b58ab38cd3bce",
+    "tablet.png": "cd153a2bf65386c4026b107d5f994176310e071478c3bd85750241f20f9afe89",
+    "mobile.png": "c3cb85b590ea346f92a2a72a7af11e10e0cf008b1baa84b9d1c40b1a33a78bac",
+    "fallback.png": "8cc7952814959569a264d5a241008d6734b5ee77e96d991a4b04aa1e5225e221"
+  }
+}

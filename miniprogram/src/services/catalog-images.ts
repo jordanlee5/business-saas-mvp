@@ -44,6 +44,12 @@ export function downloadHomeEntryImage(path: string | null, key: string): Promis
   return downloadPrivateImage(safe);
 }
 
+export function downloadHomeBannerImage(path: string | null, slot: number): Promise<string> {
+  const safe = typeof path === 'string' && /^\/uploads\/mall_banners\/[1-5]\/[0-9a-f]{32}\.webp$/.test(path) &&
+    path.startsWith('/uploads/mall_banners/' + slot + '/') ? path : '';
+  return downloadPrivateImage(safe);
+}
+
 function downloadPrivateImage(safe: string): Promise<string> {
   if (!safe) return Promise.resolve('');
   let context: ReturnType<typeof memberDownloadContext>;

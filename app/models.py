@@ -2103,3 +2103,24 @@ class HomeEntryImage(Base):
     revision = Column(Integer, nullable=False)
     updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class HomeBanner(Base):
+    """Bounded, individually versioned carousel artwork; new uploads are drafts."""
+    __tablename__ = 'home_banners'
+    __table_args__ = (
+        CheckConstraint('slot BETWEEN 1 AND 5', name='ck_home_banner_slot'),
+        CheckConstraint('revision >= 1', name='ck_home_banner_revision'),
+        CheckConstraint('sort_order BETWEEN 0 AND 999', name='ck_home_banner_sort'),
+        CheckConstraint("length(trim(title)) BETWEEN 1 AND 80", name='ck_home_banner_title'),
+        CheckConstraint("target_category IN ('','home','food','fresh','bags','digital','beauty','kitchen','kids')", name='ck_home_banner_target'),
+    )
+    slot = Column(Integer, primary_key=True, autoincrement=False)
+    title = Column(String(80), nullable=False)
+    image_path = Column(String(500), nullable=False)
+    sort_order = Column(Integer, nullable=False)
+    enabled = Column(Boolean, nullable=False)
+    target_category = Column(String(16), nullable=False)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)

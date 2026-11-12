@@ -338,6 +338,8 @@ os.makedirs("uploads/mall_products", exist_ok=True)
 app.include_router(product_images_router)
 from .api.home_entries import router as home_entries_router
 app.include_router(home_entries_router)
+from .api.home_banners import router as home_banners_router
+app.include_router(home_banners_router)
 for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)

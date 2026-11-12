@@ -303,7 +303,7 @@ export const requestMemberAddress = requestMemberPrivate;
 
 
 export async function requestMemberCatalog(path: string): Promise<unknown> {
-  if (!/^\/(home-entries|categories|products(?:\/[A-Z0-9-]{1,32})?)(?:\?[^#]*)?$/.test(path))
+  if (!/^\/(home-banners|home-entries|categories|products(?:\/[A-Z0-9-]{1,32})?)(?:\?[^#]*)?$/.test(path))
     throw new MemberSessionError('商品请求路径无效');
   const snapshot = memberDownloadContext();
   try {

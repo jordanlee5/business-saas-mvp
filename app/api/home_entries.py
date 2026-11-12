@@ -27,16 +27,20 @@ def admin(request):
 
 
 @router.get('/mall-home')
-def home_page(request: Request, message: str = '', error: str = ''):
+def home_page(request: Request, message: str = '', error: str = '', section: str = 'entries'):
     from ..main import SessionLocal, templates, add_base_context
     admin(request)
     csrf = request.cookies.get(CSRF_COOKIE, '')
     if len(csrf) != 43:
         csrf = secrets.token_urlsafe(32)
     with SessionLocal() as db:
+        from ..mall import home_banners
         entries = service.snapshot(db)
+        banners = home_banners.snapshot(db) if section == 'carousel' else []
+        preview = home_banners.published(db) if section == 'carousel' else []
     response = templates.TemplateResponse(request=request, name='mall_home.html', context=add_base_context(request,
         dict(request=request, page_title='小程序首页素材', active_page='mall_home', entries=entries,
+             banners=banners, banner_preview=preview, category_choices=service.ENTRIES, section=section,
              csrf=csrf, message=message[:200], error=error[:200])))
     response.set_cookie(CSRF_COOKIE, csrf, httponly=True, samesite='strict',
                         secure=request.url.scheme == 'https', path='/mall-home')
