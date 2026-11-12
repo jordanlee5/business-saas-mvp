@@ -1,3 +1,4 @@
+import { defaultHomeEntries, getHomeEntries } from './home-entries';
 import { guardCatalogPage } from './catalog-guard';
 import { downloadCatalogImage } from './catalog-images';
 import { getCategories, getProducts, type Product } from './catalog';
@@ -14,7 +15,7 @@ export function catalogPage(isCategoryPage: boolean) {
   let generation = 0;
   return guardCatalogPage({
     data: {
-      entries: CATEGORY_ENTRIES, categories: categoryOptions([]), categoriesReady: false,
+      entries: defaultHomeEntries(), categories: categoryOptions([]), categoriesReady: false,
       activeKey: 'all', activeName: '全部好物', draftQuery: '', activeQuery: '', searchError: '',
       items: [] as ProductCard[], columns: columns([]), total: 0, page: 0, scrollTop: 0,
       loading: true, moreLoading: false, error: '', hasMore: false,
@@ -23,13 +24,28 @@ export function catalogPage(isCategoryPage: boolean) {
       const key = isCategoryPage ? categoryKey(options.category) : 'all';
       this.setData({ activeKey: key, activeName: CATEGORY_ENTRIES.find(item => item.key === key)?.name || '全部好物' });
     },
-    onCatalogClear() { generation += 1; this.setData({items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
+    onCatalogClear() { generation += 1; this.setData({entries: defaultHomeEntries(), items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
     onUnload() { generation += 1; },
     onPullDownRefresh() { this.refresh(true).finally(() => wx.stopPullDownRefresh()); },
     onRetry() { this.refresh(true); },
     onProductsScroll(event: { detail: { scrollTop: number } }) { this.setData({ scrollTop: event.detail.scrollTop }); },
+    async refreshEntries(current: number): Promise<void> {
+      try {
+        const entries = await getHomeEntries();
+        if (current === generation) this.setData({ entries });
+      } catch (_) {
+        // Old server, temporary outage or bad image: preserve the original illustrations.
+        if (current === generation) this.setData({ entries: defaultHomeEntries() });
+      }
+    },
+    onEntryImageError(event: Tap) {
+      const { key, src } = event.currentTarget.dataset;
+      this.setData({ entries: this.data.entries.map(entry =>
+        entry.key === key && entry.imageUrl === src ? {...entry, imageUrl: ''} : entry) });
+    },
     async refresh(loadCategories: boolean): Promise<void> {
       const current = ++generation;
+      if (!isCategoryPage) void this.refreshEntries(current);
       const key = this.data.activeKey, query = this.data.activeQuery;
       this.setData({ loading: true, moreLoading: false, error: '', items: [], columns: columns([]), page: 0, total: 0, hasMore: false, scrollTop: 0 });
       try {

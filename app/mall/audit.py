@@ -7,6 +7,7 @@ class MallAuditActionType(str, Enum):
     CATALOG_EXPORT = "mall_catalog_export"
     ORDER_EXPORT = "mall_order_export"
     MEMBER_POINTS_LIST_EXPORT = "mall_member_points_list_export"
+    HOME_ENTRY_IMAGE_UPDATE = "mall_home_entry_image_update"
     CATEGORY_CREATE = "mall_category_create"
     CATEGORY_UPDATE = "mall_category_update"
     PRODUCT_CREATE = "mall_product_create"

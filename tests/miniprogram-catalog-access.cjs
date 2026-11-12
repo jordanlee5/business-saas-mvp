@@ -11,6 +11,7 @@ global.setInterval=(fn,ms)=>{timers.set(++nextTimer,{fn,at:now+ms,ms});return ne
 global.clearInterval=global.clearTimeout;
 const flush=async()=>{for(let i=0;i<120;i++)await Promise.resolve();};
 async function advance(ms){now+=ms;for(const [id,t] of [...timers])if(t.at<=now){if(t.ms)t.at=now+t.ms;else timers.delete(id);await t.fn();}await flush();}
+let homeImage=null;
 let owner='MEM-A',status='eligible',ttl=120,holdCatalog=false,holdDownload=false,downloadStatus=200,apiStatus=200,fsFailure=false,storageFailure=false;
 const heldRequests=[];
 const product={product_public_id:'PRD-A',name:'虚拟会员商品',subtitle:null,category_slug:'home',min_points_price:'10.00',in_stock:true,
@@ -30,13 +31,14 @@ global.wx={env:{USER_DATA_PATH:'wxfile://usr'},getStorageSync:k=>storage.get(k),
   if(holdCatalog && p.includes('/products')){heldRequests.push(o);return;}
   if(p.endsWith('/products'))return o.success({statusCode:apiStatus,data:{items:[structuredClone(product)],total:1,page:1,page_size:20}});
   if(p.endsWith('/products/PRD-A'))return o.success({statusCode:apiStatus,data:structuredClone(product)});
+  if(p.endsWith('/home-entries'))return o.success({statusCode:apiStatus,data:load('services/category-navigation').CATEGORY_ENTRIES.map(e=>({...e,image_url:e.key==='home'?homeImage:null}))});
   if(p.endsWith('/categories'))return o.success({statusCode:apiStatus,data:[{name:'居家日用',slug:'home'}]});
   if(p.endsWith('/orders') && o.method==='POST' && status==='disabled')return o.success({statusCode:403,data:{}});
   if(p.endsWith('/orders'))return o.success({statusCode:200,data:{items:[],total:0,page:1,page_size:20}});
   if(p.endsWith('/rights-requests'))return o.success({statusCode:200,data:{items:[],total:0}});
   throw Error('Unexpected virtual path '+p);
  },
- downloadFile(o){assert.equal(o.header.Authorization,'Bearer virtual.'+owner);assert.ok(o.url.startsWith('http://127.0.0.1:8000/uploads/mall_products/'));
+ downloadFile(o){assert.equal(o.header.Authorization,'Bearer virtual.'+owner);assert.ok(/^http:\/\/127\.0\.0\.1:8000\/uploads\/(mall_products|mall_home)\//.test(o.url));
   assert.ok(!o.url.includes('virtual.')&&!o.url.includes('?'));downloads.push(o);
   if(!holdDownload){files.add(o.filePath);o.success({statusCode:downloadStatus,filePath:o.filePath});}return{abort(){}};
  }};
@@ -59,6 +61,14 @@ async function test(name,fn){await fn();passed++;console.log('PASS '+name);}
   await login();const p=home();p.onLoad();await p.onShow();assert.equal(p.data.catalogReady,true);assert.equal(p.data.items[0].name,product.name);
   assert.ok(p.data.items[0].imageUrl.startsWith('wxfile://usr/mall-private-images/'));assert.ok(files.has(p.data.items[0].imageUrl));
   assert.equal([...storage.values()].some(x=>JSON.stringify(x).includes('virtual.MEM')),false);p.onUnload();
+ });
+ await test('homepage images use private transport, enforce slot paths and clear on logout',async()=>{
+  await login();homeImage='/uploads/mall_home/home/'+'a'.repeat(32)+'.webp';const p=home();await p.onShow();await flush();
+  assert.ok(files.has(p.data.entries[0].imageUrl));const n=downloads.length;
+  for(const bad of [homeImage.replace('/home/','/kids/'),homeImage+'?token=leak','https://evil.invalid/a.webp','/uploads/mall_home/home/../x.webp'])
+   assert.equal(await images.downloadHomeEntryImage(bad,'home'),'');
+  assert.equal(downloads.length,n);assert.equal(await images.downloadCatalogImage(homeImage,'PRD-A'),'');
+  session.clearMemberSession();assert.ok(p.data.entries.every(e=>!e.imageUrl));assert.equal(files.size,0);p.onUnload();homeImage=null;await login();
  });
  await test('original and thumbnail share safe authenticated transport; unsafe and other-product paths rejected',async()=>{
   const n=downloads.length;assert.equal(await images.downloadCatalogImage('https://evil.invalid/x.webp'),'');

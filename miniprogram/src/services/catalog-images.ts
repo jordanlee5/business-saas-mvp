@@ -34,7 +34,17 @@ function imagePath(path: string | null, productId?: string): string {
 }
 
 export function downloadCatalogImage(path: string | null, productId?: string): Promise<string> {
-  const safe = imagePath(path, productId);
+  return downloadPrivateImage(imagePath(path, productId));
+}
+
+export function downloadHomeEntryImage(path: string | null, key: string): Promise<string> {
+  const safe = typeof path === 'string' &&
+    /^\/uploads\/mall_home\/(home|food|fresh|bags|digital|beauty|kitchen|kids)\/[0-9a-f]{32}\.webp$/.test(path) &&
+    path.startsWith('/uploads/mall_home/' + key + '/') ? path : '';
+  return downloadPrivateImage(safe);
+}
+
+function downloadPrivateImage(safe: string): Promise<string> {
   if (!safe) return Promise.resolve('');
   let context: ReturnType<typeof memberDownloadContext>;
   try { context = memberDownloadContext(); } catch (error) { return Promise.reject(error); }

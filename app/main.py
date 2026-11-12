@@ -336,6 +336,8 @@ os.makedirs("uploads", exist_ok=True)
 mimetypes.add_type("image/webp", ".webp")
 os.makedirs("uploads/mall_products", exist_ok=True)
 app.include_router(product_images_router)
+from .api.home_entries import router as home_entries_router
+app.include_router(home_entries_router)
 for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)

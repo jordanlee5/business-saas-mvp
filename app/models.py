@@ -2088,3 +2088,18 @@ class MemberQualificationEvent(Base):
     before_state = Column(Text, nullable=False)
     after_state = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class HomeEntryImage(Base):
+    """Overrides for the eight fixed miniapp homepage entrances."""
+    __tablename__ = 'home_entry_images'
+    __table_args__ = (
+        CheckConstraint("entry_key IN ('home','food','fresh','bags','digital','beauty','kitchen','kids')", name='ck_home_entry_key'),
+        CheckConstraint('revision >= 1', name='ck_home_entry_revision'),
+    )
+    id = Column(Integer, primary_key=True)
+    entry_key = Column(String(16), nullable=False, unique=True)
+    image_path = Column(String(500), nullable=True)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)

@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-12",
+  "base_commit": "2180c419cea7b4914a6c0215f4aca10003ee2329",
+  "scope": "Eight fixed homepage entry image overrides; backend management and miniapp private downloads",
+  "linux_final": {
+    "tests": 66,
+    "passed": 66,
+    "skipped": 0,
+    "network": "disabled",
+    "data": "temporary synthetic SQLite"
+  },
+  "windows_earlier": {
+    "tests": 64,
+    "passed": 63,
+    "skipped": 1,
+    "note": "Product symlink privilege unavailable; final Linux suite covers both product and homepage symlinks and the later lost-commit-ack regression"
+  },
+  "client": {
+    "typecheck": true,
+    "categories_navigation_groups": 13,
+    "member_catalog_groups": 21,
+    "home_entry_groups": 6,
+    "total_groups": 40
+  },
+  "postgresql": {
+    "postgresql": 16,
+    "isolated_virtual_database": true,
+    "migration_and_metadata": true,
+    "concurrent_edits": [
+      "stale",
+      "saved"
+    ],
+    "one_winner": true,
+    "audit_atomic": true,
+    "reset": true,
+    "nonempty_downgrade_blocked": true,
+    "real_database_access": false
+  },
+  "browser": {
+    "synthetic_data": true,
+    "real_database_access": false,
+    "desktop_width": 1440,
+    "tablet_width": 768,
+    "mobile_width": 390,
+    "mobile_overflow": false,
+    "cards": 8,
+    "upload": true,
+    "image_decode": true,
+    "reset": true,
+    "page_errors": [],
+    "native_wechat": false
+  },
+  "resolved_findings": [
+    "Test fixture needed synthetic member auth settings and existing forced-password redirect expectation",
+    "Narrow-screen sidebar intercepted clicks; scoped page fix verified",
+    "Ambiguous COMMIT acknowledgement must retain the uploaded file; regression passed"
+  ],
+  "backup_compatibility": {
+    "code_review": "Docker /app/uploads symlinks to /data/uploads; existing backup copies entire /data and database",
+    "new_cold_restore_performed": false,
+    "scheduled_tasks_changed": false
+  },
+  "boundaries": {
+    "cloud_deployed": false,
+    "live_schema_changed": false,
+    "native_wechat_verified": false,
+    "existing_test_services_changed": false,
+    "real_database_access": false,
+    "public_domain_opened": false,
+    "wechat_review_submitted": false,
+    "paid_services_purchased": false,
+    "offline_key_or_external_drive_accessed": false
+  },
+  "local_log_sha256": {
+    "backend-tests.log": "16cbffeac7542ca55c0ae1d1dcfb69553ce90fc90ca998e15dc65f00f2057106",
+    "linux-final-tests.log": "4be1f4ddb2364ed575e6d4b980c1bce48f15f46aaf7c2104564fb0340a35ef95",
+    "postgres-tests.log": "3cecd69bbc261130b8ab92ca0b88cfe9f540eec0eedd5228f0a601f47afa158d"
+  },
+  "screenshots": {
+    "desktop.png": "eba1c039b8c5a647e37b86aa30aa9d85d92ada97a053daf90484efd45bf10c45",
+    "tablet.png": "5beffde8f3a5ec8a489a0787a2428e994c1e47ac4227c1731e2cf9ef004b15e9",
+    "mobile.png": "c6d5ce2436cd90c4ff268079175e38dca1ce5ccce68b7f24107bebf2e1d8d9ae"
+  }
+}

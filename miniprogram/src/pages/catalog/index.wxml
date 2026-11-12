@@ -25,7 +25,9 @@
   <view class="section-heading"><text class="section-title">探索好物</text><text class="section-note">按喜好，发现更多</text></view>
   <view class="category-grid mall-surface">
     <button wx:for="{{entries}}" wx:key="key" class="category-entry" data-key="{{item.key}}" bindtap="onCategoryTap" aria-label="打开{{item.name}}分类">
-      <template is="category-art" data="{{kind: item.key}}" />
+      <image wx:if="{{item.imageUrl}}" class="category-art" src="{{item.imageUrl}}" mode="aspectFill"
+             data-key="{{item.key}}" data-src="{{item.imageUrl}}" binderror="onEntryImageError" />
+      <template wx:else is="category-art" data="{{kind: item.key}}" />
       <text class="category-name">{{item.name}}</text>
     </button>
   </view>
