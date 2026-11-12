@@ -45,8 +45,8 @@ async function test(name,fn){await fn();passed++;console.log('PASS '+name);}
   const p=page();p.data.banners=cards();service.getHomeBanners=async()=>{throw Error('404 old server');};
   await p.refresh(true);await flush();assert.deepEqual(p.data.banners,[]);assert.equal(p.data.error,'');
  });
- await test('pause resume index clamp and image errors stay scoped to current slide',async()=>{
-  const p=page();p.data.banners=cards();p.onBannerPause();assert.equal(p.data.bannerPaused,true);p.onBannerPause();assert.equal(p.data.bannerPaused,false);
+ await test('index clamp and image errors stay scoped to current slide',async()=>{
+  const p=page();p.data.banners=cards();
   p.onBannerChange({detail:{current:1}});assert.equal(p.data.bannerCurrent,1);p.onBannerChange({detail:{current:9}});assert.equal(p.data.bannerCurrent,1);
   p.onBannerImageError({currentTarget:{dataset:{slot:1,src:'stale'}}});assert.equal(p.data.banners.length,2);
   p.onBannerImageError({currentTarget:{dataset:{slot:1,src:'wxfile://1'}}});assert.equal(p.data.banners.length,1);assert.equal(p.data.bannerCurrent,0);
@@ -56,9 +56,10 @@ async function test(name,fn){await fn();passed++;console.log('PASS '+name);}
   const p=page();p.data.banners=cards();for(const slot of [1,2,6])p.onBannerTap({currentTarget:{dataset:{slot}}});
   assert.deepEqual(destinations,['/pages/categories/index?category=food']);p.data.banners[0].targetCategory='https://evil.invalid';p.onBannerTap({currentTarget:{dataset:{slot:1}}});assert.equal(destinations.length,1);
  });
- await test('production template binds swiper to pause and retains existing green brand fallback',async()=>{
+ await test('production template retains automatic swiper and green fallback without overlay controls',async()=>{
   const source=fs.readFileSync(path.join(process.argv[3],'pages/catalog/index.wxml'),'utf8');
-  for(const text of ['<swiper ','banners.length > 1 && !bannerPaused','bindchange="onBannerChange"','binderror="onBannerImageError"','wx:else class="hero"','把每一份积分，'])assert.ok(source.includes(text));
+  assert.ok(!source.includes('hero-banner-controls'));assert.ok(!source.includes('onBannerPause'));
+  for(const text of ['<swiper ','banners.length > 1','bindchange="onBannerChange"','binderror="onBannerImageError"','wx:else class="hero"','把每一份积分，'])assert.ok(source.includes(text));
  });
  console.log(JSON.stringify({suite:'home-banner-client',passed,native_wechat:false}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

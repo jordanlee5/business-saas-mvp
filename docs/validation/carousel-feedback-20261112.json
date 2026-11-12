@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-12",
+  "user_acceptance": "Three features basically accepted by user; screenshots show native DevTools use",
+  "change": "Remove entire lower-right carousel counter/pause overlay; retain auto/swipe/category navigation",
+  "active_acceptance_ui_updated": [
+    "pages/catalog/index.wxml",
+    "pages/catalog/index.wxss",
+    "services/catalog-page.ts"
+  ],
+  "original_ui_backed_up": true,
+  "database_or_uploaded_images_changed": false,
+  "services_restarted": false,
+  "real_sms_enabled": false,
+  "new_visual_user_confirmation": "pending",
+  "base_commit": "21ed1f1fa2a56669642a8dda3da5339602dfb830",
+  "typecheck": {
+    "production": true,
+    "active_acceptance_project": true
+  },
+  "regression": {
+    "carousel": 9,
+    "home_entries": 6,
+    "category_navigation": 13,
+    "member_catalog": 22,
+    "total": 50,
+    "passed": 50
+  },
+  "source_sha256": {
+    "pages/catalog/index.wxml": "a663b6135cf30911bf9802750eaf16bd23c759d8cef87ff571783af0c7835480",
+    "pages/catalog/index.wxss": "3361001e0830de454de368e799b9a32ee52e33f1a2b9ffc26c8fd0dc517155ac",
+    "services/catalog-page.ts": "b928ffa4d728abf5179e7ce0c28994608f8703254780497ff12c94bf8025e480"
+  },
+  "user_screenshots_copied_to_repository": false,
+  "cloud_deployed": false,
+  "real_database_access": false
+}

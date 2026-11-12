@@ -5,17 +5,13 @@
 <block wx:if="{{catalogReady}}">
 <view class="screen mall-screen">
   <view wx:if="{{banners.length}}" class="hero-banners">
-    <swiper class="hero-carousel" current="{{bannerCurrent}}" autoplay="{{banners.length > 1 && !bannerPaused}}"
+    <swiper class="hero-carousel" current="{{bannerCurrent}}" autoplay="{{banners.length > 1}}"
             interval="5000" duration="400" circular="{{banners.length > 1}}" bindchange="onBannerChange">
       <swiper-item wx:for="{{banners}}" wx:key="slot">
         <image class="hero-banner-image" src="{{item.imageUrl}}" mode="aspectFill" aria-label="{{item.title}}"
                data-slot="{{item.slot}}" data-src="{{item.imageUrl}}" bindtap="onBannerTap" binderror="onBannerImageError" />
       </swiper-item>
     </swiper>
-    <view class="hero-banner-controls">
-      <text>{{bannerCurrent + 1}} / {{banners.length}}</text>
-      <button wx:if="{{banners.length > 1}}" bindtap="onBannerPause" aria-label="{{bannerPaused ? '播放轮播' : '暂停轮播'}}">{{bannerPaused ? '播放' : '暂停'}}</button>
-    </view>
   </view>
   <view wx:else class="hero">
     <text class="eyebrow">POINTS MALL / 积分商城</text>

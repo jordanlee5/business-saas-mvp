@@ -16,7 +16,7 @@ export function catalogPage(isCategoryPage: boolean) {
   let generation = 0;
   return guardCatalogPage({
     data: {
-      banners: [] as HomeBanner[], bannerCurrent: 0, bannerPaused: false,
+      banners: [] as HomeBanner[], bannerCurrent: 0,
       entries: defaultHomeEntries(), categories: categoryOptions([]), categoriesReady: false,
       activeKey: 'all', activeName: '全部好物', draftQuery: '', activeQuery: '', searchError: '',
       items: [] as ProductCard[], columns: columns([]), total: 0, page: 0, scrollTop: 0,
@@ -26,7 +26,7 @@ export function catalogPage(isCategoryPage: boolean) {
       const key = isCategoryPage ? categoryKey(options.category) : 'all';
       this.setData({ activeKey: key, activeName: CATEGORY_ENTRIES.find(item => item.key === key)?.name || '全部好物' });
     },
-    onCatalogClear() { generation += 1; this.setData({banners: [], bannerCurrent: 0, bannerPaused: false, entries: defaultHomeEntries(), items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
+    onCatalogClear() { generation += 1; this.setData({banners: [], bannerCurrent: 0, entries: defaultHomeEntries(), items: [], columns: columns([]), categories: categoryOptions([]), categoriesReady: false, total: 0, page: 0, hasMore: false, loading: false, moreLoading: false, error: '', draftQuery: '', activeQuery: ''}); },
     onUnload() { generation += 1; },
     onPullDownRefresh() { this.refresh(true).finally(() => wx.stopPullDownRefresh()); },
     onRetry() { this.refresh(true); },
@@ -44,7 +44,6 @@ export function catalogPage(isCategoryPage: boolean) {
       if (Number.isInteger(current) && current >= 0 && current < this.data.banners.length)
         this.setData({ bannerCurrent: current });
     },
-    onBannerPause() { this.setData({ bannerPaused: !this.data.bannerPaused }); },
     onBannerImageError(event: { currentTarget: { dataset: { slot: number; src: string } } }) {
       const { slot, src } = event.currentTarget.dataset;
       const failed = this.data.banners.find(row => row.slot === Number(slot) && row.imageUrl === src);
