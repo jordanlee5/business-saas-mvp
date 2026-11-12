@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-12",
+  "source_commit": "303c03eec5ce40b4e3859cd5d1b49fe9bf701a56",
+  "scope": "Prepare persistent independent local acceptance environment for three completed features",
+  "entry": "http://127.0.0.1:8898/__acceptance",
+  "package": {
+    "ready": true,
+    "loopback_port": 8898,
+    "source_commit": "303c03eec5ce40b4e3859cd5d1b49fe9bf701a56",
+    "initial_counts": {
+      "home_entry_images": 0,
+      "home_banners": 0,
+      "admin_phone_challenges": 0
+    },
+    "repeat_initialization_rejected_without_changes": true,
+    "initial_restore_point_preserved": true,
+    "repeated_launcher_same_process": true,
+    "generated_project_typecheck": true,
+    "existing_test_project_modified": false,
+    "real_sms_enabled": false,
+    "native_devtools_rendering_accepted": false,
+    "user_acceptance": "pending"
+  },
+  "preparation_tests": {
+    "run": 4,
+    "passed": 4
+  },
+  "browser": {
+    "synthetic_only": true,
+    "real_http_upload_replace_reset": true,
+    "real_http_banner_upload_sort_replace_toggle": true,
+    "viewer_refresh": true,
+    "all_disabled_brand_fallback": true,
+    "normal_phone_stays_disabled": true,
+    "virtual_captcha_cancel": true,
+    "virtual_code_wrong_then_success": true,
+    "old_cookie_unchanged": true,
+    "anonymous_and_cross_site_denied": true,
+    "no_unrelated_business_routes": true,
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "page_errors": [],
+    "external_requests": []
+  },
+  "compiled_client": {
+    "compiled_generated_project": true,
+    "actual_home_modules": true,
+    "backend_authenticated_manifest_and_image": true,
+    "eight_entries": true,
+    "uploaded_entry_downloaded": true,
+    "two_banners_correct_order": true,
+    "logout_image_cleanup": true,
+    "real_wechat_login_calls": 0,
+    "requests": [
+      "/__acceptance/member-session",
+      "/api/miniprogram/v1/home-entries",
+      "/api/miniprogram/v1/home-banners"
+    ]
+  },
+  "resolved_findings": [
+    "Generated demo adapter initially displaced an existing TypeScript no-check directive and used a custom header outside the narrow ambient type; directive ordering and structurally typed headers corrected. Rehearsal and final generated projects compile successfully."
+  ],
+  "isolation": {
+    "new_sqlite_database": true,
+    "new_upload_directory": true,
+    "new_source_snapshot": true,
+    "separate_cookie_names": true,
+    "separate_miniprogram_storage_namespace": true,
+    "local_only_member_tokens": true,
+    "loopback_bind_only": true,
+    "host_origin_csrf_checked": true,
+    "real_provider_http_disabled": true,
+    "formal_phone_factory_unchanged_and_closed": true,
+    "phone_demo_mounted_separately": true,
+    "original_test_project_modified": false,
+    "cloud_services_changed": false,
+    "real_database_access": false,
+    "backup_tasks_changed": false,
+    "existing_restore_points_overwritten": false,
+    "paid_services_purchased": false,
+    "public_domain_opened": false,
+    "wechat_submitted": false,
+    "offline_drive_accessed": false
+  },
+  "limitations": [
+    "Web preview verifies material changes but does not substitute for native WeChat rendering or swipe acceptance.",
+    "Generated tourist project connects only homepage manifests/images to this local backend; login/products/other business data remain synthetic.",
+    "User acceptance remains pending; no claim of real WeChat identity, physical-device networking or real SMS integration.",
+    "Computer must be on for local acceptance; manual restart launcher reuses persisted data. Existing backup/offsite jobs are unchanged."
+  ],
+  "log_sha256": {
+    "unified-acceptance-rehearsal-20261112\\preparation-tests.log": "e6fc1db95500d37e4ea2ee60562bbaee4797504348d9eee5606439558c74803c",
+    "unified-acceptance-rehearsal-20261112\\browser.log": "0d843c9db455e5872f7fa1f95d8b2dcf2305ef884af53b2ed6f3b7f3e30fff22",
+    "unified-acceptance-rehearsal-20261112\\client.log": "7d99392fefb88f050b26b30776a71749efa3e478dace9bedb107381c18c5668e",
+    "unified-acceptance-rehearsal-20261112\\typescript-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unified-acceptance-20261112\\typescript.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unified-acceptance-20261112\\ready-check.log": "c52444e8329137afc7c3783777afba5d826db04148ffb1b834c65eadfea4e3f9",
+    "unified-acceptance-20261112\\browser-ready.log": "e0b41c51c48e251f16a7462a341eafdd59052948fcb1fda7a6e874fb23afd50d"
+  },
+  "screenshot_sha256": {
+    "desktop.png": "5733313962f73dc62d5e0fd6108ac3a3453fa93d8520cd542ea900f54feb1b4d",
+    "mobile.png": "a34657ab8e285e47fbd821128e9adf22f742527012d066ea604a0744eea3c98f"
+  }
+}
