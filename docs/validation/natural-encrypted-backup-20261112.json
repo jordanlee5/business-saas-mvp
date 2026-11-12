@@ -1,0 +1,147 @@
+{
+  "base_commit": "f876837",
+  "verified_on": "2026-11-12",
+  "scheduled_backup": {
+    "format": 1,
+    "project": "saas-pg-test-cvm",
+    "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+    "started_at": "2026-11-11T20:08:55.303593+00:00",
+    "status": "ok",
+    "code": "backup_verified",
+    "completed_at": "2026-11-11T20:09:03.429189+00:00",
+    "backup": "backups/20261111T200855Z-d99378da4d5544e7ac542aa71ef63770"
+  },
+  "archive_format": 2,
+  "encrypted_files": {
+    "payload.enc": {
+      "bytes": 235520,
+      "sha256": "dd7297e2f5dc07f3de87bddff7a95ef53a1da0f6cd91ad5c0b2d5f94860d4e26"
+    }
+  },
+  "manifest_sha256": "a3bf97b9718882db4a2ecede9abcde4f8495261b423cb51541e0f6057b877c0d",
+  "offsite": {
+    "latest_local_result": {
+      "project": "saas-pg-test-cvm",
+      "status": "ok",
+      "code": "offsite_verified",
+      "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+      "completed_at": "2026-11-12T01:42:40.182117+00:00",
+      "local_removed": [],
+      "remote_removed": [],
+      "transfer_mode": "reused_verified",
+      "archive_bytes": 0
+    },
+    "server_receipt": {
+      "project": "saas-pg-test-cvm",
+      "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+      "manifest_sha256": "a3bf97b9718882db4a2ecede9abcde4f8495261b423cb51541e0f6057b877c0d",
+      "received_at": "2026-11-12T01:42:39.637377+00:00"
+    },
+    "all_ciphertext_and_manifest_hashes_match": true,
+    "source_freshness_and_receipt_check": "ok",
+    "local_directory_created_beijing": "2026-11-12T09:26:43.3335439+08:00",
+    "first_download_exact_task_event": "unavailable; creation time is not claimed as a precise task completion time"
+  },
+  "authentication_and_local_decryption": {
+    "authenticated_decryption": "passed",
+    "plaintext_inventory": "passed",
+    "dump_header": "PGDMP",
+    "file_count": 9,
+    "source_unchanged": true,
+    "identity_and_image_match": true,
+    "decrypted_manifest_sha256": "956266fb24b3881ff2f08f0b9e3e584a6a8181ccc97c15738fab6215408d6324",
+    "database_restore_performed": false
+  },
+  "watch": {
+    "samples": 115,
+    "alerts": 0,
+    "delivery_failures": 0,
+    "last": {
+      "format": 1,
+      "project": "saas-pg-test-cvm",
+      "checked_at": "2026-11-12T02:35:01.644103+00:00",
+      "status": "ok",
+      "checks": [
+        {
+          "check": "last_job",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "recovery_point",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "scheduler",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "app",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "database",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "ocr",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "disk",
+          "code": "ok",
+          "status": "ok"
+        },
+        {
+          "check": "offsite_backup",
+          "code": "ok",
+          "status": "ok"
+        }
+      ],
+      "notification": "not_needed",
+      "notification_configured": true
+    }
+  },
+  "retention": {
+    "server_points": 2,
+    "server_plaintext_scratch_count": 0,
+    "latest_local_removed": [],
+    "latest_remote_removed": [],
+    "old_plaintext_recovery_point_preserved": true,
+    "note": "Below retention threshold; no new deletion-path exercise in this verification."
+  },
+  "service_state": {
+    "all_three_healthy": true,
+    "no_published_app_database_ocr_ports": true,
+    "app_started_beijing": "2026-11-12T04:08:57.169739148+08:00",
+    "app_container_id_unchanged_from_previous_day": true,
+    "database_and_ocr_start_times_unchanged_from_previous_day": true,
+    "note": "App restart at scheduled stop-and-copy window; this verification did not stop or restart services."
+  },
+  "scope": {
+    "cloud_read_only": true,
+    "manual_backup_triggered": false,
+    "database_restored": false,
+    "real_business_database_written": false,
+    "private_key_exported": false,
+    "credentials_or_raw_backups_committed": false,
+    "new_unit_tests_run": false
+  },
+  "remaining": [
+    "Offline key copy deferred until user has USB media",
+    "Independent external availability monitoring",
+    "Always-on offsite storage subject to separate service/cost decision",
+    "Company homepage acceptance",
+    "ICP review; public domain remains closed; no WeChat submission"
+  ],
+  "end_of_verification": {
+    "old_recovery_point_verified_on_both_hosts": true,
+    "old_manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+    "container_identity_start_health_and_ports_unchanged_during_verification": true
+  }
+}
