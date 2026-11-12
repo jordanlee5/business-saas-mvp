@@ -1,0 +1,59 @@
+{
+  "base_commit": "964dc7e",
+  "date": "2026-11-12",
+  "export_completed_at": "2026-11-12T04:35:39.059929+00:00",
+  "reinsert_verification_completed_at": "2026-11-12T04:39:31.354022+00:00",
+  "media": {
+    "type": "USB external hard drive",
+    "filesystem": "NTFS",
+    "healthy": true,
+    "user_confirmed_physical_reconnection": true,
+    "same_volume_confirmed": true,
+    "existing_files_overwritten": false,
+    "formatted": false
+  },
+  "encrypted_key_package": {
+    "file_count": 3,
+    "files": {
+      "custody.json": {
+        "bytes": 98,
+        "sha256": "88dc04a429eaa400d11d97b988d56242e63cfbe03e3d3620224dc86a88a2f7f2"
+      },
+      "private-key.encrypted.pem": {
+        "bytes": 2654,
+        "sha256": "01d5fcceae12bba5870a6ca9360619fd00d4ad39e2cd8e70dc3093aeede08e69"
+      },
+      "public.pem": {
+        "bytes": 625,
+        "sha256": "3919d2b885306f97b913ba6b0c17a6e44cf18e1d4dcf6c4eba23ec9f51bec4cd"
+      }
+    },
+    "public_fingerprint": "3919d2b885306f97b913ba6b0c17a6e44cf18e1d4dcf6c4eba23ec9f51bec4cd",
+    "password_entered_locally": true,
+    "password_logged_or_committed": false
+  },
+  "verification": {
+    "immediate_readback": "passed",
+    "reinsert_readback": "passed",
+    "package_hashes_unchanged": true,
+    "real_encrypted_backup_authenticated": "passed",
+    "recovery_point": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+    "plaintext_written": false,
+    "private_key_recovered_to_disk": false,
+    "database_restore_performed": false
+  },
+  "boundaries": {
+    "original_key_retained": true,
+    "cloud_modified": false,
+    "test_services_restarted": false,
+    "raw_private_key_or_backup_uploaded": false,
+    "final_disconnect_and_separate_storage": "User handover action; not automatically performed"
+  },
+  "attempt_history": [
+    "Initial mount-source backslash representation check refused before export; corrected.",
+    "Password input validation did not complete on an earlier attempt; no key file created.",
+    "Hidden form was not visible; replaced with visible masked-password form.",
+    "First reinsert verification failed without changing package; subsequent password verification and full backup authentication passed."
+  ],
+  "tests": "Actual password-protected export, user-confirmed physical reconnection, read-back verification and full AES-GCM authentication; no code change or repeated cold recovery."
+}
