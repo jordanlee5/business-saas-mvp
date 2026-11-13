@@ -1,4 +1,4 @@
-"""Private, tag-free application image archive tied to a verified staging backup.
+"""Private, tag-free image archives for verified backups or explicit candidate IDs.
 
 This is an operator-invoked recovery tool, not a scheduled backup or publisher.
 Classic and single-image OCI-layout Docker save archives are accepted.
@@ -210,6 +210,16 @@ def inspect(expected):
 
 def create(backup, destination):
     expected = image_id(verify_backup(Path(backup)).get("app_image_id"))
+    return create_image(expected, destination)
+
+
+def create_image(expected, destination):
+    """Archive a reviewed immutable image before it has a database recovery point.
+
+    Does not create a backup, establish source provenance, or authorize deployment.
+    Its format stays compatible with the existing recovery catalog and loader.
+    """
+    expected = image_id(expected)
     destination = private_path(destination)
     if destination.exists():
         raise ValueError("Destination exists; verify it instead")
@@ -264,12 +274,23 @@ def require_recovery_image(expected, actual, bundle=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("create", "verify", "load"))
-    parser.add_argument("--backup", type=Path, required=True)
+    parser.add_argument("action", choices=("create", "verify", "load", "create-image", "verify-image"))
+    parser.add_argument("--backup", type=Path)
+    parser.add_argument("--image-id")
     parser.add_argument("--bundle", type=Path, required=True)
     args = parser.parse_args(argv)
+    explicit_image = args.action in {"create-image", "verify-image"}
+    if explicit_image:
+        if args.backup is not None or args.image_id is None:
+            parser.error("Explicit image actions require --image-id and forbid --backup")
+    elif args.backup is None or args.image_id is not None:
+        parser.error("Recovery actions require --backup and forbid --image-id")
     try:
-        if args.action == "create":
+        if args.action == "create-image":
+            result = create_image(args.image_id, args.bundle)
+        elif args.action == "verify-image":
+            result = verify(args.bundle, args.image_id)
+        elif args.action == "create":
             result = create(args.backup, args.bundle)
         elif args.action == "load":
             result = load(args.backup, args.bundle)

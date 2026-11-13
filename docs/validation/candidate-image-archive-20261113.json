@@ -1,0 +1,77 @@
+{
+  "revision": "677ce4b355edc4280c6c9e9bf79f6c0ccada6955",
+  "source_manifest_sha256": "d4d05ebabc4d7016de8fe71e370bd962df5b0ff9c50a381ad90cc784c0c21e74",
+  "base_image_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+  "image_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+  "base_sources": {
+    "sources_match": true,
+    "files": 173,
+    "packages_sha256": "8b013c167d7f0b7aacce05def2fb89526d479a3f5e694fa04e77dca7d63622b0",
+    "package_count": 54,
+    "python": "3.12.16"
+  },
+  "candidate_sources": {
+    "sources_match": true,
+    "files": 213,
+    "packages_sha256": "8b013c167d7f0b7aacce05def2fb89526d479a3f5e694fa04e77dca7d63622b0",
+    "package_count": 54,
+    "python": "3.12.16"
+  },
+  "packages_unchanged": true,
+  "existing_container_ids_unchanged": true,
+  "recipe_sha256": "2eba87e3735d9dbcff4c9c1c86482fd6ec451899a3fcf5907ff28a6084ffeee0",
+  "source_bundle_unchanged": true,
+  "archive": {
+    "image_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+    "config_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+    "bytes": 892417024,
+    "sha256": "f4eaa4b23c46bdde2fa39c34b17efaa84a5615b17ac0a286f423b3d722b90ff3"
+  },
+  "dependencies_installed": false,
+  "network_disabled_during_build_and_probe": true,
+  "new_database_backup_created": false,
+  "cloud_deployed": false,
+  "http_business_verification_done": false,
+  "date": "2026-11-13",
+  "starting_commit": "0d18c06ed166f7b7ed82b95e68b06d5942038a9f",
+  "tests": {
+    "windows_image_archive": {
+      "run": 28,
+      "passed": 28
+    },
+    "linux_archive_and_recovery_catalog": {
+      "run": 40,
+      "passed": 40
+    }
+  },
+  "archive_compatibility": "Existing format 1 and tag-free layer verification retained; recovery load still requires a verified backup.",
+  "build_resource_limit": {
+    "cpu": 0.5,
+    "memory_mib": 512
+  },
+  "user_decision": "Console no longer appears; keep current Windows PC as backup receiver, no migration.",
+  "remaining": [
+    "isolated_candidate_image_HTTP_and_business_checks",
+    "old_client_compatibility",
+    "full_recovery_dependency_inventory",
+    "execution_time_consistent_recovery_point",
+    "deployment_scope_and_window"
+  ],
+  "resolved_or_scoped_findings": [
+    "Windows full 40-test combination could not import cryptography, including with existing app venv. No installation performed. Windows archive subset 28 passed; full 40 passed using existing Linux dependencies.",
+    "Linux source verification initially rejected NTFS executable bits before image changes. Original Windows bundle verified, then modes restored only on a new Linux copy; full verification passed.",
+    "WSL emitted a stale D:\\GIT\\Git\\cmd path translation warning; system PATH and other projects were not changed."
+  ],
+  "boundaries": {
+    "cloud_contacted": false,
+    "existing_service_containers_modified": false,
+    "business_database_accessed": false,
+    "existing_recovery_points_accessed_or_overwritten": false,
+    "scheduled_backup_tasks_changed": false,
+    "real_sms_connected": false,
+    "dependencies_installed": false,
+    "public_domain_enabled": false,
+    "wechat_review_submitted": false,
+    "full_cloud_cold_restore_repeated": false
+  }
+}

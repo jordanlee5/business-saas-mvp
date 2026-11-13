@@ -163,6 +163,51 @@ class ImageArchiveTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertNotIn('private-detail', error.getvalue())
 
+    def test_candidate_export_requires_no_backup_and_preserves_source(self):
+        original = (self.bundle / 'image.tar').read_bytes()
+        def run(*args):
+            if args[:2] == ('image', 'inspect'):
+                return self.iid.encode() if args[-1] == '{{.Id}}' else b'100'
+            self.assertEqual(args[:3], ('image', 'save', self.iid))
+            Path(args[-1]).write_bytes(original)
+            return b''
+        with patch.object(images, 'docker', side_effect=run), patch.object(images, 'verify_backup') as backup:
+            result = images.create_image(self.iid, self.root / 'candidate')
+            backup.assert_not_called()
+        self.assertEqual(images.verify(self.root / 'candidate', self.iid), result)
+        self.assertEqual((self.bundle / 'image.tar').read_bytes(), original)
+
+    def test_candidate_tags_and_changed_identity_refused_before_save(self):
+        with patch.object(images, 'docker') as docker, self.assertRaises(ValueError):
+            images.create_image('candidate:latest', self.root / 'candidate')
+        docker.assert_not_called()
+        with patch.object(images, 'docker', return_value=b'sha256:' + b'b'*64) as docker, self.assertRaises(ValueError):
+            images.create_image(self.iid, self.root / 'candidate')
+        self.assertEqual(docker.call_count, 1)
+        self.assertFalse((self.root / 'candidate').exists())
+
+    def test_candidate_existing_archive_not_overwritten(self):
+        original = (self.bundle / 'image.tar').read_bytes()
+        with patch.object(images, 'docker') as docker, self.assertRaises(ValueError):
+            images.create_image(self.iid, self.bundle)
+        docker.assert_not_called()
+        self.assertEqual((self.bundle / 'image.tar').read_bytes(), original)
+
+    def test_explicit_cli_verifies_offline_without_backup(self):
+        with patch.object(images, 'docker') as docker, patch.object(images, 'verify_backup') as backup, patch('sys.stdout', new_callable=io.StringIO):
+            code = images.main(['verify-image','--image-id',self.iid,'--bundle',str(self.bundle)])
+        self.assertEqual(code, 0)
+        docker.assert_not_called()
+        backup.assert_not_called()
+
+    def test_cli_cannot_bypass_recovery_binding_or_mix_identities(self):
+        for args in (['load','--image-id',self.iid], ['create-image','--backup',str(self.backup),'--image-id',self.iid],
+                     ['verify-image'], ['verify','--backup',str(self.backup),'--image-id',self.iid]):
+            with self.subTest(args=args), patch.object(images,'docker') as docker, patch('sys.stderr',new_callable=io.StringIO), self.assertRaises(SystemExit) as error:
+                images.main(args + ['--bundle',str(self.bundle)])
+            self.assertEqual(error.exception.code, 2)
+            docker.assert_not_called()
+
     def test_invalid_image_id_refused(self):
         for value in ('latest', 'sha256:' + 'A'*64, '--help', None):
             with self.subTest(value=value), self.assertRaises(ValueError):
