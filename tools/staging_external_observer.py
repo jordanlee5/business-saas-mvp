@@ -44,7 +44,8 @@ def probe(config):
              '-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+config['known_hosts'],
              '-o','ConnectTimeout=12','-o','ConnectionAttempts=1',host,'sudo -n python3 -']
     try:
-        result=subprocess.run(command,input=REMOTE.encode(),capture_output=True,timeout=35)
+        result=subprocess.run(command,input=REMOTE.encode(),capture_output=True,timeout=35,
+                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except subprocess.TimeoutExpired:
         return {'code':'remote_unreachable_or_ssh_failed'}
     if result.returncode:
@@ -119,6 +120,9 @@ def observe(config_path, *, now=None, reader=probe):
 
 
 def main():
+    if os.name == "nt":
+        from tools.windows_background import prepare_stdio
+        prepare_stdio()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config',required=True,type=Path)
     args=parser.parse_args()

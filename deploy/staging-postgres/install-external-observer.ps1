@@ -11,6 +11,12 @@ if ($PrivateRoot.StartsWith($repo + '\', [StringComparison]::OrdinalIgnoreCase) 
 if (Test-Path -LiteralPath $PrivateRoot) { throw 'Existing directory refused' }
 if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) { throw 'Existing task refused' }
 foreach ($item in @($Python,$OffsiteConfig)) { if (-not (Test-Path -LiteralPath $item -PathType Leaf)) { throw 'Required file missing' } }
+$Python = (Resolve-Path -LiteralPath $Python).Path
+$PythonWindowless = Join-Path (Split-Path $Python) 'pythonw.exe'
+$sshExecutable = Join-Path $env:WINDIR 'System32/OpenSSH/ssh.exe'
+foreach ($required in @($PythonWindowless, $sshExecutable)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw 'Python with pythonw.exe and Windows OpenSSH client are required' }
+}
 $parent = Split-Path $PrivateRoot
 while ($parent) {
     if ((Test-Path -LiteralPath $parent) -and ((Get-Item -LiteralPath $parent).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Linked parent refused' }
@@ -26,13 +32,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Private directory ACL failed' }
 $runner = Join-Path $PrivateRoot 'runner'
 $modules = Join-Path $runner 'tools'
 $null = New-Item -ItemType Directory -Path $modules
-foreach ($name in @('staging_external_observer.py','staging_backup_job.py','staging_backup_watch.py','staging_offsite_backup.py','staging_pg_backup.py','staging_monitor.py','staging_backup_crypto.py')) {
+foreach ($name in @('windows_background.py','staging_external_observer.py','staging_backup_job.py','staging_backup_watch.py','staging_offsite_backup.py','staging_pg_backup.py','staging_monitor.py','staging_backup_crypto.py')) {
     Copy-Item -LiteralPath (Join-Path $repo ('tools/' + $name)) -Destination $modules
 }
 $configFile = Join-Path $PrivateRoot 'config.json'
 $config = @{ project=$existing.project; ssh=$existing.ssh; key=$existing.key; known_hosts=$existing.known_hosts; host=$existing.host; state_root=(Join-Path $PrivateRoot 'state') }
 [IO.File]::WriteAllText($configFile, ($config | ConvertTo-Json), (New-Object Text.UTF8Encoding($false)))
-$action = New-ScheduledTaskAction -Execute $Python -Argument ('-m tools.staging_external_observer --config "' + $configFile + '"') -WorkingDirectory $runner
+$action = New-ScheduledTaskAction -Execute $PythonWindowless -Argument ('-m tools.staging_external_observer --config "' + $configFile + '"') -WorkingDirectory $runner
 $periodic = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $logon = New-ScheduledTaskTrigger -AtLogOn -User $identity.Name
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

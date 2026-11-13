@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-13",
+  "base_commit": "3cb46c7b5d70c39e1f69c88b72a72b98c8c89c3a",
+  "remote_base_confirmed_via": "GitHub connector fetch_commit main; local Git HTTPS handshake currently failing",
+  "runtime": "Windows Python 3.12.14, -S disables third-party site packages",
+  "tests": {
+    "run": 53,
+    "passed": 52,
+    "skipped": 1,
+    "skip_reason": "Existing symlink test requires Windows privileges",
+    "modules": [
+      "test_windows_background",
+      "test_staging_offsite_backup",
+      "test_staging_external_observer",
+      "test_staging_backup_job",
+      "test_staging_backup_watch"
+    ],
+    "native_windowless_scenarios": 9,
+    "parent_and_child_console_handles": 0,
+    "success_failure_busy_configuration_exit_codes_preserved": true,
+    "installer_syntax_passed": true
+  },
+  "installed_tasks": [
+    {
+      "name": "SaaS-Staging-External-Observer",
+      "state": "Ready",
+      "executable": "pythonw.exe",
+      "last_run": "2026-11-13T11:37:43+08:00",
+      "last_result": 0,
+      "next_run": "2026-11-13T11:42:42+08:00"
+    },
+    {
+      "name": "SaaS-Staging-Offsite-Backup",
+      "state": "Ready",
+      "executable": "pythonw.exe",
+      "last_run": "2026-11-13T10:42:38.0000000+08:00",
+      "last_result": 0,
+      "next_run": "2026-11-13T11:42:37.0000000+08:00"
+    }
+  ],
+  "task_xml_only_executable_changed": true,
+  "private_rollback_folder_name": "quiet-launch-20261113-112946",
+  "observer_latest": {
+    "status": "ok",
+    "code": "ok",
+    "checked_at": "2026-11-13T03:37:43.981154+00:00",
+    "outbound_notifications": false
+  },
+  "diagnostic_history": [
+    "11:32 natural observer recorded pending/remote_unreachable_or_ssh_failed, exit 0 per existing first-failure semantics.",
+    "Subsequent ordinary and pythonw fixed read-only probes both received valid remote response.",
+    "11:35:18 installed pythonw observer entry returned ok, exit 0; no outbound notification.",
+    "Initial deployment baseline guard rejected a malformed PowerShell hash-object argument before writing; corrected argument and verified matching blobs before deployment.",
+    "11:37 natural scheduled observer returned ok with exit 0; first transient connection failure retained in history."
+  ],
+  "offsite_post_change_natural_run": "pending next hourly trigger at 2026-11-13T11:42:37+08:00; not manually triggered",
+  "boundaries": {
+    "business_db_accessed": false,
+    "test_services_restarted": false,
+    "cloud_deployed": false,
+    "manual_real_backup_or_pull": false,
+    "existing_recovery_points_overwritten": false,
+    "dependencies_installed": false,
+    "new_host_migrated": false,
+    "real_sms_connected": false,
+    "offline_private_key_accessed": false,
+    "outbound_messages_sent": false
+  },
+  "observer_post_change_natural_run": {
+    "local_time": "2026-11-13T11:37:43+08:00",
+    "task_exit_code": 0,
+    "status": "ok"
+  }
+}

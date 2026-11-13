@@ -77,6 +77,7 @@ class ExternalObserverTests(unittest.TestCase):
         self.assertIn('StrictHostKeyChecking=yes',args)
         self.assertEqual(args[-1],'sudo -n python3 -')
         self.assertEqual(run.call_args.kwargs['input'],observer.REMOTE.encode())
+        self.assertEqual(run.call_args.kwargs['creationflags'],getattr(subprocess,'CREATE_NO_WINDOW',0))
 
     def test_invalid_target_and_outbound_configuration_refused(self):
         self.config['host']='-oUnsafe'

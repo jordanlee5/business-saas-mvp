@@ -15,6 +15,12 @@ $PrivateRoot = [IO.Path]::GetFullPath($PrivateRoot)
 if ($PrivateRoot.StartsWith($repo + '\', [StringComparison]::OrdinalIgnoreCase) -or $PrivateRoot -eq $repo) { throw 'Private directory must be outside source repository' }
 if (Test-Path -LiteralPath $PrivateRoot) { throw 'Choose a new dedicated private directory; existing installation is not overwritten' }
 foreach ($item in @($Python, $KeyFile, $KnownHosts)) { if (-not (Test-Path -LiteralPath $item -PathType Leaf)) { throw 'Required local file missing' } }
+$Python = (Resolve-Path -LiteralPath $Python).Path
+$PythonWindowless = Join-Path (Split-Path $Python) 'pythonw.exe'
+$sshExecutable = Join-Path $env:WINDIR 'System32/OpenSSH/ssh.exe'
+foreach ($required in @($PythonWindowless, $sshExecutable)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw 'Python with pythonw.exe and Windows OpenSSH client are required' }
+}
 $parent = Split-Path $PrivateRoot
 while ($parent) {
     if ((Test-Path -LiteralPath $parent) -and ((Get-Item -LiteralPath $parent).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Linked parent refused' }
@@ -29,7 +35,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Private directory ACL setup failed' }
 $runner = Join-Path $PrivateRoot 'runner'
 $modules = Join-Path $runner 'tools'
 $null = New-Item -ItemType Directory -Path $modules
-foreach ($name in @('staging_offsite_backup.py','staging_backup_job.py','staging_pg_backup.py','staging_backup_crypto.py','staging_backup_watch.py','staging_monitor.py')) {
+foreach ($name in @('windows_background.py','staging_offsite_backup.py','staging_backup_job.py','staging_pg_backup.py','staging_backup_crypto.py','staging_backup_watch.py','staging_monitor.py')) {
     Copy-Item -LiteralPath (Join-Path $repo ('tools/' + $name)) -Destination $modules
 }
 $hostsCopy = Join-Path $PrivateRoot 'known_hosts'
@@ -37,7 +43,7 @@ Copy-Item -LiteralPath $KnownHosts -Destination $hostsCopy
 $configFile = Join-Path $PrivateRoot 'config.json'
 $config = @{ project=$Project; local_root=(Join-Path $PrivateRoot 'copies'); ssh=(Join-Path $env:WINDIR 'System32/OpenSSH/ssh.exe'); key=[IO.Path]::GetFullPath($KeyFile); known_hosts=$hostsCopy; host=$SshHost; remote_code=$RemoteCode; remote_root=$RemoteRoot; keep=14 }
 [IO.File]::WriteAllText($configFile, ($config | ConvertTo-Json), (New-Object Text.UTF8Encoding($false)))
-$action = New-ScheduledTaskAction -Execute $Python -Argument ('-m tools.staging_offsite_backup pull --config "' + $configFile + '"') -WorkingDirectory $runner
+$action = New-ScheduledTaskAction -Execute $PythonWindowless -Argument ('-m tools.staging_offsite_backup pull --config "' + $configFile + '"') -WorkingDirectory $runner
 $hourly = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Hours 1)
 $logon = New-ScheduledTaskTrigger -AtLogOn -User $identity.Name
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

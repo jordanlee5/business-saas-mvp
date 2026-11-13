@@ -139,6 +139,7 @@ class OffsiteTests(unittest.TestCase):
         calls = []
 
         def command(args, **kwargs):
+            self.assertEqual(kwargs.get("creationflags"), getattr(subprocess, "CREATE_NO_WINDOW", 0))
             import shlex
             tokens = shlex.split(args[-1])
             if 'describe' in tokens:
@@ -157,6 +158,7 @@ class OffsiteTests(unittest.TestCase):
             return subprocess.CompletedProcess(args, 0, json.dumps(result).encode(), b'')
 
         def exporting(args, **kwargs):
+            self.assertEqual(kwargs.get("creationflags"), getattr(subprocess, "CREATE_NO_WINDOW", 0))
             from unittest.mock import Mock
             calls.append('export')
             stream = io.BytesIO()

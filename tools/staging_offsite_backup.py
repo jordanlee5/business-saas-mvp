@@ -262,7 +262,8 @@ def pull(config_path):
                 raise ValueError("Invalid size limit")
             report["code"] = "probe_failed"
             response = subprocess.run(ssh + [remote + "describe" + common],
-                                      capture_output=True, timeout=300)
+                                      capture_output=True, timeout=300,
+                                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             if response.returncode != 0 or len(response.stdout) > 8192:
                 raise RuntimeError("Remote probe failed")
             descriptor = json.loads(response.stdout)
@@ -274,7 +275,8 @@ def pull(config_path):
                 report["code"] = "transfer_failed"
                 with temporary.open("wb") as output:
                     os.chmod(temporary, 0o600)
-                    process = subprocess.Popen(ssh + [remote + "export" + common], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                    process = subprocess.Popen(ssh + [remote + "export" + common], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                     deadline = threading.Timer(900, process.kill)
                     deadline.daemon = True
                     deadline.start()
@@ -300,7 +302,8 @@ def pull(config_path):
             report["code"] = "acknowledgement_failed"
             response = subprocess.run(ssh + [remote + "ack" + common + " --run-id " + received["run_id"]
                                       + " --digest " + received["manifest_sha256"] + " --keep 7"],
-                                      capture_output=True, timeout=300)
+                                      capture_output=True, timeout=300,
+                                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             if response.returncode != 0:
                 raise RuntimeError("Remote acknowledgement failed")
             ack = json.loads(response.stdout)
@@ -324,6 +327,9 @@ def pull(config_path):
 
 
 def main():
+    if os.name == "nt":
+        from tools.windows_background import prepare_stdio
+        prepare_stdio()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["describe", "export", "ack", "pull"])
     parser.add_argument("--root", type=Path)
