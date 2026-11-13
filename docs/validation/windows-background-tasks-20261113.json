@@ -25,17 +25,17 @@
       "name": "SaaS-Staging-External-Observer",
       "state": "Ready",
       "executable": "pythonw.exe",
-      "last_run": "2026-11-13T11:37:43+08:00",
+      "last_run": "2026-11-13T11:42:43+08:00",
       "last_result": 0,
-      "next_run": "2026-11-13T11:42:42+08:00"
+      "next_run": "2026-11-13T11:47:42+08:00"
     },
     {
       "name": "SaaS-Staging-Offsite-Backup",
       "state": "Ready",
       "executable": "pythonw.exe",
-      "last_run": "2026-11-13T10:42:38.0000000+08:00",
+      "last_run": "2026-11-13T11:42:38+08:00",
       "last_result": 0,
-      "next_run": "2026-11-13T11:42:37.0000000+08:00"
+      "next_run": "2026-11-13T12:42:37+08:00"
     }
   ],
   "task_xml_only_executable_changed": true,
@@ -43,7 +43,7 @@
   "observer_latest": {
     "status": "ok",
     "code": "ok",
-    "checked_at": "2026-11-13T03:37:43.981154+00:00",
+    "checked_at": "2026-11-13T03:42:43.964037+00:00",
     "outbound_notifications": false
   },
   "diagnostic_history": [
@@ -51,9 +51,19 @@
     "Subsequent ordinary and pythonw fixed read-only probes both received valid remote response.",
     "11:35:18 installed pythonw observer entry returned ok, exit 0; no outbound notification.",
     "Initial deployment baseline guard rejected a malformed PowerShell hash-object argument before writing; corrected argument and verified matching blobs before deployment.",
-    "11:37 natural scheduled observer returned ok with exit 0; first transient connection failure retained in history."
+    "11:37 natural scheduled observer returned ok with exit 0; first transient connection failure retained in history.",
+    "11:42 natural hourly pull fully reverified existing copy and acknowledgement; reused_verified, archive_bytes 0, both retention deletion counts 0. Natural observer also ok."
   ],
-  "offsite_post_change_natural_run": "pending next hourly trigger at 2026-11-13T11:42:37+08:00; not manually triggered",
+  "offsite_post_change_natural_run": {
+    "status": "ok",
+    "code": "offsite_verified",
+    "completed_at": "2026-11-13T03:42:39.852375+00:00",
+    "transfer_mode": "reused_verified",
+    "archive_bytes": 0,
+    "task_exit_code": 0,
+    "local_removed_count": 0,
+    "remote_removed_count": 0
+  },
   "boundaries": {
     "business_db_accessed": false,
     "test_services_restarted": false,
@@ -67,8 +77,9 @@
     "outbound_messages_sent": false
   },
   "observer_post_change_natural_run": {
-    "local_time": "2026-11-13T11:37:43+08:00",
+    "local_time": "2026-11-13T11:42:43+08:00",
     "task_exit_code": 0,
     "status": "ok"
-  }
+  },
+  "fix_commit_pushed": "82f74a88e9f207d0030e2357d5a851e0053767fe"
 }
