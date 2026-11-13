@@ -46,3 +46,6 @@ DOCKER_BUILDKIT=0 docker build --pull=false --network none --memory 512m --cpu-p
 Windows归档28项通过；Linux归档/恢复目录组合40项通过，覆盖候选无需备份、标签/错ID拒绝、不能覆盖、离线校验，以及旧备份/镜像关联和加密点无需私钥清点。Windows组合检查因本机无cryptography失败，未安装依赖，改用已有Linux环境完成组合验证。NTFS执行权限差异在新Linux副本解决，原Windows包保持；失败过程不计为通过。详见[脱敏证据](validation/candidate-image-archive-20261113.json)。
 
 下一轮用这个固定镜像做隔离虚拟数据HTTP及业务联验、旧客户端兼容核对。本轮仅完成镜像生成与归档，尚未进行这些业务检查或重复冷恢复；也没有建立执行时一致恢复点、全范围恢复依赖清单或发布窗口。因此仍不等于可直接上线。备案、企业主页待验收、真实短信和微信接入边界保持。
+
+
+后续完成情况：固定镜像的独立业务HTTP、选定旧版和候选客户端兼容、隔离服务重启已在后续轮次通过，见[联验记录](candidate-http-compatibility.md)。不改变本页归档轮次的原验证范围。

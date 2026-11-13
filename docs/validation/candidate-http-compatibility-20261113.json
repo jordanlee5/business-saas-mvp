@@ -1,0 +1,171 @@
+{
+  "image_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+  "database_image_id": "sha256:b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5",
+  "clients": {
+    "legacy": {
+      "client": "legacy",
+      "real_http_requests": 17,
+      "private_downloads": 1,
+      "catalog": true,
+      "points": true,
+      "addresses": true,
+      "order_idempotency": true,
+      "order_recovery_query": true,
+      "cancellation": true,
+      "logout_clears_private_images": true,
+      "token_not_persisted": true,
+      "new_home_media": false,
+      "wechat_login_boundary": "synthetic_preissued_token_only"
+    },
+    "candidate": {
+      "client": "candidate",
+      "real_http_requests": 19,
+      "private_downloads": 11,
+      "catalog": true,
+      "points": true,
+      "addresses": true,
+      "order_idempotency": true,
+      "order_recovery_query": true,
+      "cancellation": true,
+      "logout_clears_private_images": true,
+      "token_not_persisted": true,
+      "new_home_media": true,
+      "wechat_login_boundary": "synthetic_preissued_token_only"
+    }
+  },
+  "client_sources": {
+    "legacy": {
+      "revision": "b4f939ae7d613bf99aa1daebe087281313c68a4f",
+      "source_archive_sha256": "1bbc2453fc16559b470010a5e549901e5c998dd71887bbc9b428155ab27a43ce",
+      "compiled_files": 30
+    },
+    "candidate": {
+      "revision": "677ce4b355edc4280c6c9e9bf79f6c0ccada6955",
+      "source_archive_sha256": "2692a6c6fbfe523c80b57703be8b21ef2eaf281b9b4fdba2b8d36a79835919ed",
+      "compiled_files": 32
+    }
+  },
+  "http": {
+    "scope": "isolated-fixed-image-http",
+    "checks": [
+      "health_anonymous_admin_denied_and_real_phone_factory_closed",
+      "empty_configuration_preserves_default_entrances_and_green_fallback",
+      "eight_uploads_replace_stale_edit_csrf_and_private_media",
+      "carousel_upload_sort_disable_enable_and_operator_permission",
+      "real_HTTP_redemption_idempotency_fulfill_ship_complete_refund_cancel_and_member_isolation",
+      "admin_logout_revokes_access"
+    ],
+    "business_checkpoints": [
+      {
+        "stage": "seeded",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 5,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "admin_received",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "created_and_replayed",
+        "available_points": 90,
+        "reserved_points": 80,
+        "stock_on_hand": 6,
+        "stock_reserved": 2
+      },
+      {
+        "stage": "FULFILLING",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "SHIPPED",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "COMPLETED",
+        "available_points": 90,
+        "reserved_points": 0,
+        "stock_on_hand": 4,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "REFUNDED",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      },
+      {
+        "stage": "second_created",
+        "available_points": 90,
+        "reserved_points": 80,
+        "stock_on_hand": 6,
+        "stock_reserved": 2
+      },
+      {
+        "stage": "cancelled_and_replayed",
+        "available_points": 170,
+        "reserved_points": 0,
+        "stock_on_hand": 6,
+        "stock_reserved": 0
+      }
+    ]
+  },
+  "restart": {
+    "scope": "isolated-fixed-image-http",
+    "checks": [
+      "health_anonymous_admin_denied_and_real_phone_factory_closed",
+      "isolated_app_restart_preserves_media_orders_and_balances",
+      "admin_logout_revokes_access"
+    ]
+  },
+  "network_mode": "shared_loopback_of_network_none_database",
+  "published_ports": false,
+  "actual_sms_or_wechat": false,
+  "application_code_overlay": false,
+  "cloud_contacted": false,
+  "existing_container_ids_unchanged": true,
+  "only_rehearsal_containers_removed": true,
+  "date": "2026-11-13",
+  "candidate_revision": "677ce4b355edc4280c6c9e9bf79f6c0ccada6955",
+  "previous_commits_pushed_through": "6204586",
+  "checks_source_sha256": {
+    "tools/candidate_image_http_check.py": "8f4509e74c2f762d702469d0b412298d33b487f87db33f2cab877373be41b1bd",
+    "tools/candidate_client_http.cjs": "c64dfc2439e3ba8688cab2e7703aeb2feb8bffe3b1d2e485d00a8861dc78098d"
+  },
+  "resolved_findings": [
+    "Default Docker address pools exhausted before any test container was created. Used the network-none PostgreSQL namespace with loopback host aliases, without pruning networks or changing global settings.",
+    "Initial test expected an anonymous /mall-home redirect; the designed endpoint returns 401. Corrected the test, not application behavior.",
+    "Domain-only product fixture stored a relative image path, so the public catalog correctly returned no image. Normalized only the synthetic media URL and reran both clients unchanged."
+  ],
+  "boundaries": {
+    "business_database_accessed": false,
+    "existing_recovery_points_overwritten": false,
+    "cloud_deployed": false,
+    "existing_test_services_restarted": false,
+    "dependencies_installed": false,
+    "real_sms_enabled": false,
+    "real_wechat_identity_or_privacy_approved": false,
+    "new_native_WeChat_UI_acceptance": false,
+    "ocr_recognition_exercised": false,
+    "new_execution_time_backup_created": false,
+    "offline_private_key_accessed": false
+  },
+  "pending": [
+    "full_recovery_dependency_inventory",
+    "execution_time_consistent_recovery_point",
+    "deployment_scope_and_window",
+    "formal_wechat_platform_and_real_identity_validation",
+    "company_homepage_final_acceptance"
+  ]
+}
