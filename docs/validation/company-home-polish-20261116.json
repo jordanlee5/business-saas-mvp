@@ -1,0 +1,86 @@
+{
+  "checked_at": "2026-11-16T04:05:46.706Z",
+  "browser": "Microsoft Edge / Playwright",
+  "passed": true,
+  "widths": [
+    320,
+    360,
+    390,
+    700,
+    768,
+    1024,
+    1440,
+    1920
+  ],
+  "slides_per_width": 3,
+  "page_errors": [],
+  "failed_responses": [],
+  "external_requests": 0,
+  "checks": [
+    "24 width/slide layouts without horizontal overflow or controls covering CTA",
+    "mobile navigation anchors and return to top",
+    "preview login explanation; production href remains /login",
+    "next/previous/wrap",
+    "automatic advance, pause and resume",
+    "reduced-motion default paused",
+    "320px no-JavaScript fallback",
+    "keyboard skip link",
+    "one h1",
+    "all assets local"
+  ],
+  "scope": "isolated static loopback preview; no database or real login",
+  "date": "2026-11-16",
+  "base_commit": "6b8d114e076af08581cc936c39079c114ab3bacc",
+  "remote_recheck_before_work": "Git ls-remote independently confirmed main at 6b8d114e076af08581cc936c39079c114ab3bacc",
+  "unit_tests": {
+    "module": "test_company_home",
+    "run": 3,
+    "passed": 3,
+    "database": "isolated in-memory SQLite"
+  },
+  "backup_notification": {
+    "source": "user confirmation in this conversation",
+    "reported_message": "备份恢复正常",
+    "fresh_notification_sent": false,
+    "backup_triggered": false
+  },
+  "changes": [
+    "wine-red palette retained",
+    "framed hero and clearer typography",
+    "three original inline SVG service icons",
+    "contrasting service cards",
+    "dark wine service process section",
+    "refined about/access/footer spacing",
+    "visible mobile anchor navigation and 44px primary controls"
+  ],
+  "assets": {
+    "app/templates/company.html": "a9c2d06e2750fcbea6197192c212252f44d643ac74a683032a4f2c5aec0f17b2",
+    "app/static/company/city.svg": "8716095c100f5b9d50f2059e33f36a503675c7e7dc980cb05253752d23cea8b6",
+    "app/static/company/connection.svg": "b3bb5f22bf0b25193832dba9374b59448d53b2198d0260a6ed24670163185d26",
+    "app/static/company/delivery.svg": "61bcf83e6c145d2fd39a3bebeae5b6334137f3b9292067d5a276043cfc933e94",
+    "app/static/company/home.css": "8dae6802606dbdeaa975bbba9b0a31eef5b009127dfbba24c4ccd7dc8efa0698",
+    "app/static/company/home.js": "5ef62184a125f29d8ee7d218112cb4acb6e00517254d1c2d4bc0b2055b8b3a32"
+  },
+  "screenshots": {
+    "desktop.png": "d96cdf4a2e4ea753e89a12dbdf5c226ce29a19e5b0acdabab705fa640742bb2f",
+    "desktop-top.png": "d7f1523c2e0029c84b336be9a1b08e1b78d39a76ec4c55cd50f3bd657797571c",
+    "mobile.png": "0bc3915e9d9a57958932e3e6aa30ec8cf3d07dfc72a5f9f91ee90a8132d98ef6",
+    "mobile-top.png": "42040a3c39baa37b6470c90da4283b66e972fb2461211c10340fa6758bc0d922"
+  },
+  "preview_copy_matches_repo": true,
+  "carousel_script_unchanged": true,
+  "server_changes": false,
+  "real_database_access": false,
+  "existing_acceptance_environment_changed": false,
+  "software_installed": false,
+  "public_domain_opened": false,
+  "sms_enabled": false,
+  "fixed_candidate": {
+    "business_commit": "677ce4b",
+    "image": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+    "modified": false,
+    "new_ui_included": false
+  },
+  "user_acceptance": "pending",
+  "content_claims_added": false
+}
