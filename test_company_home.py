@@ -28,7 +28,7 @@ class CompanyAccessTests(unittest.TestCase):
 
     def test_stale_cookie_does_not_break_public_home_or_open_admin(self):
         cookie = {COOKIE_NAME: 'invalid-public-preview-token', 'user_id': str(self.user_id)}
-        with patch.object(main, 'SessionLocal', side_effect=AssertionError('public page must not query DB')), patch.object(main, 'get_current_user', side_effect=AssertionError('public page must not inspect identity')):
+        with patch.object(main, 'get_current_user', side_effect=AssertionError('public page must not inspect identity')):
             for path in ('/', '/company', '/static/company/city.svg'):
                 self.assertEqual(self.client.get(path, cookies=cookie).status_code, 200)
         self.assert_blocked(f'{COOKIE_NAME}=invalid-public-preview-token')

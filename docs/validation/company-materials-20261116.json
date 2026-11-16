@@ -1,0 +1,126 @@
+{
+  "date": "2026-11-16",
+  "recorded_at": "2026-11-16T10:38:20.010416+00:00",
+  "base_commit": "0192f24dd2e8247db4700e4990429ec0f06b9691",
+  "user_acceptance": {
+    "company_polish_and_replaceable_carousel": "passed by explicit user feedback with their selected artwork",
+    "followup": "replace legacy promotion config with sole company materials editor"
+  },
+  "tests": {
+    "unique_cases": 65,
+    "passed_after_targeted_rerun": 63,
+    "skipped": 2,
+    "skip_reason": "existing Windows symlink privileges tests",
+    "full_run": {
+      "run": 65,
+      "passed": 62,
+      "failed": 1,
+      "skipped": 2,
+      "seconds": 53.159
+    },
+    "targeted_final": {
+      "run": 3,
+      "passed": 3,
+      "seconds": 2.361
+    },
+    "failure_resolution": "New test expected uniform anonymous response; actual existing middleware redirects stale-cookie GET once, clears cookie, then API returns 401. Final test captures first response; app access rules unchanged.",
+    "original_80_case_run": "imported TestCase duplicated 15 cases; fixed test discovery. Historical failure retained.",
+    "logs": {
+      "verified-tests.log": "ffa22d710398b82529c6b21dbe9bac076c148b57315b58c28bb3d3a1ea5c73ee",
+      "verified-tests-final.log": "f5a34ec5258588ec40ff6566a992bbb004930e44eda3315fc9c54e1abf384e22",
+      "navigation-final.log": "5798ce3246234bc13b9d95a540e1f2c0e3ed82c3385503087d9b4409d339b44c",
+      "navigation-final-r2.log": "9e47da43a100c0f57f3ac14653bc922cd4d5a9156ac0056f6dabd8f9e9716f54"
+    },
+    "database": "new temporary synthetic SQLite only",
+    "postgres_this_round": false
+  },
+  "browser": {
+    "passed": true,
+    "checked_at": "2026-11-16T10:32:53.482Z",
+    "checks": [
+      "single existing menu",
+      "only current materials editor",
+      "three responsive widths",
+      "submit buttons unobstructed",
+      "no pause/play",
+      "manual carousel"
+    ],
+    "user_preview_modified": false
+  },
+  "previous_carousel_browser": {
+    "passed": true,
+    "checked_at": "2026-11-16T07:55:47.876Z",
+    "checks": [
+      "operator entry",
+      "real HTTP upload and preview",
+      "sort",
+      "poster without copy",
+      "replacement revokes old URL",
+      "enable/disable fallback",
+      "no pause/play control",
+      "auto advance",
+      "manual previous/next",
+      "4 widths",
+      "no script fallback"
+    ],
+    "database": "new synthetic local only",
+    "errors": []
+  },
+  "accepted_preview": {
+    "url": "http://127.0.0.1:8900/__review",
+    "only_templates_and_static_resources_updated": true,
+    "restarted": false,
+    "state_before": {
+      "database_sha256": "6ac15722cd62efedbccbc29e81bb5d1fba771e5975553f21635d409e92740c12",
+      "initial_point_sha256": "2553592f5dc6419bd7f561c3933823da950aed12e5ddd61aae99b6de8e9b7c8a",
+      "upload_count": 6,
+      "uploads_inventory_sha256": "78429b3f202b16cf5452169626293d73406381130512fb15b433ce7325c9c452"
+    },
+    "state_after": {
+      "database_sha256": "6ac15722cd62efedbccbc29e81bb5d1fba771e5975553f21635d409e92740c12",
+      "initial_point_sha256": "2553592f5dc6419bd7f561c3933823da950aed12e5ddd61aae99b6de8e9b7c8a",
+      "upload_count": 6,
+      "uploads_inventory_sha256": "78429b3f202b16cf5452169626293d73406381130512fb15b433ce7325c9c452"
+    },
+    "state_identical": true
+  },
+  "source_sha256": {
+    "app/admin_permissions.py": "af5cea004175023f9654b53411248a58eb2a8f218a99976b1cd260ec78a4776d",
+    "app/api/company_banners.py": "e10dcb1cb2e69ccbd6e7c11bd30eccb8fd044118e36ee65acc1c23d0814a13ff",
+    "app/main.py": "196cdbf7c58c85ffcd94eb6d78a5a6cbaed7a55ab8ca5e1d59cbb987a7e2a291",
+    "app/mall/audit.py": "b46c08c9baede66f528cfd1a1720bf460e2dfdc9038730cadc8370c8b36cf2ce",
+    "app/mall/company_banners.py": "bcf4cc3d8b3d9b2bca892b8102e245eec2648d1f887b5f85d8125ebd1e001a7d",
+    "app/models.py": "01e2d30aa52151af59c273d6d56499ad321fad264c071dc9460a162e92465d5a",
+    "app/schema_readiness.py": "463de01409705253444d33a1ca9d92654d2ce9587cb553139ffcdc0d7f6dfc59",
+    "app/static/company/home.css": "f2120fc0a5972f99c47ad5eb5979654351a20b8a71fd260f16eb34ab867722ee",
+    "app/static/company/home.js": "94463e70f853759598f72bf2c5f878140896736e4504eb7a7272b67ffe7e73ac",
+    "app/templates/base.html": "3fbc3d42e27c23f7632dec291f05b572925160b60e707afaa06a05f4a8332772",
+    "app/templates/company.html": "3c7b1aff3a66ec95278def3354d4c5fdd59695234035d8ad04a5318f0dff02a3",
+    "app/templates/company_materials.html": "04406424568ae8b02918a6b2fe9e6613f49fd32fcd584737fa224d56a1ac331c",
+    "app/templates/promotion_pages.html": null,
+    "docs/company-carousel-editor.md": "d787d12193b601817b8390a18268e9d44d2627e6f4817e1037192ab6e0ff6122",
+    "docs/company-home.md": "53dd5a59651c06d80948872ee10d7ecaf59fb180a6eb85b11a3ff6ab641bf9c6",
+    "docs/development-progress.md": "598bb2aa8f70bbbe3f6e45dfd65a708da2f1c9650dc64ae62872ac6cfcba455a",
+    "docs/homepage-operations-plan.md": "3c08708bd594d6d4b8439753ce0c4ca89cd2cf65fbb6871374315af4a7d5e0ae",
+    "migrations/versions/0022_company_banners.py": "26e0df35d4a34395676322a8578114fee2d5fe31546fab1e9b558be6b783280e",
+    "test_candidate_upgrade.py": "83e5ba6b2de059c3c5f7143bafa23272063b83d7567873857f9cb3424c212790",
+    "test_company_banners.py": "681c37ac82e1f2b20aecee67724bb0f8524b4ba775bd683b0d406e2b55a0883a",
+    "test_company_home.py": "ce35f96477fb6ff17be2753ee4d391a5ee8de9a0b03df572ba0322d8d8120b16",
+    "test_company_navigation.py": "fdde5e5525ef2315a272eca59a76e969a97426b2218626b36a6e0025a08c067a"
+  },
+  "legacy": "admin editor and mutation handlers retired; historical rows/files/public read links preserved",
+  "constraints": {
+    "real_database_access": false,
+    "cloud_upgrade": false,
+    "real_sms": false,
+    "existing_tests_restarted": false,
+    "backup_tasks_changed": false,
+    "restore_points_overwritten": false,
+    "removable_disk_access": false,
+    "public_domain_opened": false,
+    "wechat_review_submitted": false
+  },
+  "approval": "initial read-only review timed out; one retry succeeded; prior round also reported usage-limit failure",
+  "git_status_at_evidence": "prepared before commit; final pushed SHA is recorded separately",
+  "whitespace_cleanup": "Removed blank EOF / trailing template whitespace only; no behavior change."
+}

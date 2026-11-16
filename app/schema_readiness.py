@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0021_admin_phone_login"
+CURRENT_SCHEMA_REVISION = "0022_company_banners"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -39,7 +39,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
 
 REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
     {
-        "users",
+        "users", "company_banners",
         "backoffice_sessions", "admin_phone_bindings", "admin_phone_challenges", "admin_phone_limits",
         "upload_batches",
         "business_records",
@@ -54,6 +54,7 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "company_banners": frozenset({"slot", "title", "image_path", "sort_order", "enabled", "show_copy", "revision", "updated_by_id", "updated_at"}),
     "admin_phone_bindings": frozenset({"user_id", "phone_digest", "revision", "updated_by_id", "updated_at"}),
     "admin_phone_challenges": frozenset({"challenge_id", "phone_digest", "browser_digest", "captcha_digest", "code_digest", "user_id", "binding_revision", "credential_digest", "attempts", "state", "created_at", "expires_at"}),
     "admin_phone_limits": frozenset({"key_digest", "count", "expires_at"}),

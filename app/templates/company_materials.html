@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-card"><h1>企业宣传页素材</h1>
+<p class="home-intro">管理企业宣传页的3个轮播位置。支持上传、替换、排序和启停，排序数字越小越靠前。<a href="/company" target="_blank" rel="noopener">打开宣传页预览 ↗</a></p>
+<p class="entry-hint">建议使用1920 × 864横图，支持JPG、PNG、WebP，单张不超过5MB。叠加文案时请把主体放右侧，手机会裁切两侧；整张海报可取消“叠加原页面文案”，以完整图片展示。</p>
+<p class="entry-hint">新图默认停用；启用后任何宣传页访客都可查看，请仅上传可公开的宣传素材。全部停用时恢复原三张插画。保存后刷新宣传页即可看到效果。</p>
+{% if message %}<p role="status">{{ message }}</p>{% endif %}{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<h2>当前启用顺序</h2><ol class="banner-strip">{% for banner in banner_preview %}<li>{{ loop.index }}. {{ banner.title }}</li>{% else %}<li>原三张品牌插画</li>{% endfor %}</ol>
+<style>
+.banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.banner-card { border: 1px solid #dbe5df; border-radius: 14px; padding: 18px; min-width: 0; }
+.banner-card h3 { margin: 12px 0; font-size: 18px; }
+.banner-image, .banner-placeholder { display: block; width: 100%; aspect-ratio: 5 / 2; border-radius: 12px; object-fit: cover; background: #edf3ed; }
+.banner-placeholder { display: grid; place-items: center; color: #527764; }
+.banner-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.banner-fields label { display: grid; gap: 6px; font-size: 13px; min-width: 0; }
+.banner-fields input, .banner-fields select { width: 100%; min-width: 0; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.banner-fields .wide { grid-column: 1 / -1; }
+.banner-fields .banner-check { display: flex; gap: 8px; align-items: center; }
+.banner-check input { width: auto; }
+.banner-card button { background: #245647; color: white; border: 1px solid #245647; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.banner-card .toggle { background: white; color: #245647; margin-top: 10px; }
+.banner-state { font-size: 13px; color: #64748b; } .banner-state.enabled { color: #176340; }
+.banner-live { margin: 22px 0; padding: 18px; border-radius: 14px; background: #f4f7f2; }
+.banner-strip { display: flex; gap: 12px; overflow: auto; padding: 6px 0; list-style: none; }
+.banner-strip li { flex: 0 0 180px; min-width: 0; }
+.banner-strip img { display: block; width: 100%; aspect-ratio: 5 / 2; object-fit: cover; border-radius: 10px; margin-bottom: 8px; }
+.banner-strip span { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.brand-fallback { background: linear-gradient(120deg, #153d39, #2d5945); color: #fff; border-radius: 16px; padding: 22px; line-height: 1.7; max-width: 500px; }
+@media(max-width:1100px) { .banner-grid { grid-template-columns: minmax(0, 1fr); } }
+@media(max-width:600px) { .banner-fields { grid-template-columns: minmax(0, 1fr); } }
+@media(max-width:900px) {
+  .sidebar { position: static; height: auto; max-height: 220px; }
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; justify-content: flex-start; padding: 12px 18px; }
+}
+</style>
+<div class="banner-grid">
+{% for banner in banners %}
+<section class="banner-card" data-slot="{{ banner.slot }}">
+  {% if banner.image_url %}<img class="banner-image" src="{{ banner.image_url }}" alt="{{ banner.title }}">
+  {% else %}<div class="banner-placeholder">待上传横版图片</div>{% endif %}
+  <h3>轮播素材 {{ banner.slot }}</h3><div class="banner-state {{ 'enabled' if banner.enabled else '' }}">{{ '已启用' if banner.enabled else '已停用' if banner.image_url else '尚未上传' }}</div>
+  <form method="post" enctype="multipart/form-data" action="/company-materials/banners/{{ banner.slot }}">
+    <input type="hidden" name="action" value="save"><input type="hidden" name="revision" value="{{ banner.revision }}"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="banner-fields">
+      <label class="wide">{{ '替换图片（不选则保留当前图片）' if banner.image_url else '选择图片' }}<input type="file" name="image_file" accept="image/jpeg,image/png,image/webp" {% if not banner.image_url %}required{% endif %}></label>
+      <label class="wide">图片说明<input name="title" value="{{ banner.title }}" maxlength="80" required></label>
+      <label>排序数字<input type="number" name="sort_order" value="{{ banner.sort_order }}" min="0" max="999" required></label>
+      <label class="banner-check wide"><input type="checkbox" name="show_copy" value="true" {% if banner.show_copy %}checked{% endif %}>叠加原页面文案（图片已有文字时取消）</label>
+      <label class="banner-check wide"><input type="checkbox" name="enabled" value="true" {% if banner.enabled %}checked{% endif %}>保存后启用</label>
+    </div>
+    <button type="submit">{{ '保存修改' if banner.image_url else '上传并保存' }}</button>
+  </form>
+  {% if banner.image_url %}<form method="post" action="/company-materials/banners/{{ banner.slot }}">
+    <input type="hidden" name="action" value="toggle"><input type="hidden" name="revision" value="{{ banner.revision }}"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="enabled" value="{{ 'false' if banner.enabled else 'true' }}">
+    <button type="submit" class="toggle">{{ '停用' if banner.enabled else '启用' }}</button>
+  </form>{% endif %}
+</section>
+{% endfor %}
+</div>
+</div>
+{% endblock %}

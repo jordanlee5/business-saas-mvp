@@ -18,26 +18,31 @@
 </header>
 <main id="main">
   <section class="hero" aria-label="企业服务展示" aria-roledescription="轮播图" data-carousel>
+    <h1 class="visually-hidden">瑞泓开礼 · 企业会员服务</h1>
     <div class="slides">
-      <article class="slide" data-slide aria-label="第 1 张，共 3 张">
-        <img class="hero-art" src="/static/company/city.svg" alt="深红天际线与现代商务建筑" width="1600" height="720" fetchpriority="high">
-        <div class="hero-copy"><p class="eyebrow">RUIHONG KAILI / MEMBER SERVICES</p><h1>服务有温度<br>交付有章法<span>。</span></h1><p class="hero-desc">让每一份会员权益，<br>成为企业与客户之间更长久的连接。</p><a class="light-button" href="#services">了解我们的服务 <span aria-hidden="true">↗</span></a></div>
+    {% for banner in company_banners %}
+      <article class="slide {{ 'image-only' if not banner.show_copy else '' }}" data-slide aria-label="第 {{ loop.index }} 张，共 {{ loop.length }} 张" {% if not loop.first %}hidden{% endif %}>
+        <img class="hero-art" src="{{ banner.image_url }}" data-fallback="/static/company/{{ ['city.svg','connection.svg','delivery.svg'][banner.slot - 1] }}" alt="{{ banner.title }}" width="1920" height="864" {% if loop.first %}fetchpriority="high"{% endif %}>
+        {% if banner.show_copy %}
+        {% if banner.slot == 1 %}
+<div class="hero-copy"><p class="eyebrow">RUIHONG KAILI / MEMBER SERVICES</p><h2>服务有温度<br>交付有章法<span>。</span></h2><p class="hero-desc">让每一份会员权益，<br>成为企业与客户之间更长久的连接。</p><a class="light-button" href="#services">了解我们的服务 <span aria-hidden="true">↗</span></a></div>
         <p class="hero-side">以专业协同，回应每一份信任</p>
-      </article>
-      <article class="slide" data-slide aria-label="第 2 张，共 3 张" hidden>
-        <img class="hero-art" src="/static/company/connection.svg" alt="连接企业与会员的商务空间插画" width="1600" height="720">
-        <div class="hero-copy"><p class="eyebrow">THOUGHTFUL BENEFITS / LASTING CONNECTIONS</p><h2>把关怀，<br>送到日常里<span>。</span></h2><p class="hero-desc">从会员资格到积分兑换，<br>让企业的心意有清晰、便捷的抵达方式。</p><a class="light-button" href="#approach">查看服务流程 <span aria-hidden="true">↗</span></a></div>
+
+        {% elif banner.slot == 2 %}
+<div class="hero-copy"><p class="eyebrow">THOUGHTFUL BENEFITS / LASTING CONNECTIONS</p><h2>把关怀，<br>送到日常里<span>。</span></h2><p class="hero-desc">从会员资格到积分兑换，<br>让企业的心意有清晰、便捷的抵达方式。</p><a class="light-button" href="#approach">查看服务流程 <span aria-hidden="true">↗</span></a></div>
         <p class="hero-side">连接需求，也连接长期价值</p>
-      </article>
-      <article class="slide" data-slide aria-label="第 3 张，共 3 张" hidden>
-        <img class="hero-art" src="/static/company/delivery.svg" alt="层次分明的商务建筑与向前延伸的通道" width="1600" height="720">
-        <div class="hero-copy"><p class="eyebrow">CLEAR PROCESS / RELIABLE SERVICE</p><h2>每一步协同，<br>都清晰可见<span>。</span></h2><p class="hero-desc">串联商品、供应商与订单履约，<br>为会员体验提供有序的服务支持。</p><a class="light-button" href="/login">进入服务工作台 <span aria-hidden="true">↗</span></a></div>
+
+        {% elif banner.slot == 3 %}
+<div class="hero-copy"><p class="eyebrow">CLEAR PROCESS / RELIABLE SERVICE</p><h2>每一步协同，<br>都清晰可见<span>。</span></h2><p class="hero-desc">串联商品、供应商与订单履约，<br>为会员体验提供有序的服务支持。</p><a class="light-button" href="/login">进入服务工作台 <span aria-hidden="true">↗</span></a></div>
         <p class="hero-side">从服务响应，到结果跟进</p>
+
+        {% endif %}{% endif %}
       </article>
+    {% endfor %}
     </div>
     <div class="carousel-controls" aria-label="轮播控制" hidden>
-      <span class="slide-index" aria-live="polite" data-index>01 / 03</span><span class="control-line"></span>
-      <button type="button" data-prev aria-label="上一张">←</button><button type="button" data-next aria-label="下一张">→</button><button class="pause" type="button" data-pause>暂停轮播</button>
+      <span class="slide-index" aria-live="polite" data-index>01 / {{ "%02d"|format(company_banners|length) }}</span><span class="control-line"></span>
+      <button type="button" data-prev aria-label="上一张">←</button><button type="button" data-next aria-label="下一张">→</button>
     </div>
   </section>
   <div class="service-strip"><span>面向企业的会员服务支持</span><span>资格核验</span><i></i><span>权益兑换</span><i></i><span>履约协同</span><i></i><span>服务跟进</span></div>

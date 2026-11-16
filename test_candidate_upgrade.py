@@ -1,4 +1,4 @@
-"""Synthetic 0018 -> 0021 data-preservation and non-destructive recovery checks."""
+"""Synthetic 0018 -> current head data-preservation and non-destructive recovery checks."""
 import hashlib
 from contextlib import closing
 import json
@@ -11,12 +11,13 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine,inspect,MetaData,Table,select,text
 from sqlalchemy.orm import sessionmaker
-from app.models import User,BusinessRecord,Member,HomeBanner,HomeEntryImage,AdminPhoneLimit
+from app.models import User,BusinessRecord,Member,CompanyBanner,HomeBanner,HomeEntryImage,AdminPhoneLimit
 from app.time_utils import utc8_now
 from app.schema_readiness import assert_database_schema_ready,DatabaseSchemaNotReadyError
 
 BASE='0018_member_qualifications'
-HEAD='0021_admin_phone_login'
+from app.schema_readiness import CURRENT_SCHEMA_REVISION
+HEAD=CURRENT_SCHEMA_REVISION
 
 def fingerprint(engine,names):
     metadata=MetaData()
@@ -35,7 +36,7 @@ def seed(factory):
 def upgrade_checks(engine,config,actor,names,before):
     command.upgrade(config,HEAD);command.check(config);assert_database_schema_ready(engine)
     assert fingerprint(engine,names)==before,'Existing business rows changed'
-    tables=('home_entry_images','home_banners','admin_phone_bindings','admin_phone_challenges','admin_phone_limits')
+    tables=('company_banners','home_entry_images','home_banners','admin_phone_bindings','admin_phone_challenges','admin_phone_limits')
     with engine.connect() as c:
         assert all(c.execute(text('SELECT COUNT(*) FROM '+table)).scalar()==0 for table in tables)
     factory=sessionmaker(bind=engine)
@@ -43,6 +44,7 @@ def upgrade_checks(engine,config,actor,names,before):
     with factory.begin() as db:
         db.add(HomeEntryImage(entry_key='home',image_path='/uploads/mall_home/home/'+'a'*32+'.webp',revision=1,updated_by_id=actor,updated_at=now))
         db.add(HomeBanner(slot=1,title='虚拟发布轮播',image_path='/uploads/mall_banners/1/'+'b'*32+'.webp',sort_order=10,enabled=False,target_category='',revision=1,updated_by_id=actor,updated_at=now))
+        db.add(CompanyBanner(slot=1,title='虚拟企业轮播',image_path='/uploads/company_banners/1/'+'d'*32+'.webp',sort_order=10,enabled=False,show_copy=True,revision=1,updated_by_id=actor,updated_at=now))
         db.add(AdminPhoneLimit(key_digest='c'*64,count=1,expires_at=9999999999))
     all_names=[n for n in inspect(engine).get_table_names() if n!='alembic_version']
     persisted=fingerprint(engine,all_names)

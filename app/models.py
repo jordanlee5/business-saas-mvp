@@ -2162,3 +2162,23 @@ class AdminPhoneLimit(Base):
     key_digest = Column(String(64), primary_key=True)
     count = Column(Integer, nullable=False)
     expires_at = Column(BigInteger, nullable=False, index=True)
+
+
+class CompanyBanner(Base):
+    """Bounded, individually versioned carousel artwork; new uploads are drafts."""
+    __tablename__ = 'company_banners'
+    __table_args__ = (
+        CheckConstraint('slot BETWEEN 1 AND 3', name='ck_company_banner_slot'),
+        CheckConstraint('revision >= 1', name='ck_company_banner_revision'),
+        CheckConstraint('sort_order BETWEEN 0 AND 999', name='ck_company_banner_sort'),
+        CheckConstraint("length(trim(title)) BETWEEN 1 AND 80", name='ck_company_banner_title'),
+    )
+    slot = Column(Integer, primary_key=True, autoincrement=False)
+    title = Column(String(80), nullable=False)
+    image_path = Column(String(500), nullable=False)
+    sort_order = Column(Integer, nullable=False)
+    enabled = Column(Boolean, nullable=False)
+    show_copy = Column(Boolean, nullable=False)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)
