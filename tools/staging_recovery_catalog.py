@@ -13,7 +13,22 @@ from tools import staging_image_archive as images
 
 
 def checked_path(path):
-    return images.private_path(Path(path))
+    return images.private_path(Path(path)).resolve()
+
+
+def point_snapshot(point, project):
+    point = checked_path(point)
+    # Reject links/junctions throughout a standalone point as well as its parents.
+    if not point.is_dir():
+        raise ValueError("Recovery directory required")
+    for entry in point.rglob("*"):
+        checked_path(entry)
+    manifest = verify_backup(point)
+    if manifest.get("source_project") != project:
+        raise ValueError("Wrong recovery project")
+    return dict(manifest_sha256=digest(point / "manifest.json"),
+                image_id=images.image_id(manifest.get("app_image_id")),
+                backup_format=manifest["format"])
 
 
 def root_snapshot(root, project):
@@ -31,24 +46,24 @@ def root_snapshot(root, project):
     for point in paths:
         if not RUN.fullmatch(point.name) or is_link(point) or not point.is_dir():
             raise ValueError("Unknown recovery entry")
-        manifest = verify_backup(point)
-        if manifest.get("source_project") != project:
-            raise ValueError("Wrong recovery project")
-        result[point.name] = dict(manifest_sha256=digest(point / "manifest.json"),
-                                 image_id=images.image_id(manifest.get("app_image_id")),
-                                 backup_format=manifest["format"])
+        result[point.name] = point_snapshot(point, project)
     return result
 
 
-def audit(project, roots, bundles, candidate_image=None):
+def audit(project, roots, bundles, candidate_image=None, standalone_points=()):
     if (os.environ.get("DATABASE_URL") or not re.fullmatch(r"saas-pg-test-[a-z0-9][a-z0-9-]{0,48}", project)
-            or not 1 <= len(roots) <= 16 or len(bundles) > 64):
+            or len(roots) > 16 or len(standalone_points) > 64
+            or not (roots or standalone_points) or len(bundles) > 64):
         raise ValueError("Dedicated staging inventory required")
     if candidate_image is not None:
         images.image_id(candidate_image)
     roots, bundles = [checked_path(p) for p in roots], [checked_path(p) for p in bundles]
-    if len(set(roots)) != len(roots) or len(set(bundles)) != len(bundles):
-        raise ValueError("Duplicate inventory paths")
+    standalone_points = [checked_path(p) for p in standalone_points]
+    paths = roots + bundles + standalone_points
+    if len(set(paths)) != len(paths) or any(
+            a.is_relative_to(b) or b.is_relative_to(a)
+            for i, a in enumerate(paths) for b in paths[i + 1:]):
+        raise ValueError("Overlapping inventory paths")
     problems, points, archives, initial = [], [], [], {}
     def problem(code, label):
         problems.append(dict(code=code, item=label))
@@ -71,6 +86,17 @@ def audit(project, roots, bundles, candidate_image=None):
         prior = by_run.setdefault(point["run_id"], point["manifest_sha256"])
         if prior != point["manifest_sha256"]:
             problem("conflicting_recovery_point", point["source"])
+    # Explicit standalone points are sealed historical directories, never active
+    # backup destinations. No lock is created; a second full check detects changes.
+    manual_initial = {}
+    for index, point in enumerate(standalone_points, 1):
+        label = "point_" + str(index)
+        try:
+            snapshot = point_snapshot(point, project)
+            manual_initial[label] = snapshot
+            points.append(dict(source=label, run_id="standalone", **snapshot))
+        except Exception:
+            problem("standalone_recovery_invalid", label)
     for index, bundle in enumerate(bundles, 1):
         label = "archive_" + str(index)
         try:
@@ -106,24 +132,35 @@ def audit(project, roots, bundles, candidate_image=None):
                     raise ValueError("Inventory changed")
         except Exception:
             problem("recovery_inventory_changed_or_busy", label)
+    for index, point in enumerate(standalone_points, 1):
+        label = "point_" + str(index)
+        if label not in manual_initial:
+            continue
+        try:
+            if point_snapshot(point, project) != manual_initial[label]:
+                raise ValueError("Standalone point changed")
+        except Exception:
+            problem("standalone_recovery_changed", label)
     for archive in archives:
         archive["retention"] = ("hold_incomplete_inventory" if problems else
             "required" if archive["references"] or archive["candidate_reference"] else "unreferenced_review_only")
     return dict(format=1, project=project, checked_at=datetime.now(timezone.utc).isoformat(),
                 status="blocked" if problems else "ok", points=points, archives=archives, problems=problems,
                 candidate_image=candidate_image, deletion_authorized=False,
-                scope="Only supplied backup roots and image bundles; no deployment or complete machine recovery certification")
+                scope="Only supplied backup roots, sealed standalone points and image bundles; no deployment or complete machine recovery certification")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True)
-    parser.add_argument("--root", type=Path, action="append", required=True)
+    parser.add_argument("--root", type=Path, action="append", default=[])
+    parser.add_argument("--point", type=Path, action="append", default=[],
+                        help="Sealed standalone recovery directory; never an active backup destination")
     parser.add_argument("--bundle", type=Path, action="append", default=[])
     parser.add_argument("--candidate-image")
     args = parser.parse_args(argv)
     try:
-        report = audit(args.project, args.root, args.bundle, args.candidate_image)
+        report = audit(args.project, args.root, args.bundle, args.candidate_image, args.point)
     except Exception:
         report = dict(status="blocked", problems=[dict(code="catalog_configuration_invalid")], deletion_authorized=False)
     print(json.dumps(report, ensure_ascii=True))

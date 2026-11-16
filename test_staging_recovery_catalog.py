@@ -85,6 +85,7 @@ class CatalogTests(unittest.TestCase):
         result = self.audit()
         self.assertEqual(result["status"], "ok")
         self.assertEqual({p["backup_format"] for p in result["points"]}, {1,2})
+        self.assertEqual(catalog.audit(self.project, [], [self.bundle], standalone_points=[new])["status"], "ok")
 
     def test_inventory_change_during_archive_check_blocks(self):
         original = catalog.images.verify
@@ -129,3 +130,64 @@ class CatalogTests(unittest.TestCase):
         with patch.object(catalog,'audit',side_effect=ValueError('private-detail')),patch('sys.stdout',new_callable=io.StringIO) as output:
             self.assertEqual(catalog.main(['--project',self.project,'--root',str(self.managed)]),1)
         self.assertNotIn('private-detail',output.getvalue())
+
+    def test_standalone_only_preserves_files_and_redacts_path(self):
+        before = inventory(self.point)
+        with patch.object(catalog.images, "docker") as docker:
+            result = catalog.audit(self.project, [], [self.bundle], standalone_points=[self.point])
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(before, inventory(self.point))
+        self.assertNotIn(str(self.point), json.dumps(result))
+        self.assertFalse((self.point / ".backup.lock").exists())
+        docker.assert_not_called()
+
+    def test_manual_old_image_missing_holds_candidate(self):
+        manual = self.root / "first-deployment"
+        shutil.copytree(self.point, manual)
+        p = manual / "manifest.json"
+        m = json.loads(p.read_text());m["app_image_id"] = "sha256:" + "f"*64
+        p.write_text(json.dumps(m))
+        result = self.audit(candidate_image=self.iid, standalone_points=[manual])
+        self.assertIn("recovery_image_missing", [x["code"] for x in result["problems"]])
+        self.assertEqual(result["archives"][0]["retention"], "hold_incomplete_inventory")
+
+    def test_standalone_changed_or_removed_during_hashing_blocks(self):
+        original = catalog.images.verify
+        def change(*args):
+            proof = original(*args)
+            (self.point / "database.dump").write_bytes(b"changed")
+            return proof
+        with patch.object(catalog.images, "verify", side_effect=change):
+            result = catalog.audit(self.project, [], [self.bundle], standalone_points=[self.point])
+        self.assertIn("standalone_recovery_changed", [x["code"] for x in result["problems"]])
+
+    def test_standalone_wrong_owner_and_corruption_block(self):
+        p = self.point / "manifest.json"
+        m=json.loads(p.read_text());m["source_project"]="saas-pg-test-other";p.write_text(json.dumps(m))
+        result = catalog.audit(self.project, [], [self.bundle], standalone_points=[self.point])
+        self.assertIn("standalone_recovery_invalid", [x["code"] for x in result["problems"]])
+        self.set_image(self.iid)
+        (self.point / "database.dump").write_bytes(b"broken")
+        self.assertEqual(catalog.audit(self.project, [], [self.bundle], standalone_points=[self.point])["status"], "blocked")
+
+    def test_overlapping_or_duplicate_inputs_refused(self):
+        for roots, points in [([self.managed],[self.point]),([],[self.point,self.point]), ([],[self.point,self.point/".."/self.point.name])]:
+            with self.assertRaises(ValueError):
+                catalog.audit(self.project, roots, [self.bundle], standalone_points=points)
+        with self.assertRaises(ValueError):
+            catalog.audit(self.project, [], [])
+
+    def test_standalone_cli_and_link_rejection(self):
+        with patch("sys.stdout",new_callable=io.StringIO) as output:
+            self.assertEqual(catalog.main(["--project",self.project,"--point",str(self.point),"--bundle",str(self.bundle)]),0)
+        self.assertEqual(json.loads(output.getvalue())["status"],"ok")
+        # Portable mock represents a linked entry; real symlink paths are covered
+        # by the existing image archive path tests on platforms that support them.
+        original = catalog.checked_path
+        def check(path):
+            if Path(path).name == "database.dump":
+                raise ValueError("Linked paths refused")
+            return original(path)
+        with patch.object(catalog, "checked_path", side_effect=check):
+            result = catalog.audit(self.project, [], [self.bundle], standalone_points=[self.point])
+        self.assertEqual(result["status"], "blocked")

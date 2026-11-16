@@ -1,0 +1,328 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "49f6e5d28dcca0f746a060dd367a0019600cfce2",
+  "remote_main_before_work": "49f6e5d28dcca0f746a060dd367a0019600cfce2",
+  "scope": "Explicit known CVM project managed roots and sealed standalone directories; bounded discovery, not all disks or all historical test projects",
+  "summary": {
+    "status": "blocked",
+    "problems": [
+      {
+        "host": "cloud",
+        "code": "recovery_image_missing",
+        "item": "point_1/standalone",
+        "image_id": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808"
+      },
+      {
+        "host": "cloud",
+        "code": "recovery_image_missing",
+        "item": "point_2/standalone",
+        "image_id": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808"
+      }
+    ],
+    "point_counts": {
+      "windows": 4,
+      "local": 4,
+      "cloud": 10
+    },
+    "manual_packages_match": true,
+    "unique_scheduled_points": 6,
+    "candidate_image": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+    "deletion_authorized": false
+  },
+  "tests": {
+    "linux_catalog_and_archive": {
+      "run": 46,
+      "passed": 46
+    },
+    "windows_new_catalog_cases": {
+      "run": 6,
+      "passed": 6
+    },
+    "fixtures": "Temporary synthetic recovery points and image archives; no containers or database"
+  },
+  "points": {
+    "cloud": [
+      {
+        "source": "source_1",
+        "run_id": "20261110T200158Z-c67a40d9c11b459fac41068f54a58f4d",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+        "manifest_sha256": "a3bf97b9718882db4a2ecede9abcde4f8495261b423cb51541e0f6057b877c0d",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261112T200525Z-9ba4eb330de24341aba2a6b40e41e512",
+        "manifest_sha256": "244e0c1a6eaaabc7c928ce20cdaf4dc0f164e52b691185929b3776a469af5999",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261113T200158Z-601c80b63d544ade9ed363e7fc5c5b95",
+        "manifest_sha256": "c4060a7133252c048e59aafdb1c6051df318b7ba2756dd4e209fa21f3360d045",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261114T200558Z-aabb4125b6bf40769c04878499a4c33a",
+        "manifest_sha256": "97105c4d077b7268f6c5f1431a40e473beee0c714eec287ed8dc0a543d5a3ec2",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261115T200758Z-c631c7ba03524d90ab30b524d39e783e",
+        "manifest_sha256": "ce4822222bac6ee8144846a8255d4ef7d67a586ad7e3f66fcf47a4e3744901b5",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "point_1",
+        "run_id": "standalone",
+        "manifest_sha256": "eedd1df946b00d4ae8cacdce0dcea5f1aa279a9324c152a95fe8d665370f1483",
+        "image_id": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808",
+        "backup_format": 1
+      },
+      {
+        "source": "point_2",
+        "run_id": "standalone",
+        "manifest_sha256": "e90cd4728fcd0f06b63858d138471a9f041808e183ab768ef0e8773d7060dcaf",
+        "image_id": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808",
+        "backup_format": 1
+      },
+      {
+        "source": "point_3",
+        "run_id": "standalone",
+        "manifest_sha256": "3d3943bf95ecd12fac7170199e11f0a6d835aad0f15f303e2db994c9a62bab97",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "point_4",
+        "run_id": "standalone",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      }
+    ],
+    "windows": [
+      {
+        "source": "source_1",
+        "run_id": "20261110T200158Z-c67a40d9c11b459fac41068f54a58f4d",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261111T200855Z-d99378da4d5544e7ac542aa71ef63770",
+        "manifest_sha256": "a3bf97b9718882db4a2ecede9abcde4f8495261b423cb51541e0f6057b877c0d",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261112T200525Z-9ba4eb330de24341aba2a6b40e41e512",
+        "manifest_sha256": "244e0c1a6eaaabc7c928ce20cdaf4dc0f164e52b691185929b3776a469af5999",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "source_1",
+        "run_id": "20261115T200758Z-c631c7ba03524d90ab30b524d39e783e",
+        "manifest_sha256": "ce4822222bac6ee8144846a8255d4ef7d67a586ad7e3f66fcf47a4e3744901b5",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      }
+    ],
+    "local_sealed_copies": [
+      {
+        "source": "point_1",
+        "run_id": "standalone",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      },
+      {
+        "source": "point_2",
+        "run_id": "standalone",
+        "manifest_sha256": "3d3943bf95ecd12fac7170199e11f0a6d835aad0f15f303e2db994c9a62bab97",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 2
+      },
+      {
+        "source": "point_3",
+        "run_id": "standalone",
+        "manifest_sha256": "263483fb7745ee1bbcb34868f3e50314f4ddadd3090bcf5bae143be5710689b7",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      },
+      {
+        "source": "point_4",
+        "run_id": "standalone",
+        "manifest_sha256": "956266fb24b3881ff2f08f0b9e3e584a6a8181ccc97c15738fab6215408d6324",
+        "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+        "backup_format": 1
+      }
+    ]
+  },
+  "archives": [
+    {
+      "archive": "archive_1",
+      "image_id": "sha256:75289115fea73a2d73db32d3a86d240ca38f47be681a22adf1145cb34e3fa233",
+      "config_id": "sha256:d3e433edec4aedc975f05cf735d8af5cddd6ef3fa705449633870b43c1f308c2",
+      "sha256": "76685470c393089565b6b0b4acc47b81a036ac8da00c4b343d253aeb97c93010",
+      "bytes": 889993216,
+      "references": [
+        "point_1/standalone",
+        "point_2/standalone",
+        "point_3/standalone",
+        "point_4/standalone"
+      ],
+      "candidate_reference": false,
+      "retention": "hold_incomplete_inventory"
+    },
+    {
+      "archive": "archive_2",
+      "image_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+      "config_id": "sha256:494444cbe4f4bcf2b92add4a0845856517a51ed66e15868d1382a7d9b71d2cae",
+      "sha256": "f4eaa4b23c46bdde2fa39c34b17efaa84a5615b17ac0a286f423b3d722b90ff3",
+      "bytes": 892417024,
+      "references": [],
+      "candidate_reference": true,
+      "retention": "hold_incomplete_inventory"
+    }
+  ],
+  "runtime_archive": {
+    "bytes": 439385088,
+    "sha256": "543c890c32ed0fe8073ba7d113b024008de051054c03a15980b8aca03bc62340",
+    "verification": "file_digest_only_not_full_layer_proof"
+  },
+  "runtime_images": {
+    "cloud_postgres": "sha256:f8777bd6e4ce7d2ba19f0d48e7d80af32e2bb8f43d4f7eeac0b4bd37b9a9c824",
+    "local_rehearsal_postgres": "sha256:b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5",
+    "relationship": "No fresh full-archive mapping proof in this round; do not infer equivalence from postgres:16 tag",
+    "ocr": "Cloud OCR and app use the same current image; candidate deployment remains pending"
+  },
+  "manual_package_copy_hashes_match": true,
+  "manual_packages": [
+    {
+      "label": "cvm-first-backup.tar.gz",
+      "sha256": "6bea79332c18ae53c5f111c74d3962103b977ef562bc6748608e9798e9c72f5a",
+      "bytes": 34106
+    },
+    {
+      "label": "pre-admin-polish-backup.tar.gz",
+      "sha256": "3fc29eb183914963f5c096d975804116163e070e0e602bd64cdf21f199dde49a",
+      "bytes": 34846
+    }
+  ],
+  "private_config_metadata": [
+    {
+      "label": "backup_config",
+      "exists": true,
+      "mode": "0o600"
+    },
+    {
+      "label": "db_secret_directory",
+      "exists": true,
+      "mode": "0o700"
+    },
+    {
+      "label": "db_owner_password",
+      "exists": true,
+      "mode": "0o444"
+    },
+    {
+      "label": "db_app_password",
+      "exists": true,
+      "mode": "0o444"
+    }
+  ],
+  "public_config_hashes": [
+    {
+      "label": "compose.yaml",
+      "sha256": "71146da68c554800c0e02e430714c99fa22b61071283c3994c5f57df056c0380"
+    },
+    {
+      "label": "10-app-role.sql",
+      "sha256": "97109b425520b9137b2f6c82377c41f9a568bc1201ccff3e112712d92822104c"
+    }
+  ],
+  "key_custody": {
+    "exists": true,
+    "file_mode": "0o600",
+    "directory_mode": "0o700",
+    "private_key_content_read": false,
+    "offline_media_accessed": false,
+    "offline_prior_verification": "docs/validation/offline-key-media-20261112.json",
+    "envelope_limitation": "Format 2 contains no recipient key fingerprint; current metadata audit cannot independently map each point to a key. Existing authenticated decrypt evidence retained."
+  },
+  "health": {
+    "app": "ok",
+    "database": "ok",
+    "ocr": "ok"
+  },
+  "timers": {
+    "saas-staging-backup@saas-pg-test-cvm.timer": "active",
+    "saas-staging-backup-watch@saas-pg-test-cvm.timer": "active"
+  },
+  "operation_status": {
+    "local": {
+      "containers_unchanged": false,
+      "images_unchanged": true,
+      "inventory_metadata_unchanged": true
+    },
+    "cloud": {
+      "containers_unchanged": true,
+      "images_unchanged": true,
+      "inventory_metadata_unchanged": true
+    },
+    "pull": {
+      "status": "ok",
+      "code": "offsite_verified",
+      "completed_at": "2026-11-16T01:42:39.807398+00:00",
+      "transfer_mode": "reused_verified",
+      "archive_bytes": 0,
+      "local_removed": [],
+      "remote_removed": []
+    },
+    "observer": {
+      "status": "ok",
+      "code": "ok",
+      "checked_at": "2026-11-16T02:02:43.471172+00:00",
+      "outbound_notifications": false
+    }
+  },
+  "native_windows_locking": true,
+  "cloud_checker_installed": false,
+  "local_container_observation": {
+    "ids_unchanged": true,
+    "changed_start_times": [
+      "unrelated_container_1",
+      "unrelated_container_2"
+    ],
+    "cause": "Not established; no container start/stop/restart command issued. Do not claim all host startup times unchanged."
+  },
+  "no_database_access": true,
+  "no_backup_triggered": true,
+  "no_restore_point_overwritten_or_deleted": true,
+  "no_cloud_upgrade": true,
+  "no_sms_provider_connected": true,
+  "deletion_authorized": false,
+  "limits": [
+    "Inventory snapshots are observational, not an atomic cross-host lock or publication approval.",
+    "Compressed manual packages compared as complete bytes across hosts, not extracted or newly restored.",
+    "Local current/candidate application archives fully checked; cloud archive bytes not rehashed this round.",
+    "Database secret file existence and permissions do not prove a current portable configuration recovery bundle.",
+    "Unregistered archives, partial directories and other project rehearsal material preserved, not eligible for deletion."
+  ]
+}
