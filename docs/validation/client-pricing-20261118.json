@@ -85,7 +85,8 @@
     "min_percent": "1.00",
     "max_percent": "300.00",
     "step_percent": "0.01",
-    "status": "communicated initial assumption; not an additional user confirmation"
+    "status": "explicitly confirmed by user: implement 1%-300%",
+    "confirmation_after_validation": true
   },
   "member_prices_connected": false,
   "points_partition_connected": false,
