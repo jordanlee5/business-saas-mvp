@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}客户价格规则{% endblock %}
+{% block content %}
+<style>
+.price-page .ui-card{margin-bottom:22px}.price-page .notice{background:#edf6f2;padding:16px;border-radius:10px;line-height:1.8}
+.price-page .error{background:#fff1f2;color:#9f1239}.price-page .table-scroll{overflow-x:auto;margin:18px 0}
+.price-page table{border-collapse:collapse;width:100%;min-width:720px;text-align:left}.price-page td,.price-page th{padding:12px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+.price-page .price-form{display:grid;grid-template-columns:2fr 2fr 1fr;gap:16px;margin:22px 0}
+.price-page label{display:block;font-weight:600;margin-bottom:8px}.price-page input:not([type=checkbox]),.price-page select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:8px}
+.price-page .summary{font-size:22px;font-weight:700;color:#164e46}.price-page small{display:block;color:#64748b;margin-top:6px}.price-page .confirm{display:flex;align-items:flex-start;gap:10px;margin:20px 0}
+@media(max-width:800px){.price-page .price-form{grid-template-columns:1fr}.price-page .table-scroll::before{content:'表格可左右滑动查看';display:block;color:#64748b;font-size:12px;margin-bottom:10px}}
+</style>
+<div class="page-container price-page">
+<div class="ui-card">
+<h1>客户价格规则</h1>
+<p>总公司设置默认比例，分支可单独覆盖。先预览影响，再确认保存；保存成功立即生效。</p>
+<p class="notice">当前已开放后台规则管理；小程序实际售价与积分账户将在完整联验后统一接入。此处保存不会改写商品基准售价、成本或历史订单。</p>
+{% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<h2>配置比例</h2>
+<form method="post" action="/mall-price-rules/preview">
+<input type="hidden" name="csrf_token" value="{{ csrf }}">
+<div class="price-form">
+<div><label for="price-org">客户机构</label><select id="price-org" name="organization_id" required><option value="">请选择总公司或分支</option>{% for row in rows if row.available %}<option value="{{ row.org.id }}">{{ row.org.name }}（{{ row.org.code }}）</option>{% endfor %}</select></div>
+<div><label for="price-mode">配置方式</label><select id="price-mode" name="mode"><option value="custom">本机构单独设置比例</option><option value="inherit">沿用总公司；无上级时恢复原价</option></select></div>
+<div><label for="price-percent">售价比例（%）</label><input id="price-percent" name="percent" type="number" min="1" max="300" step="0.01" value="100" inputmode="decimal"></div>
+</div>
+<p class="ui-hint">90%=优惠10%，110%=加价10%。允许1%～300%，最多两位小数。分支明确100%表示按原价，和“沿用总公司”不同；父子比例不叠加。选择沿用时，右侧填写的比例不参与计算。</p>
+<button class="ui-button-primary" type="submit">预览影响</button>　<a href="/mall-clients">管理客户与分支机构 →</a>
+</form>
+</div>
+{% if preview %}
+<div class="ui-card" id="price-preview">
+<h2>确认本次调整 · {{ preview.organization.name }}</h2>
+<p class="summary">{{ preview.ratio_label }} → 适用售价比例 {{ preview.effective_percent }}</p>
+<p>基准价100积分，配置后的单价为 <strong>{{ preview.example }} 积分</strong>。涉及{{ preview.scope_count }}个机构、{{ preview.products }}件商品 / {{ preview.skus }}个规格（含下架及停用规格）。成本保持原值。</p>
+<p class="ui-hint">本预览10分钟内有效。保存时会再次核对机构、规则和商品；发生变化必须重新预览。每件商品先四舍五入到两位小数，再按数量计算。</p>
+<div class="table-scroll"><table><thead><tr><th>机构</th><th>当前比例</th><th>调整后</th><th>来源 / 范围</th></tr></thead><tbody>
+{% for impact in preview.impacts %}<tr><td>{{ impact.name }}<small>{{ impact.code }}{{ ' · 已停用' if not impact.active else '' }}</small></td><td>{{ impact.before }}</td><td>{{ impact.after }}</td><td>{{ impact.source }}<small>{{ '本次调整范围' if impact.affected else '保留分支独立比例，不受本次调整影响' }}</small></td></tr>{% endfor %}
+</tbody></table></div>
+<h3>商品价格示例（最多展示20个规格，全部规格均已校验）</h3>
+<div class="table-scroll"><table><thead><tr><th>商品 / 规格</th><th>基准价</th><th>当前规则价</th><th>调整后</th><th>成本</th></tr></thead><tbody>
+{% for item in preview.sample %}<tr><td>{{ item.product }} / {{ item.name }}<small>{{ item.code }}</small></td><td>{{ item.base }}</td><td>{{ item.before }}</td><td>{{ item.after }}</td><td>{{ item.cost }}<small>保持不变</small></td></tr>{% else %}<tr><td colspan="5">尚无商品；当前只展示100积分的计算示例。</td></tr>{% endfor %}
+</tbody></table></div>
+<form method="post" action="/mall-price-rules/save">
+<input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="preview_token" value="{{ preview.preview_token }}">
+<label class="confirm"><input type="checkbox" name="confirmed" value="true" required><span>我已核对调整比例和涉及机构，确认保存后立即生效。</span></label>
+<button class="ui-button-primary" type="submit">确认保存规则</button>　<a href="/mall-price-rules">取消本次预览</a>
+</form>
+</div>
+{% endif %}
+<div class="ui-card">
+<h2>当前规则与继承关系</h2>
+<div class="table-scroll"><table><thead><tr><th>客户机构</th><th>本机构设置</th><th>适用比例 / 来源</th><th>适用版本 / 生效时间</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.org.name }}<small>{{ row.org.code }}{{ ' · 已停用或上级停用' if not row.available else '' }}</small></td><td>{{ row.own }}{% if row.rule %}<small>本机构设置第{{ row.rule.revision }}版</small>{% endif %}</td><td>{{ row.effective }} · {{ row.label }}<small>{{ row.source }}</small></td><td>{% if row.effective_rule %}{{ '继承' if row.inherited else '本级' }}第{{ row.effective_rule.revision }}版<small>{{ row.effective_rule.effective_at | format_utc8 }}</small>{% else %}按商品基准价{% if row.rule %}<small>{{ row.rule.effective_at | format_utc8 }}</small>{% endif %}{% endif %}</td></tr>{% else %}<tr><td colspan="4">请先登记客户机构。</td></tr>{% endfor %}
+</tbody></table></div>
+</div>
+<div class="ui-card"><h2>最近30次保存记录</h2><div class="table-scroll"><table><thead><tr><th>机构 / 版本</th><th>原设置 → 新设置</th><th>操作者 / 生效时间</th></tr></thead><tbody>
+{% for event in history %}<tr><td>{{ names[event.organization_id] }} · 第{{ event.revision }}版</td><td>{{ ratio_label(event.old_ratio_bps) }} → {{ ratio_label(event.ratio_bps) }}</td><td>{{ users[event.actor_id] }}<small>{{ event.effective_at | format_utc8 }}</small></td></tr>{% else %}<tr><td colspan="3">尚无保存记录；仅预览不会改变规则。</td></tr>{% endfor %}
+</tbody></table></div></div>
+</div>
+{% endblock %}

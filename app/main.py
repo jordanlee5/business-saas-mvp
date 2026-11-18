@@ -340,6 +340,8 @@ from .api.admin_phone import router as admin_phone_router
 app.include_router(admin_phone_router)
 from .api.client_organizations import router as client_organizations_router
 app.include_router(client_organizations_router)
+from .api.client_pricing import router as client_pricing_router
+app.include_router(client_pricing_router)
 for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)

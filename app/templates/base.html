@@ -308,6 +308,7 @@
                 <div class="side-title">积分商城</div>
                 {% if can_manage_client_organizations | default(false) %}
                 <a class="side-link {% if active_page == 'mall_clients' %}active{% endif %}" href="/mall-clients"><span class="side-icon">🏢</span><span>客户与分支机构</span></a>
+                <a class="side-link {% if active_page == 'mall_price_rules' %}active{% endif %}" href="/mall-price-rules"><span class="side-icon">％</span><span>客户价格规则</span></a>
                 {% endif %}
                 {% if can_manage_mall_catalog | default(false) %}
                 <a

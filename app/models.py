@@ -29,6 +29,52 @@ from .mall.domain import (
 )
 from .time_utils import utc8_now
 
+class ClientPriceRule(Base):
+    __tablename__ = 'client_price_rules'
+    __table_args__ = (
+        CheckConstraint('ratio_bps IS NULL OR (ratio_bps >= 100 AND ratio_bps <= 30000)', name='ck_client_price_ratio'),
+        CheckConstraint('revision >= 1', name='ck_client_price_revision'),
+    )
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), primary_key=True)
+    ratio_bps = Column(Integer)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    effective_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class ClientPriceRuleEvent(Base):
+    __tablename__ = 'client_price_rule_events'
+    __table_args__ = (
+        UniqueConstraint('organization_id', 'revision', name='uq_client_price_event_revision'),
+        CheckConstraint('ratio_bps IS NULL OR (ratio_bps >= 100 AND ratio_bps <= 30000)', name='ck_client_price_event_ratio'),
+        CheckConstraint('old_ratio_bps IS NULL OR (old_ratio_bps >= 100 AND old_ratio_bps <= 30000)', name='ck_client_price_event_old_ratio'),
+        CheckConstraint('revision >= 1', name='ck_client_price_event_revision'),
+    )
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), nullable=False)
+    revision = Column(Integer, nullable=False)
+    old_ratio_bps = Column(Integer)
+    ratio_bps = Column(Integer)
+    actor_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    effective_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class ClientPricePreview(Base):
+    __tablename__ = 'client_price_previews'
+    __table_args__ = (
+        CheckConstraint('ratio_bps IS NULL OR (ratio_bps >= 100 AND ratio_bps <= 30000)', name='ck_client_price_preview_ratio'),
+        CheckConstraint('applied_revision IS NULL OR applied_revision >= 1', name='ck_client_price_preview_revision'),
+    )
+    token_digest = Column(String(64), primary_key=True)
+    actor_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), nullable=False)
+    ratio_bps = Column(Integer)
+    state_digest = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    applied_revision = Column(Integer)
+
+
 class ClientOrganization(Base):
     __tablename__ = 'client_organizations'
     __table_args__ = (

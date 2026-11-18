@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-18",
+  "base_commit": "7537dbf24de9621803582cae26cb926f0135872c",
+  "phase": "2 of 3: backoffice pricing rules and inheritance preview",
+  "initial_compatibility_checks": {
+    "modules": [
+      "test_client_pricing",
+      "test_client_organizations",
+      "test_upload_channel_service",
+      "test_upload_channel_workflow",
+      "test_schema_readiness",
+      "test_browser_sessions",
+      "test_admin_permissions",
+      "test_member_qualifications",
+      "test_candidate_upgrade",
+      "test_public_catalog_service"
+    ],
+    "run": 109,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true
+  },
+  "final_affected_checks": {
+    "modules": [
+      "test_client_pricing"
+    ],
+    "run": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true
+  },
+  "postgres": {
+    "isolated_virtual_cluster": true,
+    "checks": {
+      "old_rows_unchanged": true,
+      "model_and_migration_match": true,
+      "empty_roundtrip": true,
+      "concurrent_parent_branch_one_save_one_stale": true,
+      "catalog_price_and_cost_unchanged": true,
+      "nonempty_downgrade_preserves_all_tables_and_data": true
+    },
+    "stopped": true,
+    "result": "pass"
+  },
+  "browser": {
+    "result": "pass",
+    "checks": [
+      {
+        "page": "rules",
+        "width": 1440,
+        "documentOverflow": false
+      },
+      {
+        "page": "rules",
+        "width": 768,
+        "documentOverflow": false
+      },
+      {
+        "page": "rules",
+        "width": 390,
+        "documentOverflow": false
+      },
+      {
+        "page": "preview",
+        "width": 1440,
+        "documentOverflow": false
+      },
+      {
+        "page": "preview",
+        "width": 768,
+        "documentOverflow": false
+      },
+      {
+        "page": "preview",
+        "width": 390,
+        "documentOverflow": false
+      }
+    ],
+    "pageErrors": []
+  },
+  "correction": "Initial PostgreSQL expiry comparison exposed timezone-aware/naive mismatch; new rule timestamps now explicitly use Asia/Shanghai; affected checks and PostgreSQL rerun passed.",
+  "pricing_bounds": {
+    "min_percent": "1.00",
+    "max_percent": "300.00",
+    "step_percent": "0.01",
+    "status": "communicated initial assumption; not an additional user confirmation"
+  },
+  "member_prices_connected": false,
+  "points_partition_connected": false,
+  "boundaries": {
+    "real_database_access": false,
+    "existing_test_services_changed": false,
+    "existing_acceptance_changed": false,
+    "cloud_upgrade": false,
+    "sms_connected": false,
+    "recovery_points_overwritten": false
+  },
+  "private_log_sha256": {
+    "checks-initial.log": "2faf9c88309d7a35c2fb74b372b3e0e9d8b6a87f3ab2bdbc40190f6429bb89e6",
+    "checks-current.log": "758c47f4fa13aa5ec249343225ba1cc7188830a7e70cd6bcaef38c81ed2fee24",
+    "pg-first-failed.log": "45ada668aead0c1ccc1edf1c5842c094c33de52284b6a179b9af8663a283c8a0",
+    "pg-check.log": "c12941341c8c022fd9cc86c60bdcb83cde12c6b57f7a44e88db8e5dfbb8381b7",
+    "visual-result.json": "64d0cfdf45abb4ded36979e79afce8ad2d39a4457008afdeb04582bd69782321"
+  },
+  "pending": [
+    "phase 3 authoritative member pricing and institution-separated points/orders/refunds",
+    "legacy ownership reconciliation",
+    "new candidate image and unified acceptance",
+    "prior cloud/local archive identity mapping proof"
+  ]
+}
