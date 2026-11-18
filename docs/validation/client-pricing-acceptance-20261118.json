@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-18",
+  "base_commit": "1b1cf638d766508f67d8b465bb5e3906a3617f5e",
+  "scope": "independent synthetic customer pricing acceptance tools only",
+  "http": {
+    "mode": "synthetic_http_acceptance",
+    "application_commit": "1b1cf638d766508f67d8b465bb5e3906a3617f5e",
+    "checks": [
+      "loopback, csrf, identity allowlist and unique cookies",
+      "real template and uploads: correct accepted, missing/mixed/unauthorized rejected atomically",
+      "three member prices 90/110/100 with no base/cost/rule leakage",
+      "immediate HQ inheritance, branch override and stale checkout refusal",
+      "explicit 100 percent versus inheritance; base and cost unchanged",
+      "both cross-client and sibling pooling denied; conflicting qualifications stop new trade",
+      "real checkout, replay, private order access and original-institution cancellation",
+      "fulfillment shipping completion and refund retain original 80 despite new 120 price",
+      "historical A1 refund 90 returns to A1 while current B remains 200",
+      "institution accounts and real admin exports",
+      "SMS disabled and initial restore point unchanged"
+    ],
+    "passed": 11,
+    "real_data_access": false,
+    "cloud_upgrade": false,
+    "sms_enabled": false,
+    "restore_point_unchanged": true
+  },
+  "browser": {
+    "checks": [
+      "portal at 390/768/1440 widths",
+      "real admin preview and immediate save from portal",
+      "old prepared price refused after admin update",
+      "browser checkout and cancellation call real member endpoints",
+      "simultaneous tabs retain their own A1/A2/B identity",
+      "visible insufficient current-institution points refusal",
+      "qualification conflict visibly blocks new purchase",
+      "member page responsive; no token or pending address persisted"
+    ],
+    "passed": 8,
+    "page_errors": [],
+    "external_requests": [],
+    "native_wechat": false
+  },
+  "package_guards": {
+    "passed": 6,
+    "checks": [
+      "existing output refused",
+      "repository-contained output refused",
+      "occupied port refused before writing",
+      "reinitialization refused and current database preserved",
+      "source mismatch refused before database initialization",
+      "off-host and provider HTTP calls blocked"
+    ]
+  },
+  "fresh_user_package": {
+    "passed": 5,
+    "checks": [
+      "pinned application and final harness match file hashes",
+      "fresh data has only pre-completed historical order and no SMS challenge",
+      "live portal samples and original A1/A2/B/history prices and balances",
+      "repeated startup reuses same package process",
+      "all final checks are read-only; fresh data and initial recovery hash unchanged"
+    ],
+    "port": 8918,
+    "application_commit": "1b1cf638d766508f67d8b465bb5e3906a3617f5e",
+    "initial_recovery_sha256": "b09f59ae80b6db503700754f17b8a5d62d7ce7f3e275b297a5c53f0bd785faae"
+  },
+  "earlier_failures_retained": [
+    "Windows asyncio socket pair initially denied by harness",
+    "HTTP exception response needed outer no-store header",
+    "page-title expectation corrected",
+    "browser form Origin:null with no-referrer corrected to same-origin"
+  ],
+  "limitations": [
+    "user acceptance pending",
+    "browser business acceptance only, no new native WeChat project",
+    "real legacy ownership inventory pending",
+    "cloud mapping proof pending; no cloud change"
+  ],
+  "real_database_access": false,
+  "existing_services_restarted": false,
+  "restore_points_overwritten": false,
+  "actual_sms_enabled": false,
+  "public_domain_opened": false
+}
