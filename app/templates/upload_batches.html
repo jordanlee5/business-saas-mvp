@@ -390,6 +390,12 @@
                     <td>
                         <div class="cell-stack">
                             <strong>{{ item.redemption_mode_label }}</strong>
+                            {% if item.ownership %}
+                            <small>{{ item.ownership.organization_name }} · {{ item.ownership.organization_region }}</small>
+                            <small>{{ item.ownership.organization_code }}</small>
+                            {% elif item.redemption_mode == "MALL_REDEMPTION" %}
+                            <small>历史清单：机构归属待核实</small>
+                            {% endif %}
                             {% if item.redemption_mode == "MALL_REDEMPTION" %}
                                 <small>截止 {{ item.claim_deadline | format_utc8 }}</small>
                             {% else %}

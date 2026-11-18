@@ -36,7 +36,7 @@ def seed(factory):
 def upgrade_checks(engine,config,actor,names,before):
     command.upgrade(config,HEAD);command.check(config);assert_database_schema_ready(engine)
     assert fingerprint(engine,names)==before,'Existing business rows changed'
-    tables=('company_banners','home_entry_images','home_banners','admin_phone_bindings','admin_phone_challenges','admin_phone_limits')
+    tables=('client_organizations','client_upload_scopes','client_batch_ownerships','company_banners','home_entry_images','home_banners','admin_phone_bindings','admin_phone_challenges','admin_phone_limits')
     with engine.connect() as c:
         assert all(c.execute(text('SELECT COUNT(*) FROM '+table)).scalar()==0 for table in tables)
     factory=sessionmaker(bind=engine)

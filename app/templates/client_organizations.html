@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}客户与分支机构{% endblock %}
+{% block content %}
+<style>
+.client-page .client-form {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.client-page label {display:block;font-weight:600;margin-bottom:6px}
+.client-page input,.client-page select {box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px}
+.client-page table {width:100%;border-collapse:collapse;text-align:left}
+.client-page td,.client-page th {padding:12px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+.client-page .table-scroll {overflow-x:auto;margin:20px 0}
+.client-page .ui-card {margin-bottom:20px}
+.client-page .notice {padding:12px;border-radius:8px;background:#ecfdf5}
+.client-page .notice.error {background:#fef2f2;color:#991b1b}
+@media(max-width:700px){.client-page .client-form {grid-template-columns:1fr}}
+</style>
+<div class="page-container client-page">
+<div class="ui-card">
+<h1>客户与分支机构</h1>
+<p>先登记总公司与分支，再为上传账号授权。机构编号、全称和归属地用于核对会员清单，请按签约信息填写。</p>
+{% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<h2>新增机构</h2>
+<form method="post" action="/mall-clients" class="client-form">
+<input type="hidden" name="action" value="create"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+<div><label for="org-parent">所属总公司</label><select id="org-parent" name="parent_id"><option value="0">新建总公司</option>{% for org in organizations if not org.parent_id and org.is_active %}<option value="{{ org.id }}">{{ org.name }}（{{ org.code }}）</option>{% endfor %}</select></div>
+<div><label for="org-code">机构编号</label><input id="org-code" name="code" required maxlength="32" pattern="[A-Za-z][A-Za-z0-9_-]{1,31}" placeholder="如 CLIENT-HRB"></div>
+<div><label for="org-name">机构全称</label><input id="org-name" name="name" required maxlength="120" placeholder="请填写完整分支名称"></div>
+<div><label for="org-region">机构归属地</label><input id="org-region" name="region" required maxlength="80" placeholder="如 黑龙江省哈尔滨市"></div>
+<div><button class="ui-button-primary" type="submit">创建机构</button></div>
+</form>
+<p class="ui-hint">机构建成后保留身份与上级关系；填错请停用后重新登记。停用总公司会暂停其下属机构的新清单上传，历史记录保留。</p>
+<div class="table-scroll"><table><thead><tr><th>机构编号</th><th>机构名称</th><th>归属地</th><th>总公司</th><th>状态</th><th>操作</th></tr></thead><tbody>
+{% for org in organizations %}<tr><td>{{ org.code }}</td><td>{{ org.name }}</td><td>{{ org.region }}</td><td>{% for parent in organizations if parent.id == org.parent_id %}{{ parent.name }}{% else %}总公司{% endfor %}</td><td>{{ '启用' if org.is_active else '停用' }}</td><td>
+<form method="post" action="/mall-clients"><input type="hidden" name="action" value="toggle"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="organization_id" value="{{ org.id }}"><input type="hidden" name="revision" value="{{ org.revision }}"><input type="hidden" name="enabled" value="{{ 'false' if org.is_active else 'true' }}"><button type="submit">{{ '停用' if org.is_active else '启用' }}</button></form>
+</td></tr>{% else %}<tr><td colspan="6">尚未登记客户机构。</td></tr>{% endfor %}
+</tbody></table></div>
+</div>
+<div class="ui-card">
+<h2>上传账号授权</h2>
+<p>一个机构可授权多个上传账号。上传账号只能下载及提交获授权机构的商城清单。</p>
+<form method="post" action="/mall-clients" class="client-form">
+<input type="hidden" name="action" value="scope"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="revision" value="0"><input type="hidden" name="enabled" value="true">
+<div><label for="scope-user">上传账号</label><select id="scope-user" name="user_id" required><option value="">请选择</option>{% for partner in partners if partner.is_active %}<option value="{{ partner.id }}">{{ partner.username }}</option>{% endfor %}</select></div>
+<div><label for="scope-org">允许上传的机构</label><select id="scope-org" name="organization_id" required><option value="">请选择</option>{% for org in organizations if org.is_active %}<option value="{{ org.id }}">{{ org.name }}（{{ org.code }}）</option>{% endfor %}</select></div>
+<div><button class="ui-button-primary" type="submit">新增授权</button></div>
+</form>
+<div class="table-scroll"><table><thead><tr><th>上传账号</th><th>机构</th><th>授权状态</th><th>操作</th></tr></thead><tbody>
+{% for scope in scopes %}<tr><td>{% for partner in partners if partner.id == scope.user_id %}{{ partner.username }}{% endfor %}</td><td>{% for org in organizations if org.id == scope.organization_id %}{{ org.name }}（{{ org.code }}）{% endfor %}</td><td>{{ '已授权' if scope.is_active else '已撤销' }}</td><td>
+<form method="post" action="/mall-clients"><input type="hidden" name="action" value="scope"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="user_id" value="{{ scope.user_id }}"><input type="hidden" name="organization_id" value="{{ scope.organization_id }}"><input type="hidden" name="revision" value="{{ scope.revision }}"><input type="hidden" name="enabled" value="{{ 'false' if scope.is_active else 'true' }}"><button type="submit">{{ '撤销授权' if scope.is_active else '恢复授权' }}</button></form>
+</td></tr>{% else %}<tr><td colspan="4">尚未设置上传授权。</td></tr>{% endfor %}
+</tbody></table></div>
+<a href="/upload-excel">进入模板管理，下载机构清单模板 →</a>
+</div>
+</div>
+{% endblock %}

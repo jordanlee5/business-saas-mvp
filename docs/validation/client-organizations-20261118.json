@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-18",
+  "base_commit": "dbf3b7226d6001bd23fbf7a44c0009a1c60ae425",
+  "phase": "1 of 3: organization identity and mandatory upload ownership",
+  "pricing_implemented": false,
+  "points_partition_implemented": false,
+  "confirmed_effective_time": "Price rules take effect immediately on successful save in phase 2",
+  "tests": {
+    "modules": [
+      "test_client_organizations",
+      "test_upload_channel_service",
+      "test_upload_channel_workflow",
+      "test_schema_readiness",
+      "test_browser_sessions",
+      "test_admin_permissions",
+      "test_member_qualifications",
+      "test_candidate_upgrade"
+    ],
+    "run": 88,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true,
+    "skip_details": [],
+    "fixtures": "isolated in-memory and temporary synthetic databases/files"
+  },
+  "postgres": {
+    "isolated_virtual_cluster": true,
+    "checks": {
+      "old_rows_unchanged": true,
+      "model_and_migration_match": true,
+      "empty_roundtrip": true,
+      "organization_scope_and_batch_transaction": true,
+      "nonempty_downgrade_refused": true
+    },
+    "stopped": true,
+    "result": "pass"
+  },
+  "browser": {
+    "result": "pass",
+    "checks": [
+      {
+        "page": "clients",
+        "width": 1440,
+        "documentOverflow": false
+      },
+      {
+        "page": "clients",
+        "width": 768,
+        "documentOverflow": false
+      },
+      {
+        "page": "clients",
+        "width": 390,
+        "documentOverflow": false
+      },
+      {
+        "page": "upload",
+        "width": 1440,
+        "documentOverflow": false
+      },
+      {
+        "page": "upload",
+        "width": 768,
+        "documentOverflow": false
+      },
+      {
+        "page": "upload",
+        "width": 390,
+        "documentOverflow": false
+      }
+    ],
+    "pageErrors": []
+  },
+  "boundaries": {
+    "real_database_access": false,
+    "existing_test_services_changed": false,
+    "existing_acceptance_changed": false,
+    "cloud_upgrade": false,
+    "sms_connected": false,
+    "recovery_points_overwritten": false
+  },
+  "iterations": [
+    {
+      "run": 88,
+      "errors": 1,
+      "failures": 0,
+      "reason": "Cross-revision SQLite downgrade removed empty new tables before an older data guard refused; fixed with whole-path preflight."
+    },
+    {
+      "run": 88,
+      "errors": 0,
+      "failures": 1,
+      "reason": "Existing history-protection assertion required compatible refusal wording; unified message without weakening the assertion."
+    },
+    {
+      "run": 88,
+      "errors": 0,
+      "failures": 0,
+      "result": "pass after fixes; PostgreSQL final migration rechecked"
+    }
+  ],
+  "evidence_sha256": {
+    "checks-current.log": "dc5ff8e632c4159ba90954921dbe84a3a74f4e4d87b7a5717a70a1c8dec0cd69",
+    "checks-compat-first-failed.log": "9fb93ac6b071383968ee6f4a421ad24127082021c0711a16136195134f180a82",
+    "checks-compat-wording-failed.log": "b6a38eb6e5ed4957d73127aabc2ad286d8bb6c1d5a8e65fa833ab777e2f0608f",
+    "pg-check.log": "3a952b7e66384d5b49824cc1b44dc588f0ba901e415d0013cd139c58096306ea",
+    "visual-result.json": "707ad4dea33edde91ad63de05db425619b4af894e16cb38f13d6a2d78f408588"
+  },
+  "pending": [
+    "phase 2 price configuration",
+    "phase 3 unified member pricing and organization-separated points transactions",
+    "legacy ownership reconciliation",
+    "new candidate build and release-time recovery point"
+  ]
+}

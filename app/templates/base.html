@@ -306,6 +306,9 @@
             {% if (can_view_mall_member_points | default(false)) or (can_manage_mall_catalog | default(false)) or (can_manage_mall_inventory | default(false)) or (can_view_mall_orders | default(false)) or (can_view_mall_supplier_settlements | default(false)) %}
             <div class="side-section">
                 <div class="side-title">积分商城</div>
+                {% if can_manage_client_organizations | default(false) %}
+                <a class="side-link {% if active_page == 'mall_clients' %}active{% endif %}" href="/mall-clients"><span class="side-icon">🏢</span><span>客户与分支机构</span></a>
+                {% endif %}
                 {% if can_manage_mall_catalog | default(false) %}
                 <a
                     class="side-link {% if active_page == 'mall_catalog' %}active{% endif %}"

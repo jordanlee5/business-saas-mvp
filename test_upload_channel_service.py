@@ -277,6 +277,14 @@ class PendingBatchChannelCorrectionTests(unittest.TestCase):
                     claim_status=None,
                 )
             )
+        # This round-trip fixture represents an already identified mall upload
+        # temporarily corrected to cash; unassigned legacy cash is tested separately.
+        from app.mall import client_organizations
+        admin = User(username="organization_operator",password_hash="test",role="admin",admin_level="operator")
+        self.db.add(admin);self.db.flush()
+        org = client_organizations.create(self.db,admin.id,code="VIRTUAL",name="虚拟机构",region="测试地")
+        client_organizations.set_scope(self.db,admin.id,user_id=uploader.id,organization_id=org.id,revision=0,enabled=True)
+        client_organizations.bind_batch(self.db,self.batch,org,uploader.id)
         self.db.commit()
 
     def tearDown(self):

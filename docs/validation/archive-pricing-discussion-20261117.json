@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-17",
+  "base_commit": "dbf3b7226d6001bd23fbf7a44c0009a1c60ae425",
+  "scope": "Documentation and pricing discussion only; historical image verification remains pending",
+  "archive_proof": {
+    "status": "pending_permission_review_timeout",
+    "executed": false,
+    "approval_outcomes": [
+      "initial_timeout",
+      "retry_timeout",
+      "user_authorized_extra_retry_timeout"
+    ],
+    "legacy_application_archive_verified_this_round": false,
+    "postgres_archive_verified_this_round": false,
+    "historical_evidence": "recovery-dependencies-20261116.json",
+    "old_application_image": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808",
+    "cloud_postgres_image": "sha256:f8777bd6e4ce7d2ba19f0d48e7d80af32e2bb8f43d4f7eeac0b4bd37b9a9c824",
+    "deletion_or_overwrite_authorized": false
+  },
+  "pricing": {
+    "status": "discussion_only",
+    "implemented": false,
+    "confirmed": [
+      "Normally one client per member within the one-year points validity period",
+      "No cross-client points pooling, including exceptional multiple affiliations",
+      "Head-office default factor; explicit branch override",
+      "No cross-branch points pooling; separate transactions",
+      "Sale-price factors do not change costs"
+    ],
+    "code_findings": [
+      "PointsAccount is unique per member",
+      "Order allocation selects valid grants by account without an organization filter",
+      "SKU base points price and cost are separate; order lines snapshot both"
+    ],
+    "remaining_design": [
+      "Authoritative branch assignment in uploaded lists",
+      "Head-office direct memberships",
+      "Rule effective timing and limits",
+      "Compatible historical organization migration and conflict resolution"
+    ]
+  },
+  "remote_check": {
+    "status": "not_verified",
+    "git_read_failure": "TLS connection failure",
+    "connector_read_failure": "transport failure"
+  },
+  "validation": {
+    "kind": "documentation_only",
+    "business_tests_run": false
+  },
+  "actions": {
+    "cloud_upgrade": false,
+    "container_start_stop": false,
+    "recovery_point_write": false,
+    "real_database_access": false,
+    "sms_connected": false,
+    "existing_acceptance_changed": false,
+    "image_or_backup_committed": false
+  }
+}

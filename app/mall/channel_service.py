@@ -150,6 +150,10 @@ def correct_pending_batch_channel(
     if snapshot.redemption_mode == batch.redemption_mode:
         raise ValueError("新渠道必须与当前渠道不同")
 
+    if snapshot.redemption_mode == BusinessChannel.MALL_REDEMPTION.value:
+        from .client_organizations import require_batch_for_mall
+        require_batch_for_mall(db, batch)
+
     batch.redemption_mode = snapshot.redemption_mode
     batch.claim_deadline = snapshot.claim_deadline
 

@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0022_company_banners"
+CURRENT_SCHEMA_REVISION = "0023_client_organizations"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -39,7 +39,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
 
 REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
     {
-        "users", "company_banners",
+        "users", "company_banners", "client_organizations", "client_upload_scopes", "client_batch_ownerships",
         "backoffice_sessions", "admin_phone_bindings", "admin_phone_challenges", "admin_phone_limits",
         "upload_batches",
         "business_records",
@@ -54,6 +54,9 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "client_organizations": frozenset({"id", "parent_id", "code", "name", "region", "is_active", "revision", "updated_by_id", "created_at", "updated_at"}),
+    "client_upload_scopes": frozenset({"user_id", "organization_id", "is_active", "revision", "updated_by_id", "updated_at"}),
+    "client_batch_ownerships": frozenset({"batch_id", "organization_id", "organization_code", "organization_name", "organization_region", "parent_code", "parent_name", "uploaded_by_id", "created_at"}),
     "company_banners": frozenset({"slot", "title", "image_path", "sort_order", "enabled", "show_copy", "revision", "updated_by_id", "updated_at"}),
     "admin_phone_bindings": frozenset({"user_id", "phone_digest", "revision", "updated_by_id", "updated_at"}),
     "admin_phone_challenges": frozenset({"challenge_id", "phone_digest", "browser_digest", "captcha_digest", "code_digest", "user_id", "binding_revision", "credential_digest", "attempts", "state", "created_at", "expires_at"}),

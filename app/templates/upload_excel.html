@@ -96,6 +96,17 @@
             任意一行校验失败时，整份清单都不会导入。
         </div>
 
+        <div class="ui-hint">
+            <strong>商城清单必须填写机构归属</strong>
+            <p>每行必填机构编号、分支机构名称、分支归属地。每份清单只属于一个机构，不同分支请分别上传；任何一行未通过校验，整份清单不会导入。</p>
+            {% for org in organizations | default([]) %}
+            <p>{{ org.name }} · {{ org.region }} · {{ org.code }}　<a href="/upload-excel/mall-template/{{ org.id }}">下载该机构模板</a></p>
+            {% else %}
+            <p><a href="/upload-excel">刷新机构模板列表</a>；如果仍无模板，请联系运营登记机构并授权上传账号。</p>
+            {% endfor %}
+            {% if can_manage_client_organizations | default(false) %}<a href="/mall-clients">管理客户与分支机构 →</a>{% endif %}
+        </div>
+
         {% if message %}
             <div class="message success">{{ message }}</div>
         {% endif %}

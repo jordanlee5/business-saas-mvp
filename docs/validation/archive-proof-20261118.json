@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-18",
+  "status": "local_archives_verified_cloud_mapping_pending",
+  "postgres": {
+    "image_id": "sha256:b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5",
+    "config_id": "sha256:b781f3a53e61df916d97dffe6669ef32b08515327ee3a398087115385b5178f5",
+    "bytes": 439385088,
+    "sha256": "543c890c32ed0fe8073ba7d113b024008de051054c03a15980b8aca03bc62340",
+    "layers_verified": 14
+  },
+  "legacy_application": {
+    "format": 1,
+    "scope": "staging-application-image",
+    "image_id": "sha256:7d9b01a3ae61c074f76a72ada72dc9b0be458824df179a76cd80e0fb12520d0d",
+    "bytes": 890005504,
+    "sha256": "107b7b21d706d1559e702ae31376470a81b3a7e194a1a02b6f27f613f1604bd0",
+    "completed_at": "2026-11-18T03:11:59.953747+00:00",
+    "config_id": "sha256:7d9b01a3ae61c074f76a72ada72dc9b0be458824df179a76cd80e0fb12520d0d"
+  },
+  "legacy_application_layers_verified": 13,
+  "container_ids_unchanged": true,
+  "saas_start_times_unchanged": true,
+  "cloud_observation": "SSH connection closed by remote port 22; no fresh cloud metadata",
+  "cloud_application_expected_id": "sha256:63ddb3e4ee2ac01ac7474fc03e70492c8e845f8ecb03e97b0f73da472e9b6808",
+  "cloud_postgres_expected_id": "sha256:f8777bd6e4ce7d2ba19f0d48e7d80af32e2bb8f43d4f7eeac0b4bd37b9a9c824",
+  "cloud_mapping_proven": false,
+  "archive_tool_changed": false,
+  "images_loaded": false,
+  "containers_started_or_stopped": false,
+  "existing_archives_modified": false,
+  "backup_or_restore_triggered": false,
+  "cloud_upgraded": false,
+  "deletion_authorized": false
+}

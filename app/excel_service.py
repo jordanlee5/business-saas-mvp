@@ -4,6 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 
 REQUIRED_COLUMNS = ["姓名", "手机号", "车牌号", "积分金额", "银行卡号"]
+ORGANIZATION_COLUMNS = ["机构编号", "分支机构名称", "分支归属地"]
 
 
 def clean_text_cell(value):
@@ -62,6 +63,7 @@ def parse_business_excel(
     file_path: str,
     *,
     bank_card_required: bool = True,
+    organization_required: bool = False,
 ):
     """
     读取固定模板 Excel，并返回：
@@ -72,12 +74,18 @@ def parse_business_excel(
     但允许银行卡号单元格留空。
     """
 
-    df = pd.read_excel(file_path)
+    df = pd.read_excel(file_path, keep_default_na=False)
 
     # 去掉列名两边空格
     df.columns = [str(col).strip() for col in df.columns]
 
-    missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    columns = REQUIRED_COLUMNS + (ORGANIZATION_COLUMNS if organization_required else [])
+    if len(set(df.columns)) != len(df.columns) or any(
+        col.startswith(required + '.') and col[len(required)+1:].isdigit()
+        for col in df.columns for required in columns
+    ):
+        return [], ["清单存在重复字段，请重新下载模板"]
+    missing_columns = [col for col in columns if col not in df.columns]
     if missing_columns:
         return [], [f"缺少必要字段：{', '.join(missing_columns)}"]
 
@@ -86,6 +94,14 @@ def parse_business_excel(
 
     for index, row in df.iterrows():
         row_number = index + 2
+
+        organization = {}
+        if organization_required:
+            values = [str(row[col]).strip() if not pd.isna(row[col]) else '' for col in ORGANIZATION_COLUMNS]
+            if any(not value for value in values):
+                errors.append(f"第 {row_number} 行：机构编号、分支机构名称及分支归属地均为必填")
+                continue
+            organization = dict(zip(('organization_code','organization_name','organization_region'),values))
 
         name = clean_text_cell(row["姓名"])
         phone = clean_digit_cell(row["手机号"])
@@ -124,6 +140,7 @@ def parse_business_excel(
                 "plate_number": plate_number,
                 "points_amount": points_amount,
                 "bank_card": bank_card,
+                **organization,
             }
         )
 

@@ -30,6 +30,7 @@ from openpyxl.utils import get_column_letter
 
 from .private_vouchers import PRIVATE_HEADERS, PREVIEW_TYPES, voucher_path
 from .database import engine, SessionLocal
+from .mall import client_organizations as client_orgs
 from .mall import rights_service as rights
 from .mall import qualification_service as qualifications
 from .api.product_images import router as product_images_router
@@ -337,6 +338,8 @@ from .api.company_banners import router as company_banners_router
 app.include_router(company_banners_router)
 from .api.admin_phone import router as admin_phone_router
 app.include_router(admin_phone_router)
+from .api.client_organizations import router as client_organizations_router
+app.include_router(client_organizations_router)
 for media_dir in ("promotion_pages",):
     media_root = os.path.join("uploads", media_dir)
     os.makedirs(media_root, exist_ok=True)
@@ -351,6 +354,7 @@ def admin_navigation_context(
     user = get_current_user(request)
 
     return {
+        "can_manage_client_organizations": client_orgs.manager(user),
         "can_manage_mall_qualifications": can_manage_mall_qualifications(user),
         "can_manage_administrators": (
             can_manage_administrators(user)
@@ -4748,11 +4752,16 @@ def edit_partner_submit(
     )
 
 
+BUSINESS_EXCEL_DIR = os.path.join("uploads", "excel")
+
+
 @app.get("/upload-excel", response_class=HTMLResponse)
 def upload_excel_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+    with SessionLocal() as db:
+        organizations = client_orgs.available(db, db.get(User, user.id))
 
     return templates.TemplateResponse(
         "upload_excel.html",
@@ -4769,6 +4778,7 @@ def upload_excel_page(request: Request):
                 BusinessChannel.CASH_REBATE.value
             ),
             "claim_deadline": "",
+            "organizations": organizations,
             "business_channel_labels": (
                 BUSINESS_CHANNEL_LABELS
             ),
@@ -4835,14 +4845,14 @@ async def upload_excel_submit(
             status_code=400,
         )
 
-    os.makedirs("uploads/excel", exist_ok=True)
+    os.makedirs(BUSINESS_EXCEL_DIR, exist_ok=True)
 
     timestamp = utc8_now().strftime("%Y%m%d%H%M%S")
     normalized_filename = os.path.basename(
         original_filename.replace("\\", "/")
     )
-    safe_filename = f"{user.id}_{timestamp}_{normalized_filename}"
-    file_path = os.path.join("uploads", "excel", safe_filename)
+    safe_filename = f"{user.id}_{timestamp}_{secrets.token_hex(8)}_{normalized_filename}"
+    file_path = os.path.join(BUSINESS_EXCEL_DIR, safe_filename)
 
     with open(file_path, "wb") as f:
         content = await file.read()
@@ -4851,6 +4861,7 @@ async def upload_excel_submit(
     try:
         records, errors = parse_business_excel(
             file_path,
+            organization_required=(channel_snapshot.redemption_mode == BusinessChannel.MALL_REDEMPTION.value),
             bank_card_required=(
                 channel_snapshot.redemption_mode
                 == BusinessChannel.CASH_REBATE.value
@@ -4889,6 +4900,8 @@ async def upload_excel_submit(
 
     db = SessionLocal()
     try:
+        organization = (client_orgs.validate_upload(db, user.id, records)
+            if channel_snapshot.redemption_mode == BusinessChannel.MALL_REDEMPTION.value else None)
         batch = UploadBatch(
             user_id=user.id,
             filename=original_filename,
@@ -4906,6 +4919,8 @@ async def upload_excel_submit(
         db.add(batch)
         db.flush()
         db.refresh(batch)
+        if organization is not None:
+            client_orgs.bind_batch(db, batch, organization, user.id)
 
         reserved_public_business_nos = set()
 
@@ -4960,6 +4975,17 @@ async def upload_excel_submit(
         )
 
         db.commit()
+    except (ValueError, PermissionError) as exc:
+        db.rollback()
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+        return templates.TemplateResponse("upload_excel.html", add_base_context(request, {
+            "request": request, "active_page": "upload_excel", "message": None,
+            "errors": ["整份清单未导入：" + str(exc)], "redemption_mode": channel_snapshot.redemption_mode,
+            "claim_deadline": claim_deadline, "business_channel_labels": BUSINESS_CHANNEL_LABELS,
+        }), status_code=400)
     except Exception:
         db.rollback()
         try:
@@ -6830,6 +6856,8 @@ def upload_batches_page(
         .all()
     )
 
+    ownerships = {row.batch_id: row for row in db.query(models.ClientBatchOwnership).filter(
+        models.ClientBatchOwnership.batch_id.in_([batch.id for batch in batches])).all()}
     batch_items = []
 
     for batch in batches:
@@ -6839,6 +6867,7 @@ def upload_batches_page(
             {
                 "id": batch.id,
                 "username": uploader.username if uploader else "未知用户",
+                "ownership": ownerships.get(batch.id),
                 "filename": batch.filename,
                 "total_rows": batch.total_rows,
                 "success_rows": batch.success_rows,

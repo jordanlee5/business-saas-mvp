@@ -29,6 +29,49 @@ from .mall.domain import (
 )
 from .time_utils import utc8_now
 
+class ClientOrganization(Base):
+    __tablename__ = 'client_organizations'
+    __table_args__ = (
+        CheckConstraint('parent_id IS NULL OR parent_id <> id', name='ck_client_org_parent'),
+        CheckConstraint('revision >= 1', name='ck_client_org_revision'),
+    )
+    id = Column(Integer, primary_key=True)
+    parent_id = Column(Integer, ForeignKey('client_organizations.id'), index=True)
+    code = Column(String(32), nullable=False, unique=True)
+    name = Column(String(120), nullable=False)
+    region = Column(String(80), nullable=False)
+    is_active = Column(Boolean, nullable=False)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class ClientUploadScope(Base):
+    __tablename__ = 'client_upload_scopes'
+    __table_args__ = (CheckConstraint('revision >= 1', name='ck_client_scope_revision'),)
+    user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), primary_key=True)
+    is_active = Column(Boolean, nullable=False)
+    revision = Column(Integer, nullable=False)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class ClientBatchOwnership(Base):
+    __tablename__ = 'client_batch_ownerships'
+    batch_id = Column(Integer, ForeignKey('upload_batches.id'), primary_key=True)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), nullable=False, index=True)
+    organization_code = Column(String(32), nullable=False)
+    organization_name = Column(String(120), nullable=False)
+    organization_region = Column(String(80), nullable=False)
+    parent_code = Column(String(32))
+    parent_name = Column(String(120))
+    uploaded_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    # Membership/grant ancestry remains BusinessRecord -> UploadBatch -> this snapshot.
+
+
 class BackofficeSession(Base):
     __tablename__ = "backoffice_sessions"
 
