@@ -44,6 +44,9 @@ class MemberOrderTests(unittest.TestCase):
         config_path=self.f.path.parent/'fulfillment.json'
         config_path.write_text(json.dumps(self.fulfillment_config),encoding='utf-8')
         p=patch.dict(os.environ,{'MALL_FULFILLMENT_SETTINGS':str(config_path)});p.start();self.addCleanup(p.stop)
+        from app.mall.institution_scope import resolve
+        with Session(self.f.engine) as db:
+            self.body['pricing_context']=resolve(db,self.f.member.id,now=fixtures.NOW).context
         self.body['fulfillment_digest']=self.call('POST','/fulfillment-preview',{'lines':self.body['lines']}).json()['digest']
     def call(self,method,path='',body=None,owner=0):
         r=self.client.request(method,PREFIX+path,headers={} if owner is None else {'Authorization':'Bearer '+self.tokens[owner]},**({'json':body} if body is not None else {}))
@@ -498,6 +501,9 @@ class MemberOrderTests(unittest.TestCase):
         requests = [dict(self.body, lines=lines),
                     dict(self.body, lines=lines, expected_address=other_address, address_public_id=address['address_public_id'])]
         for owner, body in enumerate(requests):
+            from app.mall.institution_scope import resolve
+            with Session(f.engine) as db:
+                body['pricing_context']=resolve(db,member_ids[owner],now=fixtures.NOW).context
             preview = self.call('POST', '/fulfillment-preview', {'lines': lines}, owner=owner)
             self.assertEqual(preview.status_code, 200)
             body['fulfillment_digest'] = preview.json()['digest']

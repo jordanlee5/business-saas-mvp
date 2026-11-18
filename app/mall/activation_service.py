@@ -586,6 +586,9 @@ def activate_mall_business(
             binding.unionid = normalized_unionid
         binding.last_login_at = current_time
 
+    from .institution_scope import batch_organization, partition_balances
+    institution = batch_organization(db, business, lock=True)
+
     account = (
         db.query(PointsAccount)
         .filter(PointsAccount.member_id == member.id)
@@ -647,7 +650,7 @@ def activate_mall_business(
         member_public_id=member.member_public_id,
         grant_id=grant.id,
         granted_points=points,
-        available_points=normalize_points(account.available_points),
+        available_points=next(row["available_points"] for row in partition_balances(db,member.id,now=current_time) if row["organization_id"]==institution.id),
         activated_at=current_time,
         expires_at=grant_expires_at,
     )

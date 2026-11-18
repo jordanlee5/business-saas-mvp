@@ -55,6 +55,8 @@ class MiniprogramActivationRouteTests(unittest.TestCase):
                             claim_deadline=now + timedelta(days=30))
         self.db.add(batch)
         self.db.flush()
+        from tools.virtual_member_access import virtual_batch_scope
+        virtual_batch_scope(self.db, batch, now=now)
         self.business = BusinessRecord(
             user_id=partner.id, batch_id=batch.id, business_no="BR-M7-22-1",
             public_business_no="BR-M7-22-1", name="仅供测试",

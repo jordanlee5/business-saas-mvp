@@ -136,6 +136,8 @@ class MemberPointsDetail:
     grants: tuple[MemberPointsGrantItem, ...]
     ledgers: tuple[MemberPointsLedgerItem, ...]
     as_of: datetime
+    institutions: tuple = ()
+    grant_organizations: dict | None = None
 
     @property
     def total_points(self) -> Decimal:
@@ -520,7 +522,13 @@ def get_member_points_detail(
             db, account_id=account.id
         )
 
+    from .institution_scope import partition_balances
+    from ..models import InstitutionGrant
+    ownership = {row.grant_id: {'code':row.organization_code,'name':row.organization_name}
+        for row in db.query(InstitutionGrant).filter(InstitutionGrant.grant_id.in_([g.grant_id for g in grants]))}
     return MemberPointsDetail(
+        institutions=tuple(partition_balances(db, member.id, now=current_time)),
+        grant_organizations=ownership,
         member_id=member.id,
         member_public_id=member.member_public_id,
         is_active=bool(member.is_active),
@@ -590,9 +598,9 @@ def build_member_points_workbook(
         ("会员状态", "启用" if detail.is_active else "停用"),
         ("会员创建时间", detail.member_created_at),
         ("积分账户编号", detail.account_id or ""),
-        ("可用积分", float(detail.available_points)),
+        ("内部账面可用合计（不可跨机构使用）", float(detail.available_points)),
         ("预占积分", float(detail.reserved_points)),
-        ("合计积分", float(detail.total_points)),
+        ("内部校验合计（不可合并兑换）", float(detail.total_points)),
         ("账户版本", detail.account_version),
         ("流水重算可用积分", float(detail.ledger_available_points)),
         ("流水重算预占积分", float(detail.ledger_reserved_points)),
@@ -651,6 +659,17 @@ def build_member_points_workbook(
     ]
     _append_table(ledger_sheet, ledger_headers, ledger_rows)
 
+    institution_sheet = workbook.create_sheet('机构分账')
+    _append_table(institution_sheet, ['机构代码','机构名称','本机构有效可用积分','本机构预占积分','账面余额','批次数'], [
+        (_excel_text(i['code']),_excel_text(i['name']),float(i['available_points']),float(i['reserved_points']),float(i['recorded_points']),i['grant_count'])
+        for i in detail.institutions])
+    for sheet in (grant_sheet, ledger_sheet):
+        sheet.cell(1,sheet.max_column+1,'机构代码');sheet.cell(1,sheet.max_column+1,'机构名称')
+        for row_index,item in enumerate(detail.grants if sheet is grant_sheet else detail.ledgers,2):
+            owner=(detail.grant_organizations or {}).get(item.grant_id,{'code':'','name':'历史归属待核实'})
+            sheet.cell(row_index,sheet.max_column-1,_excel_text(owner['code']))
+            sheet.cell(row_index,sheet.max_column,_excel_text(owner['name']))
+        sheet.auto_filter.ref=sheet.dimensions
     output = BytesIO()
     workbook.save(output)
     output.seek(0)

@@ -417,6 +417,9 @@ def record_initial_points_grant(
     if locked_grant.status != PointsGrantStatus.ACTIVE.value:
         raise ValueError("只有有效积分批次可以首次入账")
 
+    from .institution_scope import bind_grant
+    bind_grant(db, locked_grant)
+
     entry = PointsLedgerEntry(
         grant_id=locked_grant.id,
         entry_type=PointsLedgerEntryType.GRANT.value,

@@ -27,9 +27,9 @@
   </form>
 <p class="export-hint">导出当前筛选的全部记录（最多 10,000 条），不限当前页；导出会记录操作日志。</p>
   <div class="table-wrap"><table>
-    <thead><tr><th>订单编号</th><th>会员编号</th><th>状态</th><th>积分合计</th><th>商品成本（元）</th><th>数量</th><th>创建时间</th><th>操作</th></tr></thead>
+    <thead><tr><th>订单编号</th><th>会员编号</th><th>归属机构</th><th>状态</th><th>积分合计</th><th>商品成本（元）</th><th>数量</th><th>创建时间</th><th>操作</th></tr></thead>
     <tbody>{% for item in result.items %}<tr>
-      <td>{{ item.order_public_id }}</td><td>{{ item.member_public_id }}</td><td>{{ item.status_label }}</td>
+      <td>{{ item.order_public_id }}</td><td>{{ item.member_public_id }}</td><td>{{ item.organization_name }}{% if item.organization_code %}（{{ item.organization_code }}）{% endif %}</td><td>{{ item.status_label }}</td>
       <td>{{ '%.2f' | format(item.total_points) }}</td><td>{{ '%.2f' | format(item.total_cost_amount) }}</td>
       <td>{{ item.total_quantity }}</td><td>{{ item.created_at | format_utc8 }}</td>
       <td><a href="/mall-orders/{{ item.order_public_id | urlencode }}">查看详情</a></td>

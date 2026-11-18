@@ -99,6 +99,8 @@ class OrderServiceTests(unittest.TestCase):
         )
         self.db.add_all([self.batch, self.member])
         self.db.flush()
+        from tools.virtual_member_access import virtual_batch_scope
+        self.organization = virtual_batch_scope(self.db, self.batch, now=NOW)
         self.account = PointsAccount(member_id=self.member.id)
         self.db.add(self.account)
         self.db.flush()
@@ -113,6 +115,12 @@ class OrderServiceTests(unittest.TestCase):
             expires_at=NOW + timedelta(days=20),
         )
 
+        from app.models import MemberQualification
+        self.db.add(MemberQualification(business_record_id=self.early_grant.business_record_id,
+            member_id=self.member.id, enabled=True, valid_from=NOW-timedelta(days=1),
+            valid_until=NOW+timedelta(days=365), version=1, confirmed_by=self.operator.id,
+            confirmed_at=NOW, bound_at=NOW, updated_at=NOW))
+        self.db.flush()
         self.category = ProductCategory(
             name="订单测试分类",
             slug="order-test",

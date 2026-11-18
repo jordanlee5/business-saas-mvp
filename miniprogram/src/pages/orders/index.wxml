@@ -9,6 +9,7 @@
       <text wx:if="{{submitted && detail.status === 'CREATED'}}" class="badge">订单提交成功</text>
       <text class="title">{{labels[detail.status]}}</text>
       <text class="copy">{{detail.order_public_id}}</text>
+      <text wx:if="{{detail.organization.name}}" class="copy mall-muted">{{detail.organization.name}} · 取消或退款退回原机构积分</text>
       <view wx:for="{{detail.items}}" wx:key="index" class="copy">{{item.product_name}} · {{item.sku_name}} × {{item.quantity}} · {{item.line_points}} 积分</view>
       <text class="title">合计 {{detail.total_points}} 积分</text>
       <text wx:if="{{cartWarning}}" class="copy error">订单已成功，请手动核对购物车。</text>
@@ -41,7 +42,7 @@
     </view>
     <view wx:for="{{items}}" wx:key="order_public_id" class="card mall-surface">
       <text class="title">{{labels[item.status]}} · {{item.total_points}} 积分</text>
-      <text class="copy">{{item.order_public_id}}</text><text class="copy">下单时间：{{item.createdText}}（北京时间）</text>
+      <text class="copy">{{item.order_public_id}}</text><text wx:if="{{item.organization.name}}" class="mall-muted">{{item.organization.name}}</text><text class="copy">下单时间：{{item.createdText}}（北京时间）</text>
       <button data-id="{{item.order_public_id}}" bindtap="onDetail">查看详情</button>
     </view>
     <view wx:if="{{listReady && (total > 20 || page > 1)}}"><button bindtap="onPrevious" disabled="{{page <= 1 || loading}}">上一页</button><text class="copy">第 {{page}} 页 · 共 {{total}} 单</text><button bindtap="onNext" disabled="{{page * 20 >= total || loading}}">下一页</button></view>

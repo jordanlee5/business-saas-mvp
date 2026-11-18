@@ -1,7 +1,8 @@
 import { hasMemberSession, requestMemberPrivate, MemberSessionError } from './member-session';
-import { allowCatalog, invalidateCatalog, catalogEpoch, type AccessState } from './catalog-state';
+import { allowCatalog, invalidateCatalog, catalogEpoch, acceptPricingContext, type AccessState } from './catalog-state';
 
 export const accessMessages: Record<AccessState, string> = {
+  changed: '机构或价格已更新，请重新加载并核对兑换信息。',
   checking: '正在核验商城资格…',
   login: '商城面向已确认名单内的会员。请先微信登录；首次使用可凭服务方交付的资料激活资格。',
   eligible: '商城资格有效，可以浏览商品和兑换。',
@@ -16,7 +17,7 @@ export async function checkCatalogAccess(): Promise<AccessState> {
   if (!hasMemberSession()) { invalidateCatalog('login'); return 'login'; }
   const epoch = catalogEpoch(), started = Date.now();
   try {
-    const result = await requestMemberPrivate('/catalog-access', 'GET') as {status?: AccessState; valid_for_seconds?: number};
+    const result = await requestMemberPrivate('/catalog-access', 'GET') as {status?: AccessState; valid_for_seconds?: number; pricing_context?: string; organization?: {code?: string}};
     if (epoch !== catalogEpoch()) throw new MemberSessionError('资格核验已取消');
     if (!result || !['eligible','disabled','expired','pending','unconfirmed'].includes(result.status || '') ||
         typeof result.valid_for_seconds !== 'number' || !Number.isFinite(result.valid_for_seconds) ||
@@ -25,6 +26,7 @@ export async function checkCatalogAccess(): Promise<AccessState> {
       // Use request start, so a slow response never extends the server's expiry.
       const until = started + result.valid_for_seconds * 1000;
       if (until <= Date.now()) { invalidateCatalog('expired'); return 'expired'; }
+      acceptPricingContext(result.pricing_context || '', result.organization?.code || '');
       allowCatalog(until);
     } else invalidateCatalog(result.status!);
     return result.status!;

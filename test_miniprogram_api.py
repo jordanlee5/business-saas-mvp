@@ -74,8 +74,10 @@ class MiniprogramApiTests(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(len(routes), 26)
+        self.assertEqual(len(routes), 28)
         self.assertEqual({route.path for route in routes}, {
+            "/api/miniprogram/v1/home-banners",
+            "/api/miniprogram/v1/home-entries",
             MINIPROGRAM_API_PREFIX + "/catalog-access",
             MINIPROGRAM_API_PREFIX + "/orders/{order_id}/parcels/{parcel_id}/tracking",
             f"{MINIPROGRAM_API_PREFIX}/rights-requests",

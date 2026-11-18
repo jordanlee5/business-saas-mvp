@@ -10,7 +10,8 @@
     <text class="card-copy mall-muted">请稍等，正在更新你的积分记录…</text>
   </view>
   <view wx:elif="{{signedIn}}" class="guest-card mall-surface">
-    <text class="card-title">可用积分</text>
+    <text class="card-title">本机构可用积分</text>
+    <text wx:if="{{organizationName}}" class="card-copy mall-muted">{{organizationName}} · 积分不能跨机构合并</text>
     <text class="balance">{{availablePoints}}</text>
     <text class="card-copy mall-muted">可用于兑换商品。提交订单后，相应积分暂不可再用；取消成功后退回。</text>
     <view class="expiry-note">

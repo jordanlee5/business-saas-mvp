@@ -1,6 +1,25 @@
 // No credentials or product data in storage. Listeners scrub visible and hidden views.
-export type AccessState = 'checking' | 'login' | 'eligible' | 'disabled' | 'expired' | 'pending' | 'unconfirmed' | 'unavailable';
+export type AccessState = 'checking' | 'changed' | 'login' | 'eligible' | 'disabled' | 'expired' | 'pending' | 'unconfirmed' | 'unavailable';
 let epoch = 0;
+let pricingContext = '';
+let organizationCode = '';
+export function currentPricingContext(): string {
+  if (!catalogAllowed() || !pricingContext) throw new Error('请刷新商城资格和价格后再兑换');
+  return pricingContext;
+}
+export function acceptPricingContext(context: string, code: string): void {
+  if (!/^[a-f0-9]{64}$/.test(context) || !code) throw new Error('机构价格信息暂不可用');
+  if (pricingContext && (context !== pricingContext || code !== organizationCode))
+    invalidateCatalog('changed', code !== organizationCode);
+  pricingContext = context;
+  organizationCode = code;
+}
+export function assertPricingContext(context: unknown): void {
+  if (!pricingContext || context !== pricingContext) {
+    invalidateCatalog('changed', false);
+    throw new Error('机构或价格已变化，请刷新商城后重新核对');
+  }
+}
 let deadline = 0;
 let cartStorageReady = true;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -15,6 +34,7 @@ export function invalidateCatalog(state: AccessState = 'checking', clearCart = t
   deadline = 0;
   if (timer) clearTimeout(timer);
   if (clearCart) {
+    pricingContext = ''; organizationCode = '';
     try { wx.setStorageSync('mall_cart_v1', []); cartStorageReady = true; }
     catch (_) { cartStorageReady = false; }
   }

@@ -26,7 +26,7 @@ function displayLedger(entry: MemberPointsLedgerEntry, index: number, page: numb
 function emptyPoints() {
   return {
     loading: false, signedIn: false, hasSession: false,
-    availablePoints: '', nearestExpiry: '',
+    availablePoints: '', nearestExpiry: '', organizationCode: '', organizationName: '',
     ledgerItems: [] as LedgerDisplay[], ledgerPage: 0, ledgerTotal: 0,
     ledgerHasMore: false, ledgerLoadingMore: false, error: '',
   };
@@ -52,8 +52,9 @@ Page({
       const ledger = await getCurrentMemberPointsLedger(1, true);
       if (current !== viewGeneration) return;
       if (!ledger) throw new Error('登录已过期，请重新登录');
+      if (summary.organization?.code !== ledger.organization?.code) throw new Error('积分归属已变化，请重新加载');
       this.setData({
-        signedIn: true, availablePoints: summary.available_points,
+        signedIn: true, organizationCode: summary.organization?.code || '', organizationName: summary.organization?.name || '', availablePoints: summary.available_points,
         nearestExpiry: summary.nearest_expires_at ? beijingTimeText(summary.nearest_expires_at) : '',
         ledgerItems: ledger.items.map((entry, index) => displayLedger(entry, index, 1)),
         ledgerPage: 1, ledgerTotal: ledger.total, ledgerHasMore: ledger.items.length < ledger.total,
@@ -77,6 +78,7 @@ Page({
       const ledger = await getCurrentMemberPointsLedger(page, true);
       if (current !== viewGeneration) return;
       if (!ledger) throw new Error('登录已过期，请重新登录');
+      if ((ledger.organization?.code || '') !== this.data.organizationCode) throw new Error('积分归属已变化，请重新加载');
       const items = this.data.ledgerItems.concat(
         ledger.items.map((entry, index) => displayLedger(entry, index, page)));
       this.setData({

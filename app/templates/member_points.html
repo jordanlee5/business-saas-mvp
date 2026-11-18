@@ -41,7 +41,7 @@
     </form>
 <p class="export-hint">导出当前筛选的全部记录（最多 10,000 条），不限当前页；导出会记录操作日志。</p>
     <div class="member-table-wrap"><table class="member-table">
-        <thead><tr><th>会员公开编号</th><th>状态</th><th>可用积分</th><th>预占积分</th><th>积分批次</th><th>流水</th><th>最近到期</th><th>账本一致性</th><th>操作</th></tr></thead>
+        <thead><tr><th>会员公开编号</th><th>状态</th><th>账面可用合计（不可合并兑换）</th><th>预占积分</th><th>积分批次</th><th>流水</th><th>最近到期</th><th>账本一致性</th><th>操作</th></tr></thead>
         <tbody>{% for item in result.items %}<tr>
             <td>{{ item.member_public_id }}</td><td><span class="badge {{ 'badge-ok' if item.is_active else 'badge-off' }}">{{ '启用' if item.is_active else '停用' }}</span></td>
             <td>{{ '%.2f' | format(item.available_points) }}</td><td>{{ '%.2f' | format(item.reserved_points) }}</td><td>{{ item.grant_count }}</td><td>{{ item.ledger_count }}</td><td>{{ item.nearest_expires_at | format_utc8 }}</td>

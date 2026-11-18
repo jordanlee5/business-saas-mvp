@@ -246,7 +246,8 @@ def _load_locked_resources(db, *, order):
         .all()
     )
     _validate_order_totals(order, items, allocations)
-
+    from .institution_scope import assert_order_allocations
+    assert_order_allocations(db, order, allocations)
     account = (
         db.query(PointsAccount)
         .filter(PointsAccount.member_id == order.member_id)

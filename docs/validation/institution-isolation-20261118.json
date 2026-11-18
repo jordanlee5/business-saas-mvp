@@ -1,0 +1,151 @@
+{
+  "date": "2026-11-18",
+  "base_commit": "5e9436a45d04b2846c600a8d154bf562daf50f33",
+  "scope": "institution pricing points orders refunds phase 3",
+  "synthetic_only": true,
+  "regression": {
+    "modules": [
+      "test_client_organizations",
+      "test_client_pricing",
+      "test_order_service",
+      "test_miniprogram_orders",
+      "test_institution_isolation",
+      "test_institution_migration",
+      "test_miniprogram_session",
+      "test_member_catalog_access",
+      "test_member_activation_service",
+      "test_miniprogram_activation_routes",
+      "test_member_points_service",
+      "test_mall_order_routes",
+      "test_mall_list_exports",
+      "test_order_reconciliation_service",
+      "test_order_state_preflight_service",
+      "test_points_expiry",
+      "test_points_adjustment_service",
+      "test_candidate_upgrade",
+      "test_schema_readiness"
+    ],
+    "run": 305,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "successful": true
+  },
+  "followup": {
+    "modules": [
+      "test_catalog_service",
+      "test_catalog_routes",
+      "test_institution_isolation",
+      "test_client_pricing",
+      "test_institution_migration"
+    ],
+    "run": 69,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true
+  },
+  "compatibility": {
+    "modules": [
+      "test_institution_isolation.InstitutionApiTests.test_preupgrade_client_can_replay_original_order_without_new_context",
+      "test_institution_isolation.InstitutionApiTests.test_same_member_other_institution_grants_never_enter_points_api_or_checkout",
+      "test_member_points_routes"
+    ],
+    "run": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true
+  },
+  "postgresql": {
+    "isolated_virtual_cluster": true,
+    "port": 54577,
+    "checks": {
+      "empty_upgrade_roundtrip_and_model_match": true,
+      "verified_grants_orders_backfilled_original_rows_unchanged": true,
+      "concurrent_price_save_waits_checkout_then_new_price_applies": true,
+      "original_cancellation_amount_and_per_institution_balance": true,
+      "concurrent_new_sku_validates_committed_rule_and_rejects_zero_price": true,
+      "nonempty_downgrade_preserves_all_data": true
+    },
+    "stopped": true,
+    "result": "pass"
+  },
+  "client": {
+    "typescript": true,
+    "native_wechat": false,
+    "checks": [
+      {
+        "suite": "miniprogram-catalog-access",
+        "passed_groups": 23
+      },
+      {
+        "suite": "miniprogram-orders",
+        "passed_groups": 20
+      },
+      {
+        "suite": "miniprogram-points",
+        "passed_groups": 9
+      },
+      {
+        "suite": "miniprogram-institution",
+        "passed_groups": 1
+      }
+    ]
+  },
+  "visual": {
+    "passed": 6,
+    "checks": [
+      {
+        "page": "points",
+        "width": 1440,
+        "overflow": false
+      },
+      {
+        "page": "points",
+        "width": 768,
+        "overflow": false
+      },
+      {
+        "page": "points",
+        "width": 390,
+        "overflow": false
+      },
+      {
+        "page": "order",
+        "width": 1440,
+        "overflow": false
+      },
+      {
+        "page": "order",
+        "width": 768,
+        "overflow": false
+      },
+      {
+        "page": "order",
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  "required_before_release": [
+    "Linux symlink access check (Windows privilege unavailable)",
+    "unified user acceptance",
+    "fresh candidate image and isolated integration",
+    "real legacy ownership readonly inventory",
+    "execution-time consistent recovery point"
+  ],
+  "existing_tests_changed": false,
+  "cloud_upgraded": false,
+  "real_sms_enabled": false,
+  "real_database_access": false,
+  "existing_restore_points_overwritten": false,
+  "user_acceptance": "pending",
+  "logs_sha256": {
+    "checks-final.log": "27dd813a84a990b877d9b5ff0d8e64760a00990238db10c76b90b36b6c94b76e",
+    "checks-isolation.log": "118252519138aadd602ee21e4ef01448546b51d26027713e512b84ae08daab44",
+    "checks-compat.log": "914f1917bbe93ce32e1251b51a2e52bf813ab7f01733bda7ea8c3bb8865936f7",
+    "pg-final-check.log": "75f3a77c0a406ae6376a25d464f396e912b5f94cb5b641ac8a69d2d7b46bfbec"
+  }
+}

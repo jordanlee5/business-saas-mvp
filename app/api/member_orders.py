@@ -2,6 +2,7 @@
 import hashlib
 import json
 from decimal import Decimal
+from ..mall import institution_scope as institutions
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -53,6 +54,7 @@ class CheckoutBody(BaseModel):
     expected_address:AddressBody
     lines:list[CheckoutLine]=Field(min_length=1,max_length=20)
     fulfillment_digest:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
+    pricing_context:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
 
 class NoticeBody(BaseModel):
     model_config=ConfigDict(extra='forbid',strict=True)
@@ -74,7 +76,7 @@ def detail(db,order):
         for line in parcel['items']:
             del line['item_id']
     status = PARTIAL if order.status == 'FULFILLING' and parcels else order.status
-    return {**summary(order, status), 'parcels':parcels,
+    return {**summary(order, status), 'organization':institutions.order_identity(db,order.id), 'parcels':parcels,
         'address_state':'CLEARED' if receipt else ('AVAILABLE' if snapshot else 'NOT_RECORDED'),
         'fulfillment':historical_notice(db,order.id),
         'address':{key:getattr(snapshot,key) for key in ADDRESS_FIELDS} if snapshot else None,
@@ -98,6 +100,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     if not member.is_active:raise HTTPException(401,'会员会话无效')
     normalized=body.model_dump()
     if normalized['fulfillment_digest'] is None: normalized.pop('fulfillment_digest')
+    if normalized['pricing_context'] is None: normalized.pop('pricing_context')
     normalized['expected_address']=normalize_address(normalized['expected_address'])
     normalized['lines']=sorted(normalized['lines'],key=lambda x:(x['product_public_id'],x['sku_code']))
     keys=[(x['product_public_id'],x['sku_code']) for x in normalized['lines']]
@@ -110,7 +113,9 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
         if not saved or saved.request_digest!=digest:raise HTTPException(409,'请求编号已用于不同订单内容')
         response.status_code=200
         return detail(db,existing)
-    require_qualification(db, member.id, lock=True)
+    scope = require_qualification(db, member.id, lock=True)
+    if body.pricing_context != scope.context:
+        raise HTTPException(409, '机构或价格规则已变化，请刷新购物车并重新确认；旧版本请更新小程序')
     address=db.query(MemberAddress).filter_by(member_id=member.id,address_public_id=body.address_public_id).one_or_none()
     if address is None:raise HTTPException(404,'收货地址不存在，请重新选择')
     values={key:getattr(address,key) for key in ADDRESS_FIELDS}
@@ -133,7 +138,9 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
     save_notice(db,order,notice)
     result=detail(db,order)
     # Expiry may pass while stock/points reservations are being calculated.
-    require_qualification(db, member.id, lock=True)
+    scope = require_qualification(db, member.id, lock=True)
+    if body.pricing_context != scope.context:
+        raise HTTPException(409, '机构或价格规则已变化，请刷新购物车并重新确认；旧版本请更新小程序')
     _commit(db)
     return result
 
@@ -142,7 +149,7 @@ def checkout(body:CheckoutBody,response:Response,authorization:str|None=Header(N
 def orders(page:int=Query(1,ge=1,le=1000000),authorization:str|None=Header(None),db:Session=Depends(address_session)):
     member=_require_current_member(authorization,db)
     query=db.query(Order).filter_by(member_id=member.id)
-    return {'items':[summary(order,status) for order,status in query.add_columns(display_status()).order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
+    return {'items':[{**summary(order,status),'organization':institutions.order_identity(db,order.id)} for order,status in query.add_columns(display_status()).order_by(Order.id.desc()).offset((page-1)*20).limit(20)],'total':query.count(),'page':page,'page_size':20}
 
 @order_router.post('/fulfillment-preview')
 @with_member_session

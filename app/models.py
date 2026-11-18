@@ -29,6 +29,32 @@ from .mall.domain import (
 )
 from .time_utils import utc8_now
 
+class InstitutionGrant(Base):
+    __tablename__ = 'institution_grants'
+    grant_id = Column(Integer, ForeignKey('points_grants.id'), primary_key=True)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), nullable=False, index=True)
+    organization_code = Column(String(32), nullable=False)
+    organization_name = Column(String(120), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class InstitutionOrder(Base):
+    __tablename__ = 'institution_orders'
+    __table_args__ = (
+        CheckConstraint('ratio_bps >= 100 AND ratio_bps <= 30000', name='ck_institution_order_ratio'),
+        CheckConstraint('rule_revision >= 0', name='ck_institution_order_revision'),
+    )
+    order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
+    organization_id = Column(Integer, ForeignKey('client_organizations.id'), nullable=False, index=True)
+    organization_code = Column(String(32), nullable=False)
+    organization_name = Column(String(120), nullable=False)
+    ratio_bps = Column(Integer, nullable=False)
+    rule_organization_id = Column(Integer, ForeignKey('client_organizations.id'))
+    rule_revision = Column(Integer, nullable=False)
+    pricing_context = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+
 class ClientPriceRule(Base):
     __tablename__ = 'client_price_rules'
     __table_args__ = (

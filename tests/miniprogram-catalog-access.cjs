@@ -12,9 +12,10 @@ global.clearInterval=global.clearTimeout;
 const flush=async()=>{for(let i=0;i<120;i++)await Promise.resolve();};
 async function advance(ms){now+=ms;for(const [id,t] of [...timers])if(t.at<=now){if(t.ms)t.at=now+t.ms;else timers.delete(id);await t.fn();}await flush();}
 let homeImage=null, bannerImage=null;
+let priceContext='a'.repeat(64),institution='A1';
 let owner='MEM-A',status='eligible',ttl=120,holdCatalog=false,holdDownload=false,downloadStatus=200,apiStatus=200,fsFailure=false,storageFailure=false;
 const heldRequests=[];
-const product={product_public_id:'PRD-A',name:'虚拟会员商品',subtitle:null,category_slug:'home',min_points_price:'10.00',in_stock:true,
+const product={pricing_context:'a'.repeat(64),product_public_id:'PRD-A',name:'虚拟会员商品',subtitle:null,category_slug:'home',min_points_price:'10.00',in_stock:true,
  main_image_url:'/uploads/mall_products/PRD-A/main.webp',description:'测试说明',images:[{role:'main',url:'/uploads/mall_products/PRD-A/main.webp',alt_text:null}],
  skus:[{sku_code:'SKU-A',name:'测试规格',points_price:'10.00',in_stock:true,stock_status:'IN_STOCK'}]};
 global.wx={env:{USER_DATA_PATH:'wxfile://usr'},getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>{if(storageFailure)throw Error('virtual storage error');storage.set(k,v);},
@@ -27,9 +28,9 @@ global.wx={env:{USER_DATA_PATH:'wxfile://usr'},getStorageSync:k=>storage.get(k),
   if(p.endsWith('/auth/wechat-session'))return o.success({statusCode:200,data:{token_type:'Bearer',token:'virtual.'+owner,expires_in:900}});
   assert.equal(o.header.Authorization,'Bearer virtual.'+owner);
   if(p.endsWith('/auth/me'))return o.success({statusCode:200,data:{member_public_id:owner}});
-  if(p.endsWith('/catalog-access'))return o.success({statusCode:apiStatus,data:{status,valid_for_seconds:status==='eligible'?ttl:0}});
+  if(p.endsWith('/catalog-access'))return o.success({statusCode:apiStatus,data:{pricing_context:priceContext,organization:{code:institution,name:institution},status,valid_for_seconds:status==='eligible'?ttl:0}});
   if(holdCatalog && p.includes('/products')){heldRequests.push(o);return;}
-  if(p.endsWith('/products'))return o.success({statusCode:apiStatus,data:{items:[structuredClone(product)],total:1,page:1,page_size:20}});
+  if(p.endsWith('/products'))return o.success({statusCode:apiStatus,data:{pricing_context:priceContext,items:[structuredClone(product)],total:1,page:1,page_size:20}});
   if(p.endsWith('/products/PRD-A'))return o.success({statusCode:apiStatus,data:structuredClone(product)});
   if(p.endsWith('/home-banners'))return o.success({statusCode:apiStatus,data:bannerImage?[{slot:1,title:'虚拟轮播',image_url:bannerImage,target_category:'home'}]:[]});
   if(p.endsWith('/home-entries'))return o.success({statusCode:apiStatus,data:load('services/category-navigation').CATEGORY_ENTRIES.map(e=>({...e,image_url:e.key==='home'?homeImage:null}))});
@@ -62,6 +63,14 @@ async function test(name,fn){await fn();passed++;console.log('PASS '+name);}
   await login();const p=home();p.onLoad();await p.onShow();assert.equal(p.data.catalogReady,true);assert.equal(p.data.items[0].name,product.name);
   assert.ok(p.data.items[0].imageUrl.startsWith('wxfile://usr/mall-private-images/'));assert.ok(files.has(p.data.items[0].imageUrl));
   assert.equal([...storage.values()].some(x=>JSON.stringify(x).includes('virtual.MEM')),false);p.onUnload();
+ });
+ await test('price polling refreshes visible products and branch switch clears the cart',async()=>{
+  await login();const p=home();await p.onShow();cart.addCartLine(product,product.skus[0]);
+  priceContext='b'.repeat(64);product.pricing_context=priceContext;product.min_points_price='9.00';product.skus[0].points_price='9.00';
+  await advance(30001);assert.equal(p.data.catalogReady,true);assert.equal(p.data.items[0].min_points_price,'9.00');assert.equal(cart.readCart().length,1);
+  institution='A2';priceContext='c'.repeat(64);product.pricing_context=priceContext;
+  await advance(30001);assert.equal(p.data.catalogReady,true);assert.equal(cart.readCart().length,0);p.onUnload();
+  institution='A1';priceContext='a'.repeat(64);product.pricing_context=priceContext;product.min_points_price='10.00';product.skus[0].points_price='10.00';
  });
  await test('homepage images use private transport, enforce slot paths and clear on logout',async()=>{
   await login();homeImage='/uploads/mall_home/home/'+'a'.repeat(32)+'.webp';const p=home();await p.onShow();await flush();

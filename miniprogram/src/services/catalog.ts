@@ -1,4 +1,5 @@
 import { requestMemberCatalog, MemberSessionError } from './member-session';
+import { assertPricingContext } from './catalog-state';
 import { getApiOrigin } from '../config';
 
 export interface Category { name: string; slug: string }
@@ -64,6 +65,7 @@ export async function getProducts(category: string, page: number, searchTerm = '
         (item.main_image_url === null || typeof item.main_image_url === 'string'))) {
     throw new Error('商品数据暂不可用');
   }
+  assertPricingContext(data.pricing_context);
   return data as unknown as ProductPage;
 }
 
@@ -98,5 +100,6 @@ export async function getProductDetail(id: string): Promise<ProductDetail> {
         sku.in_stock === (sku.stock_status !== 'OUT_OF_STOCK'))) {
     throw new Error('商品详情数据暂不可用');
   }
+  assertPricingContext(data.pricing_context);
   return data as unknown as ProductDetail;
 }

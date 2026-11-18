@@ -280,7 +280,7 @@ class MemberPointsServiceTests(unittest.TestCase):
         workbook = load_workbook(BytesIO(output.getvalue()))
         self.assertEqual(
             workbook.sheetnames,
-            ["会员汇总", "积分批次", "积分流水"],
+            ["会员汇总", "积分批次", "积分流水", "机构分账"],
         )
         grants = workbook["积分批次"]
         self.assertEqual(grants["D2"].value, "'=公式客户")

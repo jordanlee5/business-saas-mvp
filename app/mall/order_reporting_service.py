@@ -32,6 +32,8 @@ class MallOrderListItem:
     total_cost_amount: Decimal
     total_quantity: int
     created_at: datetime
+    organization_code: str = ""
+    organization_name: str = "历史归属待核实"
 
 
 @dataclass(frozen=True)
@@ -85,11 +87,13 @@ def _time(value):
     return value
 
 
-def _listing_item(order, member_public_id, status):
+def _listing_item(order, member_public_id, status, organization=None):
     label = ORDER_STATUS_LABELS.get(status)
     if label is None:
         raise RuntimeError("商城订单状态异常")
     return MallOrderListItem(
+        organization_code=(organization or {}).get("code", ""),
+        organization_name=(organization or {}).get("name", "历史归属待核实"),
         order_public_id=order.order_public_id,
         member_public_id=member_public_id,
         status=status,
@@ -132,8 +136,10 @@ def list_mall_orders(db, *, keyword="", status=ORDER_STATUS_ALL,
         rows = query.order_by(
             Order.created_at.desc(), Order.id.desc()
         ).offset((page - 1) * page_size).limit(page_size).all()
+        from ..models import InstitutionOrder
+        scopes={o.order_id:{'code':o.organization_code,'name':o.organization_name} for o in db.query(InstitutionOrder).filter(InstitutionOrder.order_id.in_([row[0].id for row in rows]))}
         return MallOrderPage(
-            items=tuple(_listing_item(*row) for row in rows),
+            items=tuple(_listing_item(*row,organization=scopes.get(row[0].id)) for row in rows),
             keyword=keyword, status=status, page=page,
             page_size=page_size, total=total, total_pages=pages,
         )
@@ -177,10 +183,11 @@ def get_mall_order_detail(db, *, order_public_id: str) -> MallOrderDetail:
         for parcel in parcels:
             for line in parcel["items"]:
                 sent[line["item_id"]] += line["quantity"]
+        from .institution_scope import order_identity
         return MallOrderDetail(
             delivery_address={key:getattr(snapshot,key) for key in ("recipient_name","phone","province","city","district","detail")} if snapshot else None,
             delivery_cleared=bool(receipt),
-            order=_listing_item(order, member_id, status),
+            order=_listing_item(order, member_id, status, order_identity(db,order.id)),
             parcels=tuple(parcels),
             shipping_carrier=order.shipping_carrier,
             tracking_number=order.tracking_number,

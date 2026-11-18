@@ -1,8 +1,9 @@
+import { currentPricingContext } from './catalog-state';
 import { requestMemberPrivate, MemberSessionError } from './member-session';
 import { normalizeAddress, type AddressInput } from './addresses';
 import type { CartDisplayLine } from './cart';
 import {parseFulfillment,type FulfillmentNotice} from './fulfillment';
-export interface OrderSummary { order_public_id: string; status: string; total_points: string; total_quantity: number; created_at: string }
+export interface OrderSummary { order_public_id: string; status: string; total_points: string; total_quantity: number; created_at: string; organization?: {code:string;name:string} }
 export interface Parcel {parcel_id?:number;carrier:string;tracking_number:string;items:{product_name:string;sku_name:string;quantity:number}[]}
 export interface OrderDetail extends OrderSummary { parcels: Parcel[]; address: AddressInput | null; address_state:'AVAILABLE'|'CLEARED'|'NOT_RECORDED'; fulfillment:FulfillmentNotice|null; items: {product_name:string;sku_name:string;quantity:number;unit_points_price:string;line_points:string}[]; shipping_carrier:string|null;tracking_number:string|null }
 export const statusLabels: Record<string,string> = {CREATED:'待处理',CANCELLED:'已取消',FULFILLING:'待发货',PARTIALLY_SHIPPED:'部分发货',SHIPPED:'已发货',COMPLETED:'已完成',REFUNDED:'已退款'};
@@ -13,7 +14,7 @@ function summary(data: unknown): OrderSummary {
   if (!x || !/^ORD-[A-Z0-9]{16}$/.test(x.order_public_id) || !statusLabels[x.status] ||
       !/^\d+\.\d{2}$/.test(x.total_points) || !Number.isSafeInteger(x.total_quantity) || x.total_quantity<1 ||
       typeof x.created_at!=='string' || !Number.isFinite(Date.parse(x.created_at))) throw new MemberSessionError('订单数据暂不可用');
-  return {order_public_id:x.order_public_id,status:x.status,total_points:x.total_points,total_quantity:x.total_quantity,created_at:x.created_at};
+  return {organization:x.organization,order_public_id:x.order_public_id,status:x.status,total_points:x.total_points,total_quantity:x.total_quantity,created_at:x.created_at};
 }
 function detail(data:unknown):OrderDetail {
   const x=data as OrderDetail; const base=summary(data);
@@ -49,7 +50,7 @@ export function pendingCheckout(owner:string):string {
 export function beginCheckout(owner:string,addressId:string,address:AddressInput,items:CartDisplayLine[],fulfillmentDigest=''):void {
   // A correlation key, never an authentication credential. It is scoped to the member on the server.
   const request_id=pendingCheckout(owner) || (Date.now().toString(16)+Array.from({length:32},()=>Math.floor(Math.random()*16).toString(16)).join('')).slice(0,32);
-  const body={request_id,address_public_id:addressId,expected_address:normalizeAddress(address),...(fulfillmentDigest?{fulfillment_digest:fulfillmentDigest}:{}),lines:items.map(x=>({product_public_id:x.product_public_id,sku_code:x.sku_code,quantity:x.quantity,expected_points_price:x.points_price}))};
+  const body={request_id,pricing_context:currentPricingContext(),address_public_id:addressId,expected_address:normalizeAddress(address),...(fulfillmentDigest?{fulfillment_digest:fulfillmentDigest}:{}),lines:items.map(x=>({product_public_id:x.product_public_id,sku_code:x.sku_code,quantity:x.quantity,expected_points_price:x.points_price}))};
   wx.setStorageSync(pendingKey+':'+owner,{owner,request_id,lines:items.map(x=>({product_public_id:x.product_public_id,sku_code:x.sku_code,quantity:x.quantity}))}); // No recipient, address, token or order body on disk.
   memory={owner,body};
 }

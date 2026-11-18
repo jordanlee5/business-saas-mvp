@@ -106,6 +106,13 @@ class MiniprogramSessionTests(unittest.TestCase):
             reference_type="BUSINESS_RECORD", reference_id="BR-SESSION-001",
             now=now,
         )
+        from tools.virtual_member_access import virtual_batch_scope
+        from app.mall import qualification_service as q
+        virtual_batch_scope(self.db,batch,now=now)
+        admin=User(username='virtual-points-operator',password_hash='virtual-only',role='admin',admin_level='operator',is_active=True)
+        self.db.add(admin);self.db.flush()
+        q.confirm(self.db,actor_id=admin.id,batch_id=batch.id,business_ids=[business.id],
+            valid_from=now-timedelta(days=1),valid_until=now+timedelta(days=60),reason='虚拟机构名单确认',now=now)
         self.db.commit()
         return account, grant
 
@@ -219,7 +226,7 @@ class MiniprogramSessionTests(unittest.TestCase):
                     "Bearer " + self._login().token, self.db)
         self.assertEqual(response.headers["Cache-Control"], "no-store")
         self.assertEqual(summary.model_dump(), {
-            "available_points": "0.00", "reserved_points": "0.00",
+            "organization": None, "available_points": "0.00", "reserved_points": "0.00",
             "grant_count": 0, "nearest_expires_at": None,
         })
 
@@ -295,7 +302,7 @@ class MiniprogramSessionTests(unittest.TestCase):
         self.db.commit()
         result = self._grant_page(page=4, page_size=2)
         self.assertEqual(result.model_dump(), {
-            "items": [], "page": 4, "page_size": 2, "total": 0,
+            "organization": None, "items": [], "page": 4, "page_size": 2, "total": 0,
         })
 
     def test_grant_page_is_sorted_and_never_discloses_business_identity(self):
@@ -390,7 +397,7 @@ class MiniprogramSessionTests(unittest.TestCase):
         self.db.add(PointsAccount(member_id=self.member.id))
         self.db.commit()
         self.assertEqual(self._ledger_page(page=3, page_size=2).model_dump(), {
-            "items": [], "page": 3, "page_size": 2, "total": 0,
+            "organization": None, "items": [], "page": 3, "page_size": 2, "total": 0,
         })
 
     def test_ledger_page_stable_pagination_and_restricted_fields(self):

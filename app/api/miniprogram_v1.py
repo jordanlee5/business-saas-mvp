@@ -1,5 +1,7 @@
 """微信小程序 v1 API 路由骨架。"""
 
+from decimal import Decimal
+from ..mall import institution_scope as institutions
 import os
 from functools import wraps
 from typing import Literal
@@ -146,6 +148,7 @@ class CurrentMemberResponse(BaseModel):
 
 
 class MemberPointsSummaryResponse(BaseModel):
+    organization: dict[str, str] | None = None
     available_points: str
     reserved_points: str
     grant_count: int
@@ -162,6 +165,7 @@ class MemberPointsGrant(BaseModel):
 
 
 class MemberPointsGrantPage(BaseModel):
+    organization: dict[str, str] | None = None
     items: list[MemberPointsGrant]
     page: int
     page_size: int
@@ -178,6 +182,7 @@ class MemberPointsLedgerEntry(BaseModel):
 
 
 class MemberPointsLedgerPage(BaseModel):
+    organization: dict[str, str] | None = None
     items: list[MemberPointsLedgerEntry]
     page: int
     page_size: int
@@ -342,6 +347,11 @@ def get_member_points_summary(
 ):
     response.headers["Cache-Control"] = "no-store"
     member = _require_current_member(authorization, db)
+    from .catalog_access import utc8_now as access_now
+    try:
+        scope = institutions.resolve_points_view(db, member.id, now=access_now())
+    except institutions.ScopeError as exc:
+        raise HTTPException(403, str(exc)) from None
     with db.no_autoflush:
         account = db.query(PointsAccount.id).filter(
             PointsAccount.member_id == member.id,
@@ -357,6 +367,7 @@ def get_member_points_summary(
         now = utc8_now()
         grant_count = db.query(func.count(PointsGrant.id)).filter(
             PointsGrant.account_id == account.id,
+            institutions.grant_filter(scope.organization_id),
         ).scalar()
         active_expiry = [
             _to_utc8_wall_time(grant.expires_at, "积分到期时间")
@@ -364,6 +375,7 @@ def get_member_points_summary(
                 PointsGrant.expires_at,
             ).filter(
                 PointsGrant.account_id == account.id,
+            institutions.grant_filter(scope.organization_id),
                 PointsGrant.status == "ACTIVE",
                 PointsGrant.available_points > 0,
             ).all()
@@ -372,9 +384,12 @@ def get_member_points_summary(
             ) > now
         ]
         nearest = min(active_expiry) if active_expiry else None
+        group = next((row for row in institutions.partition_balances(db, member.id)
+            if row['organization_id'] == scope.organization_id), None)
         return MemberPointsSummaryResponse(
-            available_points=f"{audit.cached_available_points:.2f}",
-            reserved_points=f"{audit.cached_reserved_points:.2f}",
+            organization={'code':scope.code,'name':scope.name} if scope.organization_id else None,
+            available_points=f"{group['available_points'] if group else Decimal(0):.2f}",
+            reserved_points=f"{group['reserved_points'] if group else Decimal(0):.2f}",
             grant_count=grant_count,
             nearest_expires_at=(
                 format_utc8(nearest, "%Y-%m-%dT%H:%M:%S+08:00")
@@ -397,6 +412,11 @@ def get_member_points_grants(
 ):
     response.headers["Cache-Control"] = "no-store"
     member = _require_current_member(authorization, db)
+    from .catalog_access import utc8_now as access_now
+    try:
+        scope = institutions.resolve_points_view(db, member.id, now=access_now())
+    except institutions.ScopeError as exc:
+        raise HTTPException(403, str(exc)) from None
     with db.no_autoflush:
         account = db.query(PointsAccount.id).filter(
             PointsAccount.member_id == member.id,
@@ -411,12 +431,14 @@ def get_member_points_grants(
             raise HTTPException(status_code=503, detail="积分数据暂不可用")
         grants = db.query(PointsGrant).filter(
             PointsGrant.account_id == account.id,
+            institutions.grant_filter(scope.organization_id),
         )
         total = grants.count()
         rows = grants.order_by(
             PointsGrant.activated_at.desc(), PointsGrant.id.desc(),
         ).offset((page - 1) * page_size).limit(page_size).all()
         return MemberPointsGrantPage(
+            organization={'code':scope.code,'name':scope.name} if scope.organization_id else None,
             items=[MemberPointsGrant(
                 granted_points=f"{row.granted_points:.2f}",
                 available_points=f"{row.available_points:.2f}",
@@ -444,6 +466,11 @@ def get_member_points_ledger(
 ):
     response.headers["Cache-Control"] = "no-store"
     member = _require_current_member(authorization, db)
+    from .catalog_access import utc8_now as access_now
+    try:
+        scope = institutions.resolve_points_view(db, member.id, now=access_now())
+    except institutions.ScopeError as exc:
+        raise HTTPException(403, str(exc)) from None
     with db.no_autoflush:
         account = db.query(PointsAccount.id).filter(
             PointsAccount.member_id == member.id,
@@ -458,7 +485,7 @@ def get_member_points_ledger(
             raise HTTPException(status_code=503, detail="积分数据暂不可用")
         entries = db.query(PointsLedgerEntry).join(
             PointsGrant, PointsGrant.id == PointsLedgerEntry.grant_id,
-        ).filter(PointsGrant.account_id == account.id)
+        ).filter(PointsGrant.account_id == account.id, institutions.grant_filter(scope.organization_id))
         # Filter before counting/paging: internal settlement is not a second debit.
         # The default keeps the existing complete ledger contract compatible.
         if available_only:
@@ -468,6 +495,7 @@ def get_member_points_ledger(
             PointsLedgerEntry.created_at.desc(), PointsLedgerEntry.id.desc(),
         ).offset((page - 1) * page_size).limit(page_size).all()
         return MemberPointsLedgerPage(
+            organization={'code':scope.code,'name':scope.name} if scope.organization_id else None,
             items=[MemberPointsLedgerEntry(
                 entry_type=row.entry_type,
                 available_points_delta=f"{row.available_points_delta:.2f}",
@@ -494,6 +522,7 @@ class PublicProduct(BaseModel):
 
 
 class PublicProductPage(BaseModel):
+    pricing_context: str | None = None
     items: list[PublicProduct]
     page: int
     page_size: int
@@ -515,6 +544,7 @@ class PublicProductImage(BaseModel):
 
 
 class PublicProductDetail(PublicProduct):
+    pricing_context: str | None = None
     description: str | None
     images: list[PublicProductImage]
     skus: list[PublicProductSku]
@@ -535,8 +565,12 @@ def get_catalog_access(authorization: str | None = Header(None), db=Depends(publ
     rows = db.query(MemberQualification).filter_by(member_id=member.id).all()
     effective = [row for row in rows if row.enabled and row.valid_from <= now < row.valid_until]
     if effective:
+        try:
+            scope = institutions.resolve(db, member.id, now=catalog_access.utc8_now())
+        except institutions.ScopeError:
+            return {'status': 'unconfirmed', 'valid_for_seconds': 0}
         remaining = (max(row.valid_until for row in effective) - now).total_seconds()
-        return {'status': 'eligible', 'valid_for_seconds': min(900, remaining)}
+        return {'status': 'eligible', 'valid_for_seconds': min(900, remaining), 'pricing_context':scope.context, 'organization':{'code':scope.code,'name':scope.name}}
     enabled = [row for row in rows if row.enabled]
     status = ('pending' if any(row.valid_from > now for row in enabled) else
               'expired' if enabled else 'disabled' if rows else 'unconfirmed')
@@ -567,9 +601,14 @@ def get_public_products(
     db=Depends(public_catalog_session),
     authorization: str | None = Header(None),
 ):
-    require_catalog_member(authorization, db)
-    return list_public_products(db, category_slug=category, search_term=q,
-                                page=page, page_size=page_size)
+    member = require_catalog_member(authorization, db)
+    from .catalog_access import require_qualification
+    scope = require_qualification(db, member.id)
+    result = list_public_products(db, category_slug=category, search_term=q, page=page, page_size=page_size)
+    for item in result['items']:
+        item['min_points_price'] = str(institutions.unit_price(item['min_points_price'], scope))
+    result['pricing_context'] = scope.context
+    return result
 
 
 @catalog_router.get(
@@ -583,10 +622,16 @@ def get_public_product(
     db=Depends(public_catalog_session),
     authorization: str | None = Header(None),
 ):
-    require_catalog_member(authorization, db)
+    member = require_catalog_member(authorization, db)
+    from .catalog_access import require_qualification
+    scope = require_qualification(db, member.id)
     detail = get_public_product_detail(db, product_public_id=product_public_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="商品不存在")
+    for sku in detail['skus']:
+        sku['points_price'] = str(institutions.unit_price(sku['points_price'], scope))
+    detail['min_points_price'] = str(min(Decimal(sku['points_price']) for sku in detail['skus']))
+    detail['pricing_context'] = scope.context
     return detail
 
 

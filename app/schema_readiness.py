@@ -4,7 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-CURRENT_SCHEMA_REVISION = "0024_client_price_rules"
+CURRENT_SCHEMA_REVISION = "0025_institution_isolation"
 
 REQUIRED_MALL_CORE_TABLES = frozenset(
     {
@@ -40,7 +40,7 @@ REQUIRED_MALL_CORE_TABLES = frozenset(
 REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
     {
         "users", "company_banners", "client_organizations", "client_upload_scopes", "client_batch_ownerships",
-        "client_price_rules", "client_price_rule_events", "client_price_previews",
+        "client_price_rules", "client_price_rule_events", "client_price_previews", "institution_grants", "institution_orders",
         "backoffice_sessions", "admin_phone_bindings", "admin_phone_challenges", "admin_phone_limits",
         "upload_batches",
         "business_records",
@@ -55,6 +55,8 @@ REQUIRED_APPLICATION_TABLES = REQUIRED_MALL_CORE_TABLES | frozenset(
 )
 
 REQUIRED_MALL_CORE_COLUMNS = {
+    "institution_grants": frozenset({"grant_id", "organization_id", "organization_code", "organization_name", "created_at"}),
+    "institution_orders": frozenset({"order_id", "organization_id", "organization_code", "organization_name", "ratio_bps", "rule_organization_id", "rule_revision", "pricing_context", "created_at"}),
     "client_price_rules": frozenset({"organization_id", "ratio_bps", "revision", "updated_by_id", "effective_at"}),
     "client_price_rule_events": frozenset({"id", "organization_id", "revision", "old_ratio_bps", "ratio_bps", "actor_id", "effective_at"}),
     "client_price_previews": frozenset({"token_digest", "actor_id", "organization_id", "ratio_bps", "state_digest", "created_at", "expires_at", "applied_revision"}),

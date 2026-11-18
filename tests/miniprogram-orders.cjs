@@ -1,9 +1,11 @@
 const assert=require('node:assert/strict');const path=require('node:path');
+const nativeTimeout=global.setTimeout;global.setTimeout=(...args)=>{const timer=nativeTimeout(...args);timer.unref();return timer;};
 const root=path.resolve(process.argv[2]);let requests=[],storage=new Map(),definition,redirects=[],redirectFails=false;
 global.wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop',appId:'touristappid'}}),getSystemInfoSync:()=>({platform:'devtools'}),login:o=>o.success({code:'test'}),request:o=>requests.push(o),getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,structuredClone(v)),redirectTo:o=>{redirects.push(o.url);if(redirectFails)o.fail({});else o.success?.();},navigateTo:()=>{},reLaunch:()=>{}};
 global.Page=o=>definition=o;
 // This fixture isolates checkout/idempotency. Real qualification lifecycle has its own suite.
-require(path.join(root,'services/catalog-access.js')).checkCatalogAccess=async()=>'eligible';
+require(path.join(root,'services/catalog-access.js')).checkCatalogAccess=async()=>{catalogState.acceptPricingContext('a'.repeat(64),'VIRTUAL');catalogState.allowCatalog(Date.now()+600000);return 'eligible';};
+const catalogState=require(path.join(root,'services/catalog-state.js'));
 require(path.join(root,'services/privacy.js')).assertPrivacyAuthorized=async()=>{};
 const session=require(path.join(root,'services/member-session.js'));
 const service=require(path.join(root,'services/orders.js'));
@@ -15,7 +17,7 @@ const addr={recipient_name:'收件测试',phone:'13800000001',province:'测试�
 const id='ADDR-'+'a'.repeat(32);
 const line={product_public_id:'PRD-TEST',sku_code:'SKU-1',quantity:2,key:'PRD-TEST:SKU-1',product_name:'商品',sku_name:'规格',points_price:'40.00',line_points:'80.00',available:true,status:'有货'};
 const order={order_public_id:'ORD-ABCDEFGHJKLMNPQR',status:'CREATED',total_points:'80.00',total_quantity:2,created_at:'2026-10-28T12:00:00+08:00',address:addr,items:[{product_name:'商品',sku_name:'规格',quantity:2,unit_points_price:'40.00',line_points:'80.00'}],shipping_carrier:null,tracking_number:null};
-async function login(){const p=session.loginMember();await flush();reply(200,{token_type:'Bearer',token:'test.signature',expires_in:900});await flush();reply(200,{member_public_id:'MEM-1'});await p;}
+async function login(){const p=session.loginMember();await flush();reply(200,{token_type:'Bearer',token:'test.signature',expires_in:900});await flush();reply(200,{member_public_id:'MEM-1'});await p;catalogState.acceptPricingContext('a'.repeat(64),'VIRTUAL');catalogState.allowCatalog(Date.now()+600000);}
 function page(){return {...definition,data:structuredClone(definition.data),generation:0,setData(x){Object.assign(this.data,x);}};}
 cart.readCart=()=>storage.get('cart')||[];
 cart.loadCartDisplay=async()=>({items:[line],estimate:'80.00',hasUnavailable:false});

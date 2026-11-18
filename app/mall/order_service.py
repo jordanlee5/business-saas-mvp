@@ -229,6 +229,7 @@ def place_order_with_reservations(
         field_name="订单幂等键",
         maximum_length=128,
     )
+    from . import institution_scope as institutions
     operation_time = _current_time(db, now)
 
     existing = (
@@ -256,6 +257,8 @@ def place_order_with_reservations(
     )
     if member is None or member.is_active is not True:
         raise ValueError("会员不存在或已停用")
+
+    scope = institutions.resolve(db, member.id, now=operation_time, lock=True)
 
     account = (
         db.query(PointsAccount)
@@ -315,7 +318,7 @@ def place_order_with_reservations(
             or category.is_active is not True
         ):
             raise ValueError("订单包含不可兑换的商品 SKU")
-        unit_points = Decimal(sku.points_price)
+        unit_points = institutions.unit_price(sku.points_price, scope)
         unit_cost = Decimal(sku.cost_price)
         line_points = unit_points * line.quantity
         line_cost = unit_cost * line.quantity
@@ -323,8 +326,11 @@ def place_order_with_reservations(
         total_cost += line_cost
         total_quantity += line.quantity
         prepared_items.append(
-            (line, sku, product, supplier, line_points, line_cost)
+            (line, sku, product, supplier, unit_points, line_points, line_cost)
         )
+
+    if total_points > Decimal('9999999999.99') or total_cost > Decimal('9999999999999999.99') or total_quantity > 2147483647:
+        raise ValueError('订单金额或数量超出范围')
 
     order = Order(
         order_public_id=_generate_order_public_id(db),
@@ -340,7 +346,8 @@ def place_order_with_reservations(
     db.add(order)
     db.flush()
 
-    for line, sku, product, supplier, line_points, line_cost in prepared_items:
+    institutions.snapshot_order(db, order, scope)
+    for line, sku, product, supplier, unit_points, line_points, line_cost in prepared_items:
         db.add(OrderItem(
             order_id=order.id,
             product_id=product.id,
@@ -356,7 +363,7 @@ def place_order_with_reservations(
             product_image_path_snapshot=main_image_by_product_id.get(
                 product.id
             ),
-            unit_points_price=sku.points_price,
+            unit_points_price=unit_points,
             unit_cost_price=sku.cost_price,
             quantity=line.quantity,
             line_points=line_points,
@@ -384,6 +391,7 @@ def place_order_with_reservations(
         db.query(PointsGrant)
         .filter(
             PointsGrant.account_id == account.id,
+            institutions.grant_filter(scope.organization_id),
             PointsGrant.status == PointsGrantStatus.ACTIVE.value,
             PointsGrant.expires_at > operation_time,
             PointsGrant.available_points > ZERO,
@@ -444,6 +452,8 @@ def place_order_with_reservations(
     db.flush()
     assert_points_account_balance_consistent(db, account_id=account.id)
 
+    if institutions.resolve(db, member.id, now=_current_time(db, now), lock=True).context != scope.context:
+        raise ValueError('会员资格或价格规则已变化，请重新确认')
     result = _build_result(db, order, replayed=False)
     if result.inventory_movement_ids != tuple(inventory_movement_ids):
         raise RuntimeError("订单库存预占证据不完整")

@@ -39,7 +39,7 @@ export function guardCatalogPage(definition: any): any {
       if (this.__accessTimer) clearInterval(this.__accessTimer);
       this.__accessTimer = setInterval(async () => {
         if (!this.__visible || !this.data.catalogReady) return;
-        try { await checkCatalogAccess(); }
+        try { const state = await checkCatalogAccess(); if (this.__visible && state === 'eligible' && !this.data.catalogReady) await enter(this); }
         catch (_) { if (this.__visible) close(this, hasMemberSession() ? 'unavailable' : 'login'); }
       }, 30000);
       return enter(this);

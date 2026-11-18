@@ -25,6 +25,7 @@ def virtual_catalog_member(db, *, app_id="virtual-catalog-app", now=None):
         public_business_no="BR-"+label, name="虚拟会员", phone="13800000001", plate_number="沪A00001",
         points_amount=1, redemption_mode="MALL_REDEMPTION", claim_status="PENDING_ACTIVATION")
     db.add(business); db.flush()
+    virtual_batch_scope(db, batch, now=now)
     q.confirm(db, actor_id=actor.id, batch_id=batch.id, business_ids=[business.id],
               valid_from=now-timedelta(days=1), valid_until=now+timedelta(days=30), reason="虚拟名单确认", now=now)
     code = issue_one_time_activation_code(db, business_record=business, now=now)
@@ -43,8 +44,26 @@ def confirm_existing_virtual_member(db, *, member_id, actor_id, now):
     if grant is None:
         raise ValueError("虚拟会员缺少来源业务")
     business = db.get(m.BusinessRecord, grant.business_record_id)
+    virtual_batch_scope(db, db.get(m.UploadBatch, business.batch_id), now=now)
     q.confirm(db, actor_id=actor_id, batch_id=business.batch_id, business_ids=[business.id],
         valid_from=now-timedelta(days=1), valid_until=now+timedelta(days=30), reason="虚拟存量会员名单确认", now=now)
     row = db.query(m.MemberQualification).filter_by(business_record_id=business.id).one()
     assert row.member_id == member_id
     return row
+
+
+def virtual_batch_scope(db, batch, *, now=None, organization=None):
+    """Explicit synthetic ownership; never callable from production enrollment."""
+    now = now or utc8_now()
+    existing = db.get(m.ClientBatchOwnership, batch.id)
+    if existing: return db.get(m.ClientOrganization, existing.organization_id)
+    org = organization or m.ClientOrganization(code='VIRTUAL-'+uuid4().hex[:12], name='虚拟甲方分支',
+        region='虚拟地区', is_active=True, revision=1, updated_by_id=batch.user_id, created_at=now, updated_at=now)
+    db.add(org); db.flush()
+    db.add(m.ClientBatchOwnership(batch_id=batch.id, organization_id=org.id, organization_code=org.code,
+        organization_name=org.name, organization_region=org.region, uploaded_by_id=batch.user_id, created_at=now))
+    db.flush()
+    from app.mall.institution_scope import bind_grant
+    for grant in db.query(m.PointsGrant).join(m.BusinessRecord).filter(m.BusinessRecord.batch_id==batch.id):
+        bind_grant(db, grant, required=True)
+    return org

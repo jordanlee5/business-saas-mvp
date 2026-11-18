@@ -4,6 +4,7 @@ import { assertPrivacyAuthorized } from './privacy';
 
 export interface MemberIdentity { member_public_id: string }
 export interface MemberPointsSummary {
+  organization?: {code:string;name:string};
   available_points: string;
   reserved_points: string;
   grant_count: number;
@@ -30,6 +31,7 @@ export interface MemberPointsLedgerEntry {
   created_at: string;
 }
 export interface MemberPointsLedgerPage {
+  organization?: {code:string;name:string};
   items: MemberPointsLedgerEntry[];
   page: number;
   page_size: number;
@@ -173,7 +175,7 @@ export async function getSignedInMember(): Promise<MemberIdentity | null> {
 export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSummary | null> {
   const activeToken = currentToken();
   if (!activeToken) return null;
-  const current = generation;
+  const current = generation, pointsEpoch = catalogEpoch();
   let data: unknown;
   try {
     data = await request('/api/miniprogram/v1/points/summary', 'GET', activeToken);
@@ -181,7 +183,7 @@ export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSumma
     if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
     throw error;
   }
-  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  if (current !== generation || pointsEpoch !== catalogEpoch() || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
   if (!isRecord(data) || !isPoints(data.available_points) || !isPoints(data.reserved_points) ||
       typeof data.grant_count !== 'number' || !Number.isSafeInteger(data.grant_count) ||
       data.grant_count < 0 ||
@@ -189,6 +191,7 @@ export async function getCurrentMemberPointsSummary(): Promise<MemberPointsSumma
     throw new MemberSessionError('积分数据暂不可用');
   }
   return {
+    organization: data.organization as {code:string;name:string} | undefined,
     available_points: data.available_points,
     reserved_points: data.reserved_points,
     grant_count: data.grant_count,
@@ -203,7 +206,7 @@ export async function getCurrentMemberPointsGrants(page: number): Promise<Member
   }
   const activeToken = currentToken();
   if (!activeToken) return null;
-  const current = generation;
+  const current = generation, pointsEpoch = catalogEpoch();
   let data: unknown;
   try {
     data = await request(`/api/miniprogram/v1/points/grants?page=${page}&page_size=20`, 'GET', activeToken);
@@ -211,7 +214,7 @@ export async function getCurrentMemberPointsGrants(page: number): Promise<Member
     if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
     throw error;
   }
-  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  if (current !== generation || pointsEpoch !== catalogEpoch() || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
   if (!isRecord(data) || !Array.isArray(data.items) || data.items.length > 20 ||
       data.page !== page || data.page_size !== 20 ||
       !Number.isSafeInteger(data.total) || (data.total as number) < 0 ||
@@ -234,7 +237,7 @@ export async function getCurrentMemberPointsLedger(page: number, availableOnly =
   }
   const activeToken = currentToken();
   if (!activeToken) return null;
-  const current = generation;
+  const current = generation, pointsEpoch = catalogEpoch();
   let data: unknown;
   try {
     data = await request(`/api/miniprogram/v1/points/ledger?page=${page}&page_size=20${availableOnly ? "&available_only=true" : ""}`, 'GET', activeToken);
@@ -242,7 +245,7 @@ export async function getCurrentMemberPointsLedger(page: number, availableOnly =
     if (current === generation && error instanceof MemberSessionError && error.status === 401) clearMemberSession();
     throw error;
   }
-  if (current !== generation || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
+  if (current !== generation || pointsEpoch !== catalogEpoch() || !currentToken()) throw new MemberSessionError('会员会话已失效，请重新登录', 401);
   if (!isRecord(data) || !Array.isArray(data.items) || data.items.length > 20 ||
       data.page !== page || data.page_size !== 20 ||
       !Number.isSafeInteger(data.total) || (data.total as number) < 0 ||

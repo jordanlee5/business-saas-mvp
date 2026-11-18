@@ -108,7 +108,8 @@ def inspect_unfulfilled_order_state(db, *, order_public_id) -> UnfulfilledOrderP
             .order_by(OrderPointsGrantAllocation.points_grant_id.asc()).all()
         )
         _validate_order_totals(order, items, allocations)
-
+        from .institution_scope import assert_order_allocations
+        assert_order_allocations(db, order, allocations)
         account = db.query(PointsAccount).filter(
             PointsAccount.member_id == order.member_id
         ).one_or_none()
@@ -208,7 +209,8 @@ def inspect_in_progress_order_state(db, *, order_public_id) -> InProgressOrderPr
             .order_by(OrderPointsGrantAllocation.points_grant_id.asc()).all()
         )
         _validate_order_totals(order, items, allocations)
-
+        from .institution_scope import assert_order_allocations
+        assert_order_allocations(db, order, allocations)
         account = db.query(PointsAccount).filter(
             PointsAccount.member_id == order.member_id
         ).one_or_none()
@@ -308,7 +310,8 @@ def inspect_refunded_order_state(db, *, order_public_id) -> RefundedOrderPreflig
             .order_by(OrderPointsGrantAllocation.points_grant_id.asc()).all()
         )
         _validate_order_totals(order, items, allocations)
-
+        from .institution_scope import assert_order_allocations
+        assert_order_allocations(db, order, allocations)
         account = db.query(PointsAccount).filter(
             PointsAccount.member_id == order.member_id
         ).one_or_none()

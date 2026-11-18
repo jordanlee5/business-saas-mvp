@@ -868,6 +868,8 @@ def create_product_sku(
         action_type=MallAuditActionType.SKU_CREATE,
         permission_message=CATALOG_PERMISSION_MESSAGE,
     )
+    from .client_pricing import lock_catalog_pricing, validate_catalog_price
+    lock_catalog_pricing(db)
     product = _lock_entity(db, Product, product_id, field_name="商品编号")
     supplier = _require_active_supplier(db, supplier_id)
     normalized_code = _normalize_code(
@@ -923,6 +925,7 @@ def create_product_sku(
         created_at=operation_time,
         updated_at=operation_time,
     )
+    validate_catalog_price(db, sku.points_price)
     db.add(sku)
     db.flush()
     action_log = _record_audit(
@@ -973,6 +976,8 @@ def update_product_sku(
         action_type=MallAuditActionType.SKU_UPDATE,
         permission_message=CATALOG_PERMISSION_MESSAGE,
     )
+    from .client_pricing import lock_catalog_pricing, validate_catalog_price
+    lock_catalog_pricing(db)
     sku = _lock_entity(db, ProductSku, sku_id, field_name="SKU 编号")
     product = _lock_entity(db, Product, sku.product_id, field_name="商品编号")
     new_supplier_id = sku.supplier_id
@@ -1053,6 +1058,7 @@ def update_product_sku(
         ).count()
         if other_active_count == 0:
             raise ValueError("已上架商品不能停用最后一个启用 SKU")
+    validate_catalog_price(db, values["points_price"])
     changed_fields = []
     for field_name, value in values.items():
         _set_if_changed(sku, field_name, value, changed_fields)

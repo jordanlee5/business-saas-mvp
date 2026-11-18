@@ -14,7 +14,7 @@
 <div class="ui-card">
 <h1>客户价格规则</h1>
 <p>总公司设置默认比例，分支可单独覆盖。先预览影响，再确认保存；保存成功立即生效。</p>
-<p class="notice">当前已开放后台规则管理；小程序实际售价与积分账户将在完整联验后统一接入。此处保存不会改写商品基准售价、成本或历史订单。</p>
+<p class="notice">会员按已核实的机构资格查看专属售价，积分按机构分别使用。保存成功后，新的查询和兑换立即采用新比例；已成交订单保留原价，退款退回原机构批次。商品基准售价和成本保持不变。</p>
 {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
 {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
 <h2>配置比例</h2>

@@ -1,4 +1,4 @@
-"""Backoffice-only pricing configuration. Not connected to member prices yet."""
+"""Versioned backoffice pricing rules; member checkout resolves these rules per institution."""
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import hashlib
@@ -13,6 +13,7 @@ from . import client_organizations as organizations
 MIN_RATIO_BPS = 100  # 1% of base price; one basis point is 0.01%.
 MAX_RATIO_BPS = 30000
 BASE_RATIO_BPS = 10000
+MAX_MEMBER_PRICE = Decimal('9999999999.99')
 MAX_PRICE = Decimal('9999999999999999.99')  # Existing Numeric(18, 2).
 PREVIEW_LIFETIME = timedelta(minutes=10)
 
@@ -21,6 +22,30 @@ def rule_now():
     # Legacy helper returns a naive UTC+8 time; persist explicit timezone here.
     value = utc8_now()
     return value.replace(tzinfo=UTC8_TIMEZONE) if value.tzinfo is None else value
+
+
+def lock_catalog_pricing(db):
+    """Serialize rule and SKU writes, including insertion into an empty catalogue."""
+    from sqlalchemy import text
+    if db.bind.dialect.name == 'postgresql':
+        db.execute(text('SELECT pg_advisory_xact_lock(:key)'), {'key': 202611180025})
+    elif db.bind.dialect.name == 'sqlite':
+        connection = db.connection()
+        if not connection.connection.driver_connection.in_transaction:
+            connection.execute(text('BEGIN IMMEDIATE'))
+
+
+def price_for_member(base, ratio):
+    value = price_for_ratio(base, ratio)
+    if value > MAX_MEMBER_PRICE:
+        raise ValueError('调整后的积分价超出小程序金额范围，请调整比例或商品基准价')
+    return value
+
+
+def validate_catalog_price(db, base):
+    ratios = {BASE_RATIO_BPS} | {r.ratio_bps for r in db.query(m.ClientPriceRule).all() if r.ratio_bps is not None}
+    for ratio in ratios:
+        price_for_member(base, ratio)
 
 
 def parse_ratio(mode, percent):
@@ -121,7 +146,7 @@ def _view(state, ratio):
     rows = []
     for sku in skus:
         # Validate every SKU, not just the displayed sample. Cost is never written.
-        after = price_for_ratio(sku.points_price, after_ratio)
+        after = price_for_member(sku.points_price, after_ratio)
         if len(rows) < 20:
             try:
                 before = str(price_for_ratio(sku.points_price, before_ratio))
@@ -139,6 +164,7 @@ def _view(state, ratio):
 
 def prepare(db, actor_id, organization_id, mode, percent):
     organizations.require_manager(db, actor_id)
+    lock_catalog_pricing(db)
     ratio = parse_ratio(mode, percent)
     view = _view(_state(db, organization_id, lock=True), ratio)
     now = rule_now()
@@ -152,6 +178,7 @@ def prepare(db, actor_id, organization_id, mode, percent):
 
 def save(db, actor_id, preview_token):
     organizations.require_manager(db, actor_id)
+    lock_catalog_pricing(db)
     if not isinstance(preview_token, str) or len(preview_token) != 43:
         raise ValueError('请先重新预览，再确认保存')
     preview = db.query(m.ClientPricePreview).filter_by(

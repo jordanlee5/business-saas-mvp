@@ -64,6 +64,8 @@ class MemberActivationServiceTests(unittest.TestCase):
         )
         self.db.add(self.batch)
         self.db.flush()
+        from tools.virtual_member_access import virtual_batch_scope
+        virtual_batch_scope(self.db, self.batch, now=NOW)
         self.business = self.add_business(
             "BR-MALL-ACTIVATION-1",
             "138 0000 0001",

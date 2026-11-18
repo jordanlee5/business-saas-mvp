@@ -25,6 +25,7 @@
   {% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
   <dl class="facts">
     <div><dt>订单编号</dt><dd>{{ detail.order.order_public_id }}</dd></div>
+    <div><dt>订单归属机构</dt><dd>{{ detail.order.organization_name }}{% if detail.order.organization_code %}（{{ detail.order.organization_code }}）{% endif %}</dd></div>
     <div><dt>会员编号</dt><dd>{{ detail.order.member_public_id }}</dd></div>
     <div><dt>状态</dt><dd>{{ detail.order.status_label }}</dd></div>
     <div><dt>积分 / 数量</dt><dd>{{ '%.2f' | format(detail.order.total_points) }} / {{ detail.order.total_quantity }}</dd></div>

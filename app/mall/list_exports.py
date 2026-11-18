@@ -36,12 +36,12 @@ def build_list_export(db, *, actor_id, kind, keyword="", status="ALL"):
             PRODUCT_STATUS_LABELS.get(x.status, x.status), ("启用" if x.is_active else "停用") if x.sku_id else "待建 SKU"]
     elif kind == "orders":
         fetch = lambda page: list_mall_orders(db, keyword=keyword, status=status, page=page, page_size=100)
-        headers = ["订单编号", "会员编号", "状态", "积分合计", "商品成本（元）", "数量", "创建时间（北京时间）"]
+        headers = ["订单编号", "会员编号", "状态", "积分合计", "商品成本（元）", "数量", "创建时间（北京时间）", "机构代码", "机构名称"]
         values = lambda x: [x.order_public_id, x.member_public_id, x.status_label, x.total_points,
-                             x.total_cost_amount, x.total_quantity, x.created_at]
+                             x.total_cost_amount, x.total_quantity, x.created_at, x.organization_code, x.organization_name]
     else:
         fetch = lambda page: list_member_points(db, keyword=keyword, member_status=status, page=page, page_size=50, now=when)
-        headers = ["会员公开编号", "状态", "可用积分", "预占积分", "积分批次", "流水", "最近到期（北京时间）", "账本一致性"]
+        headers = ["会员公开编号", "状态", "账面可用合计（不可合并兑换）", "预占积分", "积分批次", "流水", "最近到期（北京时间）", "账本一致性"]
         values = lambda x: [x.member_public_id, "启用" if x.is_active else "停用", x.available_points,
             x.reserved_points, x.grant_count, x.ledger_count, x.nearest_expires_at, "一致" if x.is_consistent else "异常"]
     first = fetch(1)
